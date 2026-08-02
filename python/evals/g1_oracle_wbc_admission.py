@@ -437,6 +437,9 @@ def run_oracle(
     realization_reference_acceleration: np.ndarray | None = None,
     contact_force_basis_out: np.ndarray | None = None,
     realization_reference_contact_force_basis: np.ndarray | None = None,
+    root_quaternions_wxyz: np.ndarray | None = None,
+    root_angular_velocities_world: np.ndarray | None = None,
+    root_angular_accelerations_world: np.ndarray | None = None,
 ) -> None:
     session.run_oracle_trace(
         root_positions,
@@ -487,6 +490,9 @@ def run_oracle(
         realization_reference_acceleration,
         contact_force_basis_out,
         realization_reference_contact_force_basis,
+        root_quaternions_wxyz=root_quaternions_wxyz,
+        root_angular_velocities_world=root_angular_velocities_world,
+        root_angular_accelerations_world=root_angular_accelerations_world,
     )
 
 
