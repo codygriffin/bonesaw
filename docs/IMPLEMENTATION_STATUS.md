@@ -338,7 +338,25 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current evaluation checkpoint — r260 consolidates WBC behavior evidence
+## Current CPU checkpoint — r261 finds a useful source profile but rejects transfer
+
+R261 replaces independent terminal-state coordinate boxes with 3–12 complete
+residual exemplars per causal state group. A new Rust/PyO3 boundary keeps each
+baseline/candidate pair correlated, retains candidate-dependent clearance and
+vertical velocity, performs support-free propagation and exact consequence
+scoring, envelopes at most 16 hypotheses, and invokes the conservative selector
+without allocation. The Python evaluator takes zero policy steps, physics steps,
+or plant actions. Immutable R258 source component/aggregate coverage reaches
+100%/100%; five nonzero selections are all strictly nonregressing and improving,
+and the recorded p99 is 28.10 µs.
+
+The source-local candidate is not transferable. The unchanged spent R254
+rehearsal reaches 85.301% component and 80.208% aggregate coverage; two selected
+rows regress a component and one regresses aggregate score. The profile is not
+frozen for a new holdout and authority remains closed. The next construction
+must cover multiple spent law families while retaining useful nonzero actions.
+
+## Prior evaluation checkpoint — r260 consolidates WBC behavior evidence
 
 R260 adds one pinned Python manifest over the existing end-effector reach,
 bimanual priority conflict, CMU 37/01 walking retarget, measured-feedback

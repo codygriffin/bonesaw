@@ -160,6 +160,18 @@ and also selects zero throughout. This closes the data-retention and complete
 state-composition complaints, but not the physical transition gate; a causal
 nonzero construction or a certified within-step action profile is still needed.
 
+R261 supplies that source-local nonzero construction without policy, physics,
+or plant actions in the evaluator. Rust keeps 3–12 complete state residual
+exemplars correlated, including candidate-dependent clearance and vertical
+speed, then performs support-free propagation, consequence scoring, hypothesis
+enveloping, and conservative selection allocation-free at 28.10 µs p99. Source
+component/aggregate coverage is 100%/100%, and all five nonzero selections are
+strictly nonregressing and improving. Transfer is still rejected: the unchanged
+spent R254 rehearsal reaches only 85.301%/80.208% coverage, with two selected
+component regressions and one aggregate regression. No fresh holdout or
+authority follows; the next profile must cover multiple spent law families
+without destroying those useful selections.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -174,8 +186,8 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive a causal, useful nonzero paired profile from the retained terminal
-  state (or certify complete within-step action bounds), then require one
+- cover multiple spent law families with one causal, useful correlated paired
+  profile (or certify complete within-step action bounds), then require one
   untouched new-law/offset holdout before any authority;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.

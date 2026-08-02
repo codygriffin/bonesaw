@@ -2435,6 +2435,19 @@ tube width/profile is not frozen and authority stays closed. See the [r256
 paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
 and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
+R261 moves the complete paired consequence mechanism into Rust without taking a
+policy step, physics step, or plant action. Instead of independently combining
+every residual coordinate, it retains 3–12 complete residual exemplars per
+causal group, pairs baseline and candidate by exemplar index, and keeps
+candidate-dependent clearance and vertical speed through support-free
+propagation. Source component/aggregate coverage is 100%/100%; five nonzero
+selections are all strictly nonregressing and improving, and the allocation-free
+query records 28.10 µs p99. The unchanged spent R254 rehearsal rejects transfer
+at 85.301%/80.208% coverage, with two selected component regressions and one
+aggregate regression. The source-local candidate is therefore not frozen for a
+new holdout and admits no authority. See the [r261 correlated complete-state
+exemplar profile](benchmarks/results/g1-correlated-state-exemplar-profile-r261/G1_CORRELATED_STATE_EXEMPLAR_PROFILE.md).
+
 R260 consolidates the behavior-level WBC evidence into one pinned Python
 manifest. It keeps end-effector reach, bimanual priority conflict, CMU 37/01
 walking retargeting, measured-feedback floating moving liftoff, the 600-tick

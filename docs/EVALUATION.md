@@ -938,6 +938,20 @@ Upkie canonical parity pass; fixed-base walking remains red at 5.549 cm foot
 RMS and full transfer remains red after contact-mode change. The red rows are
 kept as behavior gates rather than omitted or reset.
 
+### Revision r261 correlated complete-state exemplars
+
+`scripts/run-g1-correlated-state-exemplar-profile-r261.sh` consumes immutable
+R258 complete terminal states and the unchanged spent R254 diagnostics. It does
+not execute policy, physics, or a plant action. Python constructs 3–12 complete
+residual exemplars from the same causal group; Rust keeps baseline/candidate
+pairs correlated, retains clearance and vertical velocity, performs
+support-free propagation and exact consequence scoring, envelopes at most 16
+hypotheses, and conservatively selects without timed allocation. R258 source
+coverage is 100%/100% with five strictly safe improving selections at 28.10 µs
+p99. R254 rehearsal coverage is 85.301%/80.208%, with two selected component
+regressions and one aggregate regression, so the profile and authority remain
+closed.
+
 ### 4. Deterministic replay
 
 The same initial state, targets, tick bytes, program, and CPU backend are

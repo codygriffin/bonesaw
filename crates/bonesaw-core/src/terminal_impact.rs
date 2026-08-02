@@ -145,6 +145,25 @@ pub struct TerminalImpactPairedStateTube<'a> {
     pub candidate_actuator_effort_utilization: f64,
 }
 
+/// One correlated, complete terminal-state hypothesis for a baseline and a
+/// candidate after the causal contact transition and before support-free
+/// propagation.
+///
+/// Unlike a componentwise tube, an exemplar never combines coordinates from
+/// different residual observations. Clearance and vertical velocity are
+/// retained, so candidate-dependent ballistic consequence remains visible.
+#[derive(Clone, Copy, Debug)]
+pub struct TerminalImpactPairedStateExemplar<'a> {
+    pub available: bool,
+    pub baseline_state: TerminalImpactState<'a>,
+    pub candidate_state: TerminalImpactState<'a>,
+    /// A caller-owned all-zero vector used to invoke the ordinary point scorer
+    /// without allocating after the contact transition has completed.
+    pub support_free_joint_acceleration_rad_s2: &'a [f64],
+    pub baseline_actuator_effort_utilization: f64,
+    pub candidate_actuator_effort_utilization: f64,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct TerminalImpactCandidate<'a> {
     /// Whether the ordinary dynamics/resource path admitted this command.
@@ -1026,6 +1045,70 @@ pub fn score_terminal_impact_state_box_upper(
         admission_pressure,
         maximum_terminal_harm_pressure,
         aggregate_score,
+    })
+}
+
+/// Score one complete paired terminal-state exemplar exactly.
+///
+/// Both states begin after the caller's causal contact transition. The normal
+/// point scorer owns the remaining support-free propagation, including each
+/// state's clearance and vertical velocity. Subtraction is safe here because
+/// the two scores refer to one explicitly paired hypothesis rather than two
+/// independent envelopes. The result contains no policy or authority.
+pub fn score_terminal_impact_paired_state_exemplar_delta(
+    exemplar: TerminalImpactPairedStateExemplar<'_>,
+    config: TerminalImpactConfig,
+) -> Result<TerminalImpactComponentDeltaBox, TerminalImpactError> {
+    let joints = exemplar.baseline_state.joint_position_rad.len();
+    if exemplar.candidate_state.joint_position_rad.len() != joints
+        || exemplar.support_free_joint_acceleration_rad_s2.len() != joints
+        || exemplar
+            .support_free_joint_acceleration_rad_s2
+            .iter()
+            .any(|value| *value != 0.0)
+        || !exemplar.baseline_actuator_effort_utilization.is_finite()
+        || exemplar.baseline_actuator_effort_utilization < 0.0
+        || !exemplar.candidate_actuator_effort_utilization.is_finite()
+        || exemplar.candidate_actuator_effort_utilization < 0.0
+    {
+        return Err(TerminalImpactError::InvalidCandidate);
+    }
+    let baseline = score_terminal_impact(
+        exemplar.baseline_state,
+        TerminalImpactCandidate {
+            available: true,
+            root_angular_acceleration_rad_s2: [0.0; 2],
+            joint_acceleration_rad_s2: exemplar.support_free_joint_acceleration_rad_s2,
+            maximum_actuator_effort_utilization: exemplar.baseline_actuator_effort_utilization,
+        },
+        config,
+    )?;
+    let candidate = score_terminal_impact(
+        exemplar.candidate_state,
+        TerminalImpactCandidate {
+            available: exemplar.available,
+            root_angular_acceleration_rad_s2: [0.0; 2],
+            joint_acceleration_rad_s2: exemplar.support_free_joint_acceleration_rad_s2,
+            maximum_actuator_effort_utilization: exemplar.candidate_actuator_effort_utilization,
+        },
+        config,
+    )?;
+    let component = [
+        candidate.tilt_pressure - baseline.tilt_pressure,
+        candidate.angular_rate_pressure - baseline.angular_rate_pressure,
+        candidate.joint_position_pressure - baseline.joint_position_pressure,
+        candidate.joint_velocity_pressure - baseline.joint_velocity_pressure,
+        candidate.actuator_effort_pressure - baseline.actuator_effort_pressure,
+        baseline.minimum_terminal_joint_headroom_fraction
+            - candidate.minimum_terminal_joint_headroom_fraction,
+    ];
+    let aggregate = candidate.aggregate_score - baseline.aggregate_score;
+    Ok(TerminalImpactComponentDeltaBox {
+        available: exemplar.available,
+        component_lower: component,
+        component_upper: component,
+        aggregate_lower: aggregate,
+        aggregate_upper: aggregate,
     })
 }
 
@@ -2060,6 +2143,95 @@ mod tests {
                 TerminalImpactConfig::default(),
             ),
             Err(TerminalImpactError::InvalidState)
+        );
+    }
+
+    #[test]
+    fn paired_state_exemplar_preserves_complete_ballistic_pair() {
+        let lower = [-1.0, -1.0];
+        let upper = [1.0, 1.0];
+        let velocity_limit = [4.0, 4.0];
+        let baseline_q = [0.1, -0.2];
+        let candidate_q = [0.08, -0.18];
+        let baseline_v = [0.5, -0.4];
+        let candidate_v = [0.4, -0.3];
+        let zero = [0.0, 0.0];
+        let baseline_state = TerminalImpactState {
+            root_clearance_m: 0.4,
+            root_vertical_velocity_m_s: -0.3,
+            root_tilt_rad: [0.12, -0.08],
+            root_angular_rate_rad_s: [0.3, -0.2],
+            joint_position_rad: &baseline_q,
+            joint_velocity_rad_s: &baseline_v,
+            joint_position_lower_rad: &lower,
+            joint_position_upper_rad: &upper,
+            joint_velocity_limit_rad_s: &velocity_limit,
+        };
+        let candidate_state = TerminalImpactState {
+            root_clearance_m: 0.36,
+            root_vertical_velocity_m_s: -0.45,
+            root_tilt_rad: [0.09, -0.06],
+            root_angular_rate_rad_s: [0.2, -0.1],
+            joint_position_rad: &candidate_q,
+            joint_velocity_rad_s: &candidate_v,
+            joint_position_lower_rad: &lower,
+            joint_position_upper_rad: &upper,
+            joint_velocity_limit_rad_s: &velocity_limit,
+        };
+        let config = TerminalImpactConfig::default();
+        let baseline = score_terminal_impact(
+            baseline_state,
+            TerminalImpactCandidate {
+                available: true,
+                root_angular_acceleration_rad_s2: [0.0; 2],
+                joint_acceleration_rad_s2: &zero,
+                maximum_actuator_effort_utilization: 0.4,
+            },
+            config,
+        )
+        .unwrap();
+        let candidate = score_terminal_impact(
+            candidate_state,
+            TerminalImpactCandidate {
+                available: true,
+                root_angular_acceleration_rad_s2: [0.0; 2],
+                joint_acceleration_rad_s2: &zero,
+                maximum_actuator_effort_utilization: 0.3,
+            },
+            config,
+        )
+        .unwrap();
+        let delta = score_terminal_impact_paired_state_exemplar_delta(
+            TerminalImpactPairedStateExemplar {
+                available: true,
+                baseline_state,
+                candidate_state,
+                support_free_joint_acceleration_rad_s2: &zero,
+                baseline_actuator_effort_utilization: 0.4,
+                candidate_actuator_effort_utilization: 0.3,
+            },
+            config,
+        )
+        .unwrap();
+        let expected = [
+            candidate.tilt_pressure - baseline.tilt_pressure,
+            candidate.angular_rate_pressure - baseline.angular_rate_pressure,
+            candidate.joint_position_pressure - baseline.joint_position_pressure,
+            candidate.joint_velocity_pressure - baseline.joint_velocity_pressure,
+            candidate.actuator_effort_pressure - baseline.actuator_effort_pressure,
+            baseline.minimum_terminal_joint_headroom_fraction
+                - candidate.minimum_terminal_joint_headroom_fraction,
+        ];
+        assert_eq!(delta.component_lower, expected);
+        assert_eq!(delta.component_upper, expected);
+        assert_eq!(
+            delta.aggregate_lower,
+            candidate.aggregate_score - baseline.aggregate_score
+        );
+        assert_eq!(delta.aggregate_upper, delta.aggregate_lower);
+        assert_ne!(
+            candidate.impact_speed_pressure, baseline.impact_speed_pressure,
+            "candidate-dependent ballistic state must not be discarded"
         );
     }
 

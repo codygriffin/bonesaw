@@ -48,8 +48,9 @@ use bonesaw_core::{
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
-    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateTube, TerminalImpactScore,
-    TerminalImpactState, TerminalImpactStateBox, TerminalImpactVelocityBoxState, TimingSpec,
+    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateExemplar,
+    TerminalImpactPairedStateTube, TerminalImpactScore, TerminalImpactState,
+    TerminalImpactStateBox, TerminalImpactVelocityBoxState, TimingSpec,
     TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput, Transform3,
     VIABILITY_EXECUTION_COMPONENTS, VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds,
     ViabilityConfirmationConfig, ViabilityConfirmationState, ViabilityExecutionMonitorConfig,
@@ -63,8 +64,9 @@ use bonesaw_core::{
     joint_acceleration_interval, joint_velocity_envelope_acceleration,
     maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
     predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
-    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
-    score_viability_forecast, select_conservative_terminal_impact_candidate,
+    score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
+    score_terminal_impact_velocity_box_upper, score_viability_forecast,
+    select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
     solve_coupled_positive_reference_compliant_contact_impulse,
@@ -2091,6 +2093,210 @@ impl ContactTransitionModelSession {
             .zip(hypothesis_output.chunks_exact_mut(DIAGNOSTICS))
         {
             write_box(value, output);
+        }
+        for (value, output) in envelopes
+            .into_iter()
+            .zip(envelope_output.chunks_exact_mut(DIAGNOSTICS))
+        {
+            write_box(value, output);
+        }
+        selection_output.copy_from_slice(&[
+            selection.selected_index as f64,
+            selection.baseline_index as f64,
+            selection.maximum_component_delta_upper,
+            selection.maximum_guaranteed_component_improvement,
+            selection.aggregate_delta_lower,
+            selection.aggregate_delta_upper,
+        ]);
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Score exactly three candidates across 1..=16 correlated complete-state
+    /// exemplars. Each hypothesis index pairs its baseline and candidate before
+    /// scoring; clearance and vertical velocity remain candidate-dependent.
+    /// The query only emits consequence boxes and a conservative selection.
+    #[allow(clippy::too_many_arguments)]
+    fn score_terminal_impact_paired_state_exemplars(
+        &self,
+        terminal_root_state: PyReadonlyArray3<'_, f64>,
+        terminal_joint_position: PyReadonlyArray3<'_, f64>,
+        terminal_joint_velocity: PyReadonlyArray3<'_, f64>,
+        joint_position_limit_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_limit_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        support_free_joint_acceleration: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray2<'_, u8>,
+        candidate_effort_utilization: PyReadonlyArray2<'_, f64>,
+        baseline_index: usize,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut hypothesis_diagnostics_out: PyReadwriteArray3<'_, f64>,
+        mut envelope_diagnostics_out: PyReadwriteArray2<'_, f64>,
+        mut selection_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        const MAX_HYPOTHESES: usize = 16;
+        const COMPONENTS: usize = TERMINAL_IMPACT_PAIRED_COMPONENTS;
+        const DIAGNOSTICS: usize = 2 * COMPONENTS + 2;
+        let root_shape = terminal_root_state.as_array().dim();
+        let position_shape = terminal_joint_position.as_array().dim();
+        let velocity_shape = terminal_joint_velocity.as_array().dim();
+        let available_shape = candidate_available.as_array().dim();
+        let effort_shape = candidate_effort_utilization.as_array().dim();
+        let hypothesis_output_shape = hypothesis_diagnostics_out.as_array().dim();
+        let envelope_output_shape = envelope_diagnostics_out.as_array().dim();
+        let hypotheses_per_candidate = root_shape.1;
+        let root = terminal_root_state.as_slice()?;
+        let position = terminal_joint_position.as_slice()?;
+        let velocity = terminal_joint_velocity.as_slice()?;
+        let position_limit_lower = joint_position_limit_lower.as_slice()?;
+        let position_limit_upper = joint_position_limit_upper.as_slice()?;
+        let velocity_limit = joint_velocity_limit.as_slice()?;
+        let zero_acceleration = support_free_joint_acceleration.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let effort = candidate_effort_utilization.as_slice()?;
+        let hypothesis_output = hypothesis_diagnostics_out.as_slice_mut()?;
+        let envelope_output = envelope_diagnostics_out.as_slice_mut()?;
+        let selection_output = selection_out.as_slice_mut()?;
+        let joints = position_limit_lower.len();
+        if hypotheses_per_candidate == 0
+            || hypotheses_per_candidate > MAX_HYPOTHESES
+            || root_shape != (CANDIDATES, hypotheses_per_candidate, 6)
+            || position_shape != (CANDIDATES, hypotheses_per_candidate, joints)
+            || velocity_shape != (CANDIDATES, hypotheses_per_candidate, joints)
+            || position_limit_upper.len() != joints
+            || velocity_limit.len() != joints
+            || zero_acceleration.len() != joints
+            || available_shape != (CANDIDATES, hypotheses_per_candidate)
+            || available.iter().any(|value| *value > 1)
+            || effort_shape != (CANDIDATES, hypotheses_per_candidate)
+            || baseline_index >= CANDIDATES
+            || hypothesis_output_shape != (CANDIDATES, hypotheses_per_candidate, DIAGNOSTICS)
+            || envelope_output_shape != (CANDIDATES, DIAGNOSTICS)
+            || selection_output.len() != 6
+        {
+            return Err(PyValueError::new_err(
+                "paired terminal-state exemplars expect root[3,H,6], joint position/velocity[3,H,J], limits and zero acceleration[J], availability/effort[3,H], hypothesis output[3,H,14], envelope output[3,14], selection[6], and 1<=H<=16",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let build = || -> Result<
+            (
+                [TerminalImpactComponentDeltaBox; CANDIDATES * MAX_HYPOTHESES],
+                [TerminalImpactComponentDeltaBox; CANDIDATES],
+                ConservativeTerminalImpactDeltaSelection,
+            ),
+            TerminalImpactError,
+        > {
+            let zero = TerminalImpactComponentDeltaBox {
+                available: false,
+                component_lower: [0.0; COMPONENTS],
+                component_upper: [0.0; COMPONENTS],
+                aggregate_lower: 0.0,
+                aggregate_upper: 0.0,
+            };
+            let mut hypotheses = [zero; CANDIDATES * MAX_HYPOTHESES];
+            let state_at = |candidate: usize, hypothesis: usize| {
+                let row = candidate * hypotheses_per_candidate + hypothesis;
+                let root_at = row * 6;
+                let joint_at = row * joints;
+                TerminalImpactState {
+                    root_clearance_m: root[root_at],
+                    root_vertical_velocity_m_s: root[root_at + 1],
+                    root_tilt_rad: [root[root_at + 2], root[root_at + 3]],
+                    root_angular_rate_rad_s: [root[root_at + 4], root[root_at + 5]],
+                    joint_position_rad: &position[joint_at..joint_at + joints],
+                    joint_velocity_rad_s: &velocity[joint_at..joint_at + joints],
+                    joint_position_lower_rad: position_limit_lower,
+                    joint_position_upper_rad: position_limit_upper,
+                    joint_velocity_limit_rad_s: velocity_limit,
+                }
+            };
+            for candidate in 0..CANDIDATES {
+                for hypothesis in 0..hypotheses_per_candidate {
+                    let row = candidate * hypotheses_per_candidate + hypothesis;
+                    let baseline_row = baseline_index * hypotheses_per_candidate + hypothesis;
+                    hypotheses[row] = score_terminal_impact_paired_state_exemplar_delta(
+                        TerminalImpactPairedStateExemplar {
+                            available: available[row] != 0,
+                            baseline_state: state_at(baseline_index, hypothesis),
+                            candidate_state: state_at(candidate, hypothesis),
+                            support_free_joint_acceleration_rad_s2: zero_acceleration,
+                            baseline_actuator_effort_utilization: effort[baseline_row],
+                            candidate_actuator_effort_utilization: effort[row],
+                        },
+                        config,
+                    )?;
+                }
+            }
+            let mut envelopes = [zero; CANDIDATES];
+            for candidate in 0..CANDIDATES {
+                let start = candidate * hypotheses_per_candidate;
+                let mut envelope = hypotheses[start];
+                for value in &hypotheses[start + 1..start + hypotheses_per_candidate] {
+                    envelope.available &= value.available;
+                    for component in 0..COMPONENTS {
+                        envelope.component_lower[component] =
+                            envelope.component_lower[component].min(value.component_lower[component]);
+                        envelope.component_upper[component] =
+                            envelope.component_upper[component].max(value.component_upper[component]);
+                    }
+                    envelope.aggregate_lower = envelope.aggregate_lower.min(value.aggregate_lower);
+                    envelope.aggregate_upper = envelope.aggregate_upper.max(value.aggregate_upper);
+                }
+                envelopes[candidate] = envelope;
+            }
+            let selection = select_conservative_terminal_impact_delta_candidate(
+                &envelopes,
+                baseline_index,
+                maximum_component_regression,
+                minimum_component_improvement,
+            )?;
+            Ok((hypotheses, envelopes, selection))
+        };
+
+        build().map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid paired terminal-state exemplars: {error:?}"
+            ))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        let (hypotheses, envelopes, selection) = build().map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid paired terminal-state exemplars: {error:?}"
+            ))
+        })?;
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "paired terminal-state exemplar query allocated inside the Rust hot path",
+            ));
+        }
+        let write_box = |value: TerminalImpactComponentDeltaBox, output: &mut [f64]| {
+            output[..COMPONENTS].copy_from_slice(&value.component_lower);
+            output[COMPONENTS..2 * COMPONENTS].copy_from_slice(&value.component_upper);
+            output[2 * COMPONENTS] = value.aggregate_lower;
+            output[2 * COMPONENTS + 1] = value.aggregate_upper;
+        };
+        for candidate in 0..CANDIDATES {
+            let start = candidate * hypotheses_per_candidate;
+            for (value, output) in hypotheses[start..start + hypotheses_per_candidate]
+                .iter()
+                .copied()
+                .zip(
+                    hypothesis_output[candidate * hypotheses_per_candidate * DIAGNOSTICS
+                        ..(candidate + 1) * hypotheses_per_candidate * DIAGNOSTICS]
+                        .chunks_exact_mut(DIAGNOSTICS),
+                )
+            {
+                write_box(value, output);
+            }
         }
         for (value, output) in envelopes
             .into_iter()

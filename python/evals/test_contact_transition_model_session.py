@@ -1012,6 +1012,104 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(unchanged_envelopes, 7.0)
         np.testing.assert_array_equal(unchanged_selection, 7.0)
 
+    def test_paired_terminal_state_exemplars_are_correlated_and_allocation_free(self) -> None:
+        joints = self.generic.joint_dof()
+        hypotheses = 2
+        root = np.zeros((3, hypotheses, 6), np.float64)
+        root[:, :, 0] = 0.20
+        root[1, :, 0] = 0.18
+        root[2, :, 0] = 0.12
+        root[2, :, 1] = -0.45
+        root[2, :, 2:4] = 0.12
+        position = np.zeros((3, hypotheses, joints), np.float64)
+        velocity = np.zeros_like(position)
+        position[2] = 0.05
+        velocity[2] = 0.3
+        lower = np.full(joints, -1.0, np.float64)
+        upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 4.0, np.float64)
+        zero_acceleration = np.zeros(joints, np.float64)
+        available = np.ones((3, hypotheses), np.uint8)
+        effort = np.full((3, hypotheses), 0.3, np.float64)
+        effort[2] = 0.7
+        hypotheses_out = np.full((3, hypotheses, 14), 7.0, np.float64)
+        envelopes_out = np.full((3, 14), 8.0, np.float64)
+        selection_out = np.full(6, 9.0, np.float64)
+        timing = self.generic.score_terminal_impact_paired_state_exemplars(
+            root,
+            position,
+            velocity,
+            lower,
+            upper,
+            velocity_limit,
+            zero_acceleration,
+            available,
+            effort,
+            0,
+            0.0,
+            0.0,
+            hypotheses_out,
+            envelopes_out,
+            selection_out,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(np.isfinite(hypotheses_out)))
+        self.assertTrue(np.all(np.isfinite(envelopes_out)))
+        np.testing.assert_array_equal(hypotheses_out[0], 0.0)
+        np.testing.assert_array_equal(envelopes_out[0], 0.0)
+        self.assertEqual(selection_out[1], 0.0)
+        repeated_hypotheses = np.empty_like(hypotheses_out)
+        repeated_envelopes = np.empty_like(envelopes_out)
+        repeated_selection = np.empty_like(selection_out)
+        repeated_timing = self.generic.score_terminal_impact_paired_state_exemplars(
+            root,
+            position,
+            velocity,
+            lower,
+            upper,
+            velocity_limit,
+            zero_acceleration,
+            available,
+            effort,
+            0,
+            0.0,
+            0.0,
+            repeated_hypotheses,
+            repeated_envelopes,
+            repeated_selection,
+        )
+        self.assertEqual(repeated_timing[1:], (0, 0))
+        np.testing.assert_array_equal(hypotheses_out, repeated_hypotheses)
+        np.testing.assert_array_equal(envelopes_out, repeated_envelopes)
+        np.testing.assert_array_equal(selection_out, repeated_selection)
+
+        invalid_hypotheses = np.full_like(hypotheses_out, 7.0)
+        invalid_envelopes = np.full_like(envelopes_out, 8.0)
+        invalid_selection = np.full_like(selection_out, 9.0)
+        invalid_acceleration = zero_acceleration.copy()
+        invalid_acceleration[0] = 1.0
+        with self.assertRaisesRegex(ValueError, "paired terminal-state exemplars"):
+            self.generic.score_terminal_impact_paired_state_exemplars(
+                root,
+                position,
+                velocity,
+                lower,
+                upper,
+                velocity_limit,
+                invalid_acceleration,
+                available,
+                effort,
+                0,
+                0.0,
+                0.0,
+                invalid_hypotheses,
+                invalid_envelopes,
+                invalid_selection,
+            )
+        np.testing.assert_array_equal(invalid_hypotheses, 7.0)
+        np.testing.assert_array_equal(invalid_envelopes, 8.0)
+        np.testing.assert_array_equal(invalid_selection, 9.0)
+
     def test_complete_terminal_state_box_bounds_points_and_is_atomic(self) -> None:
         joints = self.generic.joint_dof()
         rows = 2

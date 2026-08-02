@@ -193,11 +193,12 @@ pub use support_contingency::{
 pub use terminal_impact::{
     ConservativeTerminalImpactDeltaSelection, ConservativeTerminalImpactSelection,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
-    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateTube, TerminalImpactScore,
-    TerminalImpactState, TerminalImpactStateBox, TerminalImpactVelocityBoxState,
+    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateExemplar,
+    TerminalImpactPairedStateTube, TerminalImpactScore, TerminalImpactState,
+    TerminalImpactStateBox, TerminalImpactVelocityBoxState,
     bound_terminal_impact_paired_state_delta, score_terminal_impact,
-    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
-    select_conservative_terminal_impact_candidate,
+    score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
+    score_terminal_impact_velocity_box_upper, select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate,
     write_terminal_impact_hypothesis_envelopes,
 };
