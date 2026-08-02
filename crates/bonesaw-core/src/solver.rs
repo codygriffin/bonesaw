@@ -294,9 +294,26 @@ pub struct SolveDiagnostics {
     pub status: SolveStatus,
     pub level_residuals: Vec<LevelResidual>,
     pub minimum_bound_margin: f64,
+    /// Largest coordinate-bound violation in the terminal hard-feasibility
+    /// witness. Zero on a feasible solve; infinity means no valid witness was
+    /// available (for example, an invalid problem declaration).
+    pub maximum_bound_violation: f64,
+    /// Coordinate owning `maximum_bound_violation`. Ties are resolved by the
+    /// smallest coordinate so the witness remains deterministic.
+    pub limiting_bound_coordinate: Option<usize>,
+    /// True when the limiting coordinate exceeded its upper bound; false for
+    /// a lower-bound violation. Meaningful only with a limiting coordinate.
+    pub limiting_bound_is_upper: bool,
     pub clipped_levels: Vec<Priority>,
     pub rank_by_level: Vec<usize>,
     pub active_constraints: Vec<u32>,
+    /// Largest named linear-row violation in the terminal hard-feasibility
+    /// witness, separately from anonymous coordinate bounds.
+    pub maximum_linear_constraint_violation: f64,
+    /// Stable ID owning `maximum_linear_constraint_violation`.
+    pub limiting_linear_constraint: Option<u32>,
+    /// True when the limiting named row exceeded its upper bound.
+    pub limiting_linear_constraint_is_upper: bool,
     pub maximum_constraint_violation: f64,
     /// Number of task-level dense pseudoinverse evaluations this tick.
     pub task_pseudoinverse_calls: usize,
@@ -337,9 +354,15 @@ impl Clone for SolveDiagnostics {
             status: self.status,
             level_residuals: self.level_residuals.clone(),
             minimum_bound_margin: self.minimum_bound_margin,
+            maximum_bound_violation: self.maximum_bound_violation,
+            limiting_bound_coordinate: self.limiting_bound_coordinate,
+            limiting_bound_is_upper: self.limiting_bound_is_upper,
             clipped_levels: self.clipped_levels.clone(),
             rank_by_level: self.rank_by_level.clone(),
             active_constraints: self.active_constraints.clone(),
+            maximum_linear_constraint_violation: self.maximum_linear_constraint_violation,
+            limiting_linear_constraint: self.limiting_linear_constraint,
+            limiting_linear_constraint_is_upper: self.limiting_linear_constraint_is_upper,
             maximum_constraint_violation: self.maximum_constraint_violation,
             task_pseudoinverse_calls: self.task_pseudoinverse_calls,
             task_pseudoinverse_calls_by_level: self.task_pseudoinverse_calls_by_level,
@@ -362,10 +385,16 @@ impl Clone for SolveDiagnostics {
         self.status = source.status;
         self.level_residuals.clone_from(&source.level_residuals);
         self.minimum_bound_margin = source.minimum_bound_margin;
+        self.maximum_bound_violation = source.maximum_bound_violation;
+        self.limiting_bound_coordinate = source.limiting_bound_coordinate;
+        self.limiting_bound_is_upper = source.limiting_bound_is_upper;
         self.clipped_levels.clone_from(&source.clipped_levels);
         self.rank_by_level.clone_from(&source.rank_by_level);
         self.active_constraints
             .clone_from(&source.active_constraints);
+        self.maximum_linear_constraint_violation = source.maximum_linear_constraint_violation;
+        self.limiting_linear_constraint = source.limiting_linear_constraint;
+        self.limiting_linear_constraint_is_upper = source.limiting_linear_constraint_is_upper;
         self.maximum_constraint_violation = source.maximum_constraint_violation;
         self.task_pseudoinverse_calls = source.task_pseudoinverse_calls;
         self.task_pseudoinverse_calls_by_level = source.task_pseudoinverse_calls_by_level;
@@ -398,9 +427,15 @@ impl SolveResult {
                 status: SolveStatus::InvalidProblem,
                 level_residuals: Vec::with_capacity(Priority::ALL.len()),
                 minimum_bound_margin: f64::NEG_INFINITY,
+                maximum_bound_violation: f64::INFINITY,
+                limiting_bound_coordinate: None,
+                limiting_bound_is_upper: false,
                 clipped_levels: Vec::with_capacity(Priority::ALL.len()),
                 rank_by_level: Vec::with_capacity(Priority::ALL.len()),
                 active_constraints: Vec::with_capacity(maximum_constraints),
+                maximum_linear_constraint_violation: f64::INFINITY,
+                limiting_linear_constraint: None,
+                limiting_linear_constraint_is_upper: false,
                 maximum_constraint_violation: f64::INFINITY,
                 task_pseudoinverse_calls: 0,
                 task_pseudoinverse_calls_by_level: [0; Priority::ALL.len()],
@@ -1242,25 +1277,44 @@ impl HierarchicalSolver {
                         polished.pseudoinverse_calls;
                     result.diagnostics.feasibility_polish_jacobi_sweeps = polished.jacobi_sweeps;
                     if !polished.accepted {
-                        result.diagnostics.maximum_constraint_violation =
-                            maximum_bound_violation_slice(&workspace.solution, bounds).max(
-                                maximum_constraint_violation_flat(
-                                    &workspace.solution,
-                                    constraints,
-                                    &workspace.ordered_constraints,
-                                ),
-                            );
+                        record_hard_violation_witness(
+                            &mut result.diagnostics,
+                            &workspace.solution,
+                            bounds,
+                            constraints,
+                            &workspace.ordered_constraints,
+                        );
                         fail_into(result, SolveStatus::MaxIterations);
                         return;
                     }
                 }
                 FeasibilitySeed::StructurallyInfeasible(maximum_violation) => {
-                    result.diagnostics.maximum_constraint_violation = maximum_violation;
+                    record_hard_violation_witness(
+                        &mut result.diagnostics,
+                        &workspace.solution,
+                        bounds,
+                        constraints,
+                        &workspace.ordered_constraints,
+                    );
+                    result.diagnostics.maximum_constraint_violation = result
+                        .diagnostics
+                        .maximum_constraint_violation
+                        .max(maximum_violation);
                     fail_into(result, SolveStatus::PrimalInfeasible);
                     return;
                 }
                 FeasibilitySeed::Exhausted(maximum_violation) => {
-                    result.diagnostics.maximum_constraint_violation = maximum_violation;
+                    record_hard_violation_witness(
+                        &mut result.diagnostics,
+                        &workspace.solution,
+                        bounds,
+                        constraints,
+                        &workspace.ordered_constraints,
+                    );
+                    result.diagnostics.maximum_constraint_violation = result
+                        .diagnostics
+                        .maximum_constraint_violation
+                        .max(maximum_violation);
                     fail_into(result, SolveStatus::MaxIterations);
                     return;
                 }
@@ -1680,7 +1734,17 @@ impl HierarchicalSolver {
         };
         result.diagnostics.status = status;
         result.diagnostics.minimum_bound_margin = minimum_bound_margin;
-        result.diagnostics.maximum_constraint_violation = maximum_constraint_violation;
+        record_hard_violation_witness(
+            &mut result.diagnostics,
+            &workspace.solution,
+            bounds,
+            constraints,
+            &workspace.ordered_constraints,
+        );
+        debug_assert_eq!(
+            result.diagnostics.maximum_constraint_violation.to_bits(),
+            maximum_constraint_violation.to_bits()
+        );
     }
 }
 
@@ -1791,9 +1855,15 @@ fn prepare_result(result: &mut SolveResult, dof: usize) {
     result.diagnostics.status = SolveStatus::InvalidProblem;
     result.diagnostics.level_residuals.clear();
     result.diagnostics.minimum_bound_margin = f64::NEG_INFINITY;
+    result.diagnostics.maximum_bound_violation = f64::INFINITY;
+    result.diagnostics.limiting_bound_coordinate = None;
+    result.diagnostics.limiting_bound_is_upper = false;
     result.diagnostics.clipped_levels.clear();
     result.diagnostics.rank_by_level.clear();
     result.diagnostics.active_constraints.clear();
+    result.diagnostics.maximum_linear_constraint_violation = f64::INFINITY;
+    result.diagnostics.limiting_linear_constraint = None;
+    result.diagnostics.limiting_linear_constraint_is_upper = false;
     result.diagnostics.maximum_constraint_violation = f64::INFINITY;
     result.diagnostics.task_pseudoinverse_calls = 0;
     result.diagnostics.task_pseudoinverse_calls_by_level.fill(0);
@@ -4000,6 +4070,61 @@ fn maximum_bound_violation_slice(solution: &[f64], bounds: &VelocityBounds) -> f
     })
 }
 
+fn record_hard_violation_witness(
+    diagnostics: &mut SolveDiagnostics,
+    solution: &[f64],
+    bounds: &VelocityBounds,
+    constraints: &[LinearConstraint],
+    ordered_constraints: &[usize],
+) {
+    let mut maximum_bound_violation = 0.0_f64;
+    let mut limiting_bound_coordinate = None;
+    let mut limiting_bound_is_upper = false;
+    for index in 0..solution.len() {
+        let lower_violation = (bounds.lower[index] - solution[index]).max(0.0);
+        if lower_violation > maximum_bound_violation {
+            maximum_bound_violation = lower_violation;
+            limiting_bound_coordinate = Some(index);
+            limiting_bound_is_upper = false;
+        }
+        let upper_violation = (solution[index] - bounds.upper[index]).max(0.0);
+        if upper_violation > maximum_bound_violation {
+            maximum_bound_violation = upper_violation;
+            limiting_bound_coordinate = Some(index);
+            limiting_bound_is_upper = true;
+        }
+    }
+
+    let mut maximum_linear_constraint_violation = 0.0_f64;
+    let mut limiting_linear_constraint = None;
+    let mut limiting_linear_constraint_is_upper = false;
+    for constraint_index in ordered_constraints.iter().copied() {
+        let constraint = &constraints[constraint_index];
+        let value = row_dot_slice(&constraint.coefficients, solution);
+        let lower_violation = (constraint.lower - value).max(0.0);
+        if lower_violation > maximum_linear_constraint_violation {
+            maximum_linear_constraint_violation = lower_violation;
+            limiting_linear_constraint = Some(constraint.stable_id);
+            limiting_linear_constraint_is_upper = false;
+        }
+        let upper_violation = (value - constraint.upper).max(0.0);
+        if upper_violation > maximum_linear_constraint_violation {
+            maximum_linear_constraint_violation = upper_violation;
+            limiting_linear_constraint = Some(constraint.stable_id);
+            limiting_linear_constraint_is_upper = true;
+        }
+    }
+
+    diagnostics.maximum_bound_violation = maximum_bound_violation;
+    diagnostics.limiting_bound_coordinate = limiting_bound_coordinate;
+    diagnostics.limiting_bound_is_upper = limiting_bound_is_upper;
+    diagnostics.maximum_linear_constraint_violation = maximum_linear_constraint_violation;
+    diagnostics.limiting_linear_constraint = limiting_linear_constraint;
+    diagnostics.limiting_linear_constraint_is_upper = limiting_linear_constraint_is_upper;
+    diagnostics.maximum_constraint_violation =
+        maximum_bound_violation.max(maximum_linear_constraint_violation);
+}
+
 fn maximum_constraint_violation_flat(
     solution: &[f64],
     constraints: &[LinearConstraint],
@@ -5577,6 +5702,36 @@ mod tests {
         );
         assert_eq!(result.diagnostics.status, SolveStatus::MaxIterations);
         assert!(result.diagnostics.feasibility_projection_sweeps > 0);
+        assert_eq!(result.diagnostics.maximum_bound_violation, 0.0);
+        assert_eq!(result.diagnostics.limiting_bound_coordinate, None);
+        assert_eq!(result.diagnostics.limiting_linear_constraint, Some(1));
+        assert!(!result.diagnostics.limiting_linear_constraint_is_upper);
+        assert!(result.diagnostics.maximum_linear_constraint_violation > 0.0);
+    }
+
+    #[test]
+    fn exhausted_hard_witness_names_the_coordinate_bound_separately() {
+        let constraint = LinearConstraint {
+            stable_id: 41,
+            coefficients: RowDVector::from_row_slice(&[1.0]),
+            lower: 1.0,
+            upper: f64::INFINITY,
+        };
+        let result = HierarchicalSolver::default().solve_constrained(
+            1,
+            &[],
+            &VelocityBounds {
+                lower: DVector::from_vec(vec![f64::NEG_INFINITY]),
+                upper: DVector::from_vec(vec![0.0]),
+            },
+            &[constraint],
+        );
+        assert_eq!(result.diagnostics.status, SolveStatus::MaxIterations);
+        assert_eq!(result.diagnostics.limiting_bound_coordinate, Some(0));
+        assert!(result.diagnostics.limiting_bound_is_upper);
+        assert!(result.diagnostics.maximum_bound_violation > 0.0);
+        assert_eq!(result.diagnostics.maximum_linear_constraint_violation, 0.0);
+        assert_eq!(result.diagnostics.limiting_linear_constraint, None);
     }
 
     #[test]

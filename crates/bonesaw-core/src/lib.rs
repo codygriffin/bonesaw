@@ -126,8 +126,8 @@ pub use dynamic_wbc::{
     FloatingTaskResidual, FloatingTaskWeights, MeasuredContactPhase, SupportPatchSpec,
     balance_feedback_authority, contact_phase_authority, dcm_balance_acceleration,
     joint_acceleration_interval, joint_acceleration_interval_with_observation_error,
-    joint_position_capture_acceleration, joint_velocity_envelope_acceleration,
-    slew_contact_phase_authority,
+    joint_position_capture_acceleration, joint_position_capture_required_acceleration,
+    joint_velocity_envelope_acceleration, slew_contact_phase_authority,
 };
 pub use external_load::{
     DeclaredExternalWrench, ExternalLoadClass, ExternalLoadError, ExternalLoadFrame,

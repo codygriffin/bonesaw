@@ -63,12 +63,13 @@ use bonesaw_core::{
     WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
     bound_terminal_impact_paired_state_delta, capture_landing_retarget, contact_phase_authority,
     cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
-    joint_position_capture_acceleration, joint_velocity_envelope_acceleration,
-    maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
-    predict_viability_forecast_path, sample_quintic_scalar_jet, sample_quintic_vector_jet,
-    score_terminal_impact, score_terminal_impact_paired_state_exemplar_delta,
-    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
-    score_viability_forecast, select_conservative_terminal_impact_candidate,
+    joint_position_capture_acceleration, joint_position_capture_required_acceleration,
+    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
+    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
+    sample_quintic_scalar_jet, sample_quintic_vector_jet, score_terminal_impact,
+    score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
+    score_terminal_impact_velocity_box_upper, score_viability_forecast,
+    select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
     solve_coupled_positive_reference_compliant_contact_impulse,
@@ -381,6 +382,7 @@ struct FloatingWbcSession {
     joint_velocity_envelope_lower_body_only: bool,
     joint_velocity_envelope_hard: bool,
     joint_position_capture_weight: f64,
+    joint_position_capture_hard: bool,
     joint_position_capture_assumed_braking_acceleration: f64,
     joint_position_capture_reaction_time_seconds: f64,
     joint_position_capture_lower_body_only: bool,
@@ -13393,6 +13395,7 @@ impl FloatingWbcSession {
         joint_velocity_envelope_lower_body_only=false,
         joint_velocity_envelope_hard=false,
         joint_position_capture_weight=0.0,
+        joint_position_capture_hard=false,
         joint_position_capture_assumed_braking_acceleration=50.0,
         joint_position_capture_reaction_time_seconds=0.02,
         joint_position_capture_lower_body_only=true,
@@ -13471,6 +13474,7 @@ impl FloatingWbcSession {
         joint_velocity_envelope_lower_body_only: bool,
         joint_velocity_envelope_hard: bool,
         joint_position_capture_weight: f64,
+        joint_position_capture_hard: bool,
         joint_position_capture_assumed_braking_acceleration: f64,
         joint_position_capture_reaction_time_seconds: f64,
         joint_position_capture_lower_body_only: bool,
@@ -13915,6 +13919,7 @@ impl FloatingWbcSession {
             joint_velocity_envelope_lower_body_only,
             joint_velocity_envelope_hard,
             joint_position_capture_weight,
+            joint_position_capture_hard,
             joint_position_capture_assumed_braking_acceleration,
             joint_position_capture_reaction_time_seconds,
             joint_position_capture_lower_body_only,
@@ -15506,6 +15511,13 @@ impl FloatingWbcSession {
         mut feasibility_polish_iterations_out: PyReadwriteArray1<'_, u16>,
         mut feasibility_polish_pseudoinverse_calls_out: PyReadwriteArray1<'_, u16>,
         mut feasibility_polish_jacobi_sweeps_out: PyReadwriteArray1<'_, u16>,
+        mut pre_contingency_status_out: PyReadwriteArray1<'_, u8>,
+        mut pre_contingency_maximum_bound_violation_out: PyReadwriteArray1<'_, f64>,
+        mut pre_contingency_limiting_bound_coordinate_out: PyReadwriteArray1<'_, i16>,
+        mut pre_contingency_limiting_bound_is_upper_out: PyReadwriteArray1<'_, u8>,
+        mut pre_contingency_maximum_linear_violation_out: PyReadwriteArray1<'_, f64>,
+        mut pre_contingency_limiting_linear_constraint_out: PyReadwriteArray1<'_, u32>,
+        mut pre_contingency_limiting_linear_is_upper_out: PyReadwriteArray1<'_, u8>,
         mut center_of_mass_velocity_out: PyReadwriteArray2<'_, f64>,
         mut dcm_out: PyReadwriteArray2<'_, f64>,
         mut target_dcm_out: PyReadwriteArray2<'_, f64>,
@@ -15596,6 +15608,19 @@ impl FloatingWbcSession {
             feasibility_polish_pseudoinverse_calls_out.as_slice_mut()?;
         let feasibility_polish_jacobi_sweeps_out =
             feasibility_polish_jacobi_sweeps_out.as_slice_mut()?;
+        let pre_contingency_status_out = pre_contingency_status_out.as_slice_mut()?;
+        let pre_contingency_maximum_bound_violation_out =
+            pre_contingency_maximum_bound_violation_out.as_slice_mut()?;
+        let pre_contingency_limiting_bound_coordinate_out =
+            pre_contingency_limiting_bound_coordinate_out.as_slice_mut()?;
+        let pre_contingency_limiting_bound_is_upper_out =
+            pre_contingency_limiting_bound_is_upper_out.as_slice_mut()?;
+        let pre_contingency_maximum_linear_violation_out =
+            pre_contingency_maximum_linear_violation_out.as_slice_mut()?;
+        let pre_contingency_limiting_linear_constraint_out =
+            pre_contingency_limiting_linear_constraint_out.as_slice_mut()?;
+        let pre_contingency_limiting_linear_is_upper_out =
+            pre_contingency_limiting_linear_is_upper_out.as_slice_mut()?;
         let mut center_of_mass_velocity_out = center_of_mass_velocity_out.as_array_mut();
         let mut dcm_out = dcm_out.as_array_mut();
         let mut target_dcm_out = target_dcm_out.as_array_mut();
@@ -15693,6 +15718,13 @@ impl FloatingWbcSession {
             && feasibility_polish_iterations_out.len() == ticks
             && feasibility_polish_pseudoinverse_calls_out.len() == ticks
             && feasibility_polish_jacobi_sweeps_out.len() == ticks
+            && pre_contingency_status_out.len() == ticks
+            && pre_contingency_maximum_bound_violation_out.len() == ticks
+            && pre_contingency_limiting_bound_coordinate_out.len() == ticks
+            && pre_contingency_limiting_bound_is_upper_out.len() == ticks
+            && pre_contingency_maximum_linear_violation_out.len() == ticks
+            && pre_contingency_limiting_linear_constraint_out.len() == ticks
+            && pre_contingency_limiting_linear_is_upper_out.len() == ticks
             && center_of_mass_velocity_out.shape() == [ticks, 3]
             && dcm_out.shape() == [ticks, 3]
             && target_dcm_out.shape() == [ticks, 3]
@@ -16822,7 +16854,35 @@ impl FloatingWbcSession {
                     {
                         continue;
                     }
-                    let Some(acceleration) = joint_position_capture_acceleration(
+                    let required_acceleration = if self.joint_position_capture_hard {
+                        joint_position_capture_required_acceleration(
+                            self.state.robot.q[coordinate],
+                            self.state.robot.v[coordinate],
+                            self.joint_position_lower_limits[coordinate],
+                            self.joint_position_upper_limits[coordinate],
+                            self.joint_position_capture_reaction_time_seconds,
+                            self.maximum_acceleration,
+                        )
+                        .filter(|value| {
+                            value.abs() > self.joint_position_capture_assumed_braking_acceleration
+                        })
+                    } else {
+                        None
+                    };
+                    if let Some(required) = required_acceleration {
+                        joint_position_capture_active_coordinates += 1;
+                        let generalized_coordinate = 6 + coordinate;
+                        // This opt-in path is a true stopping-envelope bound:
+                        // it may make the box infeasible, in which case the
+                        // strict solver fails closed rather than silently
+                        // relaxing the request.
+                        intersect_directional_braking_bound(
+                            &mut self.acceleration_bounds.lower[generalized_coordinate],
+                            &mut self.acceleration_bounds.upper[generalized_coordinate],
+                            required,
+                        );
+                    }
+                    if let Some(acceleration) = joint_position_capture_acceleration(
                         self.state.robot.q[coordinate],
                         self.state.robot.v[coordinate],
                         self.joint_position_lower_limits[coordinate],
@@ -16830,11 +16890,12 @@ impl FloatingWbcSession {
                         self.joint_position_capture_assumed_braking_acceleration,
                         self.joint_position_capture_reaction_time_seconds,
                         self.maximum_acceleration,
-                    ) else {
-                        continue;
-                    };
-                    if acceleration != 0.0 {
-                        joint_position_capture_active_coordinates += 1;
+                    )
+                    .filter(|value| *value != 0.0)
+                    {
+                        if required_acceleration.is_none() {
+                            joint_position_capture_active_coordinates += 1;
+                        }
                         self.velocity_envelope_coordinates.push(coordinate);
                         self.velocity_envelope_accelerations.push(acceleration);
                     }
@@ -16959,7 +17020,9 @@ impl FloatingWbcSession {
             let mut localized_contact_handoff = false;
             let mut contact_solve_hold = false;
             let mut no_contact_safe_fallback = false;
-            if self.no_contact_safe_mode && self.contacts.is_empty() {
+            let pre_contingency_solve_skipped =
+                self.no_contact_safe_mode && self.contacts.is_empty();
+            if pre_contingency_solve_skipped {
                 // The controller has already entered the bounded free-body
                 // fallback.  Do not pay the dense feasibility cost again
                 // while the authored schedule remains contact-free.
@@ -17001,6 +17064,50 @@ impl FloatingWbcSession {
                 self.controller
                     .solve_into(solve_input, &mut self.output, &mut self.scratch)
                     .map_err(value_error)?;
+            }
+            // Preserve the first hard-problem result before any normal-only,
+            // localized-handoff, or release retry overwrites the controller
+            // workspace. This is a read-only feasibility witness: it never
+            // changes authority, contact mode, or integrated state.
+            pre_contingency_status_out[tick] = if pre_contingency_solve_skipped {
+                6
+            } else {
+                match self.output.status {
+                    SolveStatus::Solved => 0,
+                    SolveStatus::SolvedWithSlack => 1,
+                    SolveStatus::MaxIterations => 2,
+                    SolveStatus::PrimalInfeasible => 3,
+                    SolveStatus::NumericalFailure => 4,
+                    SolveStatus::InvalidProblem => 5,
+                }
+            };
+            if pre_contingency_solve_skipped {
+                pre_contingency_maximum_bound_violation_out[tick] = f64::NAN;
+                pre_contingency_limiting_bound_coordinate_out[tick] = -1;
+                pre_contingency_limiting_bound_is_upper_out[tick] = 0;
+                pre_contingency_maximum_linear_violation_out[tick] = f64::NAN;
+                pre_contingency_limiting_linear_constraint_out[tick] = u32::MAX;
+                pre_contingency_limiting_linear_is_upper_out[tick] = 0;
+            } else {
+                pre_contingency_maximum_bound_violation_out[tick] =
+                    self.output.solve.maximum_bound_violation;
+                pre_contingency_limiting_bound_coordinate_out[tick] = self
+                    .output
+                    .solve
+                    .limiting_bound_coordinate
+                    .and_then(|coordinate| i16::try_from(coordinate).ok())
+                    .unwrap_or(-1);
+                pre_contingency_limiting_bound_is_upper_out[tick] =
+                    u8::from(self.output.solve.limiting_bound_is_upper);
+                pre_contingency_maximum_linear_violation_out[tick] =
+                    self.output.solve.maximum_linear_constraint_violation;
+                pre_contingency_limiting_linear_constraint_out[tick] = self
+                    .output
+                    .solve
+                    .limiting_linear_constraint
+                    .unwrap_or(u32::MAX);
+                pre_contingency_limiting_linear_is_upper_out[tick] =
+                    u8::from(self.output.solve.limiting_linear_constraint_is_upper);
             }
             // NormalFallback is conservative but no longer absorbing when a
             // caller explicitly budgets relock probes. On a cadence tick,
@@ -17390,9 +17497,17 @@ impl FloatingWbcSession {
                     bonesaw_core::WorldCollisionBarrierEvidence::disabled();
                 self.output.solve.status = SolveStatus::MaxIterations;
                 self.output.solve.level_residuals.clear();
+                self.output.solve.minimum_bound_margin = f64::NEG_INFINITY;
+                self.output.solve.maximum_bound_violation = f64::INFINITY;
+                self.output.solve.limiting_bound_coordinate = None;
+                self.output.solve.limiting_bound_is_upper = false;
                 self.output.solve.clipped_levels.clear();
                 self.output.solve.rank_by_level.clear();
                 self.output.solve.active_constraints.clear();
+                self.output.solve.maximum_linear_constraint_violation = f64::INFINITY;
+                self.output.solve.limiting_linear_constraint = None;
+                self.output.solve.limiting_linear_constraint_is_upper = false;
+                self.output.solve.maximum_constraint_violation = f64::INFINITY;
                 self.output.solve.task_pseudoinverse_calls = 0;
                 self.output.solve.task_pseudoinverse_calls_by_level.fill(0);
                 self.output.solve.task_jacobi_sweeps = 0;

@@ -26,6 +26,23 @@ out of the punch list. The remaining behavior complaint is now coupled
 root/foot/support feasibility before the limit event, not more local braking
 gain. See the [r274 position-capture report](benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md).
 
+R275 closes the missing hard-row provenance seam without claiming recovery.
+The allocation-free Rust witness now separates anonymous coordinate-bound
+residue from named dynamics/contact/friction/support/actuator rows, and the
+floating trace snapshots the first solve before a contingency retry overwrites
+it. The cap-8 control preserves all 74 shared R274 non-timing arrays. Its first
+unfinished full-lock solve is tick 875: no coordinate-bound residue and a
+13.781 violation of floating-base world-X dynamics row `0x10000003`. Cap 16/64
+preserve the state and event; 20,000 torque and 30× normal-force ablations are
+trace-exact. A per-foot ablation then localizes the useful contingency: making
+only the right foot normal-only solves while the left stays locked, whereas
+trying the left foot requires releasing left support. Hard knee capture fails
+six ticks earlier and all resource/friction/contact variants remain rejected.
+The remaining complaint is a default-off bounded automatic per-target
+localizer that retains useful support through the tick-1108 handoff, restores
+tracking, and stays below the CPU deadline. See the
+[r275 hard-feasibility report](benchmarks/results/g1-hard-feasibility-witness-r275/G1_HARD_FEASIBILITY_WITNESS_R275.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

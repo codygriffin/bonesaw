@@ -227,6 +227,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--joint-position-capture-weight", type=float, default=0.0)
     parser.add_argument(
+        "--joint-position-capture-hard",
+        action="store_true",
+        help="intersect the opt-in directional stopping acceleration with hard qdd bounds",
+    )
+    parser.add_argument(
         "--joint-position-capture-assumed-braking-acceleration",
         type=float,
         default=50.0,
@@ -1483,6 +1488,13 @@ def summarize(
     feasibility_polish_iterations: np.ndarray,
     feasibility_polish_pseudoinverse_calls: np.ndarray,
     feasibility_polish_jacobi_sweeps: np.ndarray,
+    pre_contingency_status: np.ndarray,
+    pre_contingency_maximum_bound_violation: np.ndarray,
+    pre_contingency_limiting_bound_coordinate: np.ndarray,
+    pre_contingency_limiting_bound_is_upper: np.ndarray,
+    pre_contingency_maximum_linear_violation: np.ndarray,
+    pre_contingency_limiting_linear_constraint: np.ndarray,
+    pre_contingency_limiting_linear_is_upper: np.ndarray,
     dcm: np.ndarray,
     target_dcm: np.ndarray,
     virtual_zmp: np.ndarray,
@@ -1611,6 +1623,58 @@ def summarize(
         ),
         "normal_fallback_relock_probe_rejected_release": int(
             np.count_nonzero(status == 12)
+        ),
+    }
+    pre_contingency_status_counts = {
+        "solved": int(np.count_nonzero(pre_contingency_status == 0)),
+        "solved_with_slack": int(np.count_nonzero(pre_contingency_status == 1)),
+        "max_iterations": int(np.count_nonzero(pre_contingency_status == 2)),
+        "primal_infeasible": int(np.count_nonzero(pre_contingency_status == 3)),
+        "numerical_failure": int(np.count_nonzero(pre_contingency_status == 4)),
+        "invalid_problem": int(np.count_nonzero(pre_contingency_status == 5)),
+        "no_contact_fallback": int(np.count_nonzero(pre_contingency_status == 6)),
+    }
+    finite_bound_violation = np.isfinite(pre_contingency_maximum_bound_violation)
+    finite_linear_violation = np.isfinite(pre_contingency_maximum_linear_violation)
+    no_linear_limit = np.iinfo(np.uint32).max
+    witness_tolerance = 1.0e-7
+    pre_contingency_witness = {
+        "status_counts": pre_contingency_status_counts,
+        "maximum_bound_violation": float(
+            np.max(pre_contingency_maximum_bound_violation[finite_bound_violation])
+        )
+        if np.any(finite_bound_violation)
+        else None,
+        "maximum_linear_constraint_violation": float(
+            np.max(pre_contingency_maximum_linear_violation[finite_linear_violation])
+        )
+        if np.any(finite_linear_violation)
+        else None,
+        "bound_limited_ticks": int(
+            np.count_nonzero(
+                (pre_contingency_limiting_bound_coordinate >= 0)
+                & (pre_contingency_maximum_bound_violation > witness_tolerance)
+            )
+        ),
+        "linear_limited_ticks": int(
+            np.count_nonzero(
+                (pre_contingency_limiting_linear_constraint != no_linear_limit)
+                & (pre_contingency_maximum_linear_violation > witness_tolerance)
+            )
+        ),
+        "upper_bound_limited_ticks": int(
+            np.count_nonzero(
+                (pre_contingency_limiting_bound_coordinate >= 0)
+                & (pre_contingency_limiting_bound_is_upper != 0)
+                & (pre_contingency_maximum_bound_violation > witness_tolerance)
+            )
+        ),
+        "upper_linear_limited_ticks": int(
+            np.count_nonzero(
+                (pre_contingency_limiting_linear_constraint != no_linear_limit)
+                & (pre_contingency_limiting_linear_is_upper != 0)
+                & (pre_contingency_maximum_linear_violation > witness_tolerance)
+            )
         ),
     }
     maximum_touchdown_transition_ticks = longest_true_run(status == 6)
@@ -1940,6 +2004,57 @@ def summarize(
             np.count_nonzero(reference_phase_flags & 64)
         ),
     }
+    pre_contingency_failed = np.isin(pre_contingency_status, (2, 3, 4, 5))
+    pre_contingency_failed_ticks = np.flatnonzero(pre_contingency_failed)
+    failed_bound_coordinates = pre_contingency_limiting_bound_coordinate[
+        pre_contingency_failed
+        & (pre_contingency_limiting_bound_coordinate >= 0)
+    ]
+    failed_linear_constraints = pre_contingency_limiting_linear_constraint[
+        pre_contingency_failed
+        & (pre_contingency_limiting_linear_constraint != np.iinfo(np.uint32).max)
+    ]
+    hard_feasibility_witness = {
+        "status_ticks": {
+            name: int(np.count_nonzero(pre_contingency_status == code))
+            for code, name in enumerate(
+                (
+                    "solved",
+                    "solved_with_slack",
+                    "max_iterations",
+                    "primal_infeasible",
+                    "numerical_failure",
+                    "invalid_problem",
+                    "skipped_no_contact",
+                )
+            )
+        },
+        "first_failed_tick": (
+            int(pre_contingency_failed_ticks[0])
+            if len(pre_contingency_failed_ticks)
+            else None
+        ),
+        "maximum_failed_bound_violation": (
+            float(np.nanmax(pre_contingency_maximum_bound_violation[pre_contingency_failed]))
+            if len(pre_contingency_failed_ticks)
+            else 0.0
+        ),
+        "maximum_failed_linear_violation": (
+            float(np.nanmax(pre_contingency_maximum_linear_violation[pre_contingency_failed]))
+            if len(pre_contingency_failed_ticks)
+            else 0.0
+        ),
+        "failed_limiting_bound_coordinates": {
+            str(int(coordinate)): int(np.count_nonzero(failed_bound_coordinates == coordinate))
+            for coordinate in np.unique(failed_bound_coordinates)
+        },
+        "failed_limiting_linear_constraints": {
+            f"0x{int(stable_id):08x}": int(
+                np.count_nonzero(failed_linear_constraints == stable_id)
+            )
+            for stable_id in np.unique(failed_linear_constraints)
+        },
+    }
     metrics: dict[str, Any] = {
         "ticks": len(step_ns),
         "dt_seconds": DT,
@@ -1952,6 +2067,7 @@ def summarize(
         "capture_landing_retarget": landing_retarget_metrics,
         "touchdown_phase_retiming": phase_retiming_metrics,
         "touchdown_viability": touchdown_viability,
+        "hard_feasibility_witness": hard_feasibility_witness,
         "foot_tracking_rms_m": rms(foot_error),
         "hand_tracking_rms_m": rms(hand_error),
         "hand_task_commanded": hand_task_weight > 0.0,
@@ -2085,6 +2201,7 @@ def summarize(
         "temporal_windows": temporal_windows,
         "runtime": runtime,
         "status_counts": status_counts,
+        "pre_contingency_witness": pre_contingency_witness,
         "support_phase_counts": support_phase_counts,
         "support_phase_counts_by_target": support_phase_counts_by_target,
         "support_phase_maximum_ticks": support_phase_maximum_ticks,
@@ -2519,6 +2636,28 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"`{metrics['contact_phase_authority']['joint_position_capture_active_ticks']}` ticks; "
         f"maximum active coordinates "
         f"`{metrics['contact_phase_authority']['joint_position_capture_active_coordinates_maximum']}`.",
+        "",
+        "## Pre-contingency hard-feasibility witness",
+        "",
+        "The witness is sampled immediately after the first full contact solve and before any retry or release contingency. It is diagnostic only: it never changes the executable state.",
+        f"- First-solve statuses solved/slack/max-iterations/primal-infeasible/numerical/invalid/no-contact: "
+        f"`{metrics['pre_contingency_witness']['status_counts']['solved']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['solved_with_slack']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['max_iterations']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['primal_infeasible']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['numerical_failure']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['invalid_problem']}` / "
+        f"`{metrics['pre_contingency_witness']['status_counts']['no_contact_fallback']}`.",
+        f"- Bound-limited ticks / upper-bound ticks: "
+        f"`{metrics['pre_contingency_witness']['bound_limited_ticks']}` / "
+        f"`{metrics['pre_contingency_witness']['upper_bound_limited_ticks']}`; "
+        f"maximum coordinate violation "
+        f"`{metrics['pre_contingency_witness']['maximum_bound_violation']}`.",
+        f"- Named-linear-row-limited ticks / upper-row ticks: "
+        f"`{metrics['pre_contingency_witness']['linear_limited_ticks']}` / "
+        f"`{metrics['pre_contingency_witness']['upper_linear_limited_ticks']}`; "
+        f"maximum row violation "
+        f"`{metrics['pre_contingency_witness']['maximum_linear_constraint_violation']}`.",
         "",
         "## Runtime",
         "",
@@ -3266,6 +3405,7 @@ def main() -> None:
             args.joint_velocity_envelope_frequency_hz
         ),
         joint_position_capture_weight=args.joint_position_capture_weight,
+        joint_position_capture_hard=args.joint_position_capture_hard,
         joint_position_capture_assumed_braking_acceleration=(
             args.joint_position_capture_assumed_braking_acceleration
         ),
@@ -3405,6 +3545,25 @@ def main() -> None:
         args.ticks, dtype=np.uint16
     )
     feasibility_polish_jacobi_sweeps = np.empty(args.ticks, dtype=np.uint16)
+    pre_contingency_status = np.empty(args.ticks, dtype=np.uint8)
+    pre_contingency_maximum_bound_violation = np.empty(
+        args.ticks, dtype=np.float64
+    )
+    pre_contingency_limiting_bound_coordinate = np.empty(
+        args.ticks, dtype=np.int16
+    )
+    pre_contingency_limiting_bound_is_upper = np.empty(
+        args.ticks, dtype=np.uint8
+    )
+    pre_contingency_maximum_linear_violation = np.empty(
+        args.ticks, dtype=np.float64
+    )
+    pre_contingency_limiting_linear_constraint = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    pre_contingency_limiting_linear_is_upper = np.empty(
+        args.ticks, dtype=np.uint8
+    )
     center_of_mass_velocity = np.empty((args.ticks, 3), dtype=np.float64)
     dcm = np.empty((args.ticks, 3), dtype=np.float64)
     target_dcm = np.empty((args.ticks, 3), dtype=np.float64)
@@ -3513,6 +3672,13 @@ def main() -> None:
         feasibility_polish_iterations,
         feasibility_polish_pseudoinverse_calls,
         feasibility_polish_jacobi_sweeps,
+        pre_contingency_status,
+        pre_contingency_maximum_bound_violation,
+        pre_contingency_limiting_bound_coordinate,
+        pre_contingency_limiting_bound_is_upper,
+        pre_contingency_maximum_linear_violation,
+        pre_contingency_limiting_linear_constraint,
+        pre_contingency_limiting_linear_is_upper,
         center_of_mass_velocity,
         dcm,
         target_dcm,
@@ -3608,6 +3774,13 @@ def main() -> None:
         feasibility_polish_iterations,
         feasibility_polish_pseudoinverse_calls,
         feasibility_polish_jacobi_sweeps,
+        pre_contingency_status,
+        pre_contingency_maximum_bound_violation,
+        pre_contingency_limiting_bound_coordinate,
+        pre_contingency_limiting_bound_is_upper,
+        pre_contingency_maximum_linear_violation,
+        pre_contingency_limiting_linear_constraint,
+        pre_contingency_limiting_linear_is_upper,
         dcm,
         target_dcm,
         virtual_zmp,
@@ -3714,6 +3887,7 @@ def main() -> None:
             args.joint_velocity_envelope_frequency_hz
         ),
         "joint_position_capture_weight": args.joint_position_capture_weight,
+        "joint_position_capture_hard": args.joint_position_capture_hard,
         "joint_position_capture_assumed_braking_acceleration": (
             args.joint_position_capture_assumed_braking_acceleration
         ),
@@ -3922,6 +4096,25 @@ def main() -> None:
             feasibility_polish_pseudoinverse_calls
         ),
         feasibility_polish_jacobi_sweeps=feasibility_polish_jacobi_sweeps,
+        pre_contingency_status=pre_contingency_status,
+        pre_contingency_maximum_bound_violation=(
+            pre_contingency_maximum_bound_violation
+        ),
+        pre_contingency_limiting_bound_coordinate=(
+            pre_contingency_limiting_bound_coordinate
+        ),
+        pre_contingency_limiting_bound_is_upper=(
+            pre_contingency_limiting_bound_is_upper
+        ),
+        pre_contingency_maximum_linear_violation=(
+            pre_contingency_maximum_linear_violation
+        ),
+        pre_contingency_limiting_linear_constraint=(
+            pre_contingency_limiting_linear_constraint
+        ),
+        pre_contingency_limiting_linear_is_upper=(
+            pre_contingency_limiting_linear_is_upper
+        ),
     )
     report = output / "FLOATING_WALK_CORPUS.md"
     report.write_text(render_report(metrics, report_metadata))

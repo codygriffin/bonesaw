@@ -224,6 +224,52 @@ pub fn joint_position_capture_acceleration(
     Some(-velocity.signum() * maximum_acceleration * smooth_phase)
 }
 
+/// Minimum directional acceleration required to stop inside the remaining
+/// position headroom after a bounded reaction interval. This is the hard
+/// counterpart to [`joint_position_capture_acceleration`]: callers may
+/// intersect it with the authored qdd box when they explicitly opt into a
+/// fail-closed capture envelope. It never invents authority beyond
+/// `maximum_acceleration`; an already unrecoverable observation therefore
+/// returns the saturated inward request and lets the strict solver expose the
+/// resulting conflict.
+#[allow(clippy::too_many_arguments)]
+pub fn joint_position_capture_required_acceleration(
+    position: f64,
+    velocity: f64,
+    lower_position: f64,
+    upper_position: f64,
+    reaction_time_seconds: f64,
+    maximum_acceleration: f64,
+) -> Option<f64> {
+    if !position.is_finite()
+        || !velocity.is_finite()
+        || !lower_position.is_finite()
+        || !upper_position.is_finite()
+        || lower_position >= upper_position
+        || !reaction_time_seconds.is_finite()
+        || reaction_time_seconds < 0.0
+        || !maximum_acceleration.is_finite()
+        || maximum_acceleration <= 0.0
+    {
+        return None;
+    }
+    if velocity == 0.0 {
+        return Some(0.0);
+    }
+    let headroom = if velocity > 0.0 {
+        upper_position - position
+    } else {
+        position - lower_position
+    };
+    let speed = velocity.abs();
+    let available_headroom = headroom - speed * reaction_time_seconds;
+    if available_headroom <= 0.0 {
+        return Some(-velocity.signum() * maximum_acceleration);
+    }
+    let required = speed * speed / (2.0 * available_headroom);
+    Some(-velocity.signum() * required.clamp(0.0, maximum_acceleration))
+}
+
 /// Measured contact phase used to schedule soft authority without consulting
 /// the authored motion phase.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -3866,6 +3912,14 @@ mod tests {
         assert_eq!(
             joint_position_capture_acceleration(0.0, 1.0, 1.0, -1.0, 50.0, 0.02, 200.0),
             None
+        );
+        let required =
+            joint_position_capture_required_acceleration(0.0, -2.0, -1.0, 1.0, 0.02, 200.0)
+                .unwrap();
+        assert!(required > 0.0 && required <= 200.0);
+        assert_eq!(
+            joint_position_capture_required_acceleration(0.0, 0.0, -1.0, 1.0, 0.02, 200.0),
+            Some(0.0)
         );
     }
 

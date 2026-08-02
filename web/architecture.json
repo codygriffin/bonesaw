@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "joint-position-capture-r274",
-  "updated": "2026-08-02",
-  "stage": "R274 tests pre-limit stopping-headroom capture, rejects local braking gain, and moves the open gate to coupled root/foot/support feasibility · r274",
-  "checkpoint": "R274 adds a default-off soft stopping-headroom capture request when directional stopping distance plus a bounded reaction guard exceeds authored joint-position headroom. It reuses the fixed Viability joint-task slot, leaves hard intervals unchanged, and exposes a dedicated active-coordinate trace. The zero-weight replay preserves every shared R273 non-timing array and reports no activity; five enabled profiles are exact until activation at ticks 859–863. All still hit the right-knee limit at tick 875, fall back at 876 or 888, and release by 1020 versus baseline 1108. Root RMS remains 14.886–18.989 metres and several profiles cross 5 ms p99. The mechanism passes, all walking profiles are rejected, and no authority is admitted. The next open WBC gate is coupled root/foot/support feasibility before the limit event, not more local braking gain. No policy, physics, plant, or authority is admitted; browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact-prefix reuse, typed non-integrating holds, localized contact handoff, per-target contact recovery, independent root/CoM jets, explicit initial root twist, allocation-free cursor sampling, lower-body velocity protection, the support-load inequality, NormalFallback task/relock controls, and R274's default-off stopping-headroom capture request. Python owns immutable corpus orchestration, causal controls, source correlation, and policy/physics-free R274 gates. The example authority stack remains explicit: Invariant dynamics/contact, Viability support and stopping, Intent tracking, contact-force and actuator margins, solver budget, backend conformance, and final command admission never collapse into one score. R274 proves the local capture mechanism, rejects nominal walking, and grants no authority. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "revision": "hard-feasibility-witness-r275",
+  "updated": "2026-08-03",
+  "stage": "R275 names the first bounded hard-feasibility witness, localizes the tick-875 transfer conflict to right-foot tangential locking, and keeps recovery authority closed · r275",
+  "checkpoint": "R275 separates anonymous coordinate-bound residue from named hard-row residue before contingency retries overwrite the first solve. The cap-8 replay preserves all 74 shared R274 non-timing arrays. At tick 875 the first unfinished full-lock solve ends with zero coordinate-bound violation and a 13.781 violation of floating-base world-X dynamics row 0x10000003; cap 16/64 preserve the same state and event. Torque 20,000 and normal-force 30x ablations are fully trace-exact. A per-foot ablation shows that right-foot normal-only rows admit an executable contingency while left stays locked; trying left instead requires left-support release. A hard position-capture bound names generalized coordinate 15 (right knee) and fails six ticks earlier. Friction, acceleration, and one-point variants remain rejected. No automatic localizer, profile, policy, physics, plant action, or authority is admitted.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact-prefix reuse, typed non-integrating holds, localized contact handoff, per-target contact recovery, independent root/CoM jets, explicit initial root twist, allocation-free cursor sampling, lower-body velocity protection, support-load inequalities, NormalFallback relock controls, stopping-headroom capture, and R275's deterministic terminal hard-witness scan. Python owns immutable corpus orchestration and policy/physics-free causal ablations. The example authority stack remains explicit: Invariant dynamics/contact, Viability support and stopping, Intent tracking, contact-force and actuator margins, solver budget, backend conformance, and final command admission never collapse into one score. R275 localizes the first transfer conflict without promoting a recovery policy. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -94,6 +94,18 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r275-hard-feasibility-witness",
+      "title": "Keep hard-feasibility residue typed by coordinate bound and named row",
+      "status": "implemented diagnostic · no authority",
+      "detail": "SolveDiagnostics now retains maximum coordinate-bound violation with coordinate/side separately from maximum named linear-row violation with stable ID/side. Floating trace capture snapshots the first result before any normal-only, handoff, or release retry overwrites it. The scan is deterministic, allocation-free, and cannot change the executable result."
+    },
+    {
+      "id": "r275-contact-localization",
+      "title": "Treat per-foot normal-only solves as localization evidence, not an automatic decision",
+      "status": "evidence only",
+      "detail": "On the immutable tick-875 state stream, right-foot normal-only rows solve while left remains locked; the mirrored left-foot attempt requires releasing left support. This identifies the useful candidate ordering for a future bounded automatic localizer, but current production behavior remains default-preserving and no new contact authority is granted."
+    },
     {
       "status": "rejected",
       "title": "R274 proves stopping-headroom capture but rejects local braking as the walking fix",
@@ -1077,6 +1089,12 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R275 G1 hard-feasibility witness",
+      "result": "mechanism pass · recovery profile closed",
+      "detail": "Cap-8 preserves 74/74 shared R274 non-timing arrays. The first unfinished full-lock solve is tick 875 with dynamics[3] residue 13.781 and no coordinate-bound residue. Cap 16/64 preserve state and event; 20,000 torque and 30x normal-force ablations are fully exact. Right-foot normal-only is the only tested single-foot contingency that solves without releasing the locked peer. Hard knee capture fails at tick 869. Zero policy and zero physics steps.",
+      "report": "/G1_HARD_FEASIBILITY_WITNESS_R275.html"
+    },
     {
       "metric": "R241 fresh constraint-RHS cross-integrator holdout",
       "result": "MECHANISM PASS / COMBINED PROFILE REJECTED / AUTHORITY NO · RK4 ID 4 COVERAGE 48/48 + WIDTH 0.100/0.009/3.120 · IMPLICITFAST ID 0 COVERAGE 47/48 + WIDTH 0.124/0.025/17.138 · P99 3.56/0.75 MS · BITWISE REPEAT · ZERO TIMED RUST ALLOCATION · 62 ARRAYS EXACT",
@@ -3483,6 +3501,7 @@
     ]
   },
   "gaps": [
+    "R275 localizes the first tick-875 hard conflict to right-foot tangential locking against floating-base dynamics and proves that a right-foot normal-only contingency can preserve the locked left peer at that instant. The trace still releases at tick 885, root/foot RMS remains above 16 m, and p99 is 6.591 ms. The next CPU slice is a default-off bounded automatic per-target localizer with explicit probe/admission provenance, exact dormant replay, retained support through the tick-1108 handoff, and sub-5 ms evidence. No authority follows from the diagnostic alone.",
     "R216 retains exact allocation-free split root/articulated kinetic support but rejects the tested causal-center composition. An all-label affine severity envelope covers 96/96 only at 15.890/0.994/141.487 p95 width. Residual geometry cannot close the gap: the rigid-law center/impulse predictor has 11.075 rad/s joint p95 residual, forcing at least 22.151 rad/s centered width, while the exact completed-point oracle is 1.775. The next construction needs coupled contact-law realization and CoP evolution or a typed estimator uncertainty set, frozen before a new law/state holdout. Plant consequence and deadlines remain independent.",
     "R215 retains the allocation-free finite-patch support mechanism but rejects the full patch as command authority: exact support checks both passive-slip saturation kinks, the compliant law closes, the rigid law covers only 40/48 samples, and joint p95 width remains 878–924 rad/s because full corner-of-patch moment uncertainty amplifies through small ankle inertias. R214 separately shows a scalar kinetic residual is much narrower but not strict. The next frozen construction should predict a causal center response, then bound its state-conditioned mass-metric residual with separate root and articulated budgets. Plant consequence and deadlines remain independent.",
     "R214 preserves the mass-metric impulse mechanism after cutting G1 articulated width roughly 69× versus R213, but rejects its single scalar energy profile: one hard-law left-ankle component escapes and joint p95 width remains 19.966 rad/s against the frozen 10 rad/s gate. The next reachable set should split causal root and articulated kinetic budgets and couple the finite foot patch or spatial-wrench distribution, then freeze both before another untouched holdout. Plant consequence and deadlines remain independent.",
@@ -3536,6 +3555,7 @@
     "The editor adapter has no authentication. The current Cloudflare Quick Tunnel is intentionally temporary and publicly reachable; it must not carry private robot state or hardware authority until access control and origin policy are added."
   ],
   "feedback_questions": [
+    "R275 shows the right-foot normal-only candidate solves the first transfer conflict while the left-foot candidate requires releasing left support. Should the automatic localizer choose the first single-target demotion that solves, rank candidates by retained hard-contact rank/load, or expose both solved candidates to a higher contact-mode program before integration?",
     "R216 shows split kinetic geometry is not the limiting factor: exact completed-point accounting has 1.775 rad/s rigid-law joint p95 residual, but the causal center/contact-law predictor has 11.075 and imposes a 22.151 minimum width. Should the next reviewed CPU layer model coupled compliant impulse and CoP evolution directly, or define a typed estimator-provided contact-wrench uncertainty set and keep realization outside Bonesaw?",
     "R215 shows full finite-patch moment uncertainty is physical but unusably wide, while R214's scalar kinetic residual is narrow but misses one rigid-law ankle component. Should the next frozen construction use a deterministic center-of-pressure predictor with bounded center error, or keep center prediction policy-free and expose separate root/articulated kinetic residual budgets around it?",
     "R214 cuts the G1 joint interval roughly 69× with a kinetic impulse ellipsoid but misses one hard-law ankle component and remains about 2× above the joint-width gate. Should the next frozen construction split root and articulated kinetic budgets, couple the finite foot patch/spatial wrench, or require both before another untouched holdout?",
