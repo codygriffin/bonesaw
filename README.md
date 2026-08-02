@@ -2303,6 +2303,21 @@ wide bound conservatively rejects 10/48 and 2/48 safe completed states. The
 mechanism stays; profile, selector, and authority remain rejected. See the
 [r224 terminal velocity-box audit](benchmarks/results/g1-terminal-velocity-box-audit-r224/G1_TERMINAL_VELOCITY_BOX_AUDIT.md).
 
+R225 closes the online external-load provenance gap without conflating command,
+impact evidence, and model uncertainty. A generic allocation-free Rust type
+distinguishes declared continuous wrench, measured impact impulse, and
+unobserved-model reserve. `/plant-ws` protocol 2 requires a source plus world
+force/application-point frames and permits only `interactive_operator` and
+`evaluation_harness` declared wrenches. Evidence-only impact/reserve classes
+are rejected before worker command mutation; the MuJoCo worker independently
+revalidates the same schema. Accepted provenance is echoed in measured plant
+state, while impact impulse and model reserve remain separate explicitly
+unavailable records. The retained public Cloudflare gate rejects missing
+provenance and both evidence-only classes without interrupting the stream,
+accepts and releases both declared sources, and observes zero MuJoCo warnings.
+This does not authenticate an operator or estimate either unavailable quantity.
+See the [r225 external-load provenance audit](benchmarks/results/external-load-provenance-r225/EXTERNAL_LOAD_PROVENANCE_AUDIT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the

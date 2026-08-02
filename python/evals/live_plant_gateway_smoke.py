@@ -14,6 +14,14 @@ from typing import Any
 from live_editor_smoke import RawWebSocket, http_probe, percentile, receive_kind
 
 
+EVALUATION_PROVENANCE = {
+    "source": "evaluation_harness",
+    "load_class": "declared_continuous_wrench",
+    "force_frame": "world",
+    "application_point_frame": "world",
+}
+
+
 def receive_plant(
     websocket: RawWebSocket,
     kind: str,
@@ -55,12 +63,22 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
     assert gateway["maximum_application_offset_m"] == 0.75, gateway
     assert gateway["command_ttl_ms"] == 140, gateway
     assert gateway["worker_timeout_ms"] >= 100, gateway
+    assert gateway["external_load_protocol"] == 2, gateway
+    assert gateway["accepted_external_load_sources"] == [
+        "interactive_operator",
+        "evaluation_harness",
+    ], gateway
+    assert (
+        gateway["executable_external_load_class"]
+        == "declared_continuous_wrench"
+    ), gateway
 
     websocket_started = time.perf_counter()
     websocket = RawWebSocket.connect(base_url, connect_address, gateway["websocket_path"])
     try:
         hello = receive_plant(websocket, "plant_hello")
         worker_startup_ms = (time.perf_counter() - websocket_started) * 1.0e3
+        assert hello["protocol"] == 2, hello
         assert hello["physics_hz"] == 250, hello
         assert hello["control_hz"] == 50, hello
         assert hello["stream_hz"] == 50, hello
@@ -72,6 +90,10 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             == gateway["maximum_application_offset_m"]
         ), hello
         assert "base" in hello["body_names"], hello["body_names"]
+        assert (
+            hello["external_load_contract"]["executable_class"]
+            == "declared_continuous_wrench"
+        ), hello
 
         initial = receive_plant(websocket, "plant_state")
         assert initial["simulator"]["physics_dt_s"] == 0.004, initial["simulator"]
@@ -86,6 +108,9 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert len(initial["actuator_effort_nm"]) == 6
         assert len(initial["generalized_acceleration"]) == 12
         assert len(initial["constraint_generalized_force"]) == 12
+        assert not initial["external_load"]["active"], initial["external_load"]
+        assert not initial["measured_impact_impulse"]["available"]
+        assert not initial["unobserved_model_reserve"]["available"]
         for key in (
             "maximum_abs_joint_speed_rad_s",
             "maximum_abs_actuator_effort_nm",
@@ -97,6 +122,26 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         initial_base = body_position(initial, "base")
         initial_root = initial["root_position"]
 
+        # Evidence-only load classes may be reported but cannot be executed
+        # through the declared external-wrench command path.
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [1.0, 0.0, 0.0],
+                "application_point_world": initial_base,
+                "provenance": {
+                    **EVALUATION_PROVENANCE,
+                    "load_class": "measured_impact_impulse",
+                },
+                "request_id": 99,
+            }
+        )
+        wrong_class = receive_plant(websocket, "plant_error")
+        assert "evidence-only" in wrong_class["message"], wrong_class
+        after_wrong_class = receive_plant(websocket, "plant_state")
+        assert not after_wrong_class["external_load"]["active"]
+
         # A rejected overload must not poison the session or stop the stream.
         websocket.send_json(
             {
@@ -104,6 +149,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                 "body": "base",
                 "force_world": [8.01, 0.0, 0.0],
                 "application_point_world": initial_base,
+                "provenance": EVALUATION_PROVENANCE,
                 "request_id": 100,
             }
         )
@@ -121,6 +167,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                 "body": "base",
                 "force_world": [2.0, 0.0, 0.0],
                 "application_point_world": body_position(after_overload, "base"),
+                "provenance": EVALUATION_PROVENANCE,
                 "request_id": ttl_request,
             }
         )
@@ -133,14 +180,21 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             arrived = time.perf_counter()
             intervals_ms.append((arrived - previous_arrival) * 1.0e3)
             previous_arrival = arrived
-            if state["push"]["active"] and state["push"]["request_id"] == ttl_request:
+            if (
+                state["external_load"]["active"]
+                and state["external_load"]["request_id"] == ttl_request
+            ):
                 active = active or (state, (arrived - sent_at) * 1.0e3)
             if state["command_expired"]:
                 expired = (state, (arrived - sent_at) * 1.0e3)
                 break
         assert active is not None, "bounded plant_push was never acknowledged"
+        assert (
+            active[0]["external_load"]["provenance"]
+            == EVALUATION_PROVENANCE
+        ), active[0]["external_load"]
         assert expired is not None, "plant_push did not expire at its fail-safe TTL"
-        assert not expired[0]["push"]["active"], expired[0]["push"]
+        assert not expired[0]["external_load"]["active"], expired[0]["external_load"]
         assert gateway["command_ttl_ms"] <= expired[1] <= gateway["command_ttl_ms"] + 120
 
         # Refresh one request ID while the pointer is held, release it, then
@@ -158,6 +212,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                     "body": "base",
                     "force_world": [5.0, 0.0, 0.0],
                     "application_point_world": body_position(baseline, "base"),
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": recovery_request,
                 }
             )
@@ -169,7 +224,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                 push_states.append(state)
                 if (
                     state["command_id"] == recovery_request
-                    and state["push"]["active"]
+                    and state["external_load"]["active"]
                 ):
                     recovery_command_acknowledged = True
                     break
@@ -189,7 +244,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             automatic_fall_reset_observed = automatic_fall_reset_observed or (
                 state.get("automatic_reset_reason") == "fall"
             )
-            if not state["push"]["active"] and state["command_id"] == 201:
+            if not state["external_load"]["active"] and state["command_id"] == 201:
                 released = released or state
             metrics = state["metrics"]
             is_settled = (
@@ -216,7 +271,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             state["metrics"]["capture_pressure"] for state in all_motion_states
         )
         assert maximum_root_displacement > 1.0e-4, maximum_root_displacement
-        assert any(state["push"]["active"] for state in push_states)
+        assert any(state["external_load"]["active"] for state in push_states)
 
         # Explicit reset is correlated and advances the worker epoch.
         websocket.send_json({"type": "plant_reset", "request_id": 300})
@@ -247,8 +302,26 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                 "ack_ms": active[1],
                 "expiry_ms": expired[1],
                 "overload_rejected_without_disconnect": True,
+                "evidence_only_class_rejected_without_disconnect": True,
+                "provenance_echoed_exactly": active[0]["external_load"][
+                    "provenance"
+                ]
+                == EVALUATION_PROVENANCE,
                 "release_acknowledged": True,
                 "reset_acknowledged": True,
+            },
+            "external_load_accounting": {
+                "protocol": hello["protocol"],
+                "executable_class": hello["external_load_contract"][
+                    "executable_class"
+                ],
+                "source": active[0]["external_load"]["provenance"]["source"],
+                "measured_impact_impulse_available": active[0][
+                    "measured_impact_impulse"
+                ]["available"],
+                "unobserved_model_reserve_available": active[0][
+                    "unobserved_model_reserve"
+                ]["available"],
             },
             "response": {
                 "push_duration_ms": (time.perf_counter() - push_started) * 1.0e3,
@@ -334,7 +407,7 @@ def run_retained(base_url: str, connect_address: str | None = None) -> dict[str,
             state = next_kind("plant_state")
             if state.get("command_id") != request_id:
                 continue
-            if active is not None and bool(state["push"]["active"]) != active:
+            if active is not None and bool(state["external_load"]["active"]) != active:
                 continue
             return state
         raise AssertionError(f"request {request_id} was not correlated")
@@ -355,6 +428,7 @@ def run_retained(base_url: str, connect_address: str | None = None) -> dict[str,
                     "body": "base",
                     "force_world": [4.0, 0.0, 0.0],
                     "application_point_world": application_point,
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": 101,
                 }
             )
@@ -374,6 +448,7 @@ def run_retained(base_url: str, connect_address: str | None = None) -> dict[str,
                 "body": "base",
                 "force_world": [1.0, 0.0, 0.0],
                 "application_point_world": body_position(recovery_states[-1], "base"),
+                "provenance": EVALUATION_PROVENANCE,
                 "request_id": 103,
             }
         )
@@ -393,6 +468,7 @@ def run_retained(base_url: str, connect_address: str | None = None) -> dict[str,
                 "body": "base",
                 "force_world": [8.01, 0.0, 0.0],
                 "application_point_world": application_point,
+                "provenance": EVALUATION_PROVENANCE,
                 "request_id": 104,
             }
         )

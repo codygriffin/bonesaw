@@ -243,7 +243,7 @@ function enqueuePlantState(message) {
       tick: message.tick,
       reset_epoch: message.reset_epoch,
       command_id: message.command_id,
-      active_frame: message.push?.active ? message.push.body : null,
+      active_frame: message.external_load?.active ? message.external_load.body : null,
       frames: measuredPlantFrames,
       metrics: {
         solve_us: metrics.controller_step_us,
@@ -261,10 +261,11 @@ function enqueuePlantState(message) {
     ? "FALL · RESET ARMED"
     : metrics.wbc_admitted ? "MuJoCo · admitted" : `MuJoCo · ${metrics.wbc_status}`;
   plantStatus.textContent = stateLabel;
-  const force = message.push?.force_world || [0, 0, 0];
+  const force = message.external_load?.force_world || [0, 0, 0];
   const magnitude = Math.hypot(...force);
-  plantWrench.textContent = message.push?.active
-    ? `${magnitude.toFixed(2)} N · ${Number(message.push.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.push.body}`
+  const loadSource = message.external_load?.provenance?.source || "unavailable";
+  plantWrench.textContent = message.external_load?.active
+    ? `${magnitude.toFixed(2)} N · ${Number(message.external_load.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.external_load.body} · ${loadSource.replaceAll("_", " ")}`
     : message.command_expired ? "expired · fail-safe release" : "released";
   updatePlantTelemetry(message);
   if (message.automatic_reset_reason) {
@@ -627,8 +628,8 @@ function updatePlantTelemetry(message) {
   plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m max · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
   plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized max`;
   groundContactState.textContent = `${Number(metrics.ground_contact_count || 0)} ground / ${Number(metrics.contact_count || 0)} total · ${(1000 * Number(metrics.maximum_penetration_m || 0)).toFixed(2)} mm penetration`;
-  plantWrench.textContent = message.push?.active
-    ? `${Math.hypot(...message.push.force_world).toFixed(2)} N · ${Number(message.push.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.push.body}`
+  plantWrench.textContent = message.external_load?.active
+    ? `${Math.hypot(...message.external_load.force_world).toFixed(2)} N · ${Number(message.external_load.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.external_load.body} · ${(message.external_load.provenance?.source || "unavailable").replaceAll("_", " ")}`
     : message.command_expired ? "expired safely" : "released";
   const capture = Math.max(0, Math.min(1, Number(metrics.capture_pressure || 0)));
   setLiveAuthorityRow(
@@ -1853,6 +1854,12 @@ function currentPushCommand() {
     body: pushDrag.frame.name,
     force_world: pushDrag.force,
     application_point_world: pushDrag.start,
+    provenance: {
+      source: "interactive_operator",
+      load_class: "declared_continuous_wrench",
+      force_frame: "world",
+      application_point_frame: "world",
+    },
   };
 }
 

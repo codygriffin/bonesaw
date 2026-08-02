@@ -40,13 +40,17 @@ Acceptance still requires all of the following independent witnesses:
 - derive an independently motivated transferable contact-law residual or model
   parameterization before another untouched holdout; r221 already rejects the
   label-fit substepped-compliance profile despite useful width and deadline;
-- type declared external-wrench/load provenance into the online command and
-  keep it separate from impact impulse and unobserved-model reserves;
 - freeze a tighter independently motivated transition set, pass a new untouched
   strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
+
+R225 removes external-load provenance from this punch list. Protocol 2 requires
+an explicit source, executable load class, force frame, and application-point
+frame; Rust rejects missing provenance and evidence-only impact/reserve classes
+before worker mutation, while the MuJoCo worker independently revalidates the
+contract. The browser operator and evaluation harness remain distinct sources.
 
 ## Open robustness and hardware calibration
 

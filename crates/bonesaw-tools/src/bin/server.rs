@@ -23,24 +23,26 @@ use bonesaw_core::{
     BodyId, CollisionAccelerationBarrierConfig, CollisionContinuityPolicy, CollisionShape,
     CommandTrackingAction, CommandTrackingLimits, CompiledCollisionModel, CompiledModel,
     CompiledWorldCollisionModel, ContactMode, ContactSpec, Controller, ControllerConfig,
-    ControllerInput, ControllerOutputBuffer, ControllerScratch, ControllerState, DenseSdfGrid,
-    DistanceQuality, DynamicPlanSelection, DynamicTrajectoryValidationConfig, DynamicWbcConfig,
-    DynamicsCache, FLOATING_TASK_DIAGNOSTIC_CAPACITY, FloatingDynamicController,
-    FloatingDynamicControllerOutput, FloatingDynamicControllerScratch,
-    FloatingDynamicControllerSolvedInput, FloatingDynamicControllerState, FloatingDynamicWbc,
-    FloatingDynamicWbcInput, FloatingDynamicWbcOutput, FloatingJointAccelerationTask,
-    FloatingRobotState, FloatingTaskCommand, FloatingTaskResidual, FloatingTaskState, FrameId,
-    FrameTarget, ModelCache, Motion6, MotionProgram, PlanarIkOptions, PlanarIkScratch,
-    PlanarPointIkTarget, Priority, ReconstructionProvenance, RobotObservationErrorBound,
-    RobotObservationErrorGrowth, RobotObservationHistory, RobotObservationIngestReport,
-    RobotObservationLimits, RobotObservationQueryPolicy, RobotObservationReconstructionEvidence,
-    RobotObservationRef, RobotObservationStamp, RobotState, RootPosePredictionSegment,
-    RootPredictionErrorGrowth, RotationJet, SdfOutsidePolicy, SdfSampleSource, SignalInputFrame,
-    SignalMemory, SignalOutputBuffer, SignalScratch, SolveStatus, SpatialAcceleration6, StepStatus,
+    ControllerInput, ControllerOutputBuffer, ControllerScratch, ControllerState,
+    DeclaredExternalWrench, DenseSdfGrid, DistanceQuality, DynamicPlanSelection,
+    DynamicTrajectoryValidationConfig, DynamicWbcConfig, DynamicsCache, ExternalLoadClass,
+    ExternalLoadError, ExternalLoadFrame, ExternalLoadProvenance, ExternalLoadSource,
+    FLOATING_TASK_DIAGNOSTIC_CAPACITY, FloatingDynamicController, FloatingDynamicControllerOutput,
+    FloatingDynamicControllerScratch, FloatingDynamicControllerSolvedInput,
+    FloatingDynamicControllerState, FloatingDynamicWbc, FloatingDynamicWbcInput,
+    FloatingDynamicWbcOutput, FloatingJointAccelerationTask, FloatingRobotState,
+    FloatingTaskCommand, FloatingTaskResidual, FloatingTaskState, FrameId, FrameTarget, ModelCache,
+    Motion6, MotionProgram, PlanarIkOptions, PlanarIkScratch, PlanarPointIkTarget, Priority,
+    ReconstructionProvenance, RobotObservationErrorBound, RobotObservationErrorGrowth,
+    RobotObservationHistory, RobotObservationIngestReport, RobotObservationLimits,
+    RobotObservationQueryPolicy, RobotObservationReconstructionEvidence, RobotObservationRef,
+    RobotObservationStamp, RobotState, RootPosePredictionSegment, RootPredictionErrorGrowth,
+    RotationJet, SdfOutsidePolicy, SdfSampleSource, SignalInputFrame, SignalMemory,
+    SignalOutputBuffer, SignalScratch, SolveStatus, SpatialAcceleration6, StepStatus,
     SupportPatchSpec, TimingSpec, Vec3, VectorJet, VelocityBounds, WorldSceneStamp,
     WorldSceneValidity, joint_acceleration_interval_with_observation_error,
     maximum_actuator_effort_utilization, minimum_joint_position_headroom,
-    solve_planar_point_ik_into,
+    solve_planar_point_ik_into, validate_declared_external_wrench,
 };
 use bonesaw_cuda::{
     ContactKinematicMode, ContactLockSpec, PointQuerySpec, RigidPatchBasisSpec,
@@ -143,6 +145,11 @@ struct PlantGatewayContract {
     worker_timeout_ms: u64,
     plant_owner: &'static str,
     controller_owner: &'static str,
+    external_load_protocol: u8,
+    accepted_external_load_sources: [&'static str; 2],
+    executable_external_load_class: &'static str,
+    measured_impact_owner: &'static str,
+    unobserved_model_reserve_owner: &'static str,
 }
 
 impl PlantGatewayContract {
@@ -156,6 +163,79 @@ impl PlantGatewayContract {
             worker_timeout_ms: LIVE_PLANT_WORKER_TIMEOUT_MS,
             plant_owner: "python_mujoco",
             controller_owner: "rust_bonesaw",
+            external_load_protocol: 2,
+            accepted_external_load_sources: ["interactive_operator", "evaluation_harness"],
+            executable_external_load_class: "declared_continuous_wrench",
+            measured_impact_owner: "python_mujoco_contacts",
+            unobserved_model_reserve_owner: "not_estimated_by_live_gateway",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PlantExternalLoadSource {
+    InteractiveOperator,
+    EvaluationHarness,
+    SupervisorySystem,
+    Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PlantExternalLoadClass {
+    DeclaredContinuousWrench,
+    MeasuredImpactImpulse,
+    UnobservedModelReserve,
+    Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PlantExternalLoadFrame {
+    World,
+    Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct PlantExternalLoadProvenance {
+    source: PlantExternalLoadSource,
+    load_class: PlantExternalLoadClass,
+    force_frame: PlantExternalLoadFrame,
+    application_point_frame: PlantExternalLoadFrame,
+}
+
+impl PlantExternalLoadProvenance {
+    fn core(self) -> ExternalLoadProvenance {
+        ExternalLoadProvenance {
+            source: match self.source {
+                PlantExternalLoadSource::InteractiveOperator => {
+                    ExternalLoadSource::InteractiveOperator
+                }
+                PlantExternalLoadSource::EvaluationHarness => ExternalLoadSource::EvaluationHarness,
+                PlantExternalLoadSource::SupervisorySystem => ExternalLoadSource::SupervisorySystem,
+                PlantExternalLoadSource::Unavailable => ExternalLoadSource::Unavailable,
+            },
+            load_class: match self.load_class {
+                PlantExternalLoadClass::DeclaredContinuousWrench => {
+                    ExternalLoadClass::DeclaredContinuousWrench
+                }
+                PlantExternalLoadClass::MeasuredImpactImpulse => {
+                    ExternalLoadClass::MeasuredImpactImpulse
+                }
+                PlantExternalLoadClass::UnobservedModelReserve => {
+                    ExternalLoadClass::UnobservedModelReserve
+                }
+                PlantExternalLoadClass::Unavailable => ExternalLoadClass::Unavailable,
+            },
+            force_frame: match self.force_frame {
+                PlantExternalLoadFrame::World => ExternalLoadFrame::World,
+                PlantExternalLoadFrame::Unavailable => ExternalLoadFrame::Unavailable,
+            },
+            application_point_frame: match self.application_point_frame {
+                PlantExternalLoadFrame::World => ExternalLoadFrame::World,
+                PlantExternalLoadFrame::Unavailable => ExternalLoadFrame::Unavailable,
+            },
         }
     }
 }
@@ -194,6 +274,7 @@ enum PlantClientCommand {
         body: String,
         force_world: [f64; 3],
         application_point_world: [f64; 3],
+        provenance: PlantExternalLoadProvenance,
         request_id: u64,
     },
     PlantRelease {
@@ -209,6 +290,7 @@ struct ActivePlantPush {
     body: String,
     force_world: [f64; 3],
     application_point_world: [f64; 3],
+    provenance: PlantExternalLoadProvenance,
     request_id: u64,
     expires_at: Instant,
 }
@@ -1297,6 +1379,8 @@ fn validate_plant_push(command: &PlantClientCommand) -> Result<()> {
         body,
         force_world,
         application_point_world,
+        provenance,
+        request_id,
         ..
     } = command
     else {
@@ -1305,20 +1389,38 @@ fn validate_plant_push(command: &PlantClientCommand) -> Result<()> {
     if body.is_empty() || body.len() > 128 {
         anyhow::bail!("plant push body must contain 1–128 bytes");
     }
-    if force_world
-        .iter()
-        .chain(application_point_world)
-        .any(|value| !value.is_finite())
-    {
-        anyhow::bail!("plant push vectors must be finite");
+    if !matches!(
+        provenance.source,
+        PlantExternalLoadSource::InteractiveOperator | PlantExternalLoadSource::EvaluationHarness
+    ) {
+        anyhow::bail!("external-load source is not accepted by the live gateway");
     }
-    let force_norm_squared: f64 = force_world.iter().map(|value| value * value).sum();
-    if force_norm_squared > LIVE_PLANT_MAXIMUM_FORCE_N * LIVE_PLANT_MAXIMUM_FORCE_N + 1.0e-12 {
-        anyhow::bail!(
+    validate_declared_external_wrench(
+        DeclaredExternalWrench {
+            request_sequence: *request_id,
+            provenance: provenance.core(),
+            force: *force_world,
+            application_point: *application_point_world,
+        },
+        LIVE_PLANT_MAXIMUM_FORCE_N,
+    )
+    .map_err(|error| match error {
+        ExternalLoadError::ForceLimit => anyhow!(
             "plant push exceeds the {:.1} N force limit",
             LIVE_PLANT_MAXIMUM_FORCE_N
-        );
-    }
+        ),
+        ExternalLoadError::NonFinite => anyhow!("plant push vectors must be finite"),
+        ExternalLoadError::MissingSource => {
+            anyhow!("declared external load requires a source")
+        }
+        ExternalLoadError::NonExecutableClass => {
+            anyhow!("external-load class is evidence-only and cannot execute")
+        }
+        ExternalLoadError::UnsupportedFrame => {
+            anyhow!("declared external load requires world force and point frames")
+        }
+        ExternalLoadError::InvalidLimit => anyhow!("server external-load limit is invalid"),
+    })?;
     Ok(())
 }
 
@@ -1479,6 +1581,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                                 body,
                                 force_world,
                                 application_point_world,
+                                provenance,
                                 request_id,
                             }) => {
                                 command_id = Some(request_id);
@@ -1486,6 +1589,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                                     body,
                                     force_world,
                                     application_point_world,
+                                    provenance,
                                     request_id,
                                     expires_at: Instant::now()
                                         + Duration::from_millis(LIVE_PLANT_COMMAND_TTL_MS),
@@ -1530,6 +1634,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     "body": push.body,
                     "force_world": push.force_world,
                     "application_point_world": push.application_point_world,
+                    "provenance": push.provenance,
                     "request_id": push.request_id,
                 }));
                 let request = serde_json::json!({
@@ -1537,7 +1642,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     "reset": reset_requested,
                     "command_id": command_id,
                     "command_expired": command_expired,
-                    "push": push,
+                    "external_load": push,
                 });
                 reset_requested = false;
                 let mut encoded = request.to_string();
@@ -4654,8 +4759,14 @@ mod tests {
 
     #[test]
     fn plant_push_protocol_is_correlated_finite_and_force_bounded() {
+        let provenance = PlantExternalLoadProvenance {
+            source: PlantExternalLoadSource::EvaluationHarness,
+            load_class: PlantExternalLoadClass::DeclaredContinuousWrench,
+            force_frame: PlantExternalLoadFrame::World,
+            application_point_frame: PlantExternalLoadFrame::World,
+        };
         let push = serde_json::from_str::<PlantClientCommand>(
-            r#"{"type":"plant_push","body":"base","force_world":[4.0,0.0,0.0],"application_point_world":[0.0,0.0,0.55],"request_id":42}"#,
+            r#"{"type":"plant_push","body":"base","force_world":[4.0,0.0,0.0],"application_point_world":[0.0,0.0,0.55],"provenance":{"source":"evaluation_harness","load_class":"declared_continuous_wrench","force_frame":"world","application_point_frame":"world"},"request_id":42}"#,
         )
         .expect("typed plant push parses");
         assert!(validate_plant_push(&push).is_ok());
@@ -4671,6 +4782,7 @@ mod tests {
             body: "base".to_owned(),
             force_world: [8.01, 0.0, 0.0],
             application_point_world: [0.0, 0.0, 0.55],
+            provenance,
             request_id: 43,
         };
         assert!(validate_plant_push(&excessive).is_err());
@@ -4679,6 +4791,7 @@ mod tests {
             body: "base".to_owned(),
             force_world: [f64::NAN, 0.0, 0.0],
             application_point_world: [0.0, 0.0, 0.55],
+            provenance,
             request_id: 44,
         };
         assert!(validate_plant_push(&nonfinite).is_err());
@@ -4687,6 +4800,7 @@ mod tests {
             body: "base".to_owned(),
             force_world: [4.0, 0.0, 0.0],
             application_point_world: [0.0, 0.0, 1.301],
+            provenance,
             request_id: 45,
         };
         assert!(validate_plant_application_point(&excessive_offset, &body_positions).is_err());
@@ -4694,6 +4808,7 @@ mod tests {
             body: "not_a_body".to_owned(),
             force_world: [4.0, 0.0, 0.0],
             application_point_world: [0.0, 0.0, 0.55],
+            provenance,
             request_id: 46,
         };
         assert!(validate_plant_application_point(&unknown_body, &body_positions).is_err());
@@ -4703,6 +4818,23 @@ mod tests {
         )
         .expect("typed plant release parses");
         assert_eq!(release, PlantClientCommand::PlantRelease { request_id: 47 });
+
+        for load_class in [
+            PlantExternalLoadClass::MeasuredImpactImpulse,
+            PlantExternalLoadClass::UnobservedModelReserve,
+        ] {
+            let non_command = PlantClientCommand::PlantPush {
+                body: "base".to_owned(),
+                force_world: [1.0, 0.0, 0.0],
+                application_point_world: [0.0, 0.0, 0.55],
+                provenance: PlantExternalLoadProvenance {
+                    load_class,
+                    ..provenance
+                },
+                request_id: 48,
+            };
+            assert!(validate_plant_push(&non_command).is_err());
+        }
     }
 
     #[test]

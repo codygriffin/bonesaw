@@ -140,7 +140,7 @@ class LiveUpkiePlant:
     def hello(self) -> dict[str, Any]:
         return {
             "type": "plant_hello",
-            "protocol": 1,
+            "protocol": 2,
             "model": "upkie",
             "stream_hz": int(round(1.0 / STREAM_DT)),
             "control_hz": int(round(1.0 / CONTROL_DT)),
@@ -156,6 +156,17 @@ class LiveUpkiePlant:
             },
             "body_names": sorted(self.body_by_name),
             "boundary": "python_mujoco_plant__rust_capture_wbc",
+            "external_load_contract": {
+                "executable_class": "declared_continuous_wrench",
+                "accepted_sources": [
+                    "interactive_operator",
+                    "evaluation_harness",
+                ],
+                "force_frame": "world",
+                "application_point_frame": "world",
+                "measured_impact_impulse": "not_exposed_by_live_gateway",
+                "unobserved_model_reserve": "not_estimated_by_live_gateway",
+            },
             "simulator": {
                 "backend": "MuJoCo",
                 "version": mujoco.__version__,
@@ -224,7 +235,7 @@ class LiveUpkiePlant:
             self.reset(fall=True)
         if requested_reset:
             self.reset()
-        command = request.get("push")
+        command = request.get("external_load")
         active = isinstance(command, dict) and bool(command.get("active", False))
         request_id = command.get("request_id") if active else None
         body_name = str(command.get("body", "base")) if active else "base"
@@ -234,10 +245,24 @@ class LiveUpkiePlant:
             if active
             else None
         )
+        provenance = command.get("provenance") if active else None
+        valid_provenance = bool(
+            isinstance(provenance, dict)
+            and provenance.get("source")
+            in ("interactive_operator", "evaluation_harness")
+            and provenance.get("load_class") == "declared_continuous_wrench"
+            and provenance.get("force_frame") == "world"
+            and provenance.get("application_point_frame") == "world"
+        )
+        if active and not valid_provenance:
+            return {
+                "type": "plant_error",
+                "message": "active external load requires executable declared-wrench provenance",
+            }
         if active and (force is None or point is None):
             return {
                 "type": "plant_error",
-                "message": "active push requires finite force_world[3] and application_point_world[3]",
+                "message": "active external load requires finite force_world[3] and application_point_world[3]",
             }
         if active and body_name not in self.body_by_name:
             return {
@@ -410,9 +435,10 @@ class LiveUpkiePlant:
                 "potential_energy_j": float(self.data.energy[0]),
                 "warning_count": warning_count,
             },
-            "push": {
+            "external_load": {
                 "active": active,
                 "request_id": request_id,
+                "provenance": provenance if active else None,
                 "body": body_name if active else None,
                 "force_world": force.tolist() if active else [0.0, 0.0, 0.0],
                 "application_point_world": point.tolist()
@@ -423,6 +449,14 @@ class LiveUpkiePlant:
                 else [0.0, 0.0, 0.0],
                 "application_offset_m": application_offset_m if active else 0.0,
                 "maximum_moment_nm": maximum_moment_nm if active else 0.0,
+            },
+            "measured_impact_impulse": {
+                "available": False,
+                "reason": "live gateway exposes MuJoCo contact force, not a typed impact impulse",
+            },
+            "unobserved_model_reserve": {
+                "available": False,
+                "reason": "live gateway does not estimate an unobserved-model reserve",
             },
             "metrics": {
                 "wbc_status": "unavailable"

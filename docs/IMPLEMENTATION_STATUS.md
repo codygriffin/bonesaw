@@ -2,6 +2,23 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current live boundary checkpoint — r225 typed external-load provenance
+
+The `/plant-ws` protocol now requires every executable external wrench to carry
+an explicit source, `declared_continuous_wrench` class, world force frame, and
+world application-point frame. Allocation-free Rust core validation keeps that
+class distinct from `measured_impact_impulse` and `unobserved_model_reserve`;
+the server permits only browser-operator and evaluation-harness sources, then
+the Python MuJoCo worker independently revalidates the same contract. Plant
+state echoes the accepted provenance and reports impact/reserve as separate,
+explicitly unavailable records rather than silently treating either as zero.
+
+The public Cloudflare audit rejects missing provenance, impact-as-command, and
+reserve-as-command without mutating the worker command or interrupting the
+stream. Both accepted sources echo exactly, release normally, and leave zero
+MuJoCo warnings. This is a transport/provenance admission, not authenticated
+operator identity, impact estimation, or model-error calibration.
+
 ## Current live editor checkpoint — r223 explicit preview/plant ground state
 
 The editor now retains two explicitly labelled states while TARGET is active:

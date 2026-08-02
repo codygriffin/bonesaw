@@ -12,6 +12,14 @@ from live_editor_smoke import RawWebSocket, http_probe, receive_kind
 from live_plant_gateway_smoke import body_position, receive_plant
 
 
+EVALUATION_PROVENANCE = {
+    "source": "evaluation_harness",
+    "load_class": "declared_continuous_wrench",
+    "force_frame": "world",
+    "application_point_frame": "world",
+}
+
+
 def rotation_vector(quaternion_wxyz: list[float]) -> list[float]:
     length = math.sqrt(sum(value * value for value in quaternion_wxyz))
     quaternion = [value / length for value in quaternion_wxyz]
@@ -35,7 +43,7 @@ def receive_correlated(
         state = receive_plant(websocket, "plant_state")
         if state.get("command_id") != request_id:
             continue
-        if bool(state["push"]["active"]) != active:
+        if bool(state["external_load"]["active"]) != active:
             continue
         return state
     raise AssertionError(f"request {request_id} was not correlated")
@@ -66,6 +74,7 @@ def run_condition(
                     "body": "base",
                     "force_world": [force_n, 0.0, 0.0],
                     "application_point_world": point,
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": request_id,
                 }
             )
@@ -88,12 +97,14 @@ def run_condition(
             "maximum_application_offset_m": hello[
                 "maximum_application_offset_m"
             ],
-            "moment_y_nm": [state["push"]["moment_world_nm"][1] for state in states],
+            "moment_y_nm": [
+                state["external_load"]["moment_world_nm"][1] for state in states
+            ],
             "moment_magnitude_nm": [
-                state["push"]["maximum_moment_nm"] for state in states
+                state["external_load"]["maximum_moment_nm"] for state in states
             ],
             "application_offset_m": [
-                state["push"]["application_offset_m"] for state in states
+                state["external_load"]["application_offset_m"] for state in states
             ],
             "signed_pitch_rad": signed_pitch,
             "signed_pitch_rate_rad_s": signed_pitch_rate,
@@ -125,6 +136,7 @@ def run_rejection(base_url: str, connect_address: str | None) -> dict[str, Any]:
                 "body": "base",
                 "force_world": [2.0, 0.0, 0.0],
                 "application_point_world": point,
+                "provenance": EVALUATION_PROVENANCE,
                 "request_id": 9001,
             }
         )
@@ -132,7 +144,7 @@ def run_rejection(base_url: str, connect_address: str | None) -> dict[str, Any]:
         survived = receive_plant(websocket, "plant_state")
         assert "offset limit" in error["message"], error
         assert survived["tick"] > initial["tick"], survived
-        assert not survived["push"]["active"], survived["push"]
+        assert not survived["external_load"]["active"], survived["external_load"]
         return {
             "point_world": point,
             "message": error["message"],

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>External-load provenance</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>External-load provenance audit · external-load-provenance-r225</h1>
+<p>Admission: **PASS**. Protocol 2 types declared external wrenches separately from measured impact impulse and unobserved-model reserve.</p>
+<h2>Rejected command categories</h2>
+<div class=table-wrap><table><thead><tr><th>attempt</th><th>response</th><th>reject ms</th><th>stream</th><th>worker unchanged</th></tr></thead><tbody><tr><td>missing_provenance</td><td>invalid plant command: missing field `provenance`</td><td>22.155</td><td>True</td><td>True</td></tr><tr><td>measured_impact_impulse</td><td>invalid plant command: external-load class is evidence-only and cannot execute</td><td>66.842</td><td>True</td><td>True</td></tr><tr><td>unobserved_model_reserve</td><td>invalid plant command: external-load class is evidence-only and cannot execute</td><td>26.990</td><td>True</td><td>True</td></tr></tbody></table></div>
+<h2>Accepted declared sources</h2>
+<div class=table-wrap><table><thead><tr><th>source</th><th>class</th><th>ack ms</th><th>exact echo</th><th>released</th></tr></thead><tbody><tr><td>evaluation_harness</td><td>declared_continuous_wrench</td><td>46.435</td><td>True</td><td>True</td></tr><tr><td>interactive_operator</td><td>declared_continuous_wrench</td><td>111.712</td><td>True</td><td>True</td></tr></tbody></table></div>
+<p>The Rust gateway rejects missing provenance and refuses to execute evidence-only impact/reserve classes before mutating the worker command. The Python MuJoCo worker independently revalidates the executable class, source, and both world frames. Browser and evaluation sources are distinct and echoed in measured plant state.</p>
+<p>This is provenance and transport evidence, not an impact estimator, model-error calibration, authenticated operator identity, or a claim that an unobserved-model reserve is zero. Both unavailable quantities remain explicit unavailable records.</p></main></body></html>

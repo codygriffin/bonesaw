@@ -21,6 +21,14 @@ from upkie_live_plant_worker import (  # noqa: E402
 )
 
 
+EVALUATION_PROVENANCE = {
+    "source": "evaluation_harness",
+    "load_class": "declared_continuous_wrench",
+    "force_frame": "world",
+    "application_point_frame": "world",
+}
+
+
 class LiveUpkiePlantWorkerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -38,20 +46,26 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             {
                 "type": "step",
                 "command_id": 1,
-                "push": {
+                "external_load": {
                     "active": True,
                     "body": body,
                     "force_world": force.tolist(),
                     "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": 1,
                 },
             }
         )
         self.assertEqual(result["type"], "plant_state")
-        self.assertGreater(result["push"]["moment_world_nm"][1], 0.35)
-        self.assertLess(result["push"]["moment_world_nm"][1], 0.45)
-        self.assertGreater(result["push"]["maximum_moment_nm"], 0.35)
-        self.assertLess(result["push"]["application_offset_m"], 0.25)
+        self.assertGreater(result["external_load"]["moment_world_nm"][1], 0.35)
+        self.assertLess(result["external_load"]["moment_world_nm"][1], 0.45)
+        self.assertGreater(result["external_load"]["maximum_moment_nm"], 0.35)
+        self.assertLess(result["external_load"]["application_offset_m"], 0.25)
+        self.assertEqual(
+            result["external_load"]["provenance"], EVALUATION_PROVENANCE
+        )
+        self.assertFalse(result["measured_impact_impulse"]["available"])
+        self.assertFalse(result["unobserved_model_reserve"]["available"])
 
     def test_excessive_lever_is_rejected_without_advancing_plant(self) -> None:
         body = "base"
@@ -64,11 +78,12 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             {
                 "type": "step",
                 "command_id": 2,
-                "push": {
+                "external_load": {
                     "active": True,
                     "body": body,
                     "force_world": [2.0, 0.0, 0.0],
                     "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": 2,
                 },
             }
@@ -118,17 +133,40 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         result = self.worker.step(
             {
                 "type": "step",
-                "push": {
+                "external_load": {
                     "active": True,
                     "body": body,
                     "force_world": [0.0, 1.0, 0.0],
                     "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
                     "request_id": 3,
                 },
             }
         )
         self.assertEqual(result["type"], "plant_state")
-        self.assertEqual(result["push"]["body"], body)
+        self.assertEqual(result["external_load"]["body"], body)
+
+    def test_load_without_provenance_is_rejected_without_advancing_plant(self) -> None:
+        before_qpos = self.worker.data.qpos.copy()
+        body = "base"
+        body_id = self.worker.body_by_name[body]
+        result = self.worker.step(
+            {
+                "type": "step",
+                "external_load": {
+                    "active": True,
+                    "body": body,
+                    "force_world": [1.0, 0.0, 0.0],
+                    "application_point_world": self.worker.data.xipos[
+                        body_id
+                    ].tolist(),
+                    "request_id": 4,
+                },
+            }
+        )
+        self.assertEqual(result["type"], "plant_error")
+        self.assertIn("provenance", result["message"])
+        np.testing.assert_array_equal(self.worker.data.qpos, before_qpos)
 
 
 if __name__ == "__main__":

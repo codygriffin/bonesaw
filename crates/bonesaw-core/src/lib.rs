@@ -14,6 +14,7 @@ pub mod contact_transition;
 pub mod controller;
 pub mod dynamic_controller;
 pub mod dynamic_wbc;
+pub mod external_load;
 pub mod frames;
 pub mod history;
 pub mod ik;
@@ -119,6 +120,10 @@ pub use dynamic_wbc::{
     balance_feedback_authority, contact_phase_authority, dcm_balance_acceleration,
     joint_acceleration_interval, joint_acceleration_interval_with_observation_error,
     joint_velocity_envelope_acceleration, slew_contact_phase_authority,
+};
+pub use external_load::{
+    DeclaredExternalWrench, ExternalLoadClass, ExternalLoadError, ExternalLoadFrame,
+    ExternalLoadProvenance, ExternalLoadSource, validate_declared_external_wrench,
 };
 pub use frames::{
     AtlasFrameEstimate, AtlasFrameId, CompiledFrameAtlas, DerivedFrameOp, ExternalFrameInputs,

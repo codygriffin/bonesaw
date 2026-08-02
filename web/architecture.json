@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "revision": "terminal-velocity-box-audit-r224",
+  "revision": "external-load-provenance-r225",
   "updated": "2026-08-02",
-  "stage": "The editor retains simultaneous authored/plant state over explicit z=0; CPU terminal consequence now bounds a full velocity box, while transferable transition evidence remains open · r224",
-  "checkpoint": "R224 closes R222's center-score gap without changing command authority. Generic allocation-free Rust propagates a componentwise velocity box through ballistic impact time, terminal tilt/rate, joint headroom/velocity, and the separate pressure stack. On immutable R221 contact-only states, observed false-safe crossings fall from 7→0 and 1→0 with no violation for any completed state inside the terminal projection; query p99 is 1.388/1.439 µs. The profile remains rejected: source coverage is 91.667%/64.583%, terminal-projection coverage is 91.667%/39.583%, and the broad box conservatively rejects 10/48 and 2/48 safe states. R223's explicit green preview, dashed orange measured plant, filled z=0 plane, and simulator telemetry remain unchanged.",
-  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. The CPU boundary now separates point prediction, componentwise transition uncertainty, and a conservative nonlinear terminal consequence bound. That bound carries no probability or reachability claim and cannot rescue the rejected transition profile. A tighter independently motivated set, untouched holdout, plant non-regression, external-load provenance, browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "Declared external wrenches now carry typed source/class/frame provenance end to end; impact and model reserve remain separate evidence while transferable transition work continues · r225",
+  "checkpoint": "R225 closes the online external-load provenance gap without changing WBC or plant authority. Generic Rust distinguishes declared continuous wrench, measured impact impulse, and unobserved-model reserve. /plant-ws protocol 2 accepts only explicitly sourced world-frame declared wrenches, rejects missing provenance and evidence-only classes before worker mutation, and the MuJoCo worker independently revalidates the contract. Browser-operator and evaluation-harness sources echo separately in measured state. The retained public Cloudflare audit passes with zero MuJoCo warnings; impact estimation, reserve calibration, authenticated identity, and R224's transferable transition set remain open.",
+  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. External command provenance is now separate from contact/impact evidence and unobserved-model reserve. The CPU terminal bound still carries no probability or reachability claim and cannot rescue the rejected transition profile. A tighter independently motivated set, untouched holdout, plant non-regression, browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
-      "detail": "TARGET green handles → /ws Cartesian preview intent · continuously connected /plant-ws → dashed orange measured MuJoCo state · Ctrl+rendered-body ray hit → finite world wrench at the hit point · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
+      "detail": "TARGET green handles → /ws Cartesian preview intent · continuously connected /plant-ws → dashed orange measured MuJoCo state · Ctrl+rendered-body ray hit → finite world wrench carrying interactive_operator / declared_continuous_wrench / world-frame provenance · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
     },
     {
       "name": "Live plant authority boundary",
-      "detail": "Rust validates request/schema/8 N force/body existence/750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · Python validates exact COM lever and MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · measured transforms, root twist, q/v/qdd, actuator effort, generalized constraint force, contacts, force, moment, penetration, energy, warnings, solver work, simulator clocks, and separate authority witnesses stream at 50 Hz"
+      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever, then MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · accepted provenance, measured transforms, root twist, q/v/qdd, actuator effort, generalized constraint force, contacts, force, moment, penetration, energy, warnings, solver work, simulator clocks, and separate authority witnesses stream at 50 Hz"
     },
     {
       "name": "Explicit tick input",
@@ -60,7 +60,7 @@
     },
     {
       "name": "Optional physical plant gateway",
-      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · isolated Python MuJoCo contact and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · automatic fall report then next-step reset"
+      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · protocol-2 interactive_operator / declared_continuous_wrench / world-frame provenance · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · independent Python provenance validation, MuJoCo contact, and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · automatic fall report then next-step reset"
     },
     {
       "name": "Outputs",
@@ -81,7 +81,7 @@
     {
       "name": "bonesaw-tools",
       "role": "Compiler, native eval sentinel, Pinocchio fixtures, and local WebSocket editor adapter.",
-      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws validates typed finite wrenches, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over z=0, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies the dashed measured rig, contacts, root motion, effort, acceleration, generalized constraint force, energy, warnings, and force/moment evidence; PUSH makes those transforms primary."
+      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over z=0, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies the dashed measured rig, contacts, root motion, effort, acceleration, generalized constraint force, energy, warnings, accepted provenance, and force/moment evidence; PUSH makes those transforms primary."
     },
         {
             "name": "bonesaw-cuda",
@@ -90,6 +90,12 @@
         }
   ],
   "decisions": [
+    {
+      "status": "admitted",
+      "title": "External command, impact evidence, and model reserve have distinct provenance",
+      "detail": "R225 adds an allocation-free generic Rust contract and /plant-ws protocol 2. Only interactive_operator or evaluation_harness records with declared_continuous_wrench class and world force/application-point frames may execute. Missing provenance, measured_impact_impulse, and unobserved_model_reserve command attempts are rejected before worker mutation; Python independently revalidates accepted records, and measured state echoes their exact source. The public Cloudflare audit passes with stream survival, normal release, and zero MuJoCo warnings. This admits provenance semantics only, not authentication, impact estimation, reserve calibration, safety, or broader authority.",
+      "evidence": "/EXTERNAL_LOAD_PROVENANCE_AUDIT_R225.html"
+    },
     {
       "status": "provisional",
       "title": "Terminal consequence is now bounded over the full declared velocity box",
@@ -764,7 +770,7 @@
     {
       "status": "provisional",
       "title": "Viewport manipulation is an explicit camera-plane contract",
-      "detail": "An empty-canvas primary-pointer drag orbits a perspective camera around world Z with bounded elevation; mousewheel zooms and Shift-drag always translates the view. In TARGET mode a green point authors a world-space target on the camera-facing plane. Ctrl+drag takes precedence, ray-tests the rendered triangle surfaces, and preserves the nearest hit as the physical application point; its view-plane delta becomes an orange force arrow at 60 N/m, clamped by the server-advertised 8 N limit and refreshed every 50 ms against a 140 ms TTL. Explicit PUSH retains a touch-friendly mode. Picking and camera state remain browser concerns; target and wrench protocols remain view-independent and distinct."
+      "detail": "An empty-canvas primary-pointer drag orbits a perspective camera around world Z with bounded elevation; mousewheel zooms and Shift-drag always translates the view. In TARGET mode a green point authors a world-space target on the camera-facing plane. Ctrl+drag takes precedence, ray-tests the rendered triangle surfaces, and preserves the nearest hit as the physical application point; its view-plane delta becomes an orange force arrow at 60 N/m, clamped by the server-advertised 8 N limit and refreshed every 50 ms against a 140 ms TTL. Each record declares interactive_operator source, declared_continuous_wrench class, and world force/application-point frames; the UI echoes the accepted source beside the wrench. Explicit PUSH retains a touch-friendly mode. Picking and camera state remain browser concerns; target and wrench protocols remain view-independent and distinct."
     },
     {
       "status": "frozen",
@@ -773,6 +779,12 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R225 external-load provenance audit",
+      "result": "PASS · PROTOCOL 2 · MISSING PROVENANCE REJECTED · IMPACT-AS-COMMAND REJECTED · RESERVE-AS-COMMAND REJECTED · WORKER COMMAND UNCHANGED · INTERACTIVE OPERATOR + EVALUATION HARNESS EXACTLY ECHOED · NORMAL RELEASE · 0 MUJOCO WARNINGS",
+      "scope": "public Cloudflare /plant-ws · generic allocation-free Rust source/class/frame validation · server source allow-list and pre-worker rejection · independent Python MuJoCo revalidation · explicit unavailable impact/reserve state · no authentication, impact estimator, reserve calibration, hardware, safety, or WBC authority claim",
+      "href": "/EXTERNAL_LOAD_PROVENANCE_AUDIT_R225.html"
+    },
     {
       "metric": "R224 G1 terminal velocity-box audit",
       "result": "GENERIC BOX MECHANISM PASS / PROFILE + AUTHORITY NO · 0 PHYSICS/POLICY/CONTROLLER/INTEGRATION · CENTER→BOX FALSE-SAFE 7→0 + 1→0 · CONTAINED VIOLATIONS 0 · TERMINAL-PROJECTION COVERAGE 91.667% + 39.583% · CONSERVATIVE SAFE REJECTS 10/48 + 2/48 · BOX P99 1.388/1.439 µS · ZERO RUST ALLOCATION",
