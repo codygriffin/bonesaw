@@ -2426,7 +2426,7 @@ candidate-minus-baseline consequence directly from `shared uncertain baseline
 uppers. Tilt, angular rate, joint-position pressure, joint-velocity pressure,
 actuator effort, raw headroom loss, and aggregate consequence remain separate.
 The fixed 3-candidate × 4-hypothesis G1 batch repeats 500 times at
-378.45/402.02 microsecond p50/p99 with zero allocation, an exact zero baseline,
+380.52/431.98 microsecond p50/p99 with zero allocation, an exact zero baseline,
 and 384/384 paired point samples contained. A separate immutable R254 replay
 constructs four authored contact/estimator hypotheses with 96 kinematic
 forwards and zero policy or physics steps; its absolute state boxes cover all

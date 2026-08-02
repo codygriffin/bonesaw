@@ -344,7 +344,7 @@ R256 adds an allocation-free Rust delta boundary over a shared terminal-state
 tube. Every candidate is represented as the same uncertain baseline plus a
 candidate delta, so consequence differences are bounded directly instead of
 subtracting two independent score uppers. A fixed three-candidate,
-four-hypothesis G1 batch repeats 500 times at 378.45/402.02 microsecond p50/p99
+four-hypothesis G1 batch repeats 500 times at 380.52/431.98 microsecond p50/p99
 with exact replay, zero measured Rust allocation, an exact zero baseline, and
 384/384 independently sampled paired points contained.
 
