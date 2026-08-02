@@ -191,10 +191,13 @@ pub use support_contingency::{
     write_support_contingency_request,
 };
 pub use terminal_impact::{
-    ConservativeTerminalImpactSelection, TerminalImpactCandidate, TerminalImpactConfig,
-    TerminalImpactError, TerminalImpactScore, TerminalImpactState, TerminalImpactVelocityBoxState,
-    score_terminal_impact, score_terminal_impact_velocity_box_upper,
-    select_conservative_terminal_impact_candidate, write_terminal_impact_hypothesis_envelopes,
+    ConservativeTerminalImpactDeltaSelection, ConservativeTerminalImpactSelection,
+    TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
+    TerminalImpactConfig, TerminalImpactError, TerminalImpactScore, TerminalImpactState,
+    TerminalImpactVelocityBoxState, score_terminal_impact,
+    score_terminal_impact_velocity_box_upper, select_conservative_terminal_impact_candidate,
+    select_conservative_terminal_impact_delta_candidate,
+    write_terminal_impact_hypothesis_envelopes,
 };
 pub use trajectory::{
     ActuatorSample, ActuatorSampleBlock, QuinticSegment, RootPosePredictionSegment,

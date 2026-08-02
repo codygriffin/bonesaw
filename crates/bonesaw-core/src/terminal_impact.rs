@@ -130,6 +130,38 @@ pub struct ConservativeTerminalImpactSelection {
     pub maximum_component_improvement: f64,
 }
 
+/// Number of candidate-dependent terminal consequence components used by the
+/// paired delta gate.  Impact speed is deliberately excluded: for the
+/// support-free ballistic candidates considered here it is candidate
+/// invariant.  Admission remains the separate `available` gate.
+pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 6;
+
+/// A caller-supplied outer bound on candidate-minus-baseline terminal
+/// consequence. The six components are tilt, angular rate, joint position,
+/// joint velocity, actuator effort pressure, and raw joint-headroom loss in
+/// that order. Negative is an improvement. Impact speed is candidate
+/// invariant for this gate; admission is represented by `available`. This
+/// representation preserves paired plant uncertainty without pretending
+/// baseline and candidate errors are independent.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TerminalImpactComponentDeltaBox {
+    pub available: bool,
+    pub component_lower: [f64; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+    pub component_upper: [f64; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+    pub aggregate_lower: f64,
+    pub aggregate_upper: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConservativeTerminalImpactDeltaSelection {
+    pub selected_index: usize,
+    pub baseline_index: usize,
+    pub maximum_component_delta_upper: f64,
+    pub maximum_guaranteed_component_improvement: f64,
+    pub aggregate_delta_lower: f64,
+    pub aggregate_delta_upper: f64,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminalImpactError {
     InvalidConfig,
@@ -686,6 +718,95 @@ pub fn select_conservative_terminal_impact_candidate(
     })
 }
 
+/// Select a paired terminal-consequence delta box without allocating.
+///
+/// The baseline row must be the exact available zero delta. A non-baseline
+/// candidate is eligible only when every component upper bound *and the
+/// aggregate upper bound* stay within `maximum_component_regression`, and at
+/// least one component upper bound is at or below
+/// `-minimum_component_improvement`. Thus an optimistic lower bound can never
+/// promote an action. Among eligible rows, the smallest worst component upper
+/// bound wins, followed by aggregate upper bound and index.
+pub fn select_conservative_terminal_impact_delta_candidate(
+    candidates: &[TerminalImpactComponentDeltaBox],
+    baseline_index: usize,
+    maximum_component_regression: f64,
+    minimum_component_improvement: f64,
+) -> Result<ConservativeTerminalImpactDeltaSelection, TerminalImpactError> {
+    if candidates.is_empty()
+        || baseline_index >= candidates.len()
+        || !maximum_component_regression.is_finite()
+        || maximum_component_regression < 0.0
+        || !minimum_component_improvement.is_finite()
+        || minimum_component_improvement < 0.0
+        || candidates.iter().any(|candidate| {
+            !candidate.aggregate_lower.is_finite()
+                || !candidate.aggregate_upper.is_finite()
+                || candidate.aggregate_lower > candidate.aggregate_upper
+                || candidate
+                    .component_lower
+                    .iter()
+                    .zip(candidate.component_upper)
+                    .any(|(lower, upper)| {
+                        !lower.is_finite() || !upper.is_finite() || *lower > upper
+                    })
+        })
+    {
+        return Err(TerminalImpactError::InvalidSelection);
+    }
+    let baseline = candidates[baseline_index];
+    if !baseline.available
+        || baseline.aggregate_lower != 0.0
+        || baseline.aggregate_upper != 0.0
+        || baseline.component_lower != [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS]
+        || baseline.component_upper != [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS]
+    {
+        return Err(TerminalImpactError::InvalidSelection);
+    }
+
+    let mut selected_index = baseline_index;
+    let mut selected_maximum_upper = 0.0;
+    let mut selected_guaranteed_improvement = 0.0;
+    for (index, candidate) in candidates.iter().copied().enumerate() {
+        if index == baseline_index || !candidate.available {
+            continue;
+        }
+        let maximum_upper = candidate
+            .component_upper
+            .into_iter()
+            .fold(f64::NEG_INFINITY, f64::max);
+        let guaranteed_improvement = -candidate
+            .component_upper
+            .into_iter()
+            .fold(f64::INFINITY, f64::min);
+        if maximum_upper > maximum_component_regression
+            || candidate.aggregate_upper > maximum_component_regression
+            || guaranteed_improvement < minimum_component_improvement
+        {
+            continue;
+        }
+        let selected = candidates[selected_index];
+        if selected_index == baseline_index
+            || maximum_upper < selected_maximum_upper
+            || (maximum_upper == selected_maximum_upper
+                && candidate.aggregate_upper < selected.aggregate_upper)
+        {
+            selected_index = index;
+            selected_maximum_upper = maximum_upper;
+            selected_guaranteed_improvement = guaranteed_improvement;
+        }
+    }
+    let selected = candidates[selected_index];
+    Ok(ConservativeTerminalImpactDeltaSelection {
+        selected_index,
+        baseline_index,
+        maximum_component_delta_upper: selected_maximum_upper,
+        maximum_guaranteed_component_improvement: selected_guaranteed_improvement,
+        aggregate_delta_lower: selected.aggregate_lower,
+        aggregate_delta_upper: selected.aggregate_upper,
+    })
+}
+
 /// Collapse a fixed candidate × support-hypothesis score table into one
 /// conservative score per candidate without allocating.
 ///
@@ -927,6 +1048,109 @@ mod tests {
         assert_eq!(selected.selected_index, 1);
         assert_eq!(selected.maximum_component_regression, 0.0);
         assert!(selected.maximum_component_improvement >= 0.2 - 1.0e-12);
+    }
+
+    #[test]
+    fn paired_delta_selector_requires_guaranteed_improvement_without_tradeoff() {
+        let baseline = TerminalImpactComponentDeltaBox {
+            available: true,
+            component_lower: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            aggregate_lower: 0.0,
+            aggregate_upper: 0.0,
+        };
+        let optimistic_only = TerminalImpactComponentDeltaBox {
+            available: true,
+            component_lower: [-0.5, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1],
+            component_upper: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            aggregate_lower: -0.4,
+            aggregate_upper: 0.1,
+        };
+        let guaranteed = TerminalImpactComponentDeltaBox {
+            available: true,
+            component_lower: [-0.4, -0.2, -0.1, -0.1, -0.1, -0.1, -0.1],
+            component_upper: [-0.2, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            aggregate_lower: -0.3,
+            aggregate_upper: -0.1,
+        };
+        let selection = select_conservative_terminal_impact_delta_candidate(
+            &[baseline, optimistic_only, guaranteed],
+            0,
+            0.0,
+            0.05,
+        )
+        .unwrap();
+        assert_eq!(selection.selected_index, 2);
+        assert_eq!(selection.maximum_component_delta_upper, 0.0);
+        assert_eq!(selection.maximum_guaranteed_component_improvement, 0.2);
+        assert_eq!(selection.aggregate_delta_upper, -0.1);
+
+        let aggregate_regression = TerminalImpactComponentDeltaBox {
+            aggregate_upper: 0.01,
+            ..guaranteed
+        };
+        let aggregate_selection = select_conservative_terminal_impact_delta_candidate(
+            &[baseline, aggregate_regression],
+            0,
+            0.0,
+            0.05,
+        )
+        .unwrap();
+        assert_eq!(aggregate_selection.selected_index, 0);
+    }
+
+    #[test]
+    fn paired_delta_selector_is_fail_closed_and_ties_to_lower_index() {
+        let baseline = TerminalImpactComponentDeltaBox {
+            available: true,
+            component_lower: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            aggregate_lower: 0.0,
+            aggregate_upper: 0.0,
+        };
+        let candidate = TerminalImpactComponentDeltaBox {
+            available: true,
+            component_lower: [-0.3; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [-0.1; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            aggregate_lower: -0.4,
+            aggregate_upper: -0.2,
+        };
+        let selection = select_conservative_terminal_impact_delta_candidate(
+            &[baseline, candidate, candidate],
+            0,
+            0.0,
+            0.05,
+        )
+        .unwrap();
+        assert_eq!(selection.selected_index, 1);
+
+        let invalid_baseline = TerminalImpactComponentDeltaBox {
+            aggregate_upper: 0.01,
+            ..baseline
+        };
+        assert_eq!(
+            select_conservative_terminal_impact_delta_candidate(
+                &[invalid_baseline, candidate],
+                0,
+                0.0,
+                0.05,
+            ),
+            Err(TerminalImpactError::InvalidSelection)
+        );
+        let inverted = TerminalImpactComponentDeltaBox {
+            component_lower: [0.2; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [0.1; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            ..candidate
+        };
+        assert_eq!(
+            select_conservative_terminal_impact_delta_candidate(
+                &[baseline, inverted],
+                0,
+                0.0,
+                0.05,
+            ),
+            Err(TerminalImpactError::InvalidSelection)
+        );
     }
 
     #[test]

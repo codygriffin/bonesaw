@@ -2383,6 +2383,19 @@ terminal score and kinetic energy. None avoids every terminal-component
 regression, so no gain, fresh action, or authority is selected. See the [r252
 passive damping audit](benchmarks/results/g1-passive-damping-action-audit-r252/G1_PASSIVE_DAMPING_ACTION_AUDIT.md).
 
+R253 implements the paired-consequence seam in Rust. An atomic,
+allocation-free exact-three-candidate selector consumes candidate-minus-zero
+outer boxes over six physical pressures plus raw joint-headroom loss, gates
+aggregate score separately, and requires a guaranteed improvement without any
+declared regression. A second boundary derives the same seven deltas from four
+shared terminal hypotheses so candidate and baseline uncertainty remain
+paired. With zero policy and zero physics, fixed closing-speed/tilt-sign groups
+freeze the neutral-recovery profile on immutable R250 evidence: 3/96 rows
+select the nonzero third candidate, all three improve aggregate consequence,
+and none regresses an observed safety component. This is spent design evidence
+only; authority stays closed until the frozen profile faces new laws and
+offsets once without refitting. See the [r253 paired score freeze](benchmarks/results/g1-paired-terminal-score-freeze-r253/G1_PAIRED_TERMINAL_SCORE_FREEZE.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

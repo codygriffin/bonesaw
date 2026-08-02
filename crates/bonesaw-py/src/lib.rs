@@ -47,22 +47,23 @@ use bonesaw_core::{
     SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
-    TerminalImpactCandidate, TerminalImpactConfig, TerminalImpactScore, TerminalImpactState,
-    TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
-    TouchdownPhaseRetimingInput, Transform3, VIABILITY_EXECUTION_COMPONENTS,
-    VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds, ViabilityConfirmationConfig,
-    ViabilityConfirmationState, ViabilityExecutionMonitorConfig, ViabilityExecutionMonitorState,
-    ViabilityForecastCandidate, ViabilityForecastConfig, ViabilityForecastKnot,
-    ViabilityForecastState, ViabilityHybridGuardConfig, ViabilityHybridGuardState,
-    ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig, ViabilityRequestState,
-    WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions, WholeBodyPointIkTarget,
-    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
-    capture_landing_retarget, contact_phase_authority, cubic_precontact_acceleration,
-    dcm_balance_acceleration, joint_acceleration_interval, joint_velocity_envelope_acceleration,
-    maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
-    predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
-    score_terminal_impact_velocity_box_upper, score_viability_forecast,
-    select_conservative_terminal_impact_candidate, select_inexact_observation_authority,
+    TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
+    TerminalImpactConfig, TerminalImpactScore, TerminalImpactState, TerminalImpactVelocityBoxState,
+    TimingSpec, TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput, Transform3,
+    VIABILITY_EXECUTION_COMPONENTS, VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds,
+    ViabilityConfirmationConfig, ViabilityConfirmationState, ViabilityExecutionMonitorConfig,
+    ViabilityExecutionMonitorState, ViabilityForecastCandidate, ViabilityForecastConfig,
+    ViabilityForecastKnot, ViabilityForecastState, ViabilityHybridGuardConfig,
+    ViabilityHybridGuardState, ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig,
+    ViabilityRequestState, WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions,
+    WholeBodyPointIkTarget, WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity,
+    balance_feedback_authority, capture_landing_retarget, contact_phase_authority,
+    cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
+    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
+    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
+    sample_quintic_vector_jet, score_terminal_impact, score_terminal_impact_velocity_box_upper,
+    score_viability_forecast, select_conservative_terminal_impact_candidate,
+    select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
     solve_coupled_positive_reference_compliant_contact_impulse,
     solve_model_coupled_positive_reference_compliant_contact_impulse, solve_planar_point_ik_into,
@@ -1852,6 +1853,118 @@ impl ContactTransitionModelSession {
         if allocation_after != allocation_before {
             return Err(PyValueError::new_err(
                 "terminal-impact velocity box selection allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Select exactly three paired candidate-minus-baseline terminal pressure
+    /// boxes. The six columns are tilt, angular-rate, joint-position,
+    /// joint-velocity, actuator-effort pressure, and raw joint-headroom loss
+    /// deltas. Impact speed is candidate-invariant and excluded; availability
+    /// is the admission gate. This boundary is allocation-free and atomic,
+    /// but remains an evaluation selector rather than command authority.
+    #[allow(clippy::too_many_arguments)]
+    fn select_terminal_impact_component_delta_box_candidates(
+        &self,
+        component_lower: PyReadonlyArray2<'_, f64>,
+        component_upper: PyReadonlyArray2<'_, f64>,
+        aggregate_lower: PyReadonlyArray1<'_, f64>,
+        aggregate_upper: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray1<'_, u8>,
+        baseline_index: usize,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut diagnostics_out: PyReadwriteArray2<'_, f64>,
+        mut selection_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        const DIAGNOSTICS: usize = 2 * TERMINAL_IMPACT_PAIRED_COMPONENTS + 2;
+        let lower_shape = component_lower.as_array().dim();
+        let upper_shape = component_upper.as_array().dim();
+        let diagnostic_shape = diagnostics_out.as_array().dim();
+        let component_lower = component_lower.as_slice()?;
+        let component_upper = component_upper.as_slice()?;
+        let aggregate_lower = aggregate_lower.as_slice()?;
+        let aggregate_upper = aggregate_upper.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let diagnostics = diagnostics_out.as_slice_mut()?;
+        let selection_out = selection_out.as_slice_mut()?;
+        if lower_shape != (CANDIDATES, TERMINAL_IMPACT_PAIRED_COMPONENTS)
+            || upper_shape != (CANDIDATES, TERMINAL_IMPACT_PAIRED_COMPONENTS)
+            || aggregate_lower.len() != CANDIDATES
+            || aggregate_upper.len() != CANDIDATES
+            || available.len() != CANDIDATES
+            || available.iter().any(|value| *value > 1)
+            || diagnostic_shape != (CANDIDATES, DIAGNOSTICS)
+            || selection_out.len() != 6
+        {
+            return Err(PyValueError::new_err(
+                "paired terminal delta selection expects component lower/upper[3,6], aggregate lower/upper and availability[3], diagnostics[3,14], and selection[6]",
+            ));
+        }
+        let candidates: [TerminalImpactComponentDeltaBox; CANDIDATES] =
+            std::array::from_fn(|candidate| {
+                let offset = candidate * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+                TerminalImpactComponentDeltaBox {
+                    available: available[candidate] != 0,
+                    component_lower: std::array::from_fn(|component| {
+                        component_lower[offset + component]
+                    }),
+                    component_upper: std::array::from_fn(|component| {
+                        component_upper[offset + component]
+                    }),
+                    aggregate_lower: aggregate_lower[candidate],
+                    aggregate_upper: aggregate_upper[candidate],
+                }
+            });
+        select_conservative_terminal_impact_delta_candidate(
+            &candidates,
+            baseline_index,
+            maximum_component_regression,
+            minimum_component_improvement,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid paired terminal-impact delta selection: {error:?}"
+            ))
+        })?;
+
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        let selection = select_conservative_terminal_impact_delta_candidate(
+            &candidates,
+            baseline_index,
+            maximum_component_regression,
+            minimum_component_improvement,
+        )
+        .expect("validated paired terminal-impact delta selection");
+        for (candidate, values) in diagnostics.chunks_exact_mut(DIAGNOSTICS).enumerate() {
+            values[..TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .copy_from_slice(&candidates[candidate].component_lower);
+            values[TERMINAL_IMPACT_PAIRED_COMPONENTS..2 * TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .copy_from_slice(&candidates[candidate].component_upper);
+            values[2 * TERMINAL_IMPACT_PAIRED_COMPONENTS] = candidates[candidate].aggregate_lower;
+            values[2 * TERMINAL_IMPACT_PAIRED_COMPONENTS + 1] =
+                candidates[candidate].aggregate_upper;
+        }
+        selection_out.copy_from_slice(&[
+            selection.selected_index as f64,
+            selection.baseline_index as f64,
+            selection.maximum_component_delta_upper,
+            selection.maximum_guaranteed_component_improvement,
+            selection.aggregate_delta_lower,
+            selection.aggregate_delta_upper,
+        ]);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "paired terminal-impact delta selection allocated inside the Rust hot path",
             ));
         }
         Ok((
@@ -5121,6 +5234,204 @@ impl UpkieBalanceSession {
             selection.baseline_score,
             selection.maximum_component_regression,
             selection.maximum_component_improvement,
+        ]);
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Aggregate exactly four *paired* terminal hypotheses for each of three
+    /// candidates and select from the candidate-minus-baseline consequence
+    /// delta.  The hypothesis index is shared across candidates: candidate
+    /// `c,h` is compared with baseline `baseline_index,h`, so baseline and
+    /// candidate uncertainty is never widened into independent boxes.
+    ///
+    /// The input table is candidate-major `[3, 4, 17]` and contains the
+    /// caller-owned terminal diagnostics for each paired hypothesis.  The
+    /// six output delta components are tilt, angular rate, joint position,
+    /// joint velocity, actuator effort pressure, and raw joint-headroom loss.
+    /// Impact speed is candidate-invariant and excluded. Availability is the
+    /// admission gate. Negative values are improvements. This method is a
+    /// bounded consequence selector only; it does not apply a command or
+    /// admit authority.
+    #[allow(clippy::too_many_arguments)]
+    fn select_terminal_impact_delta_hypothesis_envelopes(
+        &self,
+        hypothesis_diagnostics: PyReadonlyArray3<'_, f64>,
+        baseline_index: usize,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut delta_lower_out: PyReadwriteArray2<'_, f64>,
+        mut delta_upper_out: PyReadwriteArray2<'_, f64>,
+        mut aggregate_lower_out: PyReadwriteArray1<'_, f64>,
+        mut aggregate_upper_out: PyReadwriteArray1<'_, f64>,
+        mut selection_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        const HYPOTHESES: usize = 4;
+        const DIAGNOSTICS: usize = 17;
+        const COMPONENTS: usize = TERMINAL_IMPACT_PAIRED_COMPONENTS;
+        let hypothesis_shape = hypothesis_diagnostics.as_array().dim();
+        let delta_lower_shape = delta_lower_out.as_array().dim();
+        let delta_upper_shape = delta_upper_out.as_array().dim();
+        let hypothesis_diagnostics = hypothesis_diagnostics.as_slice()?;
+        let delta_lower_out = delta_lower_out.as_slice_mut()?;
+        let delta_upper_out = delta_upper_out.as_slice_mut()?;
+        let aggregate_lower_out = aggregate_lower_out.as_slice_mut()?;
+        let aggregate_upper_out = aggregate_upper_out.as_slice_mut()?;
+        let selection_out = selection_out.as_slice_mut()?;
+        if hypothesis_shape != (CANDIDATES, HYPOTHESES, DIAGNOSTICS)
+            || delta_lower_shape != (CANDIDATES, COMPONENTS)
+            || delta_upper_shape != (CANDIDATES, COMPONENTS)
+            || aggregate_lower_out.len() != CANDIDATES
+            || aggregate_upper_out.len() != CANDIDATES
+            || selection_out.len() != 6
+            || baseline_index >= CANDIDATES
+        {
+            return Err(PyValueError::new_err(
+                "paired terminal delta expects hypotheses[3,4,17], delta lower/upper[3,6], aggregate lower/upper[3], and selection[6]",
+            ));
+        }
+
+        // Build and validate all stack-owned envelopes before touching any
+        // caller output.  The same pass is repeated inside the timed region
+        // after validation, keeping the hot path allocation-free and the ABI
+        // atomic on malformed late rows.
+        let build_envelopes = || -> PyResult<(
+            [TerminalImpactComponentDeltaBox; CANDIDATES],
+            [TerminalImpactScore; CANDIDATES * HYPOTHESES],
+        )> {
+            let mut scores =
+                [TerminalImpactScore::default(); CANDIDATES * HYPOTHESES];
+            for (index, values) in hypothesis_diagnostics
+                .chunks_exact(DIAGNOSTICS)
+                .enumerate()
+            {
+                scores[index] = terminal_impact_score_from_diagnostics(values).ok_or_else(|| {
+                    PyValueError::new_err(format!(
+                        "invalid paired terminal hypothesis diagnostics at flat index {index}"
+                    ))
+                })?;
+            }
+            let mut envelopes = [TerminalImpactComponentDeltaBox {
+                available: false,
+                component_lower: [0.0; COMPONENTS],
+                component_upper: [0.0; COMPONENTS],
+                aggregate_lower: 0.0,
+                aggregate_upper: 0.0,
+            }; CANDIDATES];
+            for candidate in 0..CANDIDATES {
+                if candidate == baseline_index {
+                    // The baseline's paired delta is exactly zero by
+                    // definition, regardless of any repeated floating bits.
+                    envelopes[candidate].available = (0..HYPOTHESES)
+                        .all(|hypothesis| {
+                            scores[candidate * HYPOTHESES + hypothesis].available
+                        });
+                    continue;
+                }
+                let mut lower = [f64::INFINITY; COMPONENTS];
+                let mut upper = [f64::NEG_INFINITY; COMPONENTS];
+                let mut aggregate_lower = f64::INFINITY;
+                let mut aggregate_upper = f64::NEG_INFINITY;
+                let mut available = true;
+                for hypothesis in 0..HYPOTHESES {
+                    let baseline = scores[baseline_index * HYPOTHESES + hypothesis];
+                    let score = scores[candidate * HYPOTHESES + hypothesis];
+                    available &= baseline.available && score.available;
+                    let deltas = [
+                        score.tilt_pressure - baseline.tilt_pressure,
+                        score.angular_rate_pressure - baseline.angular_rate_pressure,
+                        score.joint_position_pressure - baseline.joint_position_pressure,
+                        score.joint_velocity_pressure - baseline.joint_velocity_pressure,
+                        score.actuator_effort_pressure - baseline.actuator_effort_pressure,
+                        baseline.minimum_terminal_joint_headroom_fraction
+                            - score.minimum_terminal_joint_headroom_fraction,
+                    ];
+                    if deltas.iter().any(|value| !value.is_finite()) {
+                        return Err(PyValueError::new_err(
+                            "paired terminal delta overflowed a finite component",
+                        ));
+                    }
+                    for component in 0..COMPONENTS {
+                        lower[component] = lower[component].min(deltas[component]);
+                        upper[component] = upper[component].max(deltas[component]);
+                    }
+                    let aggregate = score.aggregate_score - baseline.aggregate_score;
+                    if !aggregate.is_finite() {
+                        return Err(PyValueError::new_err(
+                            "paired terminal delta overflowed a finite aggregate",
+                        ));
+                    }
+                    aggregate_lower = aggregate_lower.min(aggregate);
+                    aggregate_upper = aggregate_upper.max(aggregate);
+                }
+                envelopes[candidate] = TerminalImpactComponentDeltaBox {
+                    available,
+                    component_lower: lower,
+                    component_upper: upper,
+                    aggregate_lower,
+                    aggregate_upper,
+                };
+            }
+            envelopes[baseline_index] = TerminalImpactComponentDeltaBox {
+                available: envelopes[baseline_index].available,
+                component_lower: [0.0; COMPONENTS],
+                component_upper: [0.0; COMPONENTS],
+                aggregate_lower: 0.0,
+                aggregate_upper: 0.0,
+            };
+            select_conservative_terminal_impact_delta_candidate(
+                &envelopes,
+                baseline_index,
+                maximum_component_regression,
+                minimum_component_improvement,
+            )
+            .map_err(|error| {
+                PyValueError::new_err(format!(
+                    "invalid paired terminal delta selection: {error:?}"
+                ))
+            })?;
+            Ok((envelopes, scores))
+        };
+
+        let _ = build_envelopes()?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        let (envelopes, _scores) = build_envelopes()?;
+        let selection = select_conservative_terminal_impact_delta_candidate(
+            &envelopes,
+            baseline_index,
+            maximum_component_regression,
+            minimum_component_improvement,
+        )
+        .expect("validated paired terminal delta selection");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "paired terminal delta selection allocated inside the Rust hot path",
+            ));
+        }
+        for candidate in 0..CANDIDATES {
+            for component in 0..COMPONENTS {
+                delta_lower_out[candidate * COMPONENTS + component] =
+                    envelopes[candidate].component_lower[component];
+                delta_upper_out[candidate * COMPONENTS + component] =
+                    envelopes[candidate].component_upper[component];
+            }
+            aggregate_lower_out[candidate] = envelopes[candidate].aggregate_lower;
+            aggregate_upper_out[candidate] = envelopes[candidate].aggregate_upper;
+        }
+        selection_out.copy_from_slice(&[
+            selection.selected_index as f64,
+            selection.baseline_index as f64,
+            selection.maximum_component_delta_upper,
+            selection.maximum_guaranteed_component_improvement,
+            selection.aggregate_delta_lower,
+            selection.aggregate_delta_upper,
         ]);
         Ok((
             elapsed_ns,

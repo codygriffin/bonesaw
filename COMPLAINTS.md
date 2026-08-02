@@ -77,11 +77,16 @@ coordinates. R250's stricter spent-state action-freeze audit then runs realized
 effort through fixed-effort WBC and MuJoCo and finds no useful safe profile:
 there is no fresh action candidate or authority to promote.
 
-R251 shows the next CPU seam without adding another opaque policy: correlated
-candidate-vs-zero plant error is much tighter than independent global boxes
-when grouped by fixed causal height/tilt/rate signs. It remains spent-data
-design evidence only; a Rust paired-delta bound and a no-refit fresh holdout
-are still required.
+R253 closes the R251 implementation seam without adding a policy. Rust now
+selects from exact-three-candidate paired terminal-delta boxes over impact
+speed, tilt, angular rate, joint position, joint velocity, actuator effort,
+raw joint-headroom loss, and a separately gated aggregate score. The boundary
+is atomic, deterministic, and allocation-free. Fixed causal closing-speed and
+tilt-sign groups freeze the neutral-recovery profile on spent R250 evidence:
+three of 96 rows select the nonzero third candidate, all three improve
+aggregate consequence, and none regresses a measured component. This removes
+the missing Rust-bound complaint, but remains design evidence; the frozen
+profile still needs one fresh no-refit law/offset holdout.
 
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
@@ -97,10 +102,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- implement the R251 causal paired-delta bound in Rust, then require it to
-  survive a fresh no-refit 250/50 plant matrix
-  evidence, then require strict no-retuning non-regression on new 250/50 laws
-  and offsets;
+- require the frozen R253 paired-delta profile to survive a fresh no-refit
+  250/50 plant matrix with strict component and aggregate non-regression on
+  new laws and offsets;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

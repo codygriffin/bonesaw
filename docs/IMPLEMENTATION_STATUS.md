@@ -338,7 +338,25 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r252 adds passivity without claiming safety
+## Current CPU checkpoint — r253 freezes a paired consequence profile
+
+R253 adds an atomic, allocation-free Rust selector over exactly three
+candidate-minus-baseline terminal consequence boxes. Seven safety components
+remain separate—impact speed, tilt, angular rate, joint position, joint
+velocity, actuator effort, and raw joint-headroom loss—and aggregate score has
+its own non-regression gate. A second Rust boundary forms those boxes directly
+from four shared candidate/baseline terminal hypotheses, preserving paired
+correlation instead of subtracting independent envelopes.
+
+Python reopens immutable R250 arrays without policy or physics, predicts the
+post-20 ms fixed-effort state, and fits residual boxes only within fixed causal
+closing-speed/tilt-sign groups. The neutral-recovery family freezes three
+nonzero third-candidate rows: all three improve aggregate consequence and have
+zero measured component regression. The velocity-damping family selects zero
+on every row. This spent evidence freezes only an action profile for one fresh
+no-refit contact-law/offset holdout; it does not admit authority.
+
+## Prior CPU checkpoint — r252 adds passivity without claiming safety
 
 R252 adds an atomic, allocation-free Rust trace that combines declared
 bandwidth/slew response with a pointwise positive mechanical-power cap. On 96
