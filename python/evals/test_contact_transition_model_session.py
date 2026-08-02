@@ -405,6 +405,163 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(unchanged_after, 8.0)
         np.testing.assert_array_equal(unchanged_gap, 9.0)
 
+    def test_positive_reference_compliance_is_typed_atomic_and_allocation_free(self) -> None:
+        contacts = self.generic.contact_count()
+        gap = np.asarray([-0.001, -1.0e-6], np.float64)
+        velocity = np.asarray(
+            [[0.3, -0.2, -0.5], [-0.1, 0.2, -0.5]], np.float64
+        )
+        acceleration = np.zeros_like(velocity)
+        delassus = np.eye(3 * contacts, dtype=np.float64)
+        upper = np.full((contacts, 3), 10.0, np.float64)
+        friction = np.full(contacts, 0.5, np.float64)
+        mass = np.full(contacts, 2.0, np.float64)
+        time_constant = np.full(contacts, 0.02, np.float64)
+        damping_ratio = np.ones(contacts, np.float64)
+        impedance_min = np.full(contacts, 0.8, np.float64)
+        impedance_max = np.full(contacts, 0.96, np.float64)
+        impedance_width = np.full(contacts, 0.001, np.float64)
+        midpoint = np.full(contacts, 0.5, np.float64)
+        power = np.full(contacts, 2.0, np.float64)
+        impulse = np.empty((contacts, 3), np.float64)
+        after = np.empty((contacts, 3), np.float64)
+        gap_after = np.empty(contacts, np.float64)
+        arguments = (
+            gap,
+            velocity,
+            acceleration,
+            delassus,
+            upper,
+            friction,
+            mass,
+            time_constant,
+            damping_ratio,
+            impedance_min,
+            impedance_max,
+            impedance_width,
+            midpoint,
+            power,
+            0.002,
+            0.005,
+            16,
+            1,
+            2,
+            impulse,
+            after,
+            gap_after,
+        )
+        timing = self.generic.solve_positive_reference_compliant_contact_impulse(
+            *arguments
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertGreater(impulse[0, 2], impulse[1, 2])
+        self.assertTrue(
+            np.all(np.abs(impulse[:, 0]) + np.abs(impulse[:, 1])
+                   <= friction * impulse[:, 2] + 1.0e-12)
+        )
+        first = (impulse.copy(), after.copy(), gap_after.copy())
+        self.generic.solve_positive_reference_compliant_contact_impulse(*arguments)
+        np.testing.assert_array_equal(impulse, first[0])
+        np.testing.assert_array_equal(after, first[1])
+        np.testing.assert_array_equal(gap_after, first[2])
+
+        invalid_max = impedance_max.copy()
+        invalid_max[-1] = 1.0
+        unchanged_impulse = np.full_like(impulse, 7.0)
+        unchanged_after = np.full_like(after, 8.0)
+        unchanged_gap = np.full_like(gap_after, 9.0)
+        with self.assertRaisesRegex(ValueError, "positive reference"):
+            self.generic.solve_positive_reference_compliant_contact_impulse(
+                gap,
+                velocity,
+                acceleration,
+                delassus,
+                upper,
+                friction,
+                mass,
+                time_constant,
+                damping_ratio,
+                impedance_min,
+                invalid_max,
+                impedance_width,
+                midpoint,
+                power,
+                0.002,
+                0.005,
+                16,
+                1,
+                2,
+                unchanged_impulse,
+                unchanged_after,
+                unchanged_gap,
+            )
+        np.testing.assert_array_equal(unchanged_impulse, 7.0)
+        np.testing.assert_array_equal(unchanged_after, 8.0)
+        np.testing.assert_array_equal(unchanged_gap, 9.0)
+
+    def test_coupled_positive_reference_distribution_is_atomic_and_allocation_free(self) -> None:
+        contacts = self.generic.contact_count()
+        self.assertEqual(contacts, 2)
+        gap = np.full(contacts, -0.001, np.float64)
+        velocity = np.zeros((contacts, 3), np.float64)
+        acceleration = np.zeros_like(velocity)
+        delassus = np.eye(3 * contacts, dtype=np.float64)
+        delassus[2, 5] = 0.5
+        delassus[5, 2] = 0.5
+        upper = np.asarray([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]], np.float64)
+        friction = np.zeros(contacts, np.float64)
+        parameter = lambda value: np.full(contacts, value, np.float64)
+        impulse = np.empty((contacts, 3), np.float64)
+        after = np.empty((contacts, 3), np.float64)
+        gap_after = np.empty(contacts, np.float64)
+        arguments = (
+            gap,
+            velocity,
+            acceleration,
+            delassus,
+            upper,
+            friction,
+            parameter(0.02),
+            parameter(1.0),
+            parameter(0.8),
+            parameter(0.8),
+            parameter(0.001),
+            parameter(0.5),
+            parameter(2.0),
+            0.002,
+            0.001,
+            1,
+            32,
+            0,
+            0,
+            impulse,
+            after,
+            gap_after,
+        )
+        timing = self.generic.solve_coupled_positive_reference_compliant_contact_impulse(
+            *arguments
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        np.testing.assert_allclose(after[:, 2], after[0, 2], rtol=0.0, atol=1.0e-12)
+        np.testing.assert_allclose(
+            impulse[:, 2], 2.0 * after[:, 2] / 3.0, rtol=0.0, atol=1.0e-12
+        )
+        first = (impulse.copy(), after.copy(), gap_after.copy())
+        self.generic.solve_coupled_positive_reference_compliant_contact_impulse(*arguments)
+        np.testing.assert_array_equal(impulse, first[0])
+        np.testing.assert_array_equal(after, first[1])
+        np.testing.assert_array_equal(gap_after, first[2])
+
+        unchanged_impulse = np.full_like(impulse, 7.0)
+        unchanged_after = np.full_like(after, 8.0)
+        unchanged_gap = np.full_like(gap_after, 9.0)
+        invalid = (*arguments[:16], 0, *arguments[17:19], unchanged_impulse, unchanged_after, unchanged_gap)
+        with self.assertRaisesRegex(ValueError, "coupled positive reference"):
+            self.generic.solve_coupled_positive_reference_compliant_contact_impulse(*invalid)
+        np.testing.assert_array_equal(unchanged_impulse, 7.0)
+        np.testing.assert_array_equal(unchanged_after, 8.0)
+        np.testing.assert_array_equal(unchanged_gap, 9.0)
+
     def test_terminal_state_batch_is_generic_atomic_and_allocation_free(self) -> None:
         joints = self.generic.joint_dof()
         states = np.asarray(

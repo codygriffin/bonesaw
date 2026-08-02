@@ -958,6 +958,90 @@ pub struct CompliantContactImpulseInput<'a> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompliantFrictionCone {
+    /// Euclidean tangent disk, matching an elliptic two-axis section.
+    Circular,
+    /// L1 tangent diamond, matching a pyramidal two-axis section.
+    Pyramidal,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompliantStepIntegrator {
+    /// Explicit tangent decay and pre-impulse gap update.
+    ExplicitEuler,
+    /// Implicit tangent decay and post-impulse gap update.
+    ImplicitEuler,
+    /// Exact scalar tangent decay and trapezoidal gap update.
+    ExponentialTrapezoidal,
+}
+
+/// Positive time-constant/damping-ratio compliant-contact law.
+///
+/// The law follows the documented constraint reference parameterization
+/// `b = 2 / (d_width τ)`, `k = d(r) / (d_width² τ² ζ²)`, and
+/// `a_c + d(r) (b v + k r) = (1 - d(r)) a_free`. Therefore the acceleration
+/// contributed by the constraint is `d(r) (-b v - k r - a_free)`; in
+/// particular, effective spring stiffness carries two impedance factors.
+/// `minimum_time_constant_s` is an explicit caller-owned integration-safety
+/// clamp rather than a hidden simulator assumption. Friction uses the
+/// zero-residual impedance `d_min` and the selected cone section.
+#[derive(Clone, Copy, Debug)]
+pub struct PositiveReferenceCompliantContactImpulseInput<'a> {
+    pub contact_gap: &'a [f64],
+    pub contact_velocity: &'a [f64],
+    /// Free (non-contact) point acceleration in the same contact bases.
+    pub contact_free_acceleration: &'a [f64],
+    pub delassus: &'a [f64],
+    pub impulse_upper: &'a [f64],
+    pub friction: &'a [f64],
+    pub effective_normal_mass: &'a [f64],
+    pub time_constant_s: &'a [f64],
+    pub damping_ratio: &'a [f64],
+    pub impedance_min: &'a [f64],
+    pub impedance_max: &'a [f64],
+    pub impedance_width_m: &'a [f64],
+    pub impedance_midpoint: &'a [f64],
+    pub impedance_power: &'a [f64],
+    pub minimum_time_constant_s: f64,
+    pub time_step_s: f64,
+    pub substeps: usize,
+    pub friction_cone: CompliantFrictionCone,
+    pub integrator: CompliantStepIntegrator,
+}
+
+/// Positive-reference contact law distributed through the complete Delassus
+/// operator at every microstep.
+///
+/// Unlike [`PositiveReferenceCompliantContactImpulseInput`], this input does
+/// not accept independently estimated effective masses. The full state-local
+/// `J M^-1 J^T` operator owns both diagonal response and cross-contact load
+/// distribution. Fixed forward/reverse projected sweeps solve each compliant
+/// velocity increment over the declared friction section and cumulative
+/// impulse caps.
+#[derive(Clone, Copy, Debug)]
+pub struct CoupledPositiveReferenceCompliantContactImpulseInput<'a> {
+    pub contact_gap: &'a [f64],
+    pub contact_velocity: &'a [f64],
+    pub contact_free_acceleration: &'a [f64],
+    pub delassus: &'a [f64],
+    pub impulse_upper: &'a [f64],
+    pub friction: &'a [f64],
+    pub time_constant_s: &'a [f64],
+    pub damping_ratio: &'a [f64],
+    pub impedance_min: &'a [f64],
+    pub impedance_max: &'a [f64],
+    pub impedance_width_m: &'a [f64],
+    pub impedance_midpoint: &'a [f64],
+    pub impedance_power: &'a [f64],
+    pub minimum_time_constant_s: f64,
+    pub time_step_s: f64,
+    pub substeps: usize,
+    pub projection_sweeps: usize,
+    pub friction_cone: CompliantFrictionCone,
+    pub integrator: CompliantStepIntegrator,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CoupledContactImpulseError {
     InvalidConfig,
     Dimension,
@@ -1329,6 +1413,597 @@ pub fn solve_substepped_compliant_contact_impulse(
         for contact in 0..contacts {
             let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
             contact_gap_after_out[contact] += substep_s * contact_velocity_after_out[normal];
+        }
+    }
+    Ok(())
+}
+
+fn positive_reference_impedance(
+    position: f64,
+    minimum: f64,
+    maximum: f64,
+    width: f64,
+    midpoint: f64,
+    power: f64,
+) -> f64 {
+    let normalized = position.abs() / width;
+    if normalized >= 1.0 {
+        return maximum;
+    }
+    let shape = if normalized < midpoint {
+        normalized.powf(power) / midpoint.powf(power - 1.0)
+    } else {
+        1.0 - (1.0 - normalized).powf(power) / (1.0 - midpoint).powf(power - 1.0)
+    };
+    (minimum + shape * (maximum - minimum)).clamp(minimum, maximum)
+}
+
+fn project_tangent_impulse(
+    tangent_x: f64,
+    tangent_y: f64,
+    radius: f64,
+    cone: CompliantFrictionCone,
+) -> (f64, f64) {
+    match cone {
+        CompliantFrictionCone::Circular => {
+            let norm = tangent_x.hypot(tangent_y);
+            if norm > radius && norm > 0.0 {
+                let scale = radius / norm;
+                (tangent_x * scale, tangent_y * scale)
+            } else {
+                (tangent_x, tangent_y)
+            }
+        }
+        CompliantFrictionCone::Pyramidal => {
+            let absolute_x = tangent_x.abs();
+            let absolute_y = tangent_y.abs();
+            if absolute_x + absolute_y <= radius {
+                return (tangent_x, tangent_y);
+            }
+            if absolute_x - absolute_y >= radius {
+                return (tangent_x.signum() * radius, 0.0);
+            }
+            if absolute_y - absolute_x >= radius {
+                return (0.0, tangent_y.signum() * radius);
+            }
+            let threshold = 0.5 * (absolute_x + absolute_y - radius);
+            (
+                tangent_x.signum() * (absolute_x - threshold).max(0.0),
+                tangent_y.signum() * (absolute_y - threshold).max(0.0),
+            )
+        }
+    }
+}
+
+/// Integrate the documented positive-reference compliant law over fixed
+/// microsteps.
+///
+/// This is still a reduced point-contact witness: it does not reproduce a
+/// simulator's global nonlinear constraint optimization. It does, however,
+/// retain the declared impedance spline, integration-safety time-constant
+/// clamp, tangent decay, and cone geometry instead of collapsing them into one
+/// fitted constant. Every input is validated before output mutation and all
+/// work uses caller-owned storage.
+pub fn solve_positive_reference_compliant_contact_impulse(
+    input: PositiveReferenceCompliantContactImpulseInput<'_>,
+    step_impulse_scratch: &mut [f64],
+    impulse_out: &mut [f64],
+    contact_velocity_after_out: &mut [f64],
+    contact_gap_after_out: &mut [f64],
+) -> Result<(), CoupledContactImpulseError> {
+    let axes = input.contact_velocity.len();
+    if axes == 0 || !axes.is_multiple_of(CONTACT_TRANSITION_IMPULSE_WIDTH) {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    let contacts = axes / CONTACT_TRANSITION_IMPULSE_WIDTH;
+    let contact_lengths = [
+        input.contact_gap.len(),
+        input.friction.len(),
+        input.effective_normal_mass.len(),
+        input.time_constant_s.len(),
+        input.damping_ratio.len(),
+        input.impedance_min.len(),
+        input.impedance_max.len(),
+        input.impedance_width_m.len(),
+        input.impedance_midpoint.len(),
+        input.impedance_power.len(),
+        contact_gap_after_out.len(),
+    ];
+    if contact_lengths.iter().any(|length| *length != contacts)
+        || input.contact_free_acceleration.len() != axes
+        || step_impulse_scratch.len() != axes
+    {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    validate_coupled_contact_impulse(
+        CoupledContactImpulseInput {
+            contact_velocity: input.contact_velocity,
+            delassus: input.delassus,
+            impulse_upper: input.impulse_upper,
+            friction: input.friction,
+            restitution: 0.0,
+            diagonal_regularization_ratio: 0.0,
+            sweeps: 1,
+        },
+        impulse_out.len(),
+        contact_velocity_after_out.len(),
+    )?;
+    if !input.minimum_time_constant_s.is_finite()
+        || input.minimum_time_constant_s <= 0.0
+        || !input.time_step_s.is_finite()
+        || input.time_step_s <= 0.0
+        || input.substeps == 0
+        || input.substeps > 256
+    {
+        return Err(CoupledContactImpulseError::InvalidConfig);
+    }
+    for contact in 0..contacts {
+        let finite_positive = |value: f64| value.is_finite() && value > 0.0;
+        if !input.contact_gap[contact].is_finite()
+            || !finite_positive(input.effective_normal_mass[contact])
+            || !finite_positive(input.time_constant_s[contact])
+            || !finite_positive(input.damping_ratio[contact])
+            || !input.impedance_min[contact].is_finite()
+            || !input.impedance_max[contact].is_finite()
+            || input.impedance_min[contact] <= 0.0
+            || input.impedance_min[contact] > input.impedance_max[contact]
+            || input.impedance_max[contact] >= 1.0
+            || !finite_positive(input.impedance_width_m[contact])
+            || !input.impedance_midpoint[contact].is_finite()
+            || !(0.0..1.0).contains(&input.impedance_midpoint[contact])
+            || !input.impedance_power[contact].is_finite()
+            || input.impedance_power[contact] < 1.0
+        {
+            return Err(CoupledContactImpulseError::InvalidWitness);
+        }
+    }
+    if input
+        .contact_free_acceleration
+        .iter()
+        .any(|value| !value.is_finite())
+    {
+        return Err(CoupledContactImpulseError::InvalidWitness);
+    }
+
+    impulse_out.fill(0.0);
+    contact_velocity_after_out.copy_from_slice(input.contact_velocity);
+    contact_gap_after_out.copy_from_slice(input.contact_gap);
+    let substep_s = input.time_step_s / input.substeps as f64;
+    for _ in 0..input.substeps {
+        step_impulse_scratch.fill(0.0);
+        for (contact, gap_after) in contact_gap_after_out.iter().copied().enumerate() {
+            let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
+            let tangent_y = tangent_x + 1;
+            let normal = tangent_x + 2;
+            let predicted_gap = gap_after
+                + substep_s * contact_velocity_after_out[normal]
+                + 0.5 * substep_s * substep_s * input.contact_free_acceleration[normal];
+            if predicted_gap >= 0.0 {
+                continue;
+            }
+            let impedance = positive_reference_impedance(
+                predicted_gap,
+                input.impedance_min[contact],
+                input.impedance_max[contact],
+                input.impedance_width_m[contact],
+                input.impedance_midpoint[contact],
+                input.impedance_power[contact],
+            );
+            let time_constant = input.time_constant_s[contact].max(input.minimum_time_constant_s);
+            let damping_ratio = input.damping_ratio[contact];
+            let impedance_width = input.impedance_max[contact];
+            let mass = input.effective_normal_mass[contact];
+            let reference_damping = 2.0 / (impedance_width * time_constant);
+            let reference_stiffness = impedance
+                / (impedance_width
+                    * impedance_width
+                    * time_constant
+                    * time_constant
+                    * damping_ratio
+                    * damping_ratio);
+            let reference_acceleration = -reference_damping * contact_velocity_after_out[normal]
+                - reference_stiffness * predicted_gap;
+            let contact_acceleration =
+                impedance * (reference_acceleration - input.contact_free_acceleration[normal]);
+            let normal_force = (mass * contact_acceleration).max(0.0);
+            let normal_remaining = (input.impulse_upper[normal] - impulse_out[normal]).max(0.0);
+            let normal_impulse = (normal_force * substep_s).clamp(0.0, normal_remaining);
+            step_impulse_scratch[normal] = normal_impulse;
+
+            let tangent_impedance = input.impedance_min[contact];
+            let decay_rate = tangent_impedance * reference_damping;
+            let diagonal_x = input.delassus[tangent_x * axes + tangent_x];
+            let diagonal_y = input.delassus[tangent_y * axes + tangent_y];
+            let contact_velocity_delta = |axis: usize| match input.integrator {
+                CompliantStepIntegrator::ExplicitEuler => {
+                    tangent_impedance
+                        * (-reference_damping * contact_velocity_after_out[axis]
+                            - input.contact_free_acceleration[axis])
+                        * substep_s
+                }
+                CompliantStepIntegrator::ImplicitEuler => {
+                    tangent_impedance
+                        * (-reference_damping * contact_velocity_after_out[axis]
+                            - input.contact_free_acceleration[axis])
+                        * substep_s
+                        / (1.0 + decay_rate * substep_s)
+                }
+                CompliantStepIntegrator::ExponentialTrapezoidal => {
+                    let decay = (-decay_rate * substep_s).exp();
+                    (decay - 1.0) * contact_velocity_after_out[axis]
+                        + (1.0 - tangent_impedance)
+                            * input.contact_free_acceleration[axis]
+                            * (1.0 - decay)
+                            / decay_rate
+                        - input.contact_free_acceleration[axis] * substep_s
+                }
+            };
+            let desired_total_x =
+                (impulse_out[tangent_x] + contact_velocity_delta(tangent_x) / diagonal_x).clamp(
+                    -input.impulse_upper[tangent_x],
+                    input.impulse_upper[tangent_x],
+                );
+            let desired_total_y =
+                (impulse_out[tangent_y] + contact_velocity_delta(tangent_y) / diagonal_y).clamp(
+                    -input.impulse_upper[tangent_y],
+                    input.impulse_upper[tangent_y],
+                );
+            let (tangent_impulse_x, tangent_impulse_y) = project_tangent_impulse(
+                desired_total_x - impulse_out[tangent_x],
+                desired_total_y - impulse_out[tangent_y],
+                input.friction[contact] * normal_impulse,
+                input.friction_cone,
+            );
+            step_impulse_scratch[tangent_x] = tangent_impulse_x;
+            step_impulse_scratch[tangent_y] = tangent_impulse_y;
+        }
+
+        if matches!(
+            input.integrator,
+            CompliantStepIntegrator::ExplicitEuler
+                | CompliantStepIntegrator::ExponentialTrapezoidal
+        ) {
+            let scale = if input.integrator == CompliantStepIntegrator::ExplicitEuler {
+                1.0
+            } else {
+                0.5
+            };
+            for (contact, gap_after) in contact_gap_after_out.iter_mut().enumerate() {
+                let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
+                *gap_after += scale * substep_s * contact_velocity_after_out[normal];
+                if input.integrator == CompliantStepIntegrator::ExplicitEuler {
+                    *gap_after +=
+                        0.5 * substep_s * substep_s * input.contact_free_acceleration[normal];
+                }
+            }
+        }
+        for (row, velocity_after) in contact_velocity_after_out.iter_mut().enumerate() {
+            let velocity_delta = (0..axes)
+                .map(|column| input.delassus[row * axes + column] * step_impulse_scratch[column])
+                .sum::<f64>();
+            *velocity_after += substep_s * input.contact_free_acceleration[row] + velocity_delta;
+        }
+        for axis in 0..axes {
+            impulse_out[axis] += step_impulse_scratch[axis];
+        }
+        if matches!(
+            input.integrator,
+            CompliantStepIntegrator::ImplicitEuler
+                | CompliantStepIntegrator::ExponentialTrapezoidal
+        ) {
+            let scale = if input.integrator == CompliantStepIntegrator::ImplicitEuler {
+                1.0
+            } else {
+                0.5
+            };
+            for (contact, gap_after) in contact_gap_after_out.iter_mut().enumerate() {
+                let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
+                *gap_after += scale * substep_s * contact_velocity_after_out[normal];
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_coupled_positive_reference_compliant_contact(
+    input: CoupledPositiveReferenceCompliantContactImpulseInput<'_>,
+    desired_velocity_delta_scratch_len: usize,
+    step_impulse_scratch_len: usize,
+    impulse_out_len: usize,
+    contact_velocity_after_out_len: usize,
+    contact_gap_after_out_len: usize,
+) -> Result<usize, CoupledContactImpulseError> {
+    let axes = input.contact_velocity.len();
+    if axes == 0 || !axes.is_multiple_of(CONTACT_TRANSITION_IMPULSE_WIDTH) {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    let contacts = axes / CONTACT_TRANSITION_IMPULSE_WIDTH;
+    let contact_lengths = [
+        input.contact_gap.len(),
+        input.friction.len(),
+        input.time_constant_s.len(),
+        input.damping_ratio.len(),
+        input.impedance_min.len(),
+        input.impedance_max.len(),
+        input.impedance_width_m.len(),
+        input.impedance_midpoint.len(),
+        input.impedance_power.len(),
+        contact_gap_after_out_len,
+    ];
+    if contact_lengths.iter().any(|length| *length != contacts)
+        || input.contact_free_acceleration.len() != axes
+        || desired_velocity_delta_scratch_len != axes
+        || step_impulse_scratch_len != axes
+    {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    validate_coupled_contact_impulse(
+        CoupledContactImpulseInput {
+            contact_velocity: input.contact_velocity,
+            delassus: input.delassus,
+            impulse_upper: input.impulse_upper,
+            friction: input.friction,
+            restitution: 0.0,
+            diagonal_regularization_ratio: 0.0,
+            sweeps: 1,
+        },
+        impulse_out_len,
+        contact_velocity_after_out_len,
+    )?;
+    if !input.minimum_time_constant_s.is_finite()
+        || input.minimum_time_constant_s <= 0.0
+        || !input.time_step_s.is_finite()
+        || input.time_step_s <= 0.0
+        || input.substeps == 0
+        || input.substeps > 256
+        || input.projection_sweeps == 0
+        || input.projection_sweeps > 256
+    {
+        return Err(CoupledContactImpulseError::InvalidConfig);
+    }
+    if input
+        .contact_free_acceleration
+        .iter()
+        .any(|value| !value.is_finite())
+    {
+        return Err(CoupledContactImpulseError::InvalidWitness);
+    }
+    for contact in 0..contacts {
+        let finite_positive = |value: f64| value.is_finite() && value > 0.0;
+        if !input.contact_gap[contact].is_finite()
+            || !finite_positive(input.time_constant_s[contact])
+            || !finite_positive(input.damping_ratio[contact])
+            || !input.impedance_min[contact].is_finite()
+            || !input.impedance_max[contact].is_finite()
+            || input.impedance_min[contact] <= 0.0
+            || input.impedance_min[contact] > input.impedance_max[contact]
+            || input.impedance_max[contact] >= 1.0
+            || !finite_positive(input.impedance_width_m[contact])
+            || !input.impedance_midpoint[contact].is_finite()
+            || !(0.0..1.0).contains(&input.impedance_midpoint[contact])
+            || !input.impedance_power[contact].is_finite()
+            || input.impedance_power[contact] < 1.0
+        {
+            return Err(CoupledContactImpulseError::InvalidWitness);
+        }
+    }
+    Ok(contacts)
+}
+
+fn update_soft_contact_distribution(
+    input: CoupledPositiveReferenceCompliantContactImpulseInput<'_>,
+    desired_velocity_delta: &[f64],
+    impulse: &[f64],
+    step_impulse: &mut [f64],
+    contact: usize,
+) {
+    let axes = step_impulse.len();
+    let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
+    let tangent_y = tangent_x + 1;
+    let normal = tangent_x + 2;
+    if desired_velocity_delta[normal] <= 0.0 {
+        step_impulse[tangent_x] = 0.0;
+        step_impulse[tangent_y] = 0.0;
+        step_impulse[normal] = 0.0;
+        return;
+    }
+
+    let normal_response = (0..axes)
+        .map(|column| input.delassus[normal * axes + column] * step_impulse[column])
+        .sum::<f64>();
+    let normal_diagonal = input.delassus[normal * axes + normal];
+    let normal_remaining = (input.impulse_upper[normal] - impulse[normal]).max(0.0);
+    step_impulse[normal] = (step_impulse[normal]
+        + (desired_velocity_delta[normal] - normal_response) / normal_diagonal)
+        .clamp(0.0, normal_remaining);
+
+    for tangent in [tangent_x, tangent_y] {
+        let response = (0..axes)
+            .map(|column| input.delassus[tangent * axes + column] * step_impulse[column])
+            .sum::<f64>();
+        let diagonal = input.delassus[tangent * axes + tangent];
+        let candidate_step =
+            step_impulse[tangent] + (desired_velocity_delta[tangent] - response) / diagonal;
+        let total = (impulse[tangent] + candidate_step)
+            .clamp(-input.impulse_upper[tangent], input.impulse_upper[tangent]);
+        step_impulse[tangent] = total - impulse[tangent];
+    }
+    let normal_total = impulse[normal] + step_impulse[normal];
+    let (projected_x, projected_y) = project_tangent_impulse(
+        impulse[tangent_x] + step_impulse[tangent_x],
+        impulse[tangent_y] + step_impulse[tangent_y],
+        input.friction[contact] * normal_total,
+        input.friction_cone,
+    );
+    step_impulse[tangent_x] = projected_x - impulse[tangent_x];
+    step_impulse[tangent_y] = projected_y - impulse[tangent_y];
+}
+
+/// Integrate the positive-reference law while solving every microstep's soft
+/// velocity increment through the complete contact-space Delassus operator.
+///
+/// The projected distribution minimizes the coupled quadratic contact-space
+/// residual for a fixed number of deterministic forward/reverse sweeps. It is
+/// a bounded-work reduced soft-contact solve, not MuJoCo's generalized
+/// nonlinear constraint optimizer or an outer bound. Every input is validated
+/// before output mutation and all workspaces are caller-owned.
+pub fn solve_coupled_positive_reference_compliant_contact_impulse(
+    input: CoupledPositiveReferenceCompliantContactImpulseInput<'_>,
+    desired_velocity_delta_scratch: &mut [f64],
+    step_impulse_scratch: &mut [f64],
+    impulse_out: &mut [f64],
+    contact_velocity_after_out: &mut [f64],
+    contact_gap_after_out: &mut [f64],
+) -> Result<(), CoupledContactImpulseError> {
+    let contacts = validate_coupled_positive_reference_compliant_contact(
+        input,
+        desired_velocity_delta_scratch.len(),
+        step_impulse_scratch.len(),
+        impulse_out.len(),
+        contact_velocity_after_out.len(),
+        contact_gap_after_out.len(),
+    )?;
+    let axes = input.contact_velocity.len();
+    impulse_out.fill(0.0);
+    contact_velocity_after_out.copy_from_slice(input.contact_velocity);
+    contact_gap_after_out.copy_from_slice(input.contact_gap);
+    let substep_s = input.time_step_s / input.substeps as f64;
+
+    for _ in 0..input.substeps {
+        desired_velocity_delta_scratch.fill(0.0);
+        step_impulse_scratch.fill(0.0);
+        for (contact, gap_after) in contact_gap_after_out.iter().copied().enumerate() {
+            let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
+            let tangent_y = tangent_x + 1;
+            let normal = tangent_x + 2;
+            let predicted_gap = gap_after
+                + substep_s * contact_velocity_after_out[normal]
+                + 0.5 * substep_s * substep_s * input.contact_free_acceleration[normal];
+            if predicted_gap >= 0.0 {
+                continue;
+            }
+            let impedance = positive_reference_impedance(
+                predicted_gap,
+                input.impedance_min[contact],
+                input.impedance_max[contact],
+                input.impedance_width_m[contact],
+                input.impedance_midpoint[contact],
+                input.impedance_power[contact],
+            );
+            let time_constant = input.time_constant_s[contact].max(input.minimum_time_constant_s);
+            let damping_ratio = input.damping_ratio[contact];
+            let impedance_width = input.impedance_max[contact];
+            let reference_damping = 2.0 / (impedance_width * time_constant);
+            let reference_stiffness = impedance
+                / (impedance_width
+                    * impedance_width
+                    * time_constant
+                    * time_constant
+                    * damping_ratio
+                    * damping_ratio);
+            let reference_acceleration = -reference_damping * contact_velocity_after_out[normal]
+                - reference_stiffness * predicted_gap;
+            desired_velocity_delta_scratch[normal] = (impedance
+                * (reference_acceleration - input.contact_free_acceleration[normal])
+                * substep_s)
+                .max(0.0);
+            if desired_velocity_delta_scratch[normal] <= 0.0 {
+                continue;
+            }
+
+            let tangent_impedance = input.impedance_min[contact];
+            let decay_rate = tangent_impedance * reference_damping;
+            let tangent_delta = |axis: usize| match input.integrator {
+                CompliantStepIntegrator::ExplicitEuler => {
+                    tangent_impedance
+                        * (-reference_damping * contact_velocity_after_out[axis]
+                            - input.contact_free_acceleration[axis])
+                        * substep_s
+                }
+                CompliantStepIntegrator::ImplicitEuler => {
+                    tangent_impedance
+                        * (-reference_damping * contact_velocity_after_out[axis]
+                            - input.contact_free_acceleration[axis])
+                        * substep_s
+                        / (1.0 + decay_rate * substep_s)
+                }
+                CompliantStepIntegrator::ExponentialTrapezoidal => {
+                    let decay = (-decay_rate * substep_s).exp();
+                    (decay - 1.0) * contact_velocity_after_out[axis]
+                        + (1.0 - tangent_impedance)
+                            * input.contact_free_acceleration[axis]
+                            * (1.0 - decay)
+                            / decay_rate
+                        - input.contact_free_acceleration[axis] * substep_s
+                }
+            };
+            desired_velocity_delta_scratch[tangent_x] = tangent_delta(tangent_x);
+            desired_velocity_delta_scratch[tangent_y] = tangent_delta(tangent_y);
+        }
+
+        for _ in 0..input.projection_sweeps {
+            for contact in 0..contacts {
+                update_soft_contact_distribution(
+                    input,
+                    desired_velocity_delta_scratch,
+                    impulse_out,
+                    step_impulse_scratch,
+                    contact,
+                );
+            }
+            for contact in (0..contacts).rev() {
+                update_soft_contact_distribution(
+                    input,
+                    desired_velocity_delta_scratch,
+                    impulse_out,
+                    step_impulse_scratch,
+                    contact,
+                );
+            }
+        }
+
+        if matches!(
+            input.integrator,
+            CompliantStepIntegrator::ExplicitEuler
+                | CompliantStepIntegrator::ExponentialTrapezoidal
+        ) {
+            let scale = if input.integrator == CompliantStepIntegrator::ExplicitEuler {
+                1.0
+            } else {
+                0.5
+            };
+            for (contact, gap_after) in contact_gap_after_out.iter_mut().enumerate() {
+                let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
+                *gap_after += scale * substep_s * contact_velocity_after_out[normal];
+                if input.integrator == CompliantStepIntegrator::ExplicitEuler {
+                    *gap_after +=
+                        0.5 * substep_s * substep_s * input.contact_free_acceleration[normal];
+                }
+            }
+        }
+        for (row, velocity_after) in contact_velocity_after_out.iter_mut().enumerate() {
+            let velocity_delta = (0..axes)
+                .map(|column| input.delassus[row * axes + column] * step_impulse_scratch[column])
+                .sum::<f64>();
+            *velocity_after += substep_s * input.contact_free_acceleration[row] + velocity_delta;
+        }
+        for axis in 0..axes {
+            impulse_out[axis] += step_impulse_scratch[axis];
+        }
+        if matches!(
+            input.integrator,
+            CompliantStepIntegrator::ImplicitEuler
+                | CompliantStepIntegrator::ExponentialTrapezoidal
+        ) {
+            let scale = if input.integrator == CompliantStepIntegrator::ImplicitEuler {
+                1.0
+            } else {
+                0.5
+            };
+            for (contact, gap_after) in contact_gap_after_out.iter_mut().enumerate() {
+                let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
+                *gap_after += scale * substep_s * contact_velocity_after_out[normal];
+            }
         }
     }
     Ok(())
@@ -2794,6 +3469,204 @@ mod tests {
     }
 
     #[test]
+    fn positive_reference_impedance_and_cone_sections_match_declared_geometry() {
+        assert_eq!(
+            positive_reference_impedance(0.0, 0.8, 0.96, 0.001, 0.5, 2.0),
+            0.8
+        );
+        assert_eq!(
+            positive_reference_impedance(-0.001, 0.8, 0.96, 0.001, 0.5, 2.0),
+            0.96
+        );
+        assert!(
+            (positive_reference_impedance(-0.0005, 0.8, 0.96, 0.001, 0.5, 2.0) - 0.88).abs()
+                < 1.0e-12
+        );
+        let circular = project_tangent_impulse(1.0, 1.0, 1.0, CompliantFrictionCone::Circular);
+        let pyramidal = project_tangent_impulse(1.0, 1.0, 1.0, CompliantFrictionCone::Pyramidal);
+        assert!((circular.0 - 2.0_f64.sqrt().recip()).abs() < 1.0e-12);
+        assert_eq!(pyramidal, (0.5, 0.5));
+        assert!((pyramidal.0.abs() + pyramidal.1.abs() - 1.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn positive_reference_contact_is_position_dependent_and_atomic() {
+        let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let velocity = [0.3, -0.2, 0.0];
+        let acceleration = [0.0; 3];
+        let upper = [10.0; 3];
+        let friction = [0.5];
+        let mass = [2.0];
+        let time_constant = [0.02];
+        let damping_ratio = [1.0];
+        let impedance_min = [0.8];
+        let impedance_max = [0.96];
+        let impedance_width = [0.001];
+        let midpoint = [0.5];
+        let power = [2.0];
+        let run = |gap_value: f64, impulse: &mut [f64; 3]| {
+            let gap = [gap_value];
+            let mut step = [0.0; 3];
+            let mut after = [0.0; 3];
+            let mut gap_after = [0.0];
+            solve_positive_reference_compliant_contact_impulse(
+                PositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &gap,
+                    contact_velocity: &velocity,
+                    contact_free_acceleration: &acceleration,
+                    delassus: &identity,
+                    impulse_upper: &upper,
+                    friction: &friction,
+                    effective_normal_mass: &mass,
+                    time_constant_s: &time_constant,
+                    damping_ratio: &damping_ratio,
+                    impedance_min: &impedance_min,
+                    impedance_max: &impedance_max,
+                    impedance_width_m: &impedance_width,
+                    impedance_midpoint: &midpoint,
+                    impedance_power: &power,
+                    minimum_time_constant_s: 0.002,
+                    time_step_s: 0.005,
+                    substeps: 8,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator: CompliantStepIntegrator::ImplicitEuler,
+                },
+                &mut step,
+                impulse,
+                &mut after,
+                &mut gap_after,
+            )
+            .unwrap();
+        };
+        let mut shallow = [0.0; 3];
+        let mut deep = [0.0; 3];
+        run(-1.0e-6, &mut shallow);
+        run(-0.001, &mut deep);
+        assert!(deep[2] > shallow[2]);
+        assert!(deep[0].hypot(deep[1]) <= 0.5 * deep[2] + 1.0e-12);
+
+        let mut step = [0.0; 3];
+        let mut impulse = [7.0; 3];
+        let mut after = [8.0; 3];
+        let mut gap_after = [9.0];
+        let invalid_max = [1.0];
+        assert_eq!(
+            solve_positive_reference_compliant_contact_impulse(
+                PositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &[-0.001],
+                    contact_velocity: &velocity,
+                    contact_free_acceleration: &acceleration,
+                    delassus: &identity,
+                    impulse_upper: &upper,
+                    friction: &friction,
+                    effective_normal_mass: &mass,
+                    time_constant_s: &time_constant,
+                    damping_ratio: &damping_ratio,
+                    impedance_min: &impedance_min,
+                    impedance_max: &invalid_max,
+                    impedance_width_m: &impedance_width,
+                    impedance_midpoint: &midpoint,
+                    impedance_power: &power,
+                    minimum_time_constant_s: 0.002,
+                    time_step_s: 0.005,
+                    substeps: 8,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator: CompliantStepIntegrator::ImplicitEuler,
+                },
+                &mut step,
+                &mut impulse,
+                &mut after,
+                &mut gap_after,
+            ),
+            Err(CoupledContactImpulseError::InvalidWitness)
+        );
+        assert_eq!(impulse, [7.0; 3]);
+        assert_eq!(after, [8.0; 3]);
+        assert_eq!(gap_after, [9.0]);
+    }
+
+    #[test]
+    fn positive_reference_contact_matches_documented_free_acceleration_equation() {
+        let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let upper = [10.0; 3];
+        let friction = [0.5];
+        let mass = [1.0];
+        let time_constant = [0.02];
+        let damping_ratio = [1.0];
+        let impedance = [0.8];
+        let width = [0.001];
+        let midpoint = [0.5];
+        let power = [2.0];
+        let run = |gap: f64,
+                   velocity: [f64; 3],
+                   acceleration: [f64; 3],
+                   time_step_s: f64|
+         -> ([f64; 3], [f64; 3]) {
+            let gap = [gap];
+            let mut step = [0.0; 3];
+            let mut impulse = [0.0; 3];
+            let mut after = [0.0; 3];
+            let mut gap_after = [0.0];
+            solve_positive_reference_compliant_contact_impulse(
+                PositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &gap,
+                    contact_velocity: &velocity,
+                    contact_free_acceleration: &acceleration,
+                    delassus: &identity,
+                    impulse_upper: &upper,
+                    friction: &friction,
+                    effective_normal_mass: &mass,
+                    time_constant_s: &time_constant,
+                    damping_ratio: &damping_ratio,
+                    impedance_min: &impedance,
+                    impedance_max: &impedance,
+                    impedance_width_m: &width,
+                    impedance_midpoint: &midpoint,
+                    impedance_power: &power,
+                    minimum_time_constant_s: 1.0e-8,
+                    time_step_s,
+                    substeps: 1,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator: CompliantStepIntegrator::ExplicitEuler,
+                },
+                &mut step,
+                &mut impulse,
+                &mut after,
+                &mut gap_after,
+            )
+            .unwrap();
+            (impulse, after)
+        };
+
+        // MuJoCo's documented constant-impedance equilibrium is
+        // r = a_free (1-d) tau² zeta². Compensate the predictor's half-step
+        // free-acceleration position term so it evaluates that exact r.
+        let time_step_s = 1.0e-6;
+        let free_acceleration = -9.81;
+        let equilibrium_gap = free_acceleration * (1.0 - 0.8) * 0.02_f64.powi(2);
+        let initial_gap = equilibrium_gap - 0.5 * time_step_s * time_step_s * free_acceleration;
+        let (equilibrium_impulse, equilibrium_after) = run(
+            initial_gap,
+            [0.0; 3],
+            [0.0, 0.0, free_acceleration],
+            time_step_s,
+        );
+        assert!((equilibrium_impulse[2] - 9.81 * time_step_s).abs() < 1.0e-12);
+        assert!(equilibrium_after[2].abs() < 1.0e-12);
+
+        // Damping is signed: sufficiently fast separation releases a shallow
+        // contact instead of retaining a spring-only attractive force.
+        let (separating_impulse, _) = run(-1.0e-6, [0.0, 0.0, 1.0], [0.0; 3], 1.0e-6);
+        assert_eq!(separating_impulse[2], 0.0);
+
+        // At zero friction velocity, impedance interpolates free tangent
+        // acceleration instead of letting the full unconstrained step leak
+        // through the contact solve.
+        let (_, tangent_after) = run(-0.001, [0.0; 3], [1.0, 0.0, 0.0], 1.0e-4);
+        assert!((tangent_after[0] - 2.0e-5).abs() < 1.0e-12);
+    }
+
+    #[test]
     fn substepped_compliance_evolves_gap_velocity_and_bounded_impulse() {
         let input = CompliantContactImpulseInput {
             contact_gap: &[-0.01],
@@ -3077,5 +3950,149 @@ mod tests {
         assert_eq!(normal, [7.0]);
         assert_eq!(lower, [8.0]);
         assert_eq!(upper, [9.0]);
+    }
+
+    #[test]
+    fn coupled_positive_reference_distributes_soft_response_through_delassus() {
+        let axes = 6;
+        let mut delassus = [0.0; 36];
+        for axis in 0..axes {
+            delassus[axis * axes + axis] = 1.0;
+        }
+        delassus[2 * axes + 5] = 0.5;
+        delassus[5 * axes + 2] = 0.5;
+        let gap = [-0.001; 2];
+        let velocity = [0.0; 6];
+        let acceleration = [0.0; 6];
+        let upper = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
+        let friction = [0.0; 2];
+        let time_constant = [0.02; 2];
+        let damping_ratio = [1.0; 2];
+        let impedance = [0.8; 2];
+        let width = [0.001; 2];
+        let midpoint = [0.5; 2];
+        let power = [2.0; 2];
+        let mut desired = [0.0; 6];
+        let mut step = [0.0; 6];
+        let mut coupled_impulse = [0.0; 6];
+        let mut coupled_after = [0.0; 6];
+        let mut coupled_gap = [0.0; 2];
+        solve_coupled_positive_reference_compliant_contact_impulse(
+            CoupledPositiveReferenceCompliantContactImpulseInput {
+                contact_gap: &gap,
+                contact_velocity: &velocity,
+                contact_free_acceleration: &acceleration,
+                delassus: &delassus,
+                impulse_upper: &upper,
+                friction: &friction,
+                time_constant_s: &time_constant,
+                damping_ratio: &damping_ratio,
+                impedance_min: &impedance,
+                impedance_max: &impedance,
+                impedance_width_m: &width,
+                impedance_midpoint: &midpoint,
+                impedance_power: &power,
+                minimum_time_constant_s: 0.002,
+                time_step_s: 0.001,
+                substeps: 1,
+                projection_sweeps: 32,
+                friction_cone: CompliantFrictionCone::Circular,
+                integrator: CompliantStepIntegrator::ExplicitEuler,
+            },
+            &mut desired,
+            &mut step,
+            &mut coupled_impulse,
+            &mut coupled_after,
+            &mut coupled_gap,
+        )
+        .unwrap();
+
+        let mut independent_step = [0.0; 6];
+        let mut independent_impulse = [0.0; 6];
+        let mut independent_after = [0.0; 6];
+        let mut independent_gap = [0.0; 2];
+        solve_positive_reference_compliant_contact_impulse(
+            PositiveReferenceCompliantContactImpulseInput {
+                contact_gap: &gap,
+                contact_velocity: &velocity,
+                contact_free_acceleration: &acceleration,
+                delassus: &delassus,
+                impulse_upper: &upper,
+                friction: &friction,
+                effective_normal_mass: &[1.0; 2],
+                time_constant_s: &time_constant,
+                damping_ratio: &damping_ratio,
+                impedance_min: &impedance,
+                impedance_max: &impedance,
+                impedance_width_m: &width,
+                impedance_midpoint: &midpoint,
+                impedance_power: &power,
+                minimum_time_constant_s: 0.002,
+                time_step_s: 0.001,
+                substeps: 1,
+                friction_cone: CompliantFrictionCone::Circular,
+                integrator: CompliantStepIntegrator::ExplicitEuler,
+            },
+            &mut independent_step,
+            &mut independent_impulse,
+            &mut independent_after,
+            &mut independent_gap,
+        )
+        .unwrap();
+
+        let target_delta = desired[2];
+        let coupled_error =
+            (coupled_after[2] - target_delta).abs() + (coupled_after[5] - target_delta).abs();
+        let independent_error = (independent_after[2] - target_delta).abs()
+            + (independent_after[5] - target_delta).abs();
+        assert!(coupled_error < 1.0e-12);
+        assert!(coupled_error < independent_error);
+        assert!((coupled_impulse[2] - 2.0 * target_delta / 3.0).abs() < 1.0e-12);
+        assert!((coupled_impulse[5] - 2.0 * target_delta / 3.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn coupled_positive_reference_rejects_bad_sweeps_atomically() {
+        let mut desired = [6.0; 3];
+        let mut step = [7.0; 3];
+        let mut impulse = [8.0; 3];
+        let mut after = [9.0; 3];
+        let mut gap_after = [10.0];
+        assert_eq!(
+            solve_coupled_positive_reference_compliant_contact_impulse(
+                CoupledPositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &[-0.001],
+                    contact_velocity: &[0.0; 3],
+                    contact_free_acceleration: &[0.0; 3],
+                    delassus: &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                    impulse_upper: &[1.0; 3],
+                    friction: &[0.5],
+                    time_constant_s: &[0.02],
+                    damping_ratio: &[1.0],
+                    impedance_min: &[0.8],
+                    impedance_max: &[0.9],
+                    impedance_width_m: &[0.001],
+                    impedance_midpoint: &[0.5],
+                    impedance_power: &[2.0],
+                    minimum_time_constant_s: 0.002,
+                    time_step_s: 0.001,
+                    substeps: 1,
+                    projection_sweeps: 0,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator: CompliantStepIntegrator::ExplicitEuler,
+                },
+                &mut desired,
+                &mut step,
+                &mut impulse,
+                &mut after,
+                &mut gap_after,
+            ),
+            Err(CoupledContactImpulseError::InvalidConfig)
+        );
+        assert_eq!(desired, [6.0; 3]);
+        assert_eq!(step, [7.0; 3]);
+        assert_eq!(impulse, [8.0; 3]);
+        assert_eq!(after, [9.0; 3]);
+        assert_eq!(gap_after, [10.0]);
     }
 }

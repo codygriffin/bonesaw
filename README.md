@@ -2318,6 +2318,26 @@ accepts and releases both declared sources, and observes zero MuJoCo warnings.
 This does not authenticate an operator or estimate either unavailable quantity.
 See the [r225 external-load provenance audit](benchmarks/results/external-load-provenance-r225/EXTERNAL_LOAD_PROVENANCE_AUDIT.md).
 
+R226 replaces R220's constant-impedance/reference-scaling approximation with
+the documented positive time-constant/damping-ratio law, the full
+position-dependent impedance spline, the refsafe time-constant clamp, declared
+circular/pyramidal friction sections, and a separately typed causal free point
+acceleration. A second generic kernel distributes each soft velocity increment
+through the complete Delassus operator with fixed forward/reverse projected
+sweeps. The audit reuses the immutable rejected R221 labels and performs 96
+prestate forward-dynamics queries, but takes zero physics, integration, policy,
+or controller steps. Six coupled construction rows cover 48/48 samples under
+both laws at useful width and a 5 ms CPU gate. A representative 32-step/free-
+acceleration row fits angular/linear/joint width 0.095/0.030/6.131 and
+0.449/0.065/9.320 at 0.463/0.634 ms p99. All calls repeat bitwise, allocate
+nothing in timed Rust, and 192 non-timing arrays reproduce exactly. The typed
+mechanisms stay, but no empirical profile, selector, or authority is promoted
+and no fresh holdout is spent. The reduced integration schemes preserve the
+authored law's explicit/implicit character but do not reproduce MuJoCo's
+generalized RK4 or implicitfast integrators. Next, freeze a convergence/profile
+rule independently of these labels before a new untouched holdout. See the
+[r226 positive-reference compliance audit](benchmarks/results/g1-positive-reference-compliance-audit-r226/G1_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2429,6 +2449,7 @@ Reproduce it with:
 ./scripts/run-g1-substepped-compliant-contact-holdout.sh
 ./scripts/run-g1-compliant-terminal-consequence-audit.sh
 ./scripts/run-g1-terminal-velocity-box-audit.sh
+./scripts/run-g1-positive-reference-compliance-audit.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

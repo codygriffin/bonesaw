@@ -38,6 +38,33 @@ lease expiry, fall report, next-step simulator reset, and fresh reconnect. This
 does not execute green base intent in MuJoCo and does not replace the unrun
 browser frame-time gate.
 
+## Current CPU checkpoint — r226 uses the documented positive reference law
+
+R226 replaces the construction-only constant-impedance/reference scaling in
+R220 with the documented positive time-constant/damping-ratio law, complete
+position-dependent impedance spline, explicit refsafe clamp, first-order
+tangent decay, and declared circular/pyramidal friction sections. Generic Rust
+types causal free point acceleration separately from contact velocity and
+offers both independent effective-normal-mass response and a fixed-work
+complete-Delassus projected distribution. Both queries are allocation-free;
+PyO3 preflights the complete batch before output mutation. Core/Python
+evolution, invalid-input atomicity, bitwise repeat, and zero timed allocation
+pass.
+
+The construction audit reuses the already-rejected immutable R221 labels, so
+it cannot admit authority. It makes 96 causal prestate forward-dynamics queries
+to construct the free-acceleration witness and takes zero physics, integration,
+policy, or controller steps. Six complete-Delassus construction rows cover
+48/48 samples under both laws at useful width and the explicit 5 ms CPU gate.
+A representative 32-step/free-acceleration row fits angular/linear/joint width
+0.095/0.030/6.131 and 0.449/0.065/9.320 at 0.463/0.634 ms p99. The reduced
+integration schemes preserve the authored law's explicit/implicit character
+but do not reproduce MuJoCo's generalized RK4 or implicitfast integrators.
+Retain both generic mechanisms and the causal boundary, but freeze no empirical
+profile and spend no untouched holdout. The next transition checkpoint must
+derive a convergence/profile rule independently of these rejected labels,
+then pass a new holdout before any selector or authority claim.
+
 ## Current CPU checkpoint — r224 propagates the full velocity box to terminal pressure
 
 R224 adds a generic allocation-free Rust outer bound over the velocity

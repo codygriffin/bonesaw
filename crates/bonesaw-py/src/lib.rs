@@ -18,14 +18,16 @@ use bonesaw_core::{
     CaptureLandingRetargetConfig, CollisionAccelerationBarrierConfig, CollisionContinuityPolicy,
     CollisionEvaluationScratch, CommandTrackingAction, CommandTrackingLimits,
     CompiledCollisionModel, CompiledFrameAtlas, CompiledWorldCollisionModel,
-    CompliantContactImpulseInput, ContactCommandLeaseConfig, ContactCommandLeaseState, ContactMode,
-    ContactObservation, ContactObservationConfig, ContactObservationState,
-    ContactPhaseAuthorityConfig, ContactProgramAuthorityConfig, ContactProgramAuthorityState,
-    ContactSpec, ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
+    CompliantContactImpulseInput, CompliantFrictionCone, CompliantStepIntegrator,
+    ContactCommandLeaseConfig, ContactCommandLeaseState, ContactMode, ContactObservation,
+    ContactObservationConfig, ContactObservationState, ContactPhaseAuthorityConfig,
+    ContactProgramAuthorityConfig, ContactProgramAuthorityState, ContactSpec,
+    ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
     ContactTransitionResponseScratch, Controller, ControllerInput, ControllerOutputBuffer,
     ControllerScratch, ControllerState, CoupledContactHypothesisEnvelopeInput,
-    CoupledContactImpulseInput, DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DcmBalanceConfig,
-    DenseSdfGrid, DirectionalContactTransitionInput, DistanceQuality, DistanceSample,
+    CoupledContactImpulseInput, CoupledPositiveReferenceCompliantContactImpulseInput,
+    DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DcmBalanceConfig, DenseSdfGrid,
+    DirectionalContactTransitionInput, DistanceQuality, DistanceSample,
     DynamicTrajectoryValidationConfig, DynamicWbcConfig, DynamicsCache, ExternalFrameInputs,
     ExternalFrameSlotId, FLOATING_POINT_TASK_CAPACITY, FLOATING_TASK_DIAGNOSTIC_CAPACITY,
     FloatingCenterOfMassTask, FloatingCentroidalAngularMomentumTask, FloatingDynamicController,
@@ -35,15 +37,16 @@ use bonesaw_core::{
     FloatingFrameAngularAccelerationTask, FloatingJointAccelerationTask,
     FloatingPointAccelerationTask, FloatingRobotState, FloatingTaskPriorities, FloatingTaskWeights,
     FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache, Motion6, MotionProgram, PlanarIkOptions,
-    PlanarIkScratch, PlanarPointIkTarget, PointImpulseResponseSpec, Priority,
-    ReconstructionProvenance, RobotObservationHistory, RobotObservationLimits,
-    RobotObservationQueryError, RobotObservationQueryPolicy, RobotObservationRef,
-    RobotObservationStamp, RobotState, RootPredictionErrorGrowth, SPATIAL_IMPULSE_WIDTH,
-    SPATIAL_PATCH_TRANSITION_WITNESS_WIDTH, SdfOutsidePolicy, SdfSampleSource, SolveStatus,
-    SpatialAcceleration6, SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus,
-    SupportContingencyConfig, SupportPatchSpec, SupportPhase, SupportTransitionConfig,
-    SupportTransitionState, TerminalImpactCandidate, TerminalImpactConfig, TerminalImpactScore,
-    TerminalImpactState, TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
+    PlanarIkScratch, PlanarPointIkTarget, PointImpulseResponseSpec,
+    PositiveReferenceCompliantContactImpulseInput, Priority, ReconstructionProvenance,
+    RobotObservationHistory, RobotObservationLimits, RobotObservationQueryError,
+    RobotObservationQueryPolicy, RobotObservationRef, RobotObservationStamp, RobotState,
+    RootPredictionErrorGrowth, SPATIAL_IMPULSE_WIDTH, SPATIAL_PATCH_TRANSITION_WITNESS_WIDTH,
+    SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
+    SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
+    SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
+    TerminalImpactCandidate, TerminalImpactConfig, TerminalImpactScore, TerminalImpactState,
+    TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
     TouchdownPhaseRetimingInput, Transform3, VIABILITY_EXECUTION_COMPONENTS,
     VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds, ViabilityConfirmationConfig,
     ViabilityConfirmationState, ViabilityExecutionMonitorConfig, ViabilityExecutionMonitorState,
@@ -59,7 +62,8 @@ use bonesaw_core::{
     score_terminal_impact_velocity_box_upper, score_viability_forecast,
     select_conservative_terminal_impact_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
-    solve_planar_point_ik_into, solve_substepped_compliant_contact_impulse,
+    solve_coupled_positive_reference_compliant_contact_impulse, solve_planar_point_ik_into,
+    solve_positive_reference_compliant_contact_impulse, solve_substepped_compliant_contact_impulse,
     solve_whole_body_ik_into, solve_whole_body_kinematic_jets_into, step_actuator_realization,
     step_actuator_resource, step_contact_command_lease, step_contact_observation,
     step_contact_program_authority_with_inexact_command, step_viability_confirmation,
@@ -380,6 +384,7 @@ struct ContactTransitionModelSession {
     coupled_impulse_scratch: Vec<f64>,
     coupled_velocity_scratch: Vec<f64>,
     coupled_delta_scratch: Vec<f64>,
+    compliant_desired_velocity_delta_scratch: Vec<f64>,
     compliant_step_impulse_scratch: Vec<f64>,
 }
 
@@ -425,6 +430,7 @@ impl ContactTransitionModelSession {
             coupled_impulse_scratch: vec![0.0; contact_axes],
             coupled_velocity_scratch: vec![0.0; contact_axes],
             coupled_delta_scratch: vec![0.0; generalized_dof],
+            compliant_desired_velocity_delta_scratch: vec![0.0; contact_axes],
             compliant_step_impulse_scratch: vec![0.0; contact_axes],
         })
     }
@@ -788,6 +794,317 @@ impl ContactTransitionModelSession {
         if allocation_after != allocation_before {
             return Err(PyValueError::new_err(
                 "substepped compliant contact allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Integrate the positive time-constant/damping-ratio reference law with
+    /// its declared impedance spline and cone geometry. Cone IDs are
+    /// circular=0/pyramidal=1; integrator IDs are explicit=0, implicit=1,
+    /// exponential-trapezoidal=2.
+    #[allow(clippy::too_many_arguments)]
+    fn solve_positive_reference_compliant_contact_impulse(
+        &mut self,
+        contact_gap: PyReadonlyArray1<'_, f64>,
+        contact_velocity: PyReadonlyArray2<'_, f64>,
+        contact_free_acceleration: PyReadonlyArray2<'_, f64>,
+        delassus: PyReadonlyArray2<'_, f64>,
+        impulse_upper: PyReadonlyArray2<'_, f64>,
+        friction: PyReadonlyArray1<'_, f64>,
+        effective_normal_mass: PyReadonlyArray1<'_, f64>,
+        time_constant_s: PyReadonlyArray1<'_, f64>,
+        damping_ratio: PyReadonlyArray1<'_, f64>,
+        impedance_min: PyReadonlyArray1<'_, f64>,
+        impedance_max: PyReadonlyArray1<'_, f64>,
+        impedance_width_m: PyReadonlyArray1<'_, f64>,
+        impedance_midpoint: PyReadonlyArray1<'_, f64>,
+        impedance_power: PyReadonlyArray1<'_, f64>,
+        minimum_time_constant_s: f64,
+        time_step_s: f64,
+        substeps: usize,
+        friction_cone: u8,
+        integrator: u8,
+        mut impulse_out: PyReadwriteArray2<'_, f64>,
+        mut contact_velocity_after_out: PyReadwriteArray2<'_, f64>,
+        mut contact_gap_after_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let friction_cone = match friction_cone {
+            0 => CompliantFrictionCone::Circular,
+            1 => CompliantFrictionCone::Pyramidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "positive reference compliant contact cone must be circular=0 or pyramidal=1",
+                ));
+            }
+        };
+        let integrator = match integrator {
+            0 => CompliantStepIntegrator::ExplicitEuler,
+            1 => CompliantStepIntegrator::ImplicitEuler,
+            2 => CompliantStepIntegrator::ExponentialTrapezoidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "positive reference compliant contact integrator must be explicit=0, implicit=1, or exponential-trapezoidal=2",
+                ));
+            }
+        };
+        let velocity_shape = contact_velocity.as_array().dim();
+        let acceleration_shape = contact_free_acceleration.as_array().dim();
+        let delassus_shape = delassus.as_array().dim();
+        let upper_shape = impulse_upper.as_array().dim();
+        let impulse_shape = impulse_out.as_array().dim();
+        let after_shape = contact_velocity_after_out.as_array().dim();
+        let contact_gap = contact_gap.as_slice()?;
+        let contact_velocity = contact_velocity.as_slice()?;
+        let contact_free_acceleration = contact_free_acceleration.as_slice()?;
+        let delassus = delassus.as_slice()?;
+        let impulse_upper = impulse_upper.as_slice()?;
+        let friction = friction.as_slice()?;
+        let effective_normal_mass = effective_normal_mass.as_slice()?;
+        let time_constant_s = time_constant_s.as_slice()?;
+        let damping_ratio = damping_ratio.as_slice()?;
+        let impedance_min = impedance_min.as_slice()?;
+        let impedance_max = impedance_max.as_slice()?;
+        let impedance_width_m = impedance_width_m.as_slice()?;
+        let impedance_midpoint = impedance_midpoint.as_slice()?;
+        let impedance_power = impedance_power.as_slice()?;
+        let impulse_out = impulse_out.as_slice_mut()?;
+        let contact_velocity_after_out = contact_velocity_after_out.as_slice_mut()?;
+        let contact_gap_after_out = contact_gap_after_out.as_slice_mut()?;
+        let contacts = self.point_specs.len();
+        let axes = contacts * CONTACT_TRANSITION_IMPULSE_WIDTH;
+        let parameter_lengths = [
+            contact_gap.len(),
+            friction.len(),
+            effective_normal_mass.len(),
+            time_constant_s.len(),
+            damping_ratio.len(),
+            impedance_min.len(),
+            impedance_max.len(),
+            impedance_width_m.len(),
+            impedance_midpoint.len(),
+            impedance_power.len(),
+            contact_gap_after_out.len(),
+        ];
+        if parameter_lengths.iter().any(|length| *length != contacts)
+            || velocity_shape != (contacts, CONTACT_TRANSITION_IMPULSE_WIDTH)
+            || acceleration_shape != velocity_shape
+            || delassus_shape != (axes, axes)
+            || upper_shape != velocity_shape
+            || impulse_shape != velocity_shape
+            || after_shape != velocity_shape
+        {
+            return Err(PyValueError::new_err(format!(
+                "positive reference compliant contact expects every scalar parameter[{contacts}], velocity/upper/impulse/after[{contacts},3], delassus[{axes},{axes}], and gap_after[{contacts}]"
+            )));
+        }
+        let input = PositiveReferenceCompliantContactImpulseInput {
+            contact_gap,
+            contact_velocity,
+            contact_free_acceleration,
+            delassus,
+            impulse_upper,
+            friction,
+            effective_normal_mass,
+            time_constant_s,
+            damping_ratio,
+            impedance_min,
+            impedance_max,
+            impedance_width_m,
+            impedance_midpoint,
+            impedance_power,
+            minimum_time_constant_s,
+            time_step_s,
+            substeps,
+            friction_cone,
+            integrator,
+        };
+        solve_positive_reference_compliant_contact_impulse(
+            input,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid positive reference compliant contact: {error:?}"
+            ))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        solve_positive_reference_compliant_contact_impulse(
+            input,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .expect("validated positive reference compliant contact");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "positive reference compliant contact allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Solve the same positive-reference law while distributing each
+    /// microstep through the complete Delassus operator. Cone/integrator IDs
+    /// match `solve_positive_reference_compliant_contact_impulse`.
+    #[allow(clippy::too_many_arguments)]
+    fn solve_coupled_positive_reference_compliant_contact_impulse(
+        &mut self,
+        contact_gap: PyReadonlyArray1<'_, f64>,
+        contact_velocity: PyReadonlyArray2<'_, f64>,
+        contact_free_acceleration: PyReadonlyArray2<'_, f64>,
+        delassus: PyReadonlyArray2<'_, f64>,
+        impulse_upper: PyReadonlyArray2<'_, f64>,
+        friction: PyReadonlyArray1<'_, f64>,
+        time_constant_s: PyReadonlyArray1<'_, f64>,
+        damping_ratio: PyReadonlyArray1<'_, f64>,
+        impedance_min: PyReadonlyArray1<'_, f64>,
+        impedance_max: PyReadonlyArray1<'_, f64>,
+        impedance_width_m: PyReadonlyArray1<'_, f64>,
+        impedance_midpoint: PyReadonlyArray1<'_, f64>,
+        impedance_power: PyReadonlyArray1<'_, f64>,
+        minimum_time_constant_s: f64,
+        time_step_s: f64,
+        substeps: usize,
+        projection_sweeps: usize,
+        friction_cone: u8,
+        integrator: u8,
+        mut impulse_out: PyReadwriteArray2<'_, f64>,
+        mut contact_velocity_after_out: PyReadwriteArray2<'_, f64>,
+        mut contact_gap_after_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let friction_cone = match friction_cone {
+            0 => CompliantFrictionCone::Circular,
+            1 => CompliantFrictionCone::Pyramidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "coupled positive reference contact cone must be circular=0 or pyramidal=1",
+                ));
+            }
+        };
+        let integrator = match integrator {
+            0 => CompliantStepIntegrator::ExplicitEuler,
+            1 => CompliantStepIntegrator::ImplicitEuler,
+            2 => CompliantStepIntegrator::ExponentialTrapezoidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "coupled positive reference contact integrator must be explicit=0, implicit=1, or exponential-trapezoidal=2",
+                ));
+            }
+        };
+        let velocity_shape = contact_velocity.as_array().dim();
+        let acceleration_shape = contact_free_acceleration.as_array().dim();
+        let delassus_shape = delassus.as_array().dim();
+        let upper_shape = impulse_upper.as_array().dim();
+        let impulse_shape = impulse_out.as_array().dim();
+        let after_shape = contact_velocity_after_out.as_array().dim();
+        let contact_gap = contact_gap.as_slice()?;
+        let contact_velocity = contact_velocity.as_slice()?;
+        let contact_free_acceleration = contact_free_acceleration.as_slice()?;
+        let delassus = delassus.as_slice()?;
+        let impulse_upper = impulse_upper.as_slice()?;
+        let friction = friction.as_slice()?;
+        let time_constant_s = time_constant_s.as_slice()?;
+        let damping_ratio = damping_ratio.as_slice()?;
+        let impedance_min = impedance_min.as_slice()?;
+        let impedance_max = impedance_max.as_slice()?;
+        let impedance_width_m = impedance_width_m.as_slice()?;
+        let impedance_midpoint = impedance_midpoint.as_slice()?;
+        let impedance_power = impedance_power.as_slice()?;
+        let impulse_out = impulse_out.as_slice_mut()?;
+        let contact_velocity_after_out = contact_velocity_after_out.as_slice_mut()?;
+        let contact_gap_after_out = contact_gap_after_out.as_slice_mut()?;
+        let contacts = self.point_specs.len();
+        let axes = contacts * CONTACT_TRANSITION_IMPULSE_WIDTH;
+        let parameter_lengths = [
+            contact_gap.len(),
+            friction.len(),
+            time_constant_s.len(),
+            damping_ratio.len(),
+            impedance_min.len(),
+            impedance_max.len(),
+            impedance_width_m.len(),
+            impedance_midpoint.len(),
+            impedance_power.len(),
+            contact_gap_after_out.len(),
+        ];
+        if parameter_lengths.iter().any(|length| *length != contacts)
+            || velocity_shape != (contacts, CONTACT_TRANSITION_IMPULSE_WIDTH)
+            || acceleration_shape != velocity_shape
+            || delassus_shape != (axes, axes)
+            || upper_shape != velocity_shape
+            || impulse_shape != velocity_shape
+            || after_shape != velocity_shape
+        {
+            return Err(PyValueError::new_err(format!(
+                "coupled positive reference contact expects every scalar parameter[{contacts}], velocity/upper/impulse/after[{contacts},3], delassus[{axes},{axes}], and gap_after[{contacts}]"
+            )));
+        }
+        let input = CoupledPositiveReferenceCompliantContactImpulseInput {
+            contact_gap,
+            contact_velocity,
+            contact_free_acceleration,
+            delassus,
+            impulse_upper,
+            friction,
+            time_constant_s,
+            damping_ratio,
+            impedance_min,
+            impedance_max,
+            impedance_width_m,
+            impedance_midpoint,
+            impedance_power,
+            minimum_time_constant_s,
+            time_step_s,
+            substeps,
+            projection_sweeps,
+            friction_cone,
+            integrator,
+        };
+        solve_coupled_positive_reference_compliant_contact_impulse(
+            input,
+            &mut self.compliant_desired_velocity_delta_scratch,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid coupled positive reference compliant contact: {error:?}"
+            ))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        solve_coupled_positive_reference_compliant_contact_impulse(
+            input,
+            &mut self.compliant_desired_velocity_delta_scratch,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .expect("validated coupled positive reference compliant contact");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "coupled positive reference compliant contact allocated inside the Rust hot path",
             ));
         }
         Ok((

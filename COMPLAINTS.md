@@ -26,20 +26,28 @@ the separate pressure stack. The prior center score's 7/1 mid/hard false-safe
 crossings become 0/0, and every contained completed state is bounded. The
 query is 1.388/1.439 µs p99 with bitwise repeat and zero timed allocation.
 
-The live complaint is the transition set feeding that mechanism. R221's frozen
-profile covers only 44/48 mid-law and 31/48 hard-law source rows; the R224
-contact-only terminal projection contains 44/48 and only 19/48 completed
-states. The broad box also rejects 10/48 and 2/48 safe completed states. Do not
-retune the 128 microsteps, 16× cap, or group widths from holdout labels. The
-next candidate must have independent physical/statistical motivation, pass a
-new untouched contact-law holdout at useful width and deadline, then feed the
-retained R224 bound into a selector with strict plant non-regression.
+R226 removes both the constant-impedance/reference-scaling shortcut and
+independent-point contact distribution from this punch list. Generic Rust now
+implements the documented positive reference law, position-dependent
+impedance, refsafe clamp, declared friction-cone geometry, causal free point
+acceleration, and a fixed-work complete-Delassus projected distribution. Six
+coupled construction rows cover all 48 samples from both rejected R221 laws at
+useful width and below a 5 ms CPU gate. The representative 32-step/free-
+acceleration row fits angular/linear/joint width 0.095/0.030/6.131 and
+0.449/0.065/9.320 at 0.463/0.634 ms p99. No empirical profile is promoted and
+no fresh holdout is spent.
+
+The live complaint is now independently freezing the coupled solver's
+microstep/sweep/convergence rule before new evidence. Do not choose among the
+32/64/128-step successes, retune impulse caps, or fit residual widths from
+rejected R221 labels. The frozen candidate must pass a new untouched contact-
+law holdout at useful width and deadline, then feed the retained R224 bound
+into a selector with strict plant non-regression.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive an independently motivated transferable contact-law residual or model
-  parameterization before another untouched holdout; r221 already rejects the
-  label-fit substepped-compliance profile despite useful width and deadline;
+- freeze the coupled soft-constraint solver's microstep, sweep, cap, and
+  residual contracts without selecting them from rejected R221 labels;
 - freeze a tighter independently motivated transition set, pass a new untouched
   strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
