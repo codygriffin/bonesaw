@@ -2852,14 +2852,19 @@ report. The retained artifact is
 
 `python/evals/g1_support_load_floor_r271.py` compares the retained R270
 lower-body hard-envelope trace with default-off aggregate support-load floors
-of 0.5%, 10%, and 25% of supported weight per active patch. Rust emits one
-hard linear inequality over the sum of normal-force slots, so a four-point sole
-may redistribute load without silently accepting an underloaded support. The
+of 0.5%, 10%, and 25% of supported weight, divided evenly over active patches.
+Rust emits one hard linear inequality over the sum of each patch's normal-force
+slots, so a four-point sole may redistribute load without silently accepting an
+underloaded support. A separate zero-floor trace must reproduce all non-timing
+R270 arrays bit-for-bit. The evaluator decodes compact force slots in active
+target order and checks every non-release/non-hold patch row within 1e-6 N. The
 replay uses no policy and no physics simulator.
 
-The mechanism is causal but rejected: first fallback moves 875→505→424→308
-as the floor increases, with support release immediately following the floor
-contingency. Full root RMS reaches 24.382–28.960 m. This makes the prior
+The generic mechanism passes—72/72 dormant semantic arrays match and every
+enabled row has zero violations—but the global walking profile is rejected:
+first fallback moves 875→505→424→308 as the floor increases, with support
+release immediately following the floor contingency. Full root RMS reaches
+24.382–28.960 m. This makes the prior
 42–58 N status-4 load trade explicit and fail-closed, but does not restore useful
 walking authority. The API defaults to zero, and no authority is admitted.
 
