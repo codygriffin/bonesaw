@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw stage-force cross-integrator · r238</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw stage-force cross-integrator holdout · r238</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED**.</blockquote>
+<p>This untouched corpus pairs a new implicitfast law (model ABI id 1) with a new RK4 law (current-stage-force ABI id 4). Both law parameters and disjoint state offsets were declared after R237 froze 64 sweeps and before any trajectory was generated.</p>
+<div class=table-wrap><table><thead><tr><th>law</th><th>ABI</th><th>frozen coverage</th><th>exact active sets</th><th>pred-only / missed</th><th>fitted width · ang / lin / joint</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>balanced_elliptic_implicitfast_r238</td><td>1</td><td>95.833%</td><td>47/48</td><td>1 / 0</td><td>0.213 / 0.045 / 21.255</td><td>0.657</td><td>REJECT</td></tr><tr><td>stiff_pyramidal_rk4_stage_force_r238</td><td>4</td><td>100.000%</td><td>47/48</td><td>1 / 0</td><td>0.122 / 0.018 / 5.191</td><td>2.817</td><td>PROMOTE</td></tr></tbody></table></div>
+<p>The prediction call received only causal state/contact arrays. Scoring then compared Rust&#x27;s returned final generalized tangent directly with the reference final tangent. No policy, controller, selector, or plant action participated.</p>
+<p>Promotion requires strict coverage, deadline, bitwise-repeat, and zero-allocation success for both integrators. A failure remains useful mechanism evidence but grants no authority. An independent retained rerun reproduced all 62 non-timing NPZ arrays exactly; 10 measured timing arrays are intentionally excluded from semantic equality.</p></main></body></html>

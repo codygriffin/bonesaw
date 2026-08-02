@@ -2465,6 +2465,24 @@ solver semantics, not another scalar contact mask. R236 is ineligible for
 construction selection or authority and runs zero new physics/policy/
 controller/selector/plant steps. See the [r236 final-tangent localization](benchmarks/results/g1-rk4-final-tangent-localization-r236/G1_RK4_FINAL_TANGENT_LOCALIZATION.md).
 
+R237 keeps historical generalized RK4 on model ABI id 3 and adds model-only
+current-stage-force id 4. Id 4 cancels the local contact solver's extra full-
+tick gap advance before every RK derivative, while retaining stage-local
+geometry, dynamics, Delassus, motion, collision membership, and caller-owned
+scratch. Selection sees only causal R233 arrays: 64→128 refinement is 0.801%
+of the useful-width gate, freezing 64 sweeps at 4.06 ms selected p99 (4.18 ms
+at 128 sweeps) with bitwise repeat and zero timed Rust allocation. A retained run reproduces 122 semantic
+arrays exactly. See the [r237 current-stage-force convergence audit](benchmarks/results/g1-rk4-stage-force-convergence-audit-r237/G1_RK4_STAGE_FORCE_CONVERGENCE_AUDIT.md).
+
+R238 spends new mixed-integrator laws and offsets 150,000/160,000 only after
+that freeze. The RK4/id-4 row passes strict 48/48 coverage at
+0.122/0.018/5.191 angular/linear/joint width and 2.82 ms p99. The
+implicitfast/id-1 row covers 46/48 and needs 0.213/0.045/21.255, rejecting the
+conjunctive profile. Both rows meet deadline/repeat/allocation gates and all 62
+semantic arrays replay exactly. Retain the stage-force mechanism, admit no
+authority, and isolate the remaining implicitfast transfer tail without
+fitting these labels. See the [r238 fresh cross-integrator holdout](benchmarks/results/g1-rk4-stage-force-cross-integrator-holdout-r238/G1_RK4_STAGE_FORCE_CROSS_INTEGRATOR_HOLDOUT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the

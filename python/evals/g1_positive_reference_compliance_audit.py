@@ -202,6 +202,7 @@ MODEL_INTEGRATOR_IDS = {
     "implicit": 1,
     "exponential_trapezoidal": 2,
     "generalized_rk4": 3,
+    "generalized_rk4_stage_force": 4,
 }
 
 
@@ -217,6 +218,15 @@ def law_model_integrator_id(law: Any) -> int:
         return MODEL_INTEGRATOR_IDS["implicit"]
     if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
         return MODEL_INTEGRATOR_IDS["generalized_rk4"]
+    return MODEL_INTEGRATOR_IDS["explicit"]
+
+
+def law_model_stage_force_integrator_id(law: Any) -> int:
+    """Map RK4 to the current-stage contact-force generalized integrator."""
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_IMPLICITFAST):
+        return MODEL_INTEGRATOR_IDS["implicit"]
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
+        return MODEL_INTEGRATOR_IDS["generalized_rk4_stage_force"]
     return MODEL_INTEGRATOR_IDS["explicit"]
 
 

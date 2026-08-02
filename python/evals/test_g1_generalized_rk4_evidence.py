@@ -38,6 +38,7 @@ class G1GeneralizedRk4EvidenceTests(unittest.TestCase):
                 "implicit": 1,
                 "exponential_trapezoidal": 2,
                 "generalized_rk4": 3,
+                "generalized_rk4_stage_force": 4,
             },
         )
 

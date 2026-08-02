@@ -20,54 +20,35 @@ target is available. Transport or controller timing cannot substitute for it.
 
 ## Open CPU authority gate: useful physical transition tube
 
-True generalized RK4 is no longer the live complaint. Rust now owns four
-allocation-free generalized state/contact stages per authored tick. Every stage
-refreshes support geometry, floating bias/inverse dynamics, the factored mass
-matrix, complete Delassus response, point velocity/acceleration, and collision
-membership under a held generalized force. Analytic free-flight and mid-tick
-contact-crossing regressions pass. On the spent R231 hard-RK4 rows, exact active
-sets improve from 24/48 to 45/48 and missed actual points fall from 22 to 1.
+Rust now has a distinct model-only current-stage-force RK4 ABI. It preserves the
+historical full-tick RK4 path and R232/R233 evidence, but cancels that path's
+extra complete gap advance before evaluating each stage derivative. Every
+stage still refreshes support geometry, dynamics, mass factor, complete
+Delassus response, point motion, and collision membership in caller-owned
+storage. Scalar APIs reject both generalized variants.
 
-R232 freezes 64 projected sweeps using prediction change only: the 64→128
-refinement is 0.600% of the useful-width gate, p99 is 4.34 ms under the frozen
-5 ms deadline, repeated outputs are bitwise exact, and the timed Rust boundary
-allocates zero bytes. Completed R231 labels are opened only after selection.
-The stateful score now compares Rust's returned final tangent with the reference
-final tangent; it no longer projects a final impulse through the initial mass
-response. On spent hard-RK4 rows this gives 46/48 coverage and
-0.669/0.125/8.262 fitted angular/linear/joint width; the obsolete proxy had a
-28.584 joint width.
+R237 freezes 64 projected sweeps without completed labels: 64→128 changes the
+prediction by 0.801% of the useful-width gate, the selected 64-sweep p99 is
+4.06 ms (128 sweeps measures 4.18 ms), timed Rust allocation is zero, reruns
+are bitwise exact, and an independent run reproduces all 122 semantic arrays.
+Spent R233 labels are opened only afterward.
 
-The live complaint is now transferable final-tangent accuracy.
-The untouched R233 RK4 laws retain the mechanism/deadline witnesses at
-3.32–3.38 ms p99, but strict accuracy is rejected. Medium/elliptic has 46/48
-frozen sample coverage with 47/48 exact active sets; hard/pyramidal has 44/48
-coverage with 44/48 exact active sets. Their fitted angular /
-linear / joint widths are 0.285 / 0.043 / 10.446 and 0.699 / 0.110 / 11.248.
-The predictor commonly finds the right contacts and is now close to the 10
-rad/s useful joint-width gate, but strict frozen coverage still fails. Do not
-tune R233 labels into R232. Because the frozen
-profile failed, it does not enter R224 terminal selection or plant
-non-regression.
-
-R236 removes the remaining localization ambiguity without changing a
-coefficient or profile. On medium RK4, the full 10.446 rad/s joint width occurs
-inside the 47 rows whose contact sets are already exact; on hard RK4 the exact-
-set subset still needs 10.618 rad/s. Every worst coordinate is an ankle pitch
-or roll joint. The fixture and predictor already share the same four 5 mm
-spheres per foot. Foot-wrench errors, especially normal impulse and pitch
-moment on the right foot, remain large. The live mechanism gap is therefore
-stage-local force and within-foot wrench distribution/reference constraint-
-solver semantics, with some hard-law activation tail—not primitive count,
-radius, or another global activation threshold.
+The untouched R238 cross-integrator holdout is the current boundary. Its new
+RK4/id-4 row covers 48/48 samples at 0.122 / 0.018 / 5.191 fitted angular /
+linear / joint width and 2.82 ms p99. Its new implicitfast/id-1 comparator
+covers only 46/48 and needs 0.213 / 0.045 / 21.255 width, so the conjunctive
+profile is rejected. Both rows repeat bitwise, allocate zero timed Rust bytes,
+and meet the deadline; all 62 semantic arrays reproduce exactly. The original
+stage-local-force complaint is resolved, but transferable accuracy across
+integrators is not. No R224 selection, plant non-regression, or authority is
+allowed from this failed combined holdout.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive a label-independent stage-local force/within-foot wrench construction
-  that addresses the R236 ankle residual without fitting the spent R233 laws;
-- pass a new strict cross-integrator coverage/width/deadline holdout, then
-  demonstrate an R224-bounded state/trajectory-conditioned action with strict
-  plant non-regression;
+- isolate and correct the remaining implicitfast/contact-update transfer tail
+  without fitting R238 labels, then pass a new strict mixed-integrator holdout;
+- demonstrate an R224-bounded state/trajectory-conditioned action with strict
+  plant non-regression after, and only after, that transferable holdout passes;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw current-stage-force RK4 · r237</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw current-stage-force RK4 convergence audit · r237</h1>
+<blockquote>Prediction-only profile **FROZEN** · authority **NOT ADMITTED**.</blockquote>
+<p>ABI id 4 evaluates the documented positive-reference contact law at each current generalized-RK4 stage. It does not advance contact gap by another complete state tick inside the derivative. Historical ABI id 3 and all R232/R233 evidence remain unchanged.</p>
+<div class=table-wrap><table><thead><tr><th>sweeps</th><th>2× refinement width · ang / lin / joint</th><th>% gate</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>1</td><td>0.7812 / 0.1204 / 6.1319</td><td>61.319%</td><td>3.007</td><td>—</td></tr><tr><td>2</td><td>0.8083 / 0.1264 / 5.1513</td><td>51.513%</td><td>3.058</td><td>—</td></tr><tr><td>4</td><td>0.5023 / 0.0815 / 2.4651</td><td>25.117%</td><td>3.250</td><td>—</td></tr><tr><td>8</td><td>0.3223 / 0.0544 / 1.5872</td><td>16.116%</td><td>3.800</td><td>—</td></tr><tr><td>16</td><td>0.1186 / 0.0209 / 0.6539</td><td>6.539%</td><td>3.808</td><td>—</td></tr><tr><td>32</td><td>0.0191 / 0.0034 / 0.2193</td><td>2.193%</td><td>3.943</td><td>—</td></tr><tr><td>64</td><td>0.0023 / 0.0006 / 0.0801</td><td>0.801%</td><td>4.064</td><td>FREEZE</td></tr><tr><td>128</td><td>—</td><td>—</td><td>4.184</td><td>—</td></tr></tbody></table></div>
+<p>The smallest stable profile is **64 projected sweeps**.</p>
+<p>Selection had access only to causal state and contact geometry. Completed R233 impulses and final-tangent residuals were reopened after the sweep count was fixed.</p>
+<h2>Spent-label diagnostic (ineligible for selection)</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>frozen coverage</th><th>exact active sets</th><th>fitted width · ang / lin / joint</th></tr></thead><tbody><tr><td>medium_elliptic_rk4</td><td>91.667%</td><td>47/48</td><td>0.287 / 0.049 / 11.184</td></tr><tr><td>hard_pyramidal_rk4</td><td>97.917%</td><td>43/48</td><td>0.792 / 0.126 / 9.912</td></tr></tbody></table></div>
+<p>This audit creates no new reference physics, policy, controller, selector, or plant steps. A new untouched cross-integrator holdout is required before any promotion decision. An independent retained rerun reproduced all 122 non-timing NPZ arrays exactly; 16 measured timing arrays are intentionally excluded from semantic equality.</p></main></body></html>

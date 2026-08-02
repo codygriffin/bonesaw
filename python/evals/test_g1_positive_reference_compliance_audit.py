@@ -19,6 +19,7 @@ from g1_positive_reference_compliance_audit import (
     SOLVER_FAMILIES,
     law_cone_id,
     law_model_integrator_id,
+    law_model_stage_force_integrator_id,
     law_reduced_integrator_id,
     reference_contact_acceleration,
 )
@@ -44,6 +45,20 @@ class G1PositiveReferenceComplianceAuditTests(unittest.TestCase):
         self.assertEqual(law_reduced_integrator_id(FRESH_CONTACT_LAWS[1]), 2)
         self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
         self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[1]), 3)
+        self.assertEqual(law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
+        self.assertEqual(law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[1]), 4)
+
+    def test_stage_force_id_is_distinct_from_full_tick_generalized_rk4(self) -> None:
+        # The stage-force path is a model-coupled ABI variant.  Scalar contact
+        # APIs must continue to reject both generalized ids, while the
+        # reference-law mapper keeps implicitfast and RK4 distinct.
+        self.assertNotEqual(
+            law_model_integrator_id(FRESH_CONTACT_LAWS[1]),
+            law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[1]),
+        )
+        self.assertEqual(
+            law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[1]), 4
+        )
 
     def test_reference_free_acceleration_is_finite_and_state_local(self) -> None:
         law = FRESH_CONTACT_LAWS[0]

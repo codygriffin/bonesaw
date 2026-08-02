@@ -41,7 +41,7 @@ live WebSocket regressions pass. A one-metre-down preview still retains
 ground/state observability, not green-target plant realization, and the browser
 frame-time gate remains unrun because no in-app browser is attached.
 
-## Current CPU checkpoint — r233 retains generalized RK4 but rejects transfer
+## Current CPU checkpoint — r238 stage-force RK4 passes; mixed transfer rejects
 
 Rust now implements a genuine four-stage generalized RK4 path inside the
 model-owned contact query. The initial free acceleration is converted to a
@@ -82,6 +82,27 @@ stage-local force and within-foot wrench distribution/reference solver
 semantics, not primitive geometry or a scalar activation mask. R236 takes zero
 new physics, policy, controller, selector, or plant steps and is ineligible for
 selection or authority.
+
+R237 preserves that historical model ABI as id 3 and adds a distinct
+model-only current-stage-force ABI id 4. The new path cancels the legacy local
+solver's extra full-tick gap advance, so each RK derivative evaluates the
+positive-reference law at its current stage state. Scalar APIs reject both
+generalized ids, and caller-owned scratch still covers every stage refresh.
+Prediction-only 64→128 refinement is 0.801% of the useful-width gate; 64 sweeps
+freeze at 4.06 ms selected p99 (4.18 ms at 128 sweeps) with bitwise repeat, zero timed Rust allocation,
+and 122/122 semantic arrays exact on an independent rerun. Completed R233
+labels remain inaccessible until after selection.
+
+R238 then creates two new law families at disjoint offsets 150,000/160,000.
+The RK4/id-4 row covers 48/48 under the frozen box at
+0.122/0.018/5.191 angular/linear/joint width and 2.82 ms p99. The
+implicitfast/id-1 comparator covers 46/48 and needs
+0.213/0.045/21.255, so the conjunctive mixed-integrator profile is rejected.
+Both rows repeat bitwise, allocate zero timed Rust bytes, meet the 5 ms
+deadline, and reproduce all 62 semantic arrays. The stage-force construction
+is retained; label-independent implicitfast/contact-update transfer remains
+the CPU accuracy gate. No R224 selection, plant non-regression, or authority
+follows the failed combined holdout.
 
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 

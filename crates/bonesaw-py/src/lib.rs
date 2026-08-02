@@ -1130,7 +1130,8 @@ impl ContactTransitionModelSession {
     /// Advance a floating model on an independently declared state/event
     /// clock, refreshing rigid point geometry and the full Delassus operator
     /// before each event test. Integrator ids are explicit=0, implicit=1,
-    /// exponential-trapezoidal=2, and generalized-rk4=3. All numerical
+    /// exponential-trapezoidal=2, generalized-rk4=3, and
+    /// generalized-rk4-stage-force=4. All numerical
     /// outputs are caller-owned.
     #[allow(clippy::too_many_arguments)]
     fn solve_model_coupled_positive_reference_compliant_contact_impulse(
@@ -1186,9 +1187,10 @@ impl ContactTransitionModelSession {
             // Keep ids 0/1/2 stable; model-coupled generalized RK4 gets a
             // distinct id so scalar id=2 remains exponential-trapezoidal.
             3 => CompliantStepIntegrator::GeneralizedRk4,
+            4 => CompliantStepIntegrator::GeneralizedRk4StageForce,
             _ => {
                 return Err(PyValueError::new_err(
-                    "model coupled positive reference contact integrator must be explicit=0, implicit=1, exponential-trapezoidal=2, or generalized-rk4=3",
+                    "model coupled positive reference contact integrator must be explicit=0, implicit=1, exponential-trapezoidal=2, generalized-rk4=3, or generalized-rk4-stage-force=4",
                 ));
             }
         };

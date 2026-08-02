@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Contract tests for the R237/R238 stage-force evidence boundary."""
+
+from __future__ import annotations
+
+import unittest
+
+import mujoco
+
+from g1_generalized_rk4_holdout import (
+    FRESH_CONTACT_LAWS as R233_LAWS,
+    SAMPLE_OFFSETS as R233_OFFSETS,
+)
+from g1_rk4_stage_force_convergence_audit import PROJECTION_SWEEPS
+from g1_rk4_stage_force_cross_integrator_holdout import (
+    FRESH_CONTACT_LAWS as R238_LAWS,
+    FROZEN_PROJECTION_SWEEPS,
+    SAMPLE_OFFSETS as R238_OFFSETS,
+)
+from g1_positive_reference_compliance_audit import (
+    law_model_stage_force_integrator_id,
+)
+
+
+class G1Rk4StageForceEvidenceTests(unittest.TestCase):
+    def test_holdout_uses_prediction_frozen_work(self) -> None:
+        self.assertIn(FROZEN_PROJECTION_SWEEPS, PROJECTION_SWEEPS)
+        self.assertEqual(FROZEN_PROJECTION_SWEEPS, 64)
+
+    def test_holdout_laws_and_offsets_are_disjoint_from_spent_source(self) -> None:
+        self.assertTrue(
+            {law.name for law in R238_LAWS}.isdisjoint(
+                {law.name for law in R233_LAWS}
+            )
+        )
+        self.assertTrue(set(R238_OFFSETS).isdisjoint(R233_OFFSETS))
+
+    def test_cross_integrator_rows_select_implicit_and_stage_force_abis(self) -> None:
+        self.assertEqual(
+            [law.integrator for law in R238_LAWS],
+            [
+                int(mujoco.mjtIntegrator.mjINT_IMPLICITFAST),
+                int(mujoco.mjtIntegrator.mjINT_RK4),
+            ],
+        )
+        self.assertEqual(
+            [law_model_stage_force_integrator_id(law) for law in R238_LAWS],
+            [1, 4],
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
