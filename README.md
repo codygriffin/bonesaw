@@ -2296,7 +2296,7 @@ bounds and joint headroom is a lower bound. A 729-point core oracle, the
 generic Python boundary, late-row atomicity, bitwise repeat, and zero timed
 allocation all pass. On the immutable R221 replay, observed false-safe
 threshold crossings fall from 7→0 and 1→0; no contained completed state
-violates the bound. Query p99 is 1.344/1.194 µs. The frozen transition profile
+violates the bound. Query p99 is 1.388/1.439 µs. The frozen transition profile
 still covers only 91.667% of mid-law source rows and 64.583% of hard-law source
 rows (the contact-only terminal projection covers 91.667%/39.583%), and the
 wide bound conservatively rejects 10/48 and 2/48 safe completed states. The

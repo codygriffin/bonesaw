@@ -36,7 +36,7 @@ pass.
 On immutable R221 contact-only states, center scoring's 7/1 mid/hard false-safe
 crossings become 0/0 under box scoring, with zero bound violations or
 false-safe rows among completed states inside the terminal projection. Query
-p99 is 1.344/1.194 µs. This does not restore authority: source sample coverage
+p99 is 1.388/1.439 µs. This does not restore authority: source sample coverage
 is still only 91.667%/64.583%, contact-only terminal-projection coverage is
 91.667%/39.583%, and the broad box rejects 10/48 and 2/48 safe completed
 states. The generic consequence bound is retained; the R220/R221 profile,

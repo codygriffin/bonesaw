@@ -12,8 +12,8 @@
 
 | law | source full coverage | terminal projection coverage | center → box false-safe | contained false-safe | conservative rejects | contained harm slack p50/p95 | box p99 µs |
 |---|---|---|---|---|---|---|---|
-| mid_elliptic_implicitfast | 91.667% | 91.667% | 7 → 0 | 0 | 10 / 48 | 21.379 / 25.370 | 1.344 |
-| hard_pyramidal_rk4 | 64.583% | 39.583% | 1 → 0 | 0 | 2 / 48 | 21.841 / 35.029 | 1.194 |
+| mid_elliptic_implicitfast | 91.667% | 91.667% | 7 → 0 | 0 | 10 / 48 | 21.379 / 25.370 | 1.388 |
+| hard_pyramidal_rk4 | 64.583% | 39.583% | 1 → 0 | 0 | 2 / 48 | 21.841 / 35.029 | 1.439 |
 
 ## Decision
 

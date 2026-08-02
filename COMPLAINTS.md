@@ -24,7 +24,7 @@ Allocation-free Rust now propagates every velocity in a declared componentwise
 box through ballistic time, terminal tilt/rate, joint headroom/velocity, and
 the separate pressure stack. The prior center score's 7/1 mid/hard false-safe
 crossings become 0/0, and every contained completed state is bounded. The
-query is 1.344/1.194 µs p99 with bitwise repeat and zero timed allocation.
+query is 1.388/1.439 µs p99 with bitwise repeat and zero timed allocation.
 
 The live complaint is the transition set feeding that mechanism. R221's frozen
 profile covers only 44/48 mid-law and 31/48 hard-law source rows; the R224
