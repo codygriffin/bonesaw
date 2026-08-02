@@ -180,7 +180,8 @@ pub use support_contingency::{
 };
 pub use terminal_impact::{
     ConservativeTerminalImpactSelection, TerminalImpactCandidate, TerminalImpactConfig,
-    TerminalImpactError, TerminalImpactScore, TerminalImpactState, score_terminal_impact,
+    TerminalImpactError, TerminalImpactScore, TerminalImpactState, TerminalImpactVelocityBoxState,
+    score_terminal_impact, score_terminal_impact_velocity_box_upper,
     select_conservative_terminal_impact_candidate, write_terminal_impact_hypothesis_envelopes,
 };
 pub use trajectory::{

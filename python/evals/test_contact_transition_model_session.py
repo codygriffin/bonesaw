@@ -461,6 +461,105 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             )
         np.testing.assert_array_equal(unchanged, 7.0)
 
+    def test_terminal_velocity_box_bounds_points_and_is_atomic(self) -> None:
+        joints = self.generic.joint_dof()
+        rows = 2
+        root_state = np.asarray(
+            [[0.3, 0.05, -0.03], [0.2, -0.08, 0.06]], np.float64
+        )
+        root_lower = np.asarray(
+            [[-0.6, -1.0, -0.8], [-0.9, -1.3, -0.5]], np.float64
+        )
+        root_upper = np.asarray(
+            [[0.4, 1.2, 0.9], [0.1, 0.7, 1.1]], np.float64
+        )
+        q = np.zeros(joints, np.float64)
+        joint_lower_velocity = np.full((rows, joints), -0.5, np.float64)
+        joint_upper_velocity = np.full((rows, joints), 0.7, np.float64)
+        lower = np.full(joints, -1.0, np.float64)
+        upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 2.0, np.float64)
+        available = np.ones(rows, np.uint8)
+        root_acceleration = np.asarray([[3.0, -2.0], [-1.0, 4.0]], np.float64)
+        joint_acceleration = np.zeros((rows, joints), np.float64)
+        effort = np.zeros(rows, np.float64)
+        bounds = np.empty((rows, 17), np.float64)
+        timing = self.generic.score_terminal_impact_velocity_box_batch(
+            root_state,
+            root_lower,
+            root_upper,
+            q,
+            joint_lower_velocity,
+            joint_upper_velocity,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            bounds,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+
+        point_state = np.column_stack(
+            (
+                root_state[:, 0],
+                0.5 * (root_lower[:, 0] + root_upper[:, 0]),
+                root_state[:, 1:],
+                0.5 * (root_lower[:, 1:] + root_upper[:, 1:]),
+            )
+        )
+        point_velocity = 0.5 * (joint_lower_velocity + joint_upper_velocity)
+        points = np.empty_like(bounds)
+        self.generic.score_terminal_impact_state_batch(
+            point_state,
+            q,
+            point_velocity,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            points,
+        )
+        names = tuple(self.generic.terminal_impact_state_diagnostic_names)
+        for name in (
+            "terminal_tilt_rad",
+            "terminal_angular_rate_rad_s",
+            "maximum_terminal_joint_velocity_utilization",
+            "maximum_terminal_harm_pressure",
+            "aggregate_score",
+        ):
+            coordinate = names.index(name)
+            self.assertTrue(np.all(bounds[:, coordinate] >= points[:, coordinate]))
+        headroom = names.index("minimum_terminal_joint_headroom_fraction")
+        self.assertTrue(np.all(bounds[:, headroom] <= points[:, headroom]))
+
+        invalid_upper = root_upper.copy()
+        invalid_upper[-1, 1] = root_lower[-1, 1] - 0.1
+        unchanged = np.full_like(bounds, 7.0)
+        with self.assertRaisesRegex(ValueError, "velocity box row 1"):
+            self.generic.score_terminal_impact_velocity_box_batch(
+                root_state,
+                root_lower,
+                invalid_upper,
+                q,
+                joint_lower_velocity,
+                joint_upper_velocity,
+                lower,
+                upper,
+                velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                unchanged,
+            )
+        np.testing.assert_array_equal(unchanged, 7.0)
+
     def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
         generalized_dof = self.generic.generalized_dof()
         response = np.zeros((generalized_dof, 2, 6), np.float64)

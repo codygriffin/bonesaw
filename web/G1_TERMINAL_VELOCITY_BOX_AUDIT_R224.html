@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 terminal velocity-box audit · r224</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 terminal velocity-box audit · r224</h1>
+<blockquote>Velocity-box mechanism **PASS** · frozen prediction profile **ALREADY REJECTED** · authority **NOT ADMITTED** · physics/policy/controller/integration **0 / 0 / 0 / 0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>Rust propagates the entire frozen R220 generalized-velocity box to the declared 0.45 m root-impact plane. Ballistic time is bounded from vertical-velocity endpoints; tilt, angular rate, joint position, and joint velocity use allocation-free interval arithmetic across that time interval. Pressure and aggregate fields are upper bounds; joint headroom is a lower bound.</li><li>The box is componentwise and distribution-free. It assigns no probability, does not assert every Cartesian corner is reachable, omits yaw/horizontal velocity because the declared terminal proxy does not consume them, and remains only a collision-consequence proxy—not injury, recovery, or hardware safety.</li><li>The paired predicted/completed contact states are exactly the R222 zero-plant ablation. Smooth-force evolution is excluded identically. Every contained completed state must be bounded componentwise; all queries repeat bitwise and allocate nothing in the timed Rust path.</li></ul>
+<h2>Result</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>source full coverage</th><th>terminal projection coverage</th><th>center → box false-safe</th><th>contained false-safe</th><th>conservative rejects</th><th>contained harm slack p50/p95</th><th>box p99 µs</th></tr></thead><tbody><tr><td>mid_elliptic_implicitfast</td><td>91.667%</td><td>91.667%</td><td>7 → 0</td><td>0</td><td>10 / 48</td><td>21.379 / 25.370</td><td>1.344</td></tr><tr><td>hard_pyramidal_rk4</td><td>64.583%</td><td>39.583%</td><td>1 → 0</td><td>0</td><td>2 / 48</td><td>21.841 / 35.029</td><td>1.194</td></tr></tbody></table></div>
+<h2>Decision</h2>
+<p>Retain the generic velocity-box terminal bound: it removes false-safe decisions for every completed state actually contained by the declared terminal projection, with deterministic allocation-free execution. Do not admit the frozen R220/R221 profile: it missed fresh-law rows before terminal scoring, and the conservative box can reject safe completed states. The next gate is therefore a tighter transferable transition set—not more permissive terminal thresholding.</p></main></body></html>
