@@ -38,6 +38,21 @@ lease expiry, fall report, next-step simulator reset, and fresh reconnect. This
 does not execute green base intent in MuJoCo and does not replace the unrun
 browser frame-time gate.
 
+## Current CPU checkpoint — r228 rejects the frozen profile on fresh laws
+
+R228 generates two new reset-every-transition MuJoCo law/state corpora at
+offsets 90,000 and 100,000 after R227 froze 32 microsteps, 32 sweeps, the
+label-free momentum cap, and 0.449/0.065/9.320 angular/linear/joint width. The
+soft/pyramidal/Euler law passes 48/48. The stiff/elliptic/implicit-fast law
+passes only 42/48 and 98.9943% of components. Both laws retain deadline,
+bitwise-repeat, zero-allocation, and exact 46-array replay witnesses.
+
+The frozen profile is therefore rejected and not eligible for terminal
+selection. Retain the generic coupled mechanism, do not tune the six fresh
+misses back into R227, and independently derive the next stiff-contact
+formulation before another holdout. No selector, plant action, or authority is
+admitted.
+
 ## Current CPU checkpoint — r227 freezes coupled work from causal convergence
 
 R227 fixes a label-free momentum cap and selects the coupled construction

@@ -2350,6 +2350,15 @@ friction. Two retained runs reproduce all 192 semantic arrays exactly. This
 freezes a construction profile for a new untouched holdout only—no selector,
 plant action, or authority is promoted. See the [r227 causal convergence audit](benchmarks/results/g1-coupled-positive-reference-compliance-audit-r227/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
 
+R228 spends the next untouched law/state holdout and rejects that frozen
+profile without retuning it. The new soft/pyramidal/Euler law covers 48/48
+samples; the new stiff/elliptic/implicit-fast law covers 42/48 (98.9943% of
+components) under the unchanged 0.449/0.065/9.320 angular/linear/joint width.
+All deadline, repeat, allocation, and 46-array exact-replay witnesses pass, but
+coverage is conjunctive, so the profile is not promoted. Retain the generic
+coupled kernel; derive any next stiff-contact formulation independently before
+another holdout. See the [r228 fresh compliance holdout](benchmarks/results/g1-coupled-positive-reference-compliance-holdout-r228/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2463,6 +2472,7 @@ Reproduce it with:
 ./scripts/run-g1-terminal-velocity-box-audit.sh
 ./scripts/run-g1-positive-reference-compliance-audit.sh
 ./scripts/run-g1-coupled-positive-reference-compliance-audit.sh
+./scripts/run-g1-coupled-positive-reference-compliance-holdout.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

@@ -44,17 +44,23 @@ useful-width gates under a 5 ms deadline. It freezes 32 substeps × 32 sweeps:
 1.200%/16.858% refinement and 0.631 ms p99. Completed impulse/residual labels
 do not enter selection, and 192 semantic arrays replay exactly.
 
-The live complaint is now a genuinely untouched contact-law/state holdout for
-that frozen profile. Do not retune its substeps, sweeps, label-free momentum
-cap, or residual widths after generating the new evidence. It must pass strict
-coverage, useful width, and deadline, then feed the retained R224 bound into a
-selector with strict plant non-regression.
+R228 removes the untouched-holdout execution from this punch list and rejects
+the frozen profile. The new soft/pyramidal/Euler law covers 48/48; the new
+stiff/elliptic/implicit-fast law covers only 42/48 (98.9943% components) under
+the unchanged 0.449/0.065/9.320 width. Deadline, repeat, allocation, and 46-
+array exact replay pass. Do not tune those six misses back into R227.
+
+The live complaint is again transferable stiff-contact fidelity, now localized
+by genuinely fresh evidence. Derive a new regularization/contact-formulation
+mechanism independently, freeze it before another untouched holdout, and only
+then feed an admitted transition set into R224 terminal selection and strict
+plant non-regression.
 
 Acceptance still requires all of the following independent witnesses:
 
-- run the frozen R227 coupled transition profile on a new untouched law/state
-  corpus without changing its microsteps, sweeps, cap, or residual contract;
-- pass that new strict coverage/width/deadline holdout, then demonstrate an R224-bounded
+- derive and freeze an independently motivated stiff-contact formulation after
+  R228's 42/48 rejection, without fitting the six holdout misses;
+- pass a new strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 coupled positive-reference fresh holdout · r228</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 coupled positive-reference fresh holdout · r228</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED** · policy/controller/selector/plant steps **0 / 0 / 0 / 0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>R227&#x27;s causal convergence rule froze 32 compliant substeps, 32 forward/reverse projection sweeps, label-free total-momentum caps, and the construction residual box before these labels. Soft/pyramidal/Euler and stiff/elliptic/implicit-fast laws begin at untouched offsets 90,000 and 100,000; every transition resets.</li><li>MuJoCo supplies only the completed five-substep label. The Rust query receives causal prestate geometry, velocity, free acceleration, full Delassus response, model mass, and authored law. Each query repeats bitwise, allocates nothing, and must remain below 5 ms.</li><li>Strict sample coverage, frozen 0.449/0.065/9.320 angular/linear/joint width, deadline, repeat, and allocation gates are conjunctive. A pass promotes only this transition profile to terminal selection/non-regression work, never hardware or command authority.</li><li>A complete retained rerun reproduced all 46 non-timing NPZ arrays exactly. Timing is reported but excluded from semantic equality.</li><li>A complete retained rerun reproduced all 46 non-timing NPZ arrays exactly. Timing is retained as measured evidence but excluded from semantic equality.</li></ul>
+<h2>Fresh result</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>sample coverage</th><th>component coverage</th><th>residual p95 ω/v/joint</th><th>frozen width ω/v/joint</th><th>query p99 µs</th><th>profile</th></tr></thead><tbody><tr><td>soft_pyramidal_euler</td><td>100.000%</td><td>100.0000%</td><td>0.016 / 0.004 / 2.000</td><td>0.449 / 0.065 / 9.320</td><td>611.774</td><td>PROMOTE</td></tr><tr><td>stiff_elliptic_implicitfast</td><td>87.500%</td><td>98.9943%</td><td>0.080 / 0.018 / 9.451</td><td>0.449 / 0.065 / 9.320</td><td>418.150</td><td>REJECT</td></tr></tbody></table></div>
+<h2>Decision</h2>
+<p>At least one untouched law violates a conjunctive gate. Retain the generic coupled mechanism, reject the frozen profile, and do not tune holdout misses back into it.</p></main></body></html>
