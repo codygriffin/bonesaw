@@ -34,6 +34,11 @@ const viewportInstruction = document.querySelector("#viewport-instruction");
 const targetGuide = document.querySelector("#target-guide");
 const plantStatus = document.querySelector("#plant-status");
 const simulatorState = document.querySelector("#simulator-state");
+const plantRootState = document.querySelector("#plant-root-state");
+const plantMotionState = document.querySelector("#plant-motion-state");
+const plantEffortState = document.querySelector("#plant-effort-state");
+const plantConstraintState = document.querySelector("#plant-constraint-state");
+const previewGroundState = document.querySelector("#preview-ground-state");
 const groundContactState = document.querySelector("#ground-contact-state");
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
@@ -52,6 +57,9 @@ let pushDrag = null;
 let pendingPushCommand = null;
 let activeForceArrow = null;
 let plantContacts = [];
+let measuredPlantFrames = [];
+let renderedMinimumGroundClearanceM = Number.NaN;
+let lastPreviewGroundUpdateMs = -Infinity;
 let lastPushSentAt = -Infinity;
 let lastSocketMessageAt = 0;
 let frames = [];
@@ -156,7 +164,7 @@ function updateInteractionUi() {
   targetGuide.classList.toggle("push-guide", pushing);
   targetGuide.querySelector("span").innerHTML = pushing
     ? "<strong>ORANGE WRENCH</strong> · Ctrl+drag any rendered body"
-    : `<strong>${interactionHandles.size} GREEN CONTROLS</strong> · drag torso, knees, or wheels`;
+    : `<strong>${interactionHandles.size} GREEN PREVIEW CONTROLS</strong> · orange dashed rig is measured MuJoCo`;
   viewportInstruction.textContent = pushing
     ? "WRENCH: Ctrl+drag any body · empty drag orbits · Shift+drag pans · wheel zooms"
     : "TARGET: drag green controls · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
@@ -179,6 +187,7 @@ function disconnectPlant() {
   plantHello = null;
   plantContacts = [];
   plantState = null;
+  measuredPlantFrames = [];
   activeForceArrow = null;
   pendingPushCommand = null;
   pushDrag = null;
@@ -221,30 +230,33 @@ function enqueuePlantState(message) {
   const firstPlantState = plantState === null;
   plantState = message;
   plantContacts = message.contacts || [];
-  if (firstPlantState) {
+  measuredPlantFrames = plantFrames(message);
+  if (firstPlantState && interactionMode === "push") {
     previousSnapshot = null;
     latestSnapshot = null;
   }
   const metrics = message.metrics || {};
-  enqueueState({
-    type: "state",
-    source: "plant",
-    tick: message.tick,
-    reset_epoch: message.reset_epoch,
-    command_id: message.command_id,
-    active_frame: message.push?.active ? message.push.body : null,
-    frames: plantFrames(message),
-    metrics: {
-      solve_us: metrics.controller_step_us,
-      guided_preview_wbc_admitted: metrics.wbc_admitted,
-      interaction_target_clamped: false,
-      maximum_torque_utilization: metrics.torque_utilization,
-      minimum_support_margin_m: Number.NaN,
-      minimum_joint_margin_rad: Number.NaN,
-      minimum_joint_stopping_margin_rad_s2: Number.NaN,
-      center_of_mass_world: message.root_position,
-    },
-  });
+  if (interactionMode === "push") {
+    enqueueState({
+      type: "state",
+      source: "plant",
+      tick: message.tick,
+      reset_epoch: message.reset_epoch,
+      command_id: message.command_id,
+      active_frame: message.push?.active ? message.push.body : null,
+      frames: measuredPlantFrames,
+      metrics: {
+        solve_us: metrics.controller_step_us,
+        guided_preview_wbc_admitted: metrics.wbc_admitted,
+        interaction_target_clamped: false,
+        maximum_torque_utilization: metrics.torque_utilization,
+        minimum_support_margin_m: Number.NaN,
+        minimum_joint_margin_rad: Number.NaN,
+        minimum_joint_stopping_margin_rad_s2: Number.NaN,
+        center_of_mass_world: message.root_position,
+      },
+    });
+  }
   const stateLabel = metrics.fallen
     ? "FALL · RESET ARMED"
     : metrics.wbc_admitted ? "MuJoCo · admitted" : `MuJoCo · ${metrics.wbc_status}`;
@@ -270,7 +282,7 @@ function enqueuePlantState(message) {
 }
 
 function connectPlant() {
-  if (!plantGateway?.available || interactionMode !== "push") return;
+  if (!plantGateway?.available) return;
   if (plantSocket?.readyState === WebSocket.CONNECTING
       || plantSocket?.readyState === WebSocket.OPEN) return;
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -305,10 +317,12 @@ function connectPlant() {
   plantSocket.onclose = () => {
     plantConnected = false;
     plantSocket = null;
-    if (interactionMode === "push" && socket?.readyState === WebSocket.OPEN) {
+    if (socket?.readyState === WebSocket.OPEN) {
       plantStatus.textContent = "reconnecting plant";
-      connectionLabel.textContent = "Plant reconnecting";
-      setRobotControlsEnabled(false);
+      if (interactionMode === "push") {
+        connectionLabel.textContent = "Plant reconnecting";
+        setRobotControlsEnabled(false);
+      }
       setTimeout(connectPlant, 800);
     }
   };
@@ -335,8 +349,8 @@ function setInteractionMode(mode) {
     connectionLabel.textContent = plantConnected ? "Streaming · plant" : "Plant starting";
     connectPlant();
   } else {
-    disconnectPlant();
-    plantStatus.textContent = plantGateway?.available ? "available · idle" : "unavailable";
+    sendPlant({ type: "plant_release" });
+    plantStatus.textContent = plantConnected ? "MuJoCo · measured ghost" : "starting MuJoCo";
     plantWrench.textContent = "released";
     connectionLabel.textContent = "Streaming";
     setRobotControlsEnabled(socket?.readyState === WebSocket.OPEN);
@@ -605,7 +619,13 @@ function updatePlantTelemetry(message) {
   const metrics = message.metrics || {};
   const simulator = message.simulator || {};
   plantStatus.textContent = `${metrics.wbc_status || "unknown"} · ${Number(metrics.controller_step_us || 0).toFixed(1)} µs`;
-  simulatorState.textContent = `t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter`;
+  simulatorState.textContent = `t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter · E=${(Number(simulator.kinetic_energy_j || 0) + Number(simulator.potential_energy_j || 0)).toFixed(2)} J · warnings ${Number(simulator.warning_count || 0)}`;
+  const root = message.root_position || [0, 0, 0];
+  const twist = message.root_twist_world || [0, 0, 0, 0, 0, 0];
+  plantRootState.textContent = `xyz ${root.map((value) => Number(value).toFixed(3)).join(" · ")} m · tilt ${(Number(metrics.root_tilt_rad || 0) * 180 / Math.PI).toFixed(2)}°`;
+  plantMotionState.textContent = `|v| ${Math.hypot(...twist.slice(3)).toFixed(3)} m/s · |ω| ${Math.hypot(...twist.slice(0, 3)).toFixed(3)} rad/s · joint ${Number(metrics.maximum_abs_joint_speed_rad_s || 0).toFixed(2)} rad/s`;
+  plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m max · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
+  plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized max`;
   groundContactState.textContent = `${Number(metrics.ground_contact_count || 0)} ground / ${Number(metrics.contact_count || 0)} total · ${(1000 * Number(metrics.maximum_penetration_m || 0)).toFixed(2)} mm penetration`;
   plantWrench.textContent = message.push?.active
     ? `${Math.hypot(...message.push.force_world).toFixed(2)} N · ${Number(message.push.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.push.body}`
@@ -691,7 +711,7 @@ function connect() {
       connectionLabel.textContent = "Streaming";
       setRobotControlsEnabled(true);
       updateInteractionUi();
-      if (interactionMode === "push") connectPlant();
+      connectPlant();
       baseExecution = message.base_execution || message.squat_execution || "raw_dynamic";
       authorityThresholds = message.authority_thresholds || authorityThresholds;
       document.querySelector("#model-name").textContent = message.model;
@@ -1068,6 +1088,7 @@ function drawGeometryLayer() {
   if (!showGeometry || !frames.length || !geometry.length) return;
   const faces = [];
   const light = [0.35, -0.45, 0.82];
+  let minimumGroundClearanceM = Infinity;
   for (const shape of geometry) {
     if (!shape.surface) continue;
     const body = frames[shape.body];
@@ -1075,6 +1096,9 @@ function drawGeometryLayer() {
     const worldVertices = shape.surface.bodyVertices.map(
       (vertex) => geometryVertexWorld(body, vertex),
     );
+    for (const vertex of worldVertices) {
+      minimumGroundClearanceM = Math.min(minimumGroundClearanceM, vertex[2]);
+    }
     const hue = bodyGeometryHue(body.name || "");
     for (let faceIndex = 0; faceIndex < shape.surface.faces.length; faceIndex += 1) {
       const indices = shape.surface.faces[faceIndex];
@@ -1087,6 +1111,7 @@ function drawGeometryLayer() {
         projected,
         depth: projected.reduce((sum, point) => sum + point.depth, 0) / projected.length,
         fill: litGeometryFill(shape, hue, lighting),
+        penetrating: world.some((vertex) => vertex[2] < -0.001),
         active: selected?.name === body.name,
         mesh: shape.kind === "mesh",
       });
@@ -1102,7 +1127,7 @@ function drawGeometryLayer() {
       context.lineTo(face.projected[index].x, face.projected[index].y);
     }
     context.closePath();
-    context.fillStyle = face.fill;
+    context.fillStyle = face.penetrating ? "rgba(239,117,106,0.82)" : face.fill;
     context.globalAlpha = face.active ? 0.96 : 0.86;
     context.fill();
     context.globalAlpha = 1;
@@ -1113,10 +1138,25 @@ function drawGeometryLayer() {
     }
   }
   context.restore();
+  renderedMinimumGroundClearanceM = Number.isFinite(minimumGroundClearanceM)
+    ? minimumGroundClearanceM
+    : Number.NaN;
+  const now = performance.now();
+  if (now - lastPreviewGroundUpdateMs >= 100) {
+    const clearanceMm = 1000 * renderedMinimumGroundClearanceM;
+    const collisionClearanceMm = 1000 * Number(
+      latestMetrics?.minimum_collision_ground_clearance_m,
+    );
+    previewGroundState.textContent = Number.isFinite(clearanceMm)
+      ? `${clearanceMm.toFixed(2)} mm visual · ${Number.isFinite(collisionClearanceMm) ? `${collisionClearanceMm.toFixed(2)} mm collision` : "collision N/A"} · ${clearanceMm < -1 ? "PENETRATING" : "z=0 plane"}`
+      : "geometry unavailable";
+    previewGroundState.classList.toggle("critical-value", clearanceMm < -1);
+    lastPreviewGroundUpdateMs = now;
+  }
 }
 
 function drawPlantContactLayer() {
-  if (interactionMode !== "push" || !plantContacts.length) return;
+  if (!plantContacts.length) return;
   context.save();
   context.lineCap = "round";
   for (const contact of plantContacts) {
@@ -1142,8 +1182,83 @@ function drawPlantContactLayer() {
   context.restore();
 }
 
+function drawMeasuredPlantLayer() {
+  if (interactionMode === "push" || !measuredPlantFrames.length) return;
+  context.save();
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.setLineDash([3, 5]);
+  context.strokeStyle = "rgba(255,157,69,0.54)";
+  context.lineWidth = 1.5;
+  for (const bone of bones) {
+    const parent = measuredPlantFrames[bone.parent];
+    const child = measuredPlantFrames[bone.child];
+    if (!parent || !child) continue;
+    const a = project(parent.translation);
+    const b = project(child.translation);
+    context.beginPath();
+    context.moveTo(a.x, a.y);
+    context.lineTo(b.x, b.y);
+    context.stroke();
+  }
+  context.setLineDash([]);
+  const base = measuredPlantFrames.find((frame) => frame.name === "base")
+    || measuredPlantFrames[0];
+  if (base) {
+    const point = project(base.translation);
+    context.fillStyle = "rgba(255,181,111,0.92)";
+    context.strokeStyle = "rgba(67,38,18,0.95)";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+    context.fill();
+    context.stroke();
+    context.font = "700 9px Inter, ui-sans-serif, system-ui";
+    context.textAlign = "left";
+    context.fillStyle = "rgba(255,214,174,0.94)";
+    context.fillText("MUJOCO MEASURED", point.x + 9, point.y - 8);
+    const twist = plantState?.root_twist_world || [0, 0, 0, 0, 0, 0];
+    const velocity = twist.slice(3).map((value) => Number(value) * 0.18);
+    if (Math.hypot(...velocity) > 0.002) {
+      const end = project(base.translation.map((value, axis) => value + velocity[axis]));
+      context.strokeStyle = "rgba(255,181,111,0.86)";
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      context.lineTo(end.x, end.y);
+      context.stroke();
+    }
+  }
+  context.restore();
+}
+
+function drawPreviewSourceLabel() {
+  if (interactionMode !== "target") return;
+  const torso = frames.find((frame) => frame.name === "torso") || frames[0];
+  if (!torso) return;
+  const point = project(torso.translation);
+  context.save();
+  context.font = "700 9px Inter, ui-sans-serif, system-ui";
+  context.textAlign = "left";
+  context.fillStyle = "rgba(174,255,216,0.92)";
+  context.fillText("WBC TARGET PREVIEW · NOT PLANT", point.x + 11, point.y + 13);
+  context.restore();
+}
+
 function drawGrid(width, height) {
   context.save();
+  const groundCorners = [
+    [-1.2, -1.2, 0], [1.2, -1.2, 0], [1.2, 1.2, 0], [-1.2, 1.2, 0],
+  ].map(project);
+  context.beginPath();
+  context.moveTo(groundCorners[0].x, groundCorners[0].y);
+  for (let index = 1; index < groundCorners.length; index += 1) {
+    context.lineTo(groundCorners[index].x, groundCorners[index].y);
+  }
+  context.closePath();
+  context.fillStyle = "rgba(61,80,71,0.13)";
+  context.strokeStyle = "rgba(102,128,120,0.42)";
+  context.fill();
+  context.stroke();
   context.lineWidth = 1;
   const extent = 1.2;
   const step = 0.1;
@@ -1463,9 +1578,11 @@ function draw() {
   drawGrid(bounds.width, bounds.height);
   drawWorldSdfLayer();
   if (!frames.length) return;
+  drawMeasuredPlantLayer();
   drawSupportLayer();
   const geometryStartedAt = performance.now();
   drawGeometryLayer();
+  drawPreviewSourceLabel();
   pushBounded(viewportPerformance.geometryDurations, performance.now() - geometryStartedAt);
   drawPlantContactLayer();
 

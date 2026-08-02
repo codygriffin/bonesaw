@@ -78,6 +78,9 @@ const LIVE_PLANT_MAXIMUM_FORCE_N: f64 = 8.0;
 const LIVE_PLANT_MAXIMUM_APPLICATION_OFFSET_M: f64 = 0.75;
 const LIVE_PLANT_COMMAND_TTL_MS: u64 = 140;
 const LIVE_PLANT_WORKER_TIMEOUT_MS: u64 = 100;
+/// Keeps the source visual tire mesh above the exact z=0 plane while leaving
+/// MuJoCo's physical ground and collision semantics unchanged.
+const LIVE_GROUND_REGISTRATION_MARGIN_M: f64 = 0.00025;
 const LIVE_STREAM_PERIOD_NS: i64 = 20_000_000;
 const LIVE_WBC_DT: f64 = 0.020;
 const LIVE_ROBOT_OBSERVATION_QUERY_POLICY: RobotObservationQueryPolicy =
@@ -351,6 +354,9 @@ struct Metrics {
     guided_preview_wbc_admitted: Option<bool>,
     interaction_target_clamped: bool,
     interaction_target_clamp_error_m: f64,
+    /// Minimum represented collision-shape height above the physical z=0
+    /// ground plane. Negative values are penetration.
+    minimum_collision_ground_clearance_m: Option<f64>,
     intent_residual: f64,
     trajectory_velocity_scale: Option<f64>,
     trajectory_backtrack_steps: Option<usize>,
@@ -1621,7 +1627,8 @@ async fn run_session(socket: WebSocket, app: AppState) {
     let mut robot = RobotState::zeros(&app.program.model);
     robot.q = standing_posture(&app.program.model);
     if let Ok(root_lift) = ground_root_lift(&app.program.model, &robot) {
-        robot.control_world_from_root.translation.vector.z += root_lift;
+        robot.control_world_from_root.translation.vector.z +=
+            root_lift + LIVE_GROUND_REGISTRATION_MARGIN_M;
     }
     let guided_squat = env::var_os("BONESAW_LIVE_GUIDED").is_some();
     let standing_posture = robot.q.clone();
@@ -2703,6 +2710,10 @@ async fn run_session(socket: WebSocket, app: AppState) {
                         root_prediction_summary(&command_output.contingency_root_prediction);
                     let observation_reconstruction = robot_observation_reconstruction
                         .expect("an engaged frame has a hard-eligible boundary reconstruction");
+                    let minimum_collision_ground_clearance_m =
+                        ground_root_lift(&app.program.model, &reconstructed_observation.robot)
+                            .ok()
+                            .map(|lift| -lift);
                     let message = ServerMessage::State {
                         tick: tick_index,
                         reset_epoch,
@@ -2724,6 +2735,7 @@ async fn run_session(socket: WebSocket, app: AppState) {
                                 .then_some(guided_preview_wbc_admitted),
                             interaction_target_clamped: squat.target_clamped,
                             interaction_target_clamp_error_m: squat.target_clamp_error_m,
+                            minimum_collision_ground_clearance_m,
                             intent_residual,
                             trajectory_velocity_scale: None,
                             trajectory_backtrack_steps: None,
@@ -3488,6 +3500,10 @@ async fn run_session(socket: WebSocket, app: AppState) {
                                     headroom.map(|headroom| (coordinate, headroom))
                                 })
                                 .min_by(|left, right| left.1.total_cmp(&right.1));
+                        let minimum_collision_ground_clearance_m =
+                            ground_root_lift(&app.program.model, &output.next_state)
+                                .ok()
+                                .map(|lift| -lift);
                         let message = ServerMessage::State {
                             tick: tick_index,
                             reset_epoch,
@@ -3510,6 +3526,7 @@ async fn run_session(socket: WebSocket, app: AppState) {
                                 guided_preview_wbc_admitted: None,
                                 interaction_target_clamped: false,
                                 interaction_target_clamp_error_m: 0.0,
+                                minimum_collision_ground_clearance_m,
                                 intent_residual,
                                 trajectory_velocity_scale: Some(
                                     output.trajectory_velocity_scale,
@@ -4340,7 +4357,10 @@ fn prepare_ground_safe_balanced_upkie_squat_target(
         scratch,
         cache,
     )
-    .is_ok_and(|()| ground_root_lift(model, target).is_ok_and(|lift| lift <= GROUND_TOLERANCE_M));
+    .is_ok_and(|()| {
+        ground_root_lift(model, target)
+            .is_ok_and(|lift| lift <= GROUND_TOLERANCE_M - LIVE_GROUND_REGISTRATION_MARGIN_M)
+    });
     if requested_is_safe {
         return Ok((requested_root, 0.0));
     }
@@ -4357,10 +4377,11 @@ fn prepare_ground_safe_balanced_upkie_squat_target(
         cache,
     )?;
     let standing_lift = ground_root_lift(model, target)?;
-    if standing_lift > GROUND_TOLERANCE_M {
+    if standing_lift > GROUND_TOLERANCE_M - LIVE_GROUND_REGISTRATION_MARGIN_M {
         anyhow::bail!(
-            "standing collision envelope penetrates ground by {:.3} mm",
-            standing_lift * 1000.0
+            "standing collision envelope misses the {:.3} mm ground-registration margin by {:.3} mm",
+            LIVE_GROUND_REGISTRATION_MARGIN_M * 1000.0,
+            (standing_lift + LIVE_GROUND_REGISTRATION_MARGIN_M) * 1000.0
         );
     }
 
@@ -4381,7 +4402,8 @@ fn prepare_ground_safe_balanced_upkie_squat_target(
             cache,
         )
         .is_ok_and(|()| {
-            ground_root_lift(model, target).is_ok_and(|lift| lift <= GROUND_TOLERANCE_M)
+            ground_root_lift(model, target)
+                .is_ok_and(|lift| lift <= GROUND_TOLERANCE_M - LIVE_GROUND_REGISTRATION_MARGIN_M)
         });
         if candidate_is_safe {
             safe_fraction = fraction;
@@ -4690,7 +4712,7 @@ mod tests {
         let mut state = RobotState::zeros(&program.model);
         state.q = standing_posture(&program.model);
         state.control_world_from_root.translation.vector.z +=
-            ground_root_lift(&program.model, &state).unwrap();
+            ground_root_lift(&program.model, &state).unwrap() + LIVE_GROUND_REGISTRATION_MARGIN_M;
         let mut squat = SquatContext::compile(&program.model, &state).unwrap();
         let handles = collect_interaction_handles(&program.model, Some(&squat));
         assert_eq!(
@@ -4752,7 +4774,10 @@ mod tests {
         .unwrap();
         assert!(clamp_error_m > 0.0);
         assert!(applied_root.z > requested_root.z);
-        assert!(ground_root_lift(&program.model, &target).unwrap() <= 1.1e-6);
+        assert!(
+            ground_root_lift(&program.model, &target).unwrap()
+                <= 1.1e-6 - LIVE_GROUND_REGISTRATION_MARGIN_M
+        );
     }
 
     #[test]

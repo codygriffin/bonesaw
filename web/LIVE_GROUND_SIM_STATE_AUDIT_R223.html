@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bonesaw R223 · Ground and MuJoCo state</title>
+  <style>
+    :root{color-scheme:dark;background:#0d1115;color:#d6ddd9;font:15px/1.55 system-ui,sans-serif}body{max-width:900px;margin:auto;padding:24px}h1,h2{color:#f1f5f2}blockquote{border-left:3px solid #77d4ae;margin:0;padding:10px 16px;background:#121a1c}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #293238;text-align:right}th:first-child,td:first-child{text-align:left}code{color:#9cebc9}a{color:#77c9ea}.note{color:#aeb9b5}
+  </style>
+</head>
+<body>
+  <h1>Live ground and MuJoCo-state audit · R223</h1>
+  <blockquote><strong>PASS</strong> for target-ground registration and simulator-state transport. Browser frame-time remains <strong>NOT RUN</strong>: no in-app browser is attached to this CLI session.</blockquote>
+  <h2>Finding</h2>
+  <p>The green TARGET state was a guided WBC preview while PUSH showed the physical MuJoCo state. Switching between them hid that distinction. The floor was grid-only, and the source tire STL extended 0.114 mm below its collision tangent.</p>
+  <h2>Result</h2>
+  <p>The viewport now retains both states: green is labelled <code>WBC TARGET PREVIEW · NOT PLANT</code>, while an always-running dashed orange overlay is labelled <code>MUJOCO MEASURED</code>. The physical z=0 plane is filled and gridded, contacts render in either mode, and the preview reserves 0.25 mm collision clearance.</p>
+  <table><thead><tr><th>Gate</th><th>Local 8777</th><th>Public tunnel</th></tr></thead><tbody>
+    <tr><td>reachable endpoint residual</td><td>0.000 mm</td><td>0.000 mm</td></tr>
+    <tr><td>reachable collision clearance</td><td>0.250000 mm</td><td>0.250000 mm</td></tr>
+    <tr><td>reachable exact STL clearance</td><td>0.135636 mm</td><td>0.135636 mm</td></tr>
+    <tr><td>one-metre-down exact STL clearance</td><td>0.162025 mm</td><td>0.162025 mm</td></tr>
+    <tr><td>command acknowledgement</td><td>22.33 ms</td><td>44.70 ms</td></tr>
+  </tbody></table>
+  <h2>Simulator state</h2>
+  <p>MuJoCo streams root pose/twist, joint position/velocity, six actuator efforts, twelve generalized accelerations, twelve generalized constraint forces, contacts/normals/normal force/penetration, kinetic and potential energy, solver iterations, warnings, and the 250 Hz physics / 50 Hz WBC split.</p>
+  <p class="note">A red preview remains visible intentionally and is not a plant response. Green base intent is still not executed by MuJoCo; R223 makes that boundary explicit. Exact results and limitations are retained in <a href="/architecture.json">the architecture manifest</a>.</p>
+</body>
+</html>

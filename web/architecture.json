@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "revision": "compliant-terminal-consequence-audit-r222",
+  "revision": "terminal-velocity-box-audit-r224",
   "updated": "2026-08-02",
-  "stage": "Paired terminal consequence exposes false-safe center predictions even inside the componentwise transition tube; robust interval propagation is next · r222",
-  "checkpoint": "R222 adds a generic allocation-free Rust terminal state-batch proxy for arbitrary morphology and audits paired R221 predicted/oracle contact-only states with zero physics, policy, controller, or integration. The rejected predictor is optimistic on 33/48 mid-law and 34/48 hard-law samples, producing 7/1 false-safe harm-threshold crossings and 5/2 limiting-pressure changes. All eight false-safe rows are inside R220's componentwise velocity tube, so center scoring cannot substitute for propagating the complete tube through nonlinear terminal pressure. Pair scoring is 0.976/0.816 µs p99 and bitwise. The live editor remains one 50 Hz WBC over one 250 Hz MuJoCo plant with exact surface picking, bounded wrench leases, ground-clamped TARGET preview, explicit contacts, and disconnected ghost state.",
-  "summary": "The CPU boundary now separates contact prediction, uncertainty, and consequence. Coupled response, finite hypotheses, substepped compliance, and generic terminal scoring are retained allocation-free mechanisms; none creates authority. Fresh-law transfer rejects the compliant profile, and terminal audit proves even tube-covered center predictions can be false-safe. The next authority experiment must propagate the full interval through terminal pressure before any plant action/non-regression test. The interactive contract remains TARGET as a green ground-clamped preview, Ctrl+drag as a physical MuJoCo wrench, Shift+drag as pan, and empty drag as orbit. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, terminal plant action, and hardware realization remain open.",
+  "stage": "The editor retains simultaneous authored/plant state over explicit z=0; CPU terminal consequence now bounds a full velocity box, while transferable transition evidence remains open · r224",
+  "checkpoint": "R224 closes R222's center-score gap without changing command authority. Generic allocation-free Rust propagates a componentwise velocity box through ballistic impact time, terminal tilt/rate, joint headroom/velocity, and the separate pressure stack. On immutable R221 contact-only states, observed false-safe crossings fall from 7→0 and 1→0 with no violation for any completed state inside the terminal projection; query p99 is 1.344/1.194 µs. The profile remains rejected: source coverage is 91.667%/64.583%, terminal-projection coverage is 91.667%/39.583%, and the broad box conservatively rejects 10/48 and 2/48 safe states. R223's explicit green preview, dashed orange measured plant, filled z=0 plane, and simulator telemetry remain unchanged.",
+  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. The CPU boundary now separates point prediction, componentwise transition uncertainty, and a conservative nonlinear terminal consequence bound. That bound carries no probability or reachability claim and cannot rescue the rejected transition profile. A tighter independently motivated set, untouched holdout, plant non-regression, external-load provenance, browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
-      "detail": "TARGET green handles → /ws Cartesian intent · Ctrl+rendered-body ray hit → /plant-ws finite world wrench at the hit point · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
+      "detail": "TARGET green handles → /ws Cartesian preview intent · continuously connected /plant-ws → dashed orange measured MuJoCo state · Ctrl+rendered-body ray hit → finite world wrench at the hit point · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
     },
     {
       "name": "Live plant authority boundary",
-      "detail": "Rust validates request/schema/8 N force/body existence/750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · Python validates exact COM lever and MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · measured transforms, contacts, force, moment, lever, penetration, simulator clocks, and separate authority witnesses stream at 50 Hz"
+      "detail": "Rust validates request/schema/8 N force/body existence/750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · Python validates exact COM lever and MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · measured transforms, root twist, q/v/qdd, actuator effort, generalized constraint force, contacts, force, moment, penetration, energy, warnings, solver work, simulator clocks, and separate authority witnesses stream at 50 Hz"
     },
     {
       "name": "Explicit tick input",
@@ -60,7 +60,7 @@
     },
     {
       "name": "Optional physical plant gateway",
-      "detail": "Ctrl+drag or explicit PUSH mode · triangle-ray surface application point on any rendered MuJoCo body · finite ≤8 N body wrench · 140 ms refresh TTL · Rust WebSocket validation/correlation/child supervision · isolated Python MuJoCo contact and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · 50 Hz named-frame/contact/authority stream · automatic fall report then next-step reset"
+      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · isolated Python MuJoCo contact and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · automatic fall report then next-step reset"
     },
     {
       "name": "Outputs",
@@ -81,7 +81,7 @@
     {
       "name": "bonesaw-tools",
       "role": "Compiler, native eval sentinel, Pinocchio fixtures, and local WebSocket editor adapter.",
-      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws validates typed finite wrenches, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws and searches back to a collision-envelope-ground-safe pose; Ctrl+drag/PUSH ray-picks any rendered body and renders measured plant transforms, contact/penetration state, and force/moment evidence from an independent 250/50 Hz MuJoCo session."
+      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws validates typed finite wrenches, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over z=0, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies the dashed measured rig, contacts, root motion, effort, acceleration, generalized constraint force, energy, warnings, and force/moment evidence; PUSH makes those transforms primary."
     },
         {
             "name": "bonesaw-cuda",
@@ -753,7 +753,7 @@
     {
       "status": "provisional",
       "title": "The hosted editor separates TARGET preview from physical PUSH",
-      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, searches back along an unsafe request until the compiled collision envelope clears z=0, and renders WBC authority without claiming realization. Ctrl+drag or explicit PUSH lazily opens /plant-ws, applies a bounded wrench at the ray-hit surface point to any rendered MuJoCo body, and renders measured plant transforms, contacts, penetration, simulator clock, capture/station/resource evidence. MuJoCo advances five 4 ms steps under each 50 Hz held WBC command. A plant disconnect ghosts the mesh and disables controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
+      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, reserves 0.25 mm over z=0, searches back along an unsafe request, and renders WBC authority without claiming realization. /plant-ws stays connected while the page is open: TARGET labels the green pose as WBC TARGET PREVIEW and overlays a dashed orange MUJOCO MEASURED rig plus contacts; PUSH makes measured transforms primary and permits a bounded ray-hit wrench on any body. MuJoCo advances five 4 ms steps under each 50 Hz held WBC command and streams root motion, effort, acceleration, generalized constraint force, energy, warning, penetration, clock, and capture/station/resource evidence. A plant disconnect ghosts state and disables physical controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
     },
     {
       "status": "provisional",
@@ -763,10 +763,16 @@
     {
       "status": "frozen",
       "title": "Editor geometry comes from the compiled robot model",
-      "detail": "The WebSocket Hello record carries each compiled collision shape in body-local coordinates. The browser tessellates boxes, cylinders, spheres, and capsules once, then composes vertices with the same streamed body transforms used by frame queries. BODY and RIG are independent viewport layers. Initial root lift is computed from the exact primitive collision envelope so rendered wheel bottoms, contact intent, and the z=0 grid share one reference. Mesh filenames are preserved but upstream STL triangle loading remains a separate rendering milestone."
+      "detail": "The WebSocket Hello record carries compiled collision and visual geometry in body-local coordinates. The browser tessellates primitives once, checksum-pinned upstream STL assets are fetched once and reduced through deterministic vertex clustering, and every surface composes with the same streamed body transforms used by frame queries. BODY and RIG are independent layers. R223 fills the exact z=0 plane, retains a 0.25 mm collision-registration margin, calculates transformed visual-vertex clearance live, and colors any face below -1 mm red. The end-to-end gate independently transforms all 41 visuals and 25 mesh instances from streamed frames; minimum measured clearance is 0.135636 mm."
     }
   ],
   "evidence": [
+    {
+      "metric": "R223 live ground + MuJoCo-state audit",
+      "result": "PASS · LOCAL/PUBLIC COLLISION CLEARANCE 0.250000 MM · EXACT 25-STL CLEARANCE ≥0.135636 MM · BASE ENDPOINT ERROR 0 · 250/50 HZ + 5 SUBSTEPS · QDD/CONSTRAINT/EFFORT/ENERGY/CONTACT/WARNING STATE STREAMED · 0 MUJOCO WARNINGS",
+      "scope": "guided TARGET preview and independent measured MuJoCo stream · reachable 30 mm and impossible one-metre-down base intents · exact transformed source STL vertices, not collision proxies alone · local 8777 plus public Cloudflare WebSocket/assets · plant fall/reset/reconnect protocol · no browser frame-time, plant execution of green intent, hardware, or safety claim",
+      "href": "/LIVE_GROUND_SIM_STATE_AUDIT_R223.html"
+    },
     {
       "metric": "R222 G1 compliant terminal-consequence audit",
       "result": "GENERIC TERMINAL MECHANISM PASS / PREDICTOR ALREADY REJECTED / AUTHORITY NO · 0 PHYSICS/POLICY/CONTROLLER/INTEGRATION · OPTIMISTIC 33/48 + 34/48 · FALSE-SAFE 7 + 1, ALL INSIDE SOURCE TUBE · LIMITER MISMATCH 5 + 2 · HARM ERROR P95/MAX 18.246/24.135 + 108.500/204.899 · PAIR P99 0.976/0.816 µS · ZERO ALLOCATION",

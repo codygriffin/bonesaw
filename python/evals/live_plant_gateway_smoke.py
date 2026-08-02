@@ -77,8 +77,22 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert initial["simulator"]["physics_dt_s"] == 0.004, initial["simulator"]
         assert initial["simulator"]["control_dt_s"] == 0.020, initial["simulator"]
         assert initial["simulator"]["physics_substeps"] == 5, initial["simulator"]
+        assert initial["simulator"]["ground_plane_z_m"] == 0.0, initial["simulator"]
+        assert initial["simulator"]["warning_count"] == 0, initial["simulator"]
+        assert math.isfinite(initial["simulator"]["kinetic_energy_j"])
+        assert math.isfinite(initial["simulator"]["potential_energy_j"])
         assert initial["metrics"]["ground_contact_count"] >= 1, initial["metrics"]
         assert initial["contacts"], "MuJoCo contacts were not streamed"
+        assert len(initial["actuator_effort_nm"]) == 6
+        assert len(initial["generalized_acceleration"]) == 12
+        assert len(initial["constraint_generalized_force"]) == 12
+        for key in (
+            "maximum_abs_joint_speed_rad_s",
+            "maximum_abs_actuator_effort_nm",
+            "maximum_abs_generalized_acceleration",
+            "maximum_abs_constraint_force",
+        ):
+            assert math.isfinite(initial["metrics"][key]), key
         initial_epoch = initial["reset_epoch"]
         initial_base = body_position(initial, "base")
         initial_root = initial["root_position"]

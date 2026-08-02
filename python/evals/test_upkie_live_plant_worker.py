@@ -89,6 +89,26 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(result["simulator"]["physics_substeps"], PHYSICS_STEPS_PER_CONTROL)
         self.assertGreaterEqual(result["metrics"]["ground_contact_count"], 1)
         self.assertTrue(np.isfinite(result["metrics"]["maximum_penetration_m"]))
+        self.assertEqual(len(result["actuator_effort_nm"]), 6)
+        self.assertEqual(
+            len(result["generalized_acceleration"]), self.worker.model.nv
+        )
+        self.assertEqual(
+            len(result["constraint_generalized_force"]), self.worker.model.nv
+        )
+        for key in (
+            "kinetic_energy_j",
+            "potential_energy_j",
+        ):
+            self.assertTrue(np.isfinite(result["simulator"][key]), key)
+        self.assertEqual(result["simulator"]["warning_count"], 0)
+        for key in (
+            "maximum_abs_joint_speed_rad_s",
+            "maximum_abs_actuator_effort_nm",
+            "maximum_abs_generalized_acceleration",
+            "maximum_abs_constraint_force",
+        ):
+            self.assertTrue(np.isfinite(result["metrics"][key]), key)
 
     def test_wrench_accepts_a_non_base_mesh_body(self) -> None:
         body = "left_femur"

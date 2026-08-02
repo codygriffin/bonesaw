@@ -26,14 +26,15 @@ def percentile(values: list[float], fraction: float) -> float:
     return ordered[min(len(ordered) - 1, max(0, math.ceil(fraction * len(ordered)) - 1))]
 
 
-def http_probe(base_url: str, connect_address: str | None = None) -> None:
+def http_get_bytes(
+    base_url: str, path: str, connect_address: str | None = None
+) -> bytes:
     parsed = urlparse(base_url)
     secure = parsed.scheme == "https"
     port = parsed.port or (443 if secure else 80)
     stream = socket.create_connection((connect_address or parsed.hostname, port), timeout=10)
     if secure:
         stream = ssl.create_default_context().wrap_socket(stream, server_hostname=parsed.hostname)
-    path = parsed.path or "/"
     host = parsed.hostname if parsed.port is None else f"{parsed.hostname}:{parsed.port}"
     stream.sendall(
         (
@@ -55,7 +56,134 @@ def http_probe(base_url: str, connect_address: str | None = None) -> None:
     assert separator and header.startswith(b"HTTP/1.1 200"), header.decode(
         "latin1", errors="replace"
     )
+    headers: dict[str, str] = {}
+    for line in header.decode("latin1").split("\r\n")[1:]:
+        name, separator, value = line.partition(":")
+        if separator:
+            headers[name.strip().lower()] = value.strip()
+    if headers.get("transfer-encoding", "").lower() == "chunked":
+        decoded = bytearray()
+        cursor = 0
+        while True:
+            line_end = body.index(b"\r\n", cursor)
+            size = int(body[cursor:line_end].split(b";", 1)[0], 16)
+            cursor = line_end + 2
+            if size == 0:
+                break
+            decoded.extend(body[cursor : cursor + size])
+            cursor += size + 2
+        body = bytes(decoded)
+    return body
+
+
+def http_probe(base_url: str, connect_address: str | None = None) -> None:
+    parsed = urlparse(base_url)
+    body = http_get_bytes(base_url, parsed.path or "/", connect_address)
     assert b"Bonesaw" in body, "HTTP response is not the Bonesaw editor"
+
+
+def quaternion_rotate(rotation: list[float], vector: list[float]) -> list[float]:
+    x, y, z, w = rotation
+    tx = 2.0 * (y * vector[2] - z * vector[1])
+    ty = 2.0 * (z * vector[0] - x * vector[2])
+    tz = 2.0 * (x * vector[1] - y * vector[0])
+    return [
+        vector[0] + w * tx + (y * tz - z * ty),
+        vector[1] + w * ty + (z * tx - x * tz),
+        vector[2] + w * tz + (x * ty - y * tx),
+    ]
+
+
+def add(left: list[float], right: list[float]) -> list[float]:
+    return [a + b for a, b in zip(left, right)]
+
+
+def binary_stl_vertices(payload: bytes) -> list[list[float]]:
+    if len(payload) < 84:
+        raise AssertionError("truncated visual STL")
+    triangles = struct.unpack_from("<I", payload, 80)[0]
+    assert 84 + 50 * triangles <= len(payload), "invalid visual STL triangle count"
+    vertices: set[tuple[float, float, float]] = set()
+    for triangle in range(triangles):
+        offset = 84 + triangle * 50 + 12
+        for corner in range(3):
+            vertices.add(struct.unpack_from("<fff", payload, offset + 12 * corner))
+    return [list(vertex) for vertex in vertices]
+
+
+def minimum_visual_ground_clearance(
+    base_url: str,
+    hello: dict[str, Any],
+    state: dict[str, Any],
+    connect_address: str | None,
+    mesh_cache: dict[str, list[list[float]]],
+) -> float:
+    frames = {frame["id"]: frame for frame in state["frames"]}
+    minimum = math.inf
+    mesh_prefix = "package://upkie_description/meshes/"
+    for visual in hello.get("visual_geometry", []):
+        shape = visual["shape"]
+        frame = frames[shape["body"]]
+        body_rotation = frame["rotation_xyzw"]
+        center = add(
+            frame["translation"],
+            quaternion_rotate(body_rotation, shape["translation"]),
+        )
+        shape_axis = quaternion_rotate(shape["rotation_xyzw"], [0.0, 0.0, 1.0])
+        world_axis = quaternion_rotate(body_rotation, shape_axis)
+        kind = shape["kind"]
+        if kind == "sphere":
+            candidate = center[2] - shape["radius"]
+        elif kind == "capsule":
+            candidate = (
+                center[2]
+                - shape["half_length"] * abs(world_axis[2])
+                - shape["radius"]
+            )
+        elif kind == "cylinder":
+            radial_z = math.sqrt(max(0.0, 1.0 - world_axis[2] ** 2))
+            candidate = (
+                center[2]
+                - shape["half_length"] * abs(world_axis[2])
+                - shape["radius"] * radial_z
+            )
+        elif kind == "box":
+            candidate = center[2]
+            for axis, extent in enumerate(shape["half_extents"]):
+                local_axis = [0.0, 0.0, 0.0]
+                local_axis[axis] = 1.0
+                shape_direction = quaternion_rotate(shape["rotation_xyzw"], local_axis)
+                world_direction = quaternion_rotate(body_rotation, shape_direction)
+                candidate -= abs(world_direction[2]) * extent
+        elif kind == "mesh":
+            filename = shape["filename"]
+            assert filename.startswith(mesh_prefix), filename
+            path = "/model-assets/upkie/meshes/" + filename[len(mesh_prefix) :]
+            if path not in mesh_cache:
+                mesh_cache[path] = binary_stl_vertices(
+                    http_get_bytes(base_url, path, connect_address)
+                )
+            candidate = math.inf
+            for vertex in mesh_cache[path]:
+                scaled = [
+                    vertex[axis] * shape["scale"][axis] for axis in range(3)
+                ]
+                in_body = add(
+                    shape["translation"],
+                    quaternion_rotate(shape["rotation_xyzw"], scaled),
+                )
+                candidate = min(
+                    candidate,
+                    add(
+                        frame["translation"],
+                        quaternion_rotate(body_rotation, in_body),
+                    )[2],
+                )
+        else:
+            raise AssertionError(f"unsupported visual geometry kind {kind!r}")
+        minimum = min(minimum, candidate)
+    assert math.isfinite(minimum), "visual geometry did not produce a ground clearance"
+    return minimum
 
 
 @dataclass
@@ -209,6 +337,28 @@ def run(
         if not exercise_drag:
             return result
 
+        mesh_cache: dict[str, list[list[float]]] = {}
+        mesh_prefix = "package://upkie_description/meshes/"
+        for visual in hello.get("visual_geometry", []):
+            shape = visual["shape"]
+            if shape["kind"] != "mesh":
+                continue
+            filename = shape["filename"]
+            assert filename.startswith(mesh_prefix), filename
+            path = "/model-assets/upkie/meshes/" + filename[len(mesh_prefix) :]
+            if path not in mesh_cache:
+                mesh_cache[path] = binary_stl_vertices(
+                    http_get_bytes(base_url, path, connect_address)
+                )
+        # Mesh downloads can take several seconds through a public tunnel and
+        # therefore queue old 50 Hz states on this dependency-free socket.
+        # Start the actual interaction trial on a fresh stream after all ten
+        # unique assets are cached locally.
+        websocket.close()
+        websocket = RawWebSocket.connect(base_url, connect_address)
+        trial_hello = receive_kind(websocket, "hello")
+        assert trial_hello["model"] == hello["model"]
+        hello = trial_hello
         handle = next(item for item in hello["interaction_handles"] if item["kind"] == "base")
         initial = receive_kind(websocket, "state")
         arrivals: list[float] = []
@@ -260,6 +410,14 @@ def run(
             later["tick"] > earlier["tick"]
             for earlier, later in zip(target_states, target_states[1:])
         ), "stream stopped or reset while the Cartesian base target was active"
+        target_collision_ground_clearance = min(
+            state["metrics"]["minimum_collision_ground_clearance_m"]
+            for state in target_states
+        )
+        assert target_collision_ground_clearance >= -1.1e-6, (
+            "reachable base target penetrated the z=0 collision plane"
+        )
+        target_visual_state = target_states[-1]
         final_base_position = frame_translation(
             target_states[-1], hello["frame_names"], handle["frame"]
         )
@@ -273,18 +431,29 @@ def run(
             f"Cartesian base target residual remained {base_target_residual:.6f} m"
         )
 
-        ground_target = [initial_position[0], initial_position[1], initial_position[2] - 0.50]
+        ground_target = [initial_position[0], initial_position[1], initial_position[2] - 1.00]
         websocket.send_json(
             {"type": "drag", "frame": handle["frame"], "target": ground_target}
         )
         ground_limited = None
-        for _ in range(40):
+        # The guided root target has an explicit 10 mm/tick slew. A one-metre
+        # impossible request therefore needs more than one hundred 20 ms frames
+        # before it reaches the geometric clamp.
+        for _ in range(160):
             state = receive_kind(websocket, "state")
             if state["metrics"]["interaction_target_clamped"]:
                 ground_limited = state
                 break
         assert ground_limited is not None, "below-ground base target was not clipped"
         assert ground_limited["metrics"]["interaction_target_clamp_error_m"] > 0.0
+        assert (
+            ground_limited["metrics"]["minimum_collision_ground_clearance_m"]
+            >= -1.1e-6
+        ), "clipped base target still penetrated the z=0 collision plane"
+        ground_limited_collision_clearance = ground_limited["metrics"][
+            "minimum_collision_ground_clearance_m"
+        ]
+        ground_limited_visual_state = ground_limited
 
         websocket.send_json({"type": "release"})
         release = None
@@ -331,6 +500,28 @@ def run(
         assert joint_acknowledged, "joint target was not acknowledged"
         assert joint_displacement >= 0.001, "joint target did not produce visible motion"
         websocket.send_json({"type": "release"})
+        target_visual_clearance = minimum_visual_ground_clearance(
+            base_url,
+            hello,
+            target_visual_state,
+            connect_address,
+            mesh_cache,
+        )
+        assert target_visual_clearance >= -1.0e-3, (
+            f"reachable base target visual mesh penetrated z=0 by "
+            f"{-1000.0 * target_visual_clearance:.3f} mm"
+        )
+        ground_limited_visual_clearance = minimum_visual_ground_clearance(
+            base_url,
+            hello,
+            ground_limited_visual_state,
+            connect_address,
+            mesh_cache,
+        )
+        assert ground_limited_visual_clearance >= -1.0e-3, (
+            f"clipped base target visual mesh penetrated z=0 by "
+            f"{-1000.0 * ground_limited_visual_clearance:.3f} mm"
+        )
         result.update(
             {
                 "drag_frame": handle["frame"],
@@ -341,6 +532,10 @@ def run(
                 "ground_clamp_error_m": ground_limited["metrics"][
                     "interaction_target_clamp_error_m"
                 ],
+                "target_visual_ground_clearance_m": target_visual_clearance,
+                "ground_limited_visual_clearance_m": ground_limited_visual_clearance,
+                "target_collision_ground_clearance_m": target_collision_ground_clearance,
+                "ground_limited_collision_clearance_m": ground_limited_collision_clearance,
                 "preview_wbc_admitted": target_states[-1]["metrics"][
                     "guided_preview_wbc_admitted"
                 ],

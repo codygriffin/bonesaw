@@ -364,6 +364,21 @@ class LiveUpkiePlant:
             (contact["distance_m"] for contact in contacts), default=0.0
         )
         solver_niter = np.asarray(getattr(self.data, "solver_niter", [0]))
+        # These are simulator witnesses, not controller-owned estimates. Keep
+        # them adjacent to the MuJoCo timing/contact record so the browser can
+        # distinguish measured plant motion from the guided WBC preview.
+        actuator_effort_nm = np.asarray(
+            self.data.ctrl[self.actuator_ids], dtype=np.float64
+        ).copy()
+        generalized_acceleration = np.asarray(
+            self.data.qacc, dtype=np.float64
+        ).copy()
+        constraint_generalized_force = np.asarray(
+            self.data.qfrc_constraint, dtype=np.float64
+        ).copy()
+        mujoco.mj_energyPos(self.model, self.data)
+        mujoco.mj_energyVel(self.model, self.data)
+        warning_count = sum(int(warning.number) for warning in self.data.warning)
         response = {
             "type": "plant_state",
             "tick": self.tick,
@@ -379,6 +394,9 @@ class LiveUpkiePlant:
             "root_twist_world": root_twist.tolist(),
             "joint_positions": q.tolist(),
             "joint_velocities": v.tolist(),
+            "actuator_effort_nm": actuator_effort_nm.tolist(),
+            "generalized_acceleration": generalized_acceleration.tolist(),
+            "constraint_generalized_force": constraint_generalized_force.tolist(),
             "contacts": contacts,
             "simulator": {
                 "backend": "MuJoCo",
@@ -388,6 +406,9 @@ class LiveUpkiePlant:
                 "physics_substeps": PHYSICS_STEPS_PER_CONTROL,
                 "solver_iterations": int(np.max(solver_niter)),
                 "ground_plane_z_m": 0.0,
+                "kinetic_energy_j": float(self.data.energy[1]),
+                "potential_energy_j": float(self.data.energy[0]),
+                "warning_count": warning_count,
             },
             "push": {
                 "active": active,
@@ -431,6 +452,18 @@ class LiveUpkiePlant:
                 "ground_contact_count": len(ground_contacts),
                 "minimum_contact_distance_m": minimum_contact_distance_m,
                 "maximum_penetration_m": max(-minimum_contact_distance_m, 0.0),
+                "maximum_abs_joint_speed_rad_s": float(
+                    np.max(np.abs(v), initial=0.0)
+                ),
+                "maximum_abs_actuator_effort_nm": float(
+                    np.max(np.abs(actuator_effort_nm), initial=0.0)
+                ),
+                "maximum_abs_generalized_acceleration": float(
+                    np.max(np.abs(generalized_acceleration), initial=0.0)
+                ),
+                "maximum_abs_constraint_force": float(
+                    np.max(np.abs(constraint_generalized_force), initial=0.0)
+                ),
                 "numeric_resets": self.numeric_resets,
                 "fall_resets": self.fall_resets,
                 "fallen": fallen,
