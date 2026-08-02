@@ -405,6 +405,62 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(unchanged_after, 8.0)
         np.testing.assert_array_equal(unchanged_gap, 9.0)
 
+    def test_terminal_state_batch_is_generic_atomic_and_allocation_free(self) -> None:
+        joints = self.generic.joint_dof()
+        states = np.asarray(
+            [
+                [0.3, -0.2, 0.05, -0.03, 0.2, -0.1],
+                [0.3, -0.2, 0.05, -0.03, 1.2, -0.8],
+            ],
+            np.float64,
+        )
+        q = np.zeros(joints, np.float64)
+        joint_velocity = np.zeros((2, joints), np.float64)
+        lower = np.full(joints, -1.0, np.float64)
+        upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 2.0, np.float64)
+        available = np.ones(2, np.uint8)
+        root_acceleration = np.zeros((2, 2), np.float64)
+        joint_acceleration = np.zeros((2, joints), np.float64)
+        effort = np.zeros(2, np.float64)
+        diagnostics = np.empty((2, 17), np.float64)
+        timing = self.generic.score_terminal_impact_state_batch(
+            states,
+            q,
+            joint_velocity,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            diagnostics,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        names = tuple(self.generic.terminal_impact_state_diagnostic_names)
+        rate = names.index("terminal_angular_rate_rad_s")
+        self.assertGreater(diagnostics[1, rate], diagnostics[0, rate])
+
+        unchanged = np.full((2, 17), 7.0, np.float64)
+        invalid_states = states.copy()
+        invalid_states[-1, 0] = -0.1
+        with self.assertRaisesRegex(ValueError, "state row"):
+            self.generic.score_terminal_impact_state_batch(
+                invalid_states,
+                q,
+                joint_velocity,
+                lower,
+                upper,
+                velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                unchanged,
+            )
+        np.testing.assert_array_equal(unchanged, 7.0)
+
     def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
         generalized_dof = self.generic.generalized_dof()
         response = np.zeros((generalized_dof, 2, 6), np.float64)

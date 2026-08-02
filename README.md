@@ -2260,6 +2260,17 @@ coverage is conjunctive. The mechanism stays and the frozen profile is rejected
 without holdout tuning. See the
 [r221 compliant fresh-law holdout](benchmarks/results/g1-substepped-compliant-contact-holdout-r221/G1_SUBSTEPPED_COMPLIANT_CONTACT_HOLDOUT.md).
 
+R222 quantifies why the rejected point prediction cannot drive terminal
+selection even when its componentwise residual is nominally covered. A generic
+Rust batch scores paired predicted/oracle post-contact states through the
+existing ballistic terminal proxy without physics, policy, controller, or
+integration. The predictor is optimistic on 33/48 mid-law and 34/48 hard-law
+samples, causing 7 and 1 false-safe harm-threshold crossings. All eight occur
+inside the frozen R220 componentwise tube: the interval itself must be
+propagated through nonlinear consequence rather than scoring only its center.
+Pair scoring is below 1 µs p99, bitwise repeatable, and allocation-free. See the
+[r222 terminal consequence audit](benchmarks/results/g1-compliant-terminal-consequence-audit-r222/G1_COMPLIANT_TERMINAL_CONSEQUENCE_AUDIT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2369,6 +2380,7 @@ Reproduce it with:
 ./scripts/run-g1-contact-estimator-hypothesis-replay.sh
 ./scripts/run-g1-substepped-compliant-contact-replay.sh
 ./scripts/run-g1-substepped-compliant-contact-holdout.sh
+./scripts/run-g1-compliant-terminal-consequence-audit.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

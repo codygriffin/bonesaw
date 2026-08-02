@@ -50,6 +50,13 @@ coverage, and timing remain good, but strict coverage is not negotiable. The
 implementation item is knocked off; the remaining complaint is contact-law
 transfer. Do not retune the 128 microsteps, 16× cap, or group box from R221.
 
+R222 knocks off generic terminal consequence scoring and shows why it cannot
+yet select an action. The rejected point predictor is optimistic on 67/96
+fresh samples and produces eight false-safe terminal crossings; every one is
+inside the frozen componentwise tube. The open item is therefore robust
+interval propagation through terminal pressure followed by plant non-
+regression, not another center-point score.
+
 Acceptance still requires all of the following independent witnesses:
 
 - derive an independently motivated transferable contact-law residual or model
@@ -57,9 +64,9 @@ Acceptance still requires all of the following independent witnesses:
   label-fit substepped-compliance profile despite useful width and deadline;
 - type declared external-wrench/load provenance into the online command and
   keep it separate from impact impulse and unobserved-model reserves;
-- demonstrate a state/trajectory-conditioned terminal action with strict plant
-  non-regression; the current sensitivity result is construction evidence, not
-  a consequence certificate;
+- propagate the complete contact-transition interval through terminal pressure,
+  then demonstrate any selected state/trajectory-conditioned action with
+  strict plant non-regression; r222 rejects center-point consequence;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

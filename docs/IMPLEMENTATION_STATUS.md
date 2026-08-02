@@ -2,7 +2,29 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r221 fresh laws reject the frozen compliant profile
+## Current CPU checkpoint — r222 terminal consequence exposes point-score optimism
+
+R222 adds a generic arbitrary-joint-count PyO3 batch over Rust's existing
+ballistic terminal-impact proxy. Caller-supplied prediction/oracle state rows
+are scored independently for impact time/vertical energy, 60 ms zero-
+acceleration terminal tilt/rate, joint headroom/velocity, and separate harm
+pressures. Every row validates before output mutation; paired queries repeat
+bitwise and allocate nothing. The evaluator takes zero physics, policy,
+controller, or integration steps and explicitly remains a proxy rather than
+collision impulse, injury, recovery, or hardware safety.
+
+On immutable R221 labels, the contact-only predicted/oracle ablation is
+optimistic on 33/48 mid-law and 34/48 hard-law samples. It produces 7 and 1
+false-safe terminal threshold crossings and 5/2 limiting-pressure class
+changes. Harm-pressure absolute error is 18.246/24.135 p95/max for the mid law
+and 108.500/204.899 for the hard law. All eight false-safe samples still lie
+inside R220's componentwise velocity tube, demonstrating that scoring its
+center cannot stand in for propagating the full interval through nonlinear
+terminal consequence. Pair scoring is 0.976/0.816 µs p99, zero-allocation,
+and all 12 non-timing arrays reproduce exactly. The rejected R221 point
+predictor remains non-authoritative.
+
+## Prior CPU checkpoint — r221 fresh laws reject the frozen compliant profile
 
 R220 adds a fixed-substep compliant predictor in generic Rust. It carries
 signed point gap and contact velocity through each microstep, computes explicit

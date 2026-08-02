@@ -797,6 +797,150 @@ impl ContactTransitionModelSession {
         ))
     }
 
+    #[getter]
+    fn terminal_impact_state_diagnostic_names(&self) -> [&'static str; 17] {
+        [
+            "available",
+            "time_to_impact_s",
+            "vertical_impact_velocity_m_s",
+            "vertical_specific_impact_energy_j_kg",
+            "terminal_tilt_rad",
+            "terminal_angular_rate_rad_s",
+            "minimum_terminal_joint_headroom_fraction",
+            "maximum_terminal_joint_velocity_utilization",
+            "impact_speed_pressure",
+            "tilt_pressure",
+            "angular_rate_pressure",
+            "joint_position_pressure",
+            "joint_velocity_pressure",
+            "actuator_effort_pressure",
+            "admission_pressure",
+            "maximum_terminal_harm_pressure",
+            "aggregate_score",
+        ]
+    }
+
+    /// Score a bounded batch of caller-supplied terminal states. Rows may
+    /// represent prediction/oracle pairs; no selection or authority is implied.
+    #[allow(clippy::too_many_arguments)]
+    fn score_terminal_impact_state_batch(
+        &self,
+        states: PyReadonlyArray2<'_, f64>,
+        joint_position: PyReadonlyArray1<'_, f64>,
+        joint_velocity: PyReadonlyArray2<'_, f64>,
+        joint_position_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray1<'_, u8>,
+        root_angular_acceleration: PyReadonlyArray2<'_, f64>,
+        joint_acceleration: PyReadonlyArray2<'_, f64>,
+        maximum_actuator_effort_utilization: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray2<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let state_shape = states.as_array().dim();
+        let velocity_shape = joint_velocity.as_array().dim();
+        let root_acceleration_shape = root_angular_acceleration.as_array().dim();
+        let joint_acceleration_shape = joint_acceleration.as_array().dim();
+        let diagnostic_shape = diagnostics_out.as_array().dim();
+        let states = states.as_slice()?;
+        let joint_position = joint_position.as_slice()?;
+        let joint_velocity = joint_velocity.as_slice()?;
+        let joint_position_lower = joint_position_lower.as_slice()?;
+        let joint_position_upper = joint_position_upper.as_slice()?;
+        let joint_velocity_limit = joint_velocity_limit.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let root_acceleration = root_angular_acceleration.as_slice()?;
+        let joint_acceleration = joint_acceleration.as_slice()?;
+        let effort = maximum_actuator_effort_utilization.as_slice()?;
+        let diagnostics = diagnostics_out.as_slice_mut()?;
+        let rows = state_shape.0;
+        let joints = joint_position.len();
+        if rows == 0
+            || rows > 64
+            || state_shape != (rows, 6)
+            || velocity_shape != (rows, joints)
+            || joint_position_lower.len() != joints
+            || joint_position_upper.len() != joints
+            || joint_velocity_limit.len() != joints
+            || available.len() != rows
+            || available.iter().any(|value| *value > 1)
+            || root_acceleration_shape != (rows, 2)
+            || joint_acceleration_shape != (rows, joints)
+            || effort.len() != rows
+            || diagnostic_shape != (rows, 17)
+        {
+            return Err(PyValueError::new_err(
+                "terminal state batch expects state[N,6], common joint position/limits[J], joint velocity/acceleration[N,J], availability/effort[N], root acceleration[N,2], and diagnostics[N,17] for 1<=N<=64",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let state_at = |row: usize| TerminalImpactState {
+            root_clearance_m: states[6 * row],
+            root_vertical_velocity_m_s: states[6 * row + 1],
+            root_tilt_rad: [states[6 * row + 2], states[6 * row + 3]],
+            root_angular_rate_rad_s: [states[6 * row + 4], states[6 * row + 5]],
+            joint_position_rad: joint_position,
+            joint_velocity_rad_s: &joint_velocity[row * joints..(row + 1) * joints],
+            joint_position_lower_rad: joint_position_lower,
+            joint_position_upper_rad: joint_position_upper,
+            joint_velocity_limit_rad_s: joint_velocity_limit,
+        };
+        let candidate_at = |row: usize| TerminalImpactCandidate {
+            available: available[row] != 0,
+            root_angular_acceleration_rad_s2: [
+                root_acceleration[2 * row],
+                root_acceleration[2 * row + 1],
+            ],
+            joint_acceleration_rad_s2: &joint_acceleration[row * joints..(row + 1) * joints],
+            maximum_actuator_effort_utilization: effort[row],
+        };
+        for row in 0..rows {
+            score_terminal_impact(state_at(row), candidate_at(row), config).map_err(|error| {
+                PyValueError::new_err(format!(
+                    "invalid terminal-impact state row {row}: {error:?}"
+                ))
+            })?;
+        }
+
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        for row in 0..rows {
+            let score = score_terminal_impact(state_at(row), candidate_at(row), config)
+                .expect("validated terminal-impact state row");
+            diagnostics[row * 17..(row + 1) * 17].copy_from_slice(&[
+                f64::from(score.available),
+                score.time_to_impact_s,
+                score.vertical_impact_velocity_m_s,
+                score.vertical_specific_impact_energy_j_kg,
+                score.terminal_tilt_rad,
+                score.terminal_angular_rate_rad_s,
+                score.minimum_terminal_joint_headroom_fraction,
+                score.maximum_terminal_joint_velocity_utilization,
+                score.impact_speed_pressure,
+                score.tilt_pressure,
+                score.angular_rate_pressure,
+                score.joint_position_pressure,
+                score.joint_velocity_pressure,
+                score.actuator_effort_pressure,
+                score.admission_pressure,
+                score.maximum_terminal_harm_pressure,
+                score.aggregate_score,
+            ]);
+        }
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "terminal-impact state batch allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
     /// Envelope generalized velocity jumps over an explicitly enumerated
     /// finite contact-estimator hypothesis set. This is not a continuous-set
     /// certificate between the caller's hypotheses.
