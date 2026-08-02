@@ -272,6 +272,81 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         self.assertGreater(impulse[0, 2], impulse[1, 2])
         self.assertTrue(np.all(np.linalg.norm(impulse[:, :2], axis=1) <= 0.5 * impulse[:, 2] + 1e-12))
 
+    def test_contact_hypothesis_envelope_matches_declared_scenarios_without_allocation(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        velocity = np.asarray(
+            [
+                [[0.0, 0.0, -1.0], [0.0, 0.0, -0.5]],
+                [[0.0, 0.0, -2.0], [0.0, 0.0, -1.5]],
+            ],
+            np.float64,
+        )
+        delassus = np.eye(6, dtype=np.float64)
+        upper = np.full((2, 2, 3), 10.0, np.float64)
+        friction = np.zeros((2, 2), np.float64)
+        restitution = np.zeros(2, np.float64)
+        regularization = np.zeros(2, np.float64)
+        response = np.zeros((generalized_dof, 2, 3), np.float64)
+        response[0, 0, 2] = 1.0
+        response[0, 1, 2] = 2.0
+        response[1, 0, 2] = -3.0
+        response[1, 1, 2] = 0.5
+        lower = np.empty(generalized_dof, np.float64)
+        envelope_upper = np.empty(generalized_dof, np.float64)
+        timing = self.generic.coupled_contact_hypothesis_velocity_envelope(
+            velocity,
+            delassus,
+            upper,
+            friction,
+            restitution,
+            regularization,
+            response,
+            2,
+            lower,
+            envelope_upper,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+
+        expected = []
+        impulse = np.empty((2, 3), np.float64)
+        after = np.empty((2, 3), np.float64)
+        for hypothesis in range(2):
+            self.generic.solve_coupled_contact_impulse(
+                velocity[hypothesis],
+                delassus,
+                upper[hypothesis],
+                friction[hypothesis],
+                restitution[hypothesis],
+                regularization[hypothesis],
+                2,
+                impulse,
+                after,
+            )
+            expected.append(np.einsum("dca,ca->d", response, impulse))
+        expected = np.asarray(expected)
+        np.testing.assert_array_equal(lower, np.min(expected, axis=0))
+        np.testing.assert_array_equal(envelope_upper, np.max(expected, axis=0))
+
+        unchanged_lower = np.full(generalized_dof, 7.0, np.float64)
+        unchanged_upper = np.full(generalized_dof, 8.0, np.float64)
+        invalid_velocity = velocity.copy()
+        invalid_velocity[-1, -1, -1] = np.nan
+        with self.assertRaisesRegex(ValueError, "hypothesis envelope"):
+            self.generic.coupled_contact_hypothesis_velocity_envelope(
+                invalid_velocity,
+                delassus,
+                upper,
+                friction,
+                restitution,
+                regularization,
+                response,
+                2,
+                unchanged_lower,
+                unchanged_upper,
+            )
+        np.testing.assert_array_equal(unchanged_lower, 7.0)
+        np.testing.assert_array_equal(unchanged_upper, 8.0)
+
     def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
         generalized_dof = self.generic.generalized_dof()
         response = np.zeros((generalized_dof, 2, 6), np.float64)

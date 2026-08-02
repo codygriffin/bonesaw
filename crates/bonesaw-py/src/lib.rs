@@ -700,6 +700,102 @@ impl ContactTransitionModelSession {
         ))
     }
 
+    /// Envelope generalized velocity jumps over an explicitly enumerated
+    /// finite contact-estimator hypothesis set. This is not a continuous-set
+    /// certificate between the caller's hypotheses.
+    #[allow(clippy::too_many_arguments)]
+    fn coupled_contact_hypothesis_velocity_envelope(
+        &mut self,
+        contact_velocity_hypotheses: PyReadonlyArray3<'_, f64>,
+        delassus: PyReadonlyArray2<'_, f64>,
+        impulse_upper_hypotheses: PyReadonlyArray3<'_, f64>,
+        friction_hypotheses: PyReadonlyArray2<'_, f64>,
+        restitution_hypotheses: PyReadonlyArray1<'_, f64>,
+        diagonal_regularization_ratio_hypotheses: PyReadonlyArray1<'_, f64>,
+        impulse_velocity_response: PyReadonlyArray3<'_, f64>,
+        sweeps: usize,
+        mut generalized_velocity_lower_out: PyReadwriteArray1<'_, f64>,
+        mut generalized_velocity_upper_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let velocity_shape = contact_velocity_hypotheses.as_array().dim();
+        let delassus_shape = delassus.as_array().dim();
+        let upper_shape = impulse_upper_hypotheses.as_array().dim();
+        let friction_shape = friction_hypotheses.as_array().dim();
+        let response_shape = impulse_velocity_response.as_array().dim();
+        let contact_velocity_hypotheses = contact_velocity_hypotheses.as_slice()?;
+        let delassus = delassus.as_slice()?;
+        let impulse_upper_hypotheses = impulse_upper_hypotheses.as_slice()?;
+        let friction_hypotheses = friction_hypotheses.as_slice()?;
+        let restitution_hypotheses = restitution_hypotheses.as_slice()?;
+        let diagonal_regularization_ratio_hypotheses =
+            diagonal_regularization_ratio_hypotheses.as_slice()?;
+        let impulse_velocity_response = impulse_velocity_response.as_slice()?;
+        let generalized_velocity_lower_out = generalized_velocity_lower_out.as_slice_mut()?;
+        let generalized_velocity_upper_out = generalized_velocity_upper_out.as_slice_mut()?;
+        let hypotheses = restitution_hypotheses.len();
+        let contacts = self.point_specs.len();
+        let axes = contacts * CONTACT_TRANSITION_IMPULSE_WIDTH;
+        let generalized_dof = self.program.model.dof + 6;
+        if velocity_shape != (hypotheses, contacts, CONTACT_TRANSITION_IMPULSE_WIDTH)
+            || upper_shape != velocity_shape
+            || friction_shape != (hypotheses, contacts)
+            || diagonal_regularization_ratio_hypotheses.len() != hypotheses
+            || delassus_shape != (axes, axes)
+            || response_shape != (generalized_dof, contacts, CONTACT_TRANSITION_IMPULSE_WIDTH)
+            || generalized_velocity_lower_out.len() != generalized_dof
+            || generalized_velocity_upper_out.len() != generalized_dof
+        {
+            return Err(PyValueError::new_err(format!(
+                "contact hypothesis envelope expects velocity/upper[H,{contacts},3], friction[H,{contacts}], restitution/regularization[H], delassus[{axes},{axes}], response[{generalized_dof},{contacts},3], and lower/upper[{generalized_dof}]"
+            )));
+        }
+        let input = CoupledContactHypothesisEnvelopeInput {
+            hypothesis_count: hypotheses,
+            contact_velocity_hypotheses,
+            delassus,
+            impulse_upper_hypotheses,
+            friction_hypotheses,
+            restitution_hypotheses,
+            diagonal_regularization_ratio_hypotheses,
+            impulse_velocity_response,
+            sweeps,
+        };
+        write_coupled_contact_hypothesis_velocity_envelope(
+            input,
+            &mut self.coupled_impulse_scratch,
+            &mut self.coupled_velocity_scratch,
+            &mut self.coupled_delta_scratch,
+            generalized_velocity_lower_out,
+            generalized_velocity_upper_out,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!("invalid contact hypothesis envelope: {error:?}"))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        write_coupled_contact_hypothesis_velocity_envelope(
+            input,
+            &mut self.coupled_impulse_scratch,
+            &mut self.coupled_velocity_scratch,
+            &mut self.coupled_delta_scratch,
+            generalized_velocity_lower_out,
+            generalized_velocity_upper_out,
+        )
+        .expect("validated contact hypothesis envelope");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "contact hypothesis envelope allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
     /// Derive arbitrary-frame point responses and the complete coupled
     /// Delassus operator. Contacts follow the construction-time frame order;
     /// repeated frame names are valid for multiple points on one rigid body.
