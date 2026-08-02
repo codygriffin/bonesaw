@@ -7,6 +7,6 @@ R253 predicts the post-20 ms state with fixed-effort acceleration, scores termin
 | family | groups | min group / fallback rows | selected zero / zero-WBC / third | actual aggregate improvements | max actual component regression | selector p99 µs | decision |
 |---|---|---|---|---|---|---|---|
 | velocity_damping | 16 | 3 / 0 | 96 / 0 / 0 | 0 | 0 | 0.12 | REJECT |
-| neutral_recovery | 16 | 3 / 0 | 93 / 0 / 3 | 3 | 0 | 0.10 | FREEZE |
+| neutral_recovery | 16 | 3 / 0 | 93 / 0 / 3 | 3 | 0 | 0.11 | FREEZE |
 
 A frozen row must select at least one nonzero action, cover every spent paired delta, keep all seven actual safety components and aggregate score nonregressing, improve aggregate score at least once, repeat bitwise, and allocate zero Rust bytes. The paired-hypothesis mechanism additionally uses four fixed completed rows and must remain baseline-safe and allocation-free. The frozen profile may now face new contact laws and offsets exactly once without refitting; this report cannot admit authority.

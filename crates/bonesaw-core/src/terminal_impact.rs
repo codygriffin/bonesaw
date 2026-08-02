@@ -130,19 +130,19 @@ pub struct ConservativeTerminalImpactSelection {
     pub maximum_component_improvement: f64,
 }
 
-/// Number of candidate-dependent terminal consequence components used by the
-/// paired delta gate.  Impact speed is deliberately excluded: for the
-/// support-free ballistic candidates considered here it is candidate
-/// invariant.  Admission remains the separate `available` gate.
-pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 6;
+/// Number of terminal consequence components used by the paired delta gate.
+/// The post-action plant can couple the candidate into impact speed even when
+/// the later support-free ballistic propagation is identical. Admission
+/// remains the separate `available` gate.
+pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 7;
 
 /// A caller-supplied outer bound on candidate-minus-baseline terminal
-/// consequence. The six components are tilt, angular rate, joint position,
-/// joint velocity, actuator effort pressure, and raw joint-headroom loss in
-/// that order. Negative is an improvement. Impact speed is candidate
-/// invariant for this gate; admission is represented by `available`. This
-/// representation preserves paired plant uncertainty without pretending
-/// baseline and candidate errors are independent.
+/// consequence. The seven components are impact speed, tilt, angular rate,
+/// joint position, joint velocity, actuator effort pressure, and raw
+/// joint-headroom loss in that order. Negative is an improvement. Admission
+/// is represented by `available`. This representation preserves paired plant
+/// uncertainty without pretending baseline and candidate errors are
+/// independent.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TerminalImpactComponentDeltaBox {
     pub available: bool,

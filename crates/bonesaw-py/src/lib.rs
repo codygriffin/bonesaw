@@ -1863,11 +1863,11 @@ impl ContactTransitionModelSession {
     }
 
     /// Select exactly three paired candidate-minus-baseline terminal pressure
-    /// boxes. The six columns are tilt, angular-rate, joint-position,
-    /// joint-velocity, actuator-effort pressure, and raw joint-headroom loss
-    /// deltas. Impact speed is candidate-invariant and excluded; availability
-    /// is the admission gate. This boundary is allocation-free and atomic,
-    /// but remains an evaluation selector rather than command authority.
+    /// boxes. The seven columns are impact-speed, tilt, angular-rate,
+    /// joint-position, joint-velocity, actuator-effort pressure, and raw
+    /// joint-headroom loss deltas. Availability is the admission gate. This
+    /// boundary is allocation-free and atomic, but remains an evaluation
+    /// selector rather than command authority.
     #[allow(clippy::too_many_arguments)]
     fn select_terminal_impact_component_delta_box_candidates(
         &self,
@@ -1904,7 +1904,7 @@ impl ContactTransitionModelSession {
             || selection_out.len() != 6
         {
             return Err(PyValueError::new_err(
-                "paired terminal delta selection expects component lower/upper[3,6], aggregate lower/upper and availability[3], diagnostics[3,14], and selection[6]",
+                "paired terminal delta selection expects component lower/upper[3,7], aggregate lower/upper and availability[3], diagnostics[3,16], and selection[6]",
             ));
         }
         let candidates: [TerminalImpactComponentDeltaBox; CANDIDATES] =
@@ -5250,12 +5250,11 @@ impl UpkieBalanceSession {
     ///
     /// The input table is candidate-major `[3, 4, 17]` and contains the
     /// caller-owned terminal diagnostics for each paired hypothesis.  The
-    /// six output delta components are tilt, angular rate, joint position,
-    /// joint velocity, actuator effort pressure, and raw joint-headroom loss.
-    /// Impact speed is candidate-invariant and excluded. Availability is the
-    /// admission gate. Negative values are improvements. This method is a
-    /// bounded consequence selector only; it does not apply a command or
-    /// admit authority.
+    /// seven output delta components are impact speed, tilt, angular rate,
+    /// joint position, joint velocity, actuator effort pressure, and raw
+    /// joint-headroom loss. Availability is the admission gate. Negative
+    /// values are improvements. This method is a bounded consequence selector
+    /// only; it does not apply a command or admit authority.
     #[allow(clippy::too_many_arguments)]
     fn select_terminal_impact_delta_hypothesis_envelopes(
         &self,
@@ -5291,7 +5290,7 @@ impl UpkieBalanceSession {
             || baseline_index >= CANDIDATES
         {
             return Err(PyValueError::new_err(
-                "paired terminal delta expects hypotheses[3,4,17], delta lower/upper[3,6], aggregate lower/upper[3], and selection[6]",
+                "paired terminal delta expects hypotheses[3,4,17], delta lower/upper[3,7], aggregate lower/upper[3], and selection[6]",
             ));
         }
 
@@ -5342,6 +5341,7 @@ impl UpkieBalanceSession {
                     let score = scores[candidate * HYPOTHESES + hypothesis];
                     available &= baseline.available && score.available;
                     let deltas = [
+                        score.impact_speed_pressure - baseline.impact_speed_pressure,
                         score.tilt_pressure - baseline.tilt_pressure,
                         score.angular_rate_pressure - baseline.angular_rate_pressure,
                         score.joint_position_pressure - baseline.joint_position_pressure,
