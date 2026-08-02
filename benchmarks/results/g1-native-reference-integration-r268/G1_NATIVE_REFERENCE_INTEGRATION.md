@@ -6,15 +6,16 @@
 
 | profile | first contingency tick | prefix root RMS cm | prefix max attitude deg | p99 ms | >20 ms |
 |---|---|---|---|---|---|
-| initialization only | 501 | 7.890 | 7.743 | 4.884 | 2 |
-| oracle task stack | 188 | 2.879 | 1.269 | 5.028 | 2 |
-| morphology posture jet | 439 | 4.849 | 7.424 | 4.836 | 3 |
+| initialization only | 501 | 7.890 | 7.743 | 4.993 | 2 |
+| oracle task stack | 188 | 2.879 | 1.269 | 5.031 | 2 |
+| morphology posture jet | 439 | 4.849 | 7.424 | 4.913 | 3 |
+| morphology posture jet low gain | 863 | 1.845 | 0.015 | 4.911 | 1 |
 
 Initialization-only extends the retained native-reference clean prefix from **265** to **501 ticks** and reaches the authored liftoff at tick 300 with 0.003 mm root error. It still releases support before the first touchdown edge at tick 529, so no profile is promoted.
 
 Every explicit release/fallback tick clears rejected contact residuals before integration: the regenerated traces report zero dynamics and contact residual witnesses on all status-5 ticks. This is diagnostic hygiene, not a claim that the free-body state is physically supported.
 
-The exact R54 oracle task stack is not a closed-loop policy: it fails earlier. Directly replaying the policy-free morphology q/v/q̈ witness as a Preference posture jet also fails earlier. Both are retained as causal negative controls, not averaged into a score.
+The exact R54 oracle task stack is not a closed-loop policy: it fails earlier. Directly replaying the policy-free morphology q/v/q̈ witness as a Preference posture jet also fails earlier. A low-gain morphology posture row (weight 0.05) is the best retained causal profile: it carries the first transfer through touchdown to tick 863 with 1.84 cm root RMS, but still fails later and remains rejected. These rows are causal negative controls, not averaged into a score.
 
 ## Contract
 
@@ -23,4 +24,4 @@ The exact R54 oracle task stack is not a closed-loop policy: it fails earlier. D
 - Initial morphology error: 4.042 mm foot / 18.446 mm CoM; both remain inside the retained 10/30 mm certificate.
 - Authored root position, velocity, and acceleration jets now cross the standalone boundary independently; CoM derivatives are no longer substituted for pelvis derivatives.
 - The optional morphology posture jet is sampled and time-warped in allocation-free Rust under the same reference cursor. It remains opt-in because this profile is red.
-- Defaults and execution authority are unchanged. The next controller slice must preserve root attitude/support through the final 90 ticks of the first swing without importing oracle WBC outputs or weakening touchdown/contact constraints.
+- Defaults and execution authority are unchanged. The next controller slice must preserve root attitude/support after the first touchdown and through the next support transfer without importing oracle WBC outputs or weakening touchdown/contact constraints.

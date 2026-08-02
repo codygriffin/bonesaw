@@ -2839,6 +2839,9 @@ pins both source hashes, accepted hard residuals, status/support transitions,
 latency/deadline distributions, finite-state evidence, and explicit zero
 policy/physics counts. It also checks that every status-5 release/fallback tick
 has zero contact/dynamics residual witnesses after the rejected solve is
-cleared; this is diagnostic hygiene, not a physical-support claim. Run
-`scripts/run-g1-native-reference-integration-r268.sh` to rebuild all three
+cleared; this is diagnostic hygiene, not a physical-support claim. A retained
+low-gain morphology posture row (weight `0.05`) carries the first transfer
+through touchdown to tick 863 with 1.84 cm root RMS, but remains red later and
+is not promoted. Run
+`scripts/run-g1-native-reference-integration-r268.sh` to rebuild all four
 traces and the hosted report.

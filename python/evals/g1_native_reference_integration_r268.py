@@ -26,6 +26,9 @@ TRACES = {
     "morphology_posture_jet": RESULT_ROOT
     / "floating-g1-r268-native-reference-morphology-jet-cap8"
     / "floating-walk-raw.npz",
+    "morphology_posture_jet_low_gain": RESULT_ROOT
+    / "floating-g1-r268-native-reference-morphology-jet-low-gain-cap8"
+    / "floating-walk-raw.npz",
 }
 REFERENCE = RESULT_ROOT / "g1-multistep-reference-r53" / "reference-inputs.npz"
 WITNESS = (
@@ -137,6 +140,7 @@ def main() -> int:
     initialization = summaries["initialization_only"]
     oracle = summaries["oracle_task_stack"]
     posture = summaries["morphology_posture_jet"]
+    low_gain_posture = summaries["morphology_posture_jet_low_gain"]
     source_contract = {
         "reference_sha256": fingerprint(REFERENCE),
         "witness_sha256": fingerprint(WITNESS),
@@ -185,6 +189,10 @@ def main() -> int:
         initialization["first_contingency_tick"] < 529
         and oracle["first_contingency_tick"] < initialization["first_contingency_tick"]
         and posture["first_contingency_tick"] < initialization["first_contingency_tick"]
+        and low_gain_posture["first_contingency_tick"] > 529
+        and low_gain_posture["first_contingency_tick"] < len(
+            load(TRACES["morphology_posture_jet_low_gain"])["status"]
+        )
     )
     result = {
         "revision": REVISION,
@@ -237,7 +245,7 @@ def main() -> int:
             "",
             "Every explicit release/fallback tick clears rejected contact residuals before integration: the regenerated traces report zero dynamics and contact residual witnesses on all status-5 ticks. This is diagnostic hygiene, not a claim that the free-body state is physically supported.",
             "",
-            "The exact R54 oracle task stack is not a closed-loop policy: it fails earlier. Directly replaying the policy-free morphology q/v/q̈ witness as a Preference posture jet also fails earlier. Both are retained as causal negative controls, not averaged into a score.",
+            "The exact R54 oracle task stack is not a closed-loop policy: it fails earlier. Directly replaying the policy-free morphology q/v/q̈ witness as a Preference posture jet also fails earlier. A low-gain morphology posture row (weight 0.05) is the best retained causal profile: it carries the first transfer through touchdown to tick 863 with 1.84 cm root RMS, but still fails later and remains rejected. These rows are causal negative controls, not averaged into a score.",
             "",
             "## Contract",
             "",
@@ -246,7 +254,7 @@ def main() -> int:
             f"- Initial morphology error: {source_contract['initial_point_error_m'] * 1000:.3f} mm foot / {source_contract['initial_center_of_mass_error_m'] * 1000:.3f} mm CoM; both remain inside the retained 10/30 mm certificate.",
             "- Authored root position, velocity, and acceleration jets now cross the standalone boundary independently; CoM derivatives are no longer substituted for pelvis derivatives.",
             "- The optional morphology posture jet is sampled and time-warped in allocation-free Rust under the same reference cursor. It remains opt-in because this profile is red.",
-            "- Defaults and execution authority are unchanged. The next controller slice must preserve root attitude/support through the final 90 ticks of the first swing without importing oracle WBC outputs or weakening touchdown/contact constraints.",
+            "- Defaults and execution authority are unchanged. The next controller slice must preserve root attitude/support after the first touchdown and through the next support transfer without importing oracle WBC outputs or weakening touchdown/contact constraints.",
         ]
     )
     output = RESULT_ROOT / REVISION

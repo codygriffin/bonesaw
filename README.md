@@ -87,7 +87,9 @@ This is an engineering prototype, not a safety-rated robot controller.
   0.003 mm root error and extends the earlier native-reference clean prefix
   from 265 to 501 ticks at 4.884 ms p99 in the regenerated replay. It still releases support before the
   first touchdown. The exact oracle task stack and direct morphology-posture
-  profile fail earlier and remain rejected/default-off. See the
+  profile fail earlier and remain rejected/default-off; a low-gain morphology
+  row carries the first transfer through touchdown to tick 863 but remains red
+  later. See the
   [r268 integration report](benchmarks/results/g1-native-reference-integration-r268/G1_NATIVE_REFERENCE_INTEGRATION.md).
 - A fail-tolerant floating WBC contact boundary: unsolved contact rows are
   retried once as normal-only, then latched out per target; a bounded

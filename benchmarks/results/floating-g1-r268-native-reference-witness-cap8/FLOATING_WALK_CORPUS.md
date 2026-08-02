@@ -16,7 +16,7 @@ This is a moving-root, contact-aware trace through the Rust floating inverse-dyn
 - Root horizontal reference: `standalone-authored`.
 - Root / swing-point response: `2.000` / `4.000 Hz` critically damped; root angular/height/horizontal task weights `1.000` / `10.000` / `1.000`.
 - Whole-body posture: `preference` priority with weight `0.250`; morphology jet `disabled`.
-- Protected upper-body posture: `intent` priority with weight `0.000` over 11 waist/arm coordinates.
+- Protected coordinate posture: `intent` priority with weight `0.000` over 11 `upper-body` coordinates.
 - Joint-velocity envelope: `viability` priority with weight `0.000`, activating at `75.0%` of each effective limit with `2.000 Hz` response and `always` measured-phase policy with immediate engagement and bounded release over `0` ticks.
 - Centroidal angular-momentum damping: `intent` priority with weight `0.000` and `1.000 Hz` response.
 - Pre-contact viability preview: `0` ticks (`0.000 s`) with a receding cubic landing law capped at `25.000 m/s²`; the authored edge requests touchdown, while measured sole proximity and velocity admit physical contact.
@@ -57,7 +57,7 @@ This window ends immediately before the first normal-only, contact-release, infe
 
 | ticks | duration | root RMS | stance foot RMS | swing foot RMS | hand RMS | max root rotation | max joint speed | p99 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 501 | 2.505 s | 7.890 cm | 0.409 cm | 0.693 cm | 18.518 cm | 7.743° | 8.000 rad/s | 11847.6 µs |
+| 501 | 2.505 s | 7.890 cm | 0.409 cm | 0.693 cm | 18.518 cm | 7.743° | 8.000 rad/s | 11519.0 µs |
 
 Nominal hard residual maxima: dynamics `6.196e-09`, contact acceleration `2.516e-10`.
 
@@ -111,7 +111,7 @@ Nominal hard residual maxima: dynamics `6.196e-09`, contact acceleration `2.516e
 
 | ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | release fallback | infeasible | failed |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2,317 | 11.6 s | 5.6 µs | 3220.3 µs | 4884.3 µs | 120245.8 µs | 205 | 296 | 0 | 111 | 1,700 | 5 | 0 | 0 |
+| 2,317 | 11.6 s | 5.7 µs | 3210.1 µs | 4992.5 µs | 120945.6 µs | 205 | 296 | 0 | 111 | 1,700 | 5 | 0 | 0 |
 
 ### Latency distribution and deadlines
 
@@ -119,17 +119,17 @@ The per-tick timer is inside the Rust batch loop. Call-level wall/CPU measuremen
 
 | mean µs | std µs | MAD µs | p90 µs | p99.9 µs | p99.99 µs | jitter p99 µs | >1 ms | >5 ms | >20 ms | ticks/s |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 895.0 | 3114.8 | 0.8 | 3035.9 | 16115.4 | 103968.5 | 2091.2 | 617 | 23 | 2 | 1117.3 |
+| 887.0 | 3108.5 | 0.8 | 3012.3 | 15508.4 | 104529.8 | 1676.6 | 617 | 24 | 2 | 1127.4 |
 
 ### Latency by solver/contact status
 
 | status | ticks | p50 µs | p95 µs | p99 µs | max µs |
 |---|---:|---:|---:|---:|---:|
-| solved | 205 | 2936.6 | 3069.1 | 3191.4 | 3383.0 |
-| solved_with_slack | 296 | 3079.8 | 5894.3 | 13080.4 | 16279.6 |
-| normal_contact_contingency | 1,700 | 4.9 | 8.1 | 10.9 | 61.0 |
-| contact_release_contingency | 5 | 2249.5 | 106189.4 | 117434.5 | 120245.8 |
-| touchdown_transition | 111 | 1968.5 | 4841.5 | 5214.3 | 15759.9 |
+| solved | 205 | 2918.8 | 3031.0 | 3065.1 | 3079.9 |
+| solved_with_slack | 296 | 3055.7 | 5933.0 | 11898.5 | 14707.3 |
+| normal_contact_contingency | 1,700 | 4.9 | 8.2 | 10.5 | 14.1 |
+| contact_release_contingency | 5 | 2274.2 | 106769.6 | 118110.4 | 120945.6 |
+| touchdown_transition | 111 | 2014.8 | 4898.6 | 5298.1 | 15878.4 |
 
 ### Strict-solver work attribution
 
@@ -137,13 +137,13 @@ A task pseudoinverse is the dominant dense kernel. Each active priority normally
 
 | pseudoinverse mean | pseudoinverse p95 | pseudoinverse p99 | pseudoinverse max | clipped-step mean | clipped-step p99 | clipped-step max | calls↔latency correlation |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 1.68 | 8.0 | 12.0 | 18 | 1.02 | 11.0 | 17 | 0.4131 |
+| 1.68 | 8.0 | 12.0 | 18 | 1.02 | 11.0 | 17 | 0.4084 |
 
 The feasibility seed is a cyclic hard-halfspace projection before semantic task solving. Near-feasible seeds may then enter a dense active-set polish; these counters make that previously hidden work visible without timing inside the solver.
 
 | projection sweeps mean/p95/p99/max | halfspace projections mean/p95/p99/max | polish iterations mean/p99/max | polish pseudoinverses mean/p99/max | polish Jacobi sweeps mean/p99/max | projections↔latency correlation |
 |---:|---:|---:|---:|---:|---:|
-| 0.68/8.0/8.0/8 | 152.33/1728.0/1776.0/1776 | 0.21/3.0/19 | 0.15/2.0/18 | 1.24/18.0/158 | 0.3484 |
+| 0.68/8.0/8.0/8 | 152.33/1728.0/1776.0/1776 | 0.21/3.0/19 | 0.15/2.0/18 | 1.24/18.0/158 | 0.3420 |
 
 | status | ticks | pseudoinverse mean/p99/max | clipped-step mean/p99/max |
 |---|---:|---:|---:|
@@ -181,7 +181,7 @@ All large NumPy input/output buffers and the Rust session are constructed before
 
 | call wall s | process CPU s | thread CPU s | process CPU/wall | thread CPU/wall | RSS before MB | RSS after MB | RSS delta MB | peak RSS MB | Python trace peak MB | GC collections | minor faults | major faults | voluntary ctx | involuntary ctx |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2.074 | 2.073 | 2.073 | 0.999 | 0.999 | 52.758 | 56.211 | 3.453 | 56.211 | 0.002 | 0 | 883 | 0 | 0 | 90 |
+| 2.056 | 2.055 | 2.055 | 1.000 | 1.000 | 52.797 | 56.352 | 3.555 | 56.352 | 0.002 | 0 | 887 | 0 | 0 | 23 |
 
 ### Execution over time
 
@@ -189,16 +189,16 @@ Each row is one tenth of the run so warm drift, scheduler tails, tracking loss, 
 
 | ticks | p50 µs | p99 µs | pseudoinverse mean | Jacobi-sweep mean | clipped-step mean | feasibility sweeps mean | halfspace projections mean | root RMS cm | foot RMS cm | dynamics max | contact max | contingency/rejected |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0–231 | 3024.9 | 3709.8 | 4.54 | 33.20 | 1.02 | 1.00 | 234.00 | 0.345 | 0.404 | 1.60e-09 | 7.15e-11 | 0 |
-| 232–463 | 2884.2 | 4314.2 | 6.63 | 42.38 | 3.85 | 2.75 | 614.02 | 3.960 | 0.527 | 1.43e-09 | 4.48e-11 | 0 |
-| 464–695 | 5.5 | 13943.8 | 1.93 | 11.19 | 1.69 | 1.39 | 308.38 | 159.602 | 146.456 | 6.20e-09 | 2.52e-10 | 182 |
-| 696–927 | 4.9 | 11.0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 654.615 | 652.117 | 0.00e+00 | 0.00e+00 | 232 |
-| 928–1159 | 5.1 | 2366.7 | 1.88 | 11.76 | 1.84 | 0.22 | 48.41 | 1247.120 | 1242.217 | 3.59e-09 | 4.83e-11 | 180 |
-| 1160–1391 | 4.9 | 10.9 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1762.643 | 1695.479 | 0.00e+00 | 0.00e+00 | 232 |
-| 1392–1623 | 4.9 | 8.8 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 2532.559 | 2457.598 | 0.00e+00 | 0.00e+00 | 232 |
-| 1624–1854 | 4.9 | 4860.5 | 0.74 | 5.37 | 0.71 | 0.66 | 142.13 | 3320.193 | 3235.404 | 5.52e-09 | 4.93e-11 | 212 |
-| 1855–2085 | 4.9 | 11.0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 4100.650 | 4021.286 | 0.00e+00 | 0.00e+00 | 231 |
-| 2086–2316 | 5.0 | 5098.4 | 1.09 | 6.65 | 1.09 | 0.81 | 175.79 | 4890.814 | 4813.354 | 4.96e-09 | 2.12e-10 | 204 |
+| 0–231 | 2994.1 | 3690.3 | 4.54 | 33.20 | 1.02 | 1.00 | 234.00 | 0.345 | 0.404 | 1.60e-09 | 7.15e-11 | 0 |
+| 232–463 | 2862.2 | 4359.1 | 6.63 | 42.38 | 3.85 | 2.75 | 614.02 | 3.960 | 0.527 | 1.43e-09 | 4.48e-11 | 0 |
+| 464–695 | 6.0 | 12107.6 | 1.93 | 11.19 | 1.69 | 1.39 | 308.38 | 159.602 | 146.456 | 6.20e-09 | 2.52e-10 | 182 |
+| 696–927 | 4.9 | 10.3 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 654.615 | 652.117 | 0.00e+00 | 0.00e+00 | 232 |
+| 928–1159 | 5.7 | 2384.9 | 1.88 | 11.76 | 1.84 | 0.22 | 48.41 | 1247.120 | 1242.217 | 3.59e-09 | 4.83e-11 | 180 |
+| 1160–1391 | 4.9 | 11.3 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1762.643 | 1695.479 | 0.00e+00 | 0.00e+00 | 232 |
+| 1392–1623 | 4.9 | 10.4 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 2532.559 | 2457.598 | 0.00e+00 | 0.00e+00 | 232 |
+| 1624–1854 | 4.9 | 4941.9 | 0.74 | 5.37 | 0.71 | 0.66 | 142.13 | 3320.193 | 3235.404 | 5.52e-09 | 4.93e-11 | 212 |
+| 1855–2085 | 4.9 | 10.4 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 4100.650 | 4021.286 | 0.00e+00 | 0.00e+00 | 231 |
+| 2086–2316 | 5.0 | 5168.5 | 1.09 | 6.65 | 1.09 | 0.81 | 175.79 | 4890.814 | 4813.354 | 4.96e-09 | 2.12e-10 | 204 |
 
 ## Cadence sensitivity
 

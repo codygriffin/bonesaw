@@ -41,6 +41,12 @@ class NativeReferenceIntegrationR268Test(unittest.TestCase):
             profiles["morphology_posture_jet"]["first_contingency_tick"],
             initialization["first_contingency_tick"],
         )
+        low_gain = profiles["morphology_posture_jet_low_gain"]
+        self.assertGreater(low_gain["first_contingency_tick"], 529)
+        self.assertLess(
+            low_gain["first_contingency_tick"], metrics["source_contract"]["reference_ticks"]
+        )
+        self.assertLess(low_gain["root_error_rms_m_before_contingency"], 0.03)
         self.assertLess(
             initialization["maximum_accepted_dynamics_residual"], 1.0e-8
         )

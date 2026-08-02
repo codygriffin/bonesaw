@@ -69,12 +69,14 @@ and extends the earlier native-reference clean prefix from 265 to 501 ticks.
 It still releases the outgoing support 28 ticks before the first touchdown at
 529. Reusing the stateless oracle task stack fails at 188; using the offline
 q/v/qdd witness as a lower-priority posture jet fails at 439. Both are rejected
-and default-off. The remaining complaint is now the final 90 ticks of the first
-single-support swing: preserve pelvis attitude/support until physical touchdown
-without importing oracle WBC outputs, raising the bounded solver budget, or
-weakening contact admission. The release fallback now clears rejected contact
-and authority diagnostics before integrating; all regenerated status-5 ticks
-are explicitly zero-residual telemetry, not fake support evidence. See the
+and default-off. A low-gain morphology posture row (weight 0.05) carries the
+first transfer through touchdown and remains nominal through tick 863, but is
+still red later and is not promoted. The remaining complaint is therefore the
+post-touchdown support/attitude transition without importing oracle WBC outputs,
+raising the bounded solver budget, or weakening contact admission. The release
+fallback now clears rejected contact and authority diagnostics before
+integrating; all regenerated status-5 ticks are explicitly zero-residual
+telemetry, not fake support evidence. See the
 [r268 native-reference bridge](benchmarks/results/g1-native-reference-integration-r268/G1_NATIVE_REFERENCE_INTEGRATION.md).
 
 ## Open CPU authority gate: useful physical transition tube

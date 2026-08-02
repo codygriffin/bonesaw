@@ -161,6 +161,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--upper-body-posture-weight", type=float, default=0.0)
     parser.add_argument(
+        "--protected-posture-group",
+        choices=("upper-body", "lower-body"),
+        default="upper-body",
+        help=(
+            "coordinates controlled by the explicit protected posture task; "
+            "the legacy weight/priority option names are retained for CLI compatibility"
+        ),
+    )
+    parser.add_argument(
         "--protected-posture-include-leg-yaw",
         action="store_true",
         help="include hip-yaw coordinates in the protected posture task",
@@ -2214,10 +2223,11 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"- Whole-body posture: `{metadata['joint_posture_priority']}` priority "
         f"with weight `{metadata['joint_posture_weight']:.3f}`; morphology jet "
         f"`{'enabled' if metadata['morphology_posture_trace'] else 'disabled'}`.",
-        f"- Protected upper-body posture: "
-        f"`{metadata['upper_body_posture_priority']}` priority with weight "
-        f"`{metadata['upper_body_posture_weight']:.3f}` over "
-        f"{len(metadata['upper_body_posture_joints'])} waist/arm coordinates.",
+        f"- Protected coordinate posture: "
+        f"`{metadata['protected_posture_priority']}` priority with weight "
+        f"`{metadata['protected_posture_weight']:.3f}` over "
+        f"{len(metadata['protected_posture_joints'])} "
+        f"`{metadata['protected_posture_group']}` coordinates.",
         f"- Joint-velocity envelope: `{metadata['joint_velocity_envelope_priority']}` "
         f"priority with weight `{metadata['joint_velocity_envelope_weight']:.3f}`, "
         f"activating at `{metadata['joint_velocity_envelope_activation_fraction']:.1%}` "
@@ -2269,8 +2279,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         "",
         "## Acceptance",
         "",
-        f"Functional: **{'PASS' if gate['functional_passed'] else 'FAIL'}**  ",
-        f"5 ms p99 deadline: **{'PASS' if gate['real_time_passed'] else 'FAIL'}**  ",
+        f"Functional: **{'PASS' if gate['functional_passed'] else 'FAIL'}**",
+        f"5 ms p99 deadline: **{'PASS' if gate['real_time_passed'] else 'FAIL'}**",
         f"Combined: **{'PASS' if gate['passed'] else 'FAIL'}**",
         "",
         "| Check | Result |",
@@ -2849,15 +2859,16 @@ def main() -> None:
     if missing_frames:
         raise SystemExit(f"model is missing requested frames: {missing_frames}")
     q = standing_posture(joint_names)
-    protected_posture_patterns = [
-        "waist",
-        "shoulder",
-        "elbow",
-        "wrist",
-    ]
-    if args.protected_posture_include_leg_yaw:
+    if args.protected_posture_group == "lower-body":
+        protected_posture_patterns = ["hip", "knee", "ankle"]
+    else:
+        protected_posture_patterns = ["waist", "shoulder", "elbow", "wrist"]
+    if (
+        args.protected_posture_group == "upper-body"
+        and args.protected_posture_include_leg_yaw
+    ):
         protected_posture_patterns.append("hip_yaw")
-    upper_body_coordinates = np.asarray(
+    protected_posture_coordinates = np.asarray(
         [
             index
             for index, name in enumerate(joint_names)
@@ -3324,7 +3335,7 @@ def main() -> None:
         posture_positions,
         posture_velocities,
         posture_accelerations,
-        upper_body_coordinates,
+        protected_posture_coordinates,
         root_out,
         root_quaternion,
         center_of_mass_tracked,
@@ -3524,12 +3535,13 @@ def main() -> None:
         "center_of_mass_zero_reference_derivatives": (
             args.center_of_mass_zero_reference_derivatives
         ),
-        "upper_body_posture_weight": args.upper_body_posture_weight,
-        "upper_body_posture_priority": PRIORITY_NAMES[
+        "protected_posture_group": args.protected_posture_group,
+        "protected_posture_weight": args.upper_body_posture_weight,
+        "protected_posture_priority": PRIORITY_NAMES[
             args.upper_body_posture_priority
         ],
-        "upper_body_posture_joints": [
-            joint_names[index] for index in upper_body_coordinates
+        "protected_posture_joints": [
+            joint_names[index] for index in protected_posture_coordinates
         ],
         "joint_velocity_envelope_weight": args.joint_velocity_envelope_weight,
         "joint_velocity_envelope_priority": PRIORITY_NAMES[

@@ -33,6 +33,9 @@ run_trace floating-g1-r268-native-reference-oracle-stack-cap8 \
   --minimum-contact-cop-margin 0.005
 run_trace floating-g1-r268-native-reference-morphology-jet-cap8 \
   --morphology-posture-trace
+run_trace floating-g1-r268-native-reference-morphology-jet-low-gain-cap8 \
+  --morphology-posture-trace \
+  --joint-posture-weight 0.05
 
 PYTHONPATH=python/evals "${python_bin}" \
   python/evals/g1_native_reference_integration_r268.py

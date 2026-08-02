@@ -18,7 +18,10 @@ error. Its latest replay p99 is 4.884 ms and accepted hard dynamics/contact resi
 below 1e-8, but support still releases before touchdown tick 529. The exact R54
 oracle task stack fails at tick 188. A new allocation-free Rust scalar-jet path
 can sample and time-warp the morphology q/v/qdd trace under the common cursor,
-but that Preference profile fails at tick 439. Both profiles are rejected;
+but that default-weight Preference profile fails at tick 439. A low-gain
+`0.05` morphology profile carries the first support transfer through touchdown
+to tick 863 with 1.84 cm root RMS, then fails later; it is still a causal
+negative control, not an admitted default. All profiles are rejected;
 defaults and authority remain unchanged. Release/free-body fallback now also
 clears rejected contact residuals, force/effort margins, collision witnesses,
 and task residual slots before integrating, so status-5 telemetry is explicitly
