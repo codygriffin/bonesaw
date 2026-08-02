@@ -338,7 +338,27 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r256 preserves paired state uncertainty
+## Current CPU checkpoint — r257 rejects endpoint-only state-tube freeze
+
+R257 consumes only immutable R250 arrays and fits baseline plus
+candidate-minus-baseline generalized-velocity residual boxes inside fixed
+causal closing-speed/tilt groups and two declared source-law hypotheses. An
+unknown-impulse-time interval lifts endpoint velocity uncertainty across the
+20 ms transition. The direct R256 paired scorer stays allocation-free, exact,
+and below 0.4 ms p99, with zero policy steps, physics steps, or plant actions.
+
+The source profile is rejected. Component/aggregate coverage is
+71.875%/38.542%, all 96 selectors retain zero, and the unchanged rehearsal on
+already-spent R254 arrays reaches 72.454%/37.153%. Angular-rate,
+joint-velocity, and effort coverage are 100%, but tilt, joint-position, and raw
+headroom reach only 49.7%, 33.3%, and 48.3%; joint-position pressure misses by
+as much as 34.853. Endpoint velocity labels do not identify within-step
+terminal attitude and joint-position drift. No profile is frozen and authority
+remains closed. The next data seam must retain terminal position/attitude state
+or a certified within-step trajectory bound, rather than fitting consequence
+residuals after the fact.
+
+## Prior CPU checkpoint — r256 preserves paired state uncertainty
 
 R256 adds an allocation-free Rust delta boundary over a shared terminal-state
 tube. Every candidate is represented as the same uncertain baseline plus a

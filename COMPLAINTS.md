@@ -116,6 +116,15 @@ This removes the missing paired-state implementation complaint, but not the
 calibration gate: the current absolute coverage can be broad and has not frozen
 a useful paired action profile.
 
+R257 attempts that freeze from immutable endpoint-velocity evidence with zero
+policy or physics. The result is rejected: source component/aggregate coverage
+is 71.875%/38.542%, the spent R254 rehearsal reaches 72.454%/37.153%, and all
+192 evaluation selectors retain zero. Angular-rate, joint-velocity, and effort
+are fully covered; tilt, joint position, and raw headroom are not, with a
+34.853 maximum joint-position-pressure miss. This removes endpoint-velocity
+residual fitting as an acceptable next step. A terminal-state corpus or a
+certified within-step position/attitude trajectory bound is required.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -130,9 +139,10 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- freeze R256's authored contact/estimator hypothesis widths and q-drift lift
-  on spent evidence, compose them through the direct paired-state delta
-  boundary, and require a useful nonzero profile before any new-law holdout;
+- retain true terminal joint position and attitude (or certify their complete
+  within-step trajectory bounds), then freeze R256's paired contact/estimator
+  tube on spent state evidence and require a useful nonzero profile before any
+  new-law holdout;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

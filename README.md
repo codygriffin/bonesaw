@@ -2435,6 +2435,20 @@ tube width/profile is not frozen and authority stays closed. See the [r256
 paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
 and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
+R257 tries to freeze a useful paired state profile without a policy or physics
+step. It fits only generalized-velocity residuals from immutable R250 arrays,
+retains two declared contact-law hypotheses, and lifts endpoint uncertainty to
+terminal attitude and joint position with an unknown-impulse-time interval.
+The mechanism remains exact, allocation-free, and 0.396 ms p99, but the profile
+is rejected: source component/aggregate coverage is 71.875%/38.542%, every one
+of 96 selectors stays at zero, and an unchanged rehearsal on already-spent R254
+arrays reaches only 72.454%/37.153%. Angular-rate, joint-velocity, and effort
+coverage are all 100%; tilt, joint-position, and raw-headroom coverage are
+49.7%/33.3%/48.3%, led by a 34.853 joint-position-pressure miss. Endpoint
+velocity evidence cannot reconstruct within-step terminal position drift. No
+profile or authority follows. See the [r257 paired state-tube
+freeze](benchmarks/results/g1-paired-state-tube-freeze-r257/G1_PAIRED_STATE_TUBE_FREEZE.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and
