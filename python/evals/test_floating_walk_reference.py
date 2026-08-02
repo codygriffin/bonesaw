@@ -197,6 +197,33 @@ class StandaloneReferenceAdmissionTest(unittest.TestCase):
             state.posture_accelerations[0], [0.6, -0.7]
         )
 
+    def test_loader_rejects_implicit_com_derivative_root_migration(self) -> None:
+        ticks = 2
+        root = np.tile([0.0, 0.0, 0.8], (ticks, 1))
+        feet = np.zeros((ticks, 2, 3), dtype=np.float64)
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = pathlib.Path(temporary) / "legacy-reference.npz"
+            np.savez_compressed(
+                artifact,
+                root_targets=root,
+                center_of_mass_targets=root,
+                center_of_mass_target_velocities=np.zeros_like(root),
+                center_of_mass_target_accelerations=np.zeros_like(root),
+                target_positions=feet,
+                target_velocities=np.zeros_like(feet),
+                target_accelerations=np.zeros_like(feet),
+                reference_stance=np.ones((ticks, 2), dtype=np.uint8),
+            )
+            with self.assertRaisesRegex(
+                ValueError, "authored root_target_velocities"
+            ):
+                load_standalone_reference(
+                    artifact,
+                    np.vstack((feet[0], np.zeros((2, 3)))),
+                    root[0],
+                    ticks,
+                )
+
 
 @unittest.skipUnless(
     CMU_SKELETON.is_file() and CMU_MOTION.is_file(),

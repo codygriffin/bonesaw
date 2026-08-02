@@ -539,6 +539,13 @@ def load_standalone_initial_state(
         )
     ):
         raise ValueError("initial-state witness contains NaN or infinity")
+    if (
+        not np.isfinite(point_error)
+        or not np.isfinite(center_of_mass_error)
+        or point_error < 0.0
+        or center_of_mass_error < 0.0
+    ):
+        raise ValueError("initial-state witness errors must be finite and nonnegative")
     if not np.array_equal(root_translation, reference.walk.root_targets[0]):
         raise ValueError("initial-state witness root does not match the reference")
     if not ik_converged:
@@ -587,6 +594,11 @@ def load_standalone_reference(
     )
     missing = [key for key in required if key not in raw.files]
     if missing:
+        if "root_target_velocities" in missing or "root_target_accelerations" in missing:
+            raise ValueError(
+                "standalone reference must carry authored root_target_velocities "
+                "and root_target_accelerations; CoM derivative substitution is rejected"
+            )
         raise ValueError(f"standalone reference is missing arrays: {missing}")
     if len(raw["root_targets"]) != ticks:
         raise ValueError(
