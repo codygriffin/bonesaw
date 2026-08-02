@@ -6,9 +6,10 @@ in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible
-green controls, orbit/pan/wheel zoom, coalesced drag, the filled z=0 plane,
-exact visual-ground clearance, and simultaneous labelled preview/measured
-plant state are implemented. The
+green controls, orbit/pan/wheel zoom, coalesced drag, the MuJoCo-derived filled
+plane, exact visual-ground clearance, orange measured collision wireframe,
+physical CoM/contact/constraint witnesses, and simultaneous labelled
+preview/measured plant state are implemented. The
 remaining gate is measurement in the actual review browser with `?perf=1`:
 retain frame/draw p50/p95/p99, missed-frame percentage, longest frame,
 pointer-to-camera latency, snapshot jitter, command acknowledgement, and
@@ -111,8 +112,9 @@ recovery.
 - Upkie remains the preferred interactive reference; larger humanoids are
   evaluation fixtures.
 - Empty-space drag orbits; Shift-drag always pans; wheel zooms; green
-  body/joint targets author ground-clamped guided queries while a dashed orange
-  rig and contacts retain measured MuJoCo state. Ctrl+drag ray-picks any
+  body/joint targets author ground-clamped guided queries while an orange
+  collision wireframe, dashed rig, CoM, contacts, and constraint witnesses
+  retain measured MuJoCo state. Ctrl+drag ray-picks any
   rendered body surface for a separately leased physical wrench. Explicit
   orange PUSH remains the touch-accessible equivalent.
 - Keep Invariant, capture Viability, Intent, odom Preference, neutral

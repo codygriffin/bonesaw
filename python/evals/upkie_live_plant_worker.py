@@ -126,6 +126,11 @@ class LiveUpkiePlant:
         self.ground_geom = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "ground"
         )
+        ground_rotation = self.data.geom_xmat[self.ground_geom].reshape(3, 3)
+        self.ground_plane_point_world = self.data.geom_xpos[
+            self.ground_geom
+        ].copy()
+        self.ground_plane_normal_world = ground_rotation[:, 2].copy()
         self.zero_torque = np.zeros(3, np.float64)
         self.last_result: dict[str, Any] | None = None
 
@@ -171,7 +176,9 @@ class LiveUpkiePlant:
                 "backend": "MuJoCo",
                 "version": mujoco.__version__,
                 "integrator": "implicitfast",
-                "ground_plane_z_m": 0.0,
+                "ground_plane_point_world": self.ground_plane_point_world.tolist(),
+                "ground_plane_normal_world": self.ground_plane_normal_world.tolist(),
+                "ground_plane_z_m": float(self.ground_plane_point_world[2]),
                 "contact_model": "soft elliptic cone",
             },
         }
@@ -385,21 +392,43 @@ class LiveUpkiePlant:
         self.last_result = latest_result
         contacts = self._contacts()
         ground_contacts = [contact for contact in contacts if contact["ground"]]
+        total_ground_normal_force_n = sum(
+            float(contact["normal_force_n"]) for contact in ground_contacts
+        )
         minimum_contact_distance_m = min(
             (contact["distance_m"] for contact in contacts), default=0.0
         )
         solver_niter = np.asarray(getattr(self.data, "solver_niter", [0]))
+        solver_fwdinv = np.asarray(
+            getattr(self.data, "solver_fwdinv", [0.0, 0.0]), dtype=np.float64
+        ).copy()
         # These are simulator witnesses, not controller-owned estimates. Keep
         # them adjacent to the MuJoCo timing/contact record so the browser can
         # distinguish measured plant motion from the guided WBC preview.
         actuator_effort_nm = np.asarray(
             self.data.ctrl[self.actuator_ids], dtype=np.float64
         ).copy()
+        actuator_force = np.asarray(self.data.actuator_force, dtype=np.float64).copy()
         generalized_acceleration = np.asarray(
             self.data.qacc, dtype=np.float64
         ).copy()
+        actuator_generalized_force = np.asarray(
+            self.data.qfrc_actuator, dtype=np.float64
+        ).copy()
+        passive_generalized_force = np.asarray(
+            self.data.qfrc_passive, dtype=np.float64
+        ).copy()
+        bias_generalized_force = np.asarray(
+            self.data.qfrc_bias, dtype=np.float64
+        ).copy()
         constraint_generalized_force = np.asarray(
             self.data.qfrc_constraint, dtype=np.float64
+        ).copy()
+        constraint_force = np.asarray(self.data.efc_force, dtype=np.float64).copy()
+        constraint_position = np.asarray(self.data.efc_pos, dtype=np.float64).copy()
+        constraint_velocity = np.asarray(self.data.efc_vel, dtype=np.float64).copy()
+        center_of_mass_world = np.asarray(
+            self.data.subtree_com[0], dtype=np.float64
         ).copy()
         mujoco.mj_energyPos(self.model, self.data)
         mujoco.mj_energyVel(self.model, self.data)
@@ -417,11 +446,19 @@ class LiveUpkiePlant:
             "root_position": root_position.tolist(),
             "root_quaternion_wxyz": root_quaternion.tolist(),
             "root_twist_world": root_twist.tolist(),
+            "center_of_mass_world": center_of_mass_world.tolist(),
             "joint_positions": q.tolist(),
             "joint_velocities": v.tolist(),
             "actuator_effort_nm": actuator_effort_nm.tolist(),
+            "actuator_force": actuator_force.tolist(),
             "generalized_acceleration": generalized_acceleration.tolist(),
+            "actuator_generalized_force": actuator_generalized_force.tolist(),
+            "passive_generalized_force": passive_generalized_force.tolist(),
+            "bias_generalized_force": bias_generalized_force.tolist(),
             "constraint_generalized_force": constraint_generalized_force.tolist(),
+            "constraint_force": constraint_force.tolist(),
+            "constraint_position": constraint_position.tolist(),
+            "constraint_velocity": constraint_velocity.tolist(),
             "contacts": contacts,
             "simulator": {
                 "backend": "MuJoCo",
@@ -430,7 +467,11 @@ class LiveUpkiePlant:
                 "control_dt_s": CONTROL_DT,
                 "physics_substeps": PHYSICS_STEPS_PER_CONTROL,
                 "solver_iterations": int(np.max(solver_niter)),
-                "ground_plane_z_m": 0.0,
+                "solver_forward_inverse": solver_fwdinv.tolist(),
+                "constraint_count": int(self.data.nefc),
+                "ground_plane_point_world": self.ground_plane_point_world.tolist(),
+                "ground_plane_normal_world": self.ground_plane_normal_world.tolist(),
+                "ground_plane_z_m": float(self.ground_plane_point_world[2]),
                 "kinetic_energy_j": float(self.data.energy[1]),
                 "potential_energy_j": float(self.data.energy[0]),
                 "warning_count": warning_count,
@@ -484,6 +525,7 @@ class LiveUpkiePlant:
                 "root_height_m": float(root_position[2]),
                 "contact_count": int(self.data.ncon),
                 "ground_contact_count": len(ground_contacts),
+                "total_ground_normal_force_n": total_ground_normal_force_n,
                 "minimum_contact_distance_m": minimum_contact_distance_m,
                 "maximum_penetration_m": max(-minimum_contact_distance_m, 0.0),
                 "maximum_abs_joint_speed_rad_s": float(
@@ -497,6 +539,15 @@ class LiveUpkiePlant:
                 ),
                 "maximum_abs_constraint_force": float(
                     np.max(np.abs(constraint_generalized_force), initial=0.0)
+                ),
+                "maximum_abs_constraint_scalar_force": float(
+                    np.max(np.abs(constraint_force), initial=0.0)
+                ),
+                "maximum_abs_constraint_position": float(
+                    np.max(np.abs(constraint_position), initial=0.0)
+                ),
+                "maximum_abs_constraint_velocity": float(
+                    np.max(np.abs(constraint_velocity), initial=0.0)
                 ),
                 "numeric_resets": self.numeric_resets,
                 "fall_resets": self.fall_resets,

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bonesaw R234 · Measured MuJoCo ground state</title>
+  <style>:root{color-scheme:dark;background:#0d1115;color:#d6ddd9;font:15px/1.55 system-ui,sans-serif}body{max-width:900px;margin:auto;padding:24px}h1,h2{color:#f1f5f2}blockquote{border-left:3px solid #77d4ae;margin:0;padding:10px 16px;background:#121a1c}code{color:#9cebc9}.note{color:#aeb9b5}</style>
+</head>
+<body>
+  <h1>Measured MuJoCo ground state · R234</h1>
+  <blockquote><strong>PASS</strong> for ground-plane provenance, measured collision-state transport, base-target clearance, and live plant transport. Browser frame-time remains <strong>NOT RUN</strong>.</blockquote>
+  <h2>Viewport contract</h2>
+  <p>The filled grid is now built from MuJoCo's streamed plane point and normal and labelled <code>MUJOCO GROUND</code>. The orange overlay includes the measured collision wireframe, contact normals, physical CoM, and its plane projection. Green remains the WBC target preview.</p>
+  <h2>State contract</h2>
+  <p>The plant stream includes root/q/v, CoM, actual actuator and generalized actuator/passive/bias force, qdd, generalized and scalar constraint state, contact force/penetration, summed ground load, energy, solver iteration and forward/inverse residual, warnings, and the 250/50 Hz clocks.</p>
+  <p>The one-metre-down target still retains 0.250000 mm collision and 0.162025 mm exact mesh clearance. An ordinary plant step reports four ground contacts, 52.420 N ground-normal load, 0.00657 mm soft-contact penetration, twelve constraint rows, and zero warnings.</p>
+  <p class="note">The orange wireframe is plant state. Green base intent remains a non-plant query; this checkpoint does not silently claim realization.</p>
+</body>
+</html>

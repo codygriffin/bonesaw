@@ -71,7 +71,7 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('metrics.fallen', self.javascript)
         self.assertIn('"Plant fell · automatic reset armed"', self.javascript)
         self.assertIn('if (!plantGateway?.available || interactionMode !== "push") return', self.javascript)
-        self.assertIn('if (interactionMode === "push") connectPlant()', self.javascript)
+        self.assertIn("setTimeout(connectPlant, 800)", self.javascript)
 
     def test_ctrl_mesh_wrench_and_shift_pan_are_distinct(self) -> None:
         self.assertIn("if (event.ctrlKey) {", self.javascript)
@@ -86,12 +86,20 @@ class LiveEditorUiContractTest(unittest.TestCase):
 
     def test_mujoco_contact_and_rate_state_are_rendered(self) -> None:
         self.assertIn('id="simulator-state"', self.html)
+        self.assertIn('id="plant-com-state"', self.html)
+        self.assertIn('id="plant-ground-state"', self.html)
         self.assertIn('id="ground-contact-state"', self.html)
         self.assertIn('id="runtime-rates"', self.html)
         self.assertIn("drawPlantContactLayer", self.javascript)
         self.assertIn("message.contacts || []", self.javascript)
         self.assertIn("metrics.maximum_penetration_m", self.javascript)
         self.assertIn("message.physics_substeps_per_control", self.javascript)
+        self.assertIn("drawMeasuredPlantCollisionLayer", self.javascript)
+        self.assertIn("collisionGeometry = (message.geometry || [])", self.javascript)
+        self.assertIn("ground_plane_point_world", self.javascript)
+        self.assertIn("MUJOCO GROUND", self.javascript)
+        self.assertIn("message.center_of_mass_world", self.javascript)
+        self.assertIn("solver_forward_inverse", self.javascript)
 
     def test_plant_state_owns_rendering_and_authority_in_push_mode(self) -> None:
         self.assertIn('source: "plant"', self.javascript)

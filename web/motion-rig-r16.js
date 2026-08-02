@@ -1,4 +1,4 @@
-// Browser adapter for architecture revision r217.
+// Browser adapter for architecture revision r234.
 const canvas = document.querySelector("#rig-canvas");
 const context = canvas.getContext("2d");
 const viewport = document.querySelector(".viewport");
@@ -35,10 +35,12 @@ const targetGuide = document.querySelector("#target-guide");
 const plantStatus = document.querySelector("#plant-status");
 const simulatorState = document.querySelector("#simulator-state");
 const plantRootState = document.querySelector("#plant-root-state");
+const plantComState = document.querySelector("#plant-com-state");
 const plantMotionState = document.querySelector("#plant-motion-state");
 const plantEffortState = document.querySelector("#plant-effort-state");
 const plantConstraintState = document.querySelector("#plant-constraint-state");
 const previewGroundState = document.querySelector("#preview-ground-state");
+const plantGroundState = document.querySelector("#plant-ground-state");
 const groundContactState = document.querySelector("#ground-contact-state");
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
@@ -59,12 +61,19 @@ let activeForceArrow = null;
 let plantContacts = [];
 let measuredPlantFrames = [];
 let renderedMinimumGroundClearanceM = Number.NaN;
+let measuredPlantMinimumGroundClearanceM = Number.NaN;
+let simulatorGroundPlane = {
+  point: [0, 0, 0],
+  normal: [0, 0, 1],
+  source: "awaiting MuJoCo",
+};
 let lastPreviewGroundUpdateMs = -Infinity;
 let lastPushSentAt = -Infinity;
 let lastSocketMessageAt = 0;
 let frames = [];
 let bones = [];
 let geometry = [];
+let collisionGeometry = [];
 let supportPatches = [];
 let worldSdfPlanes = [];
 let latestMetrics = null;
@@ -188,6 +197,12 @@ function disconnectPlant() {
   plantContacts = [];
   plantState = null;
   measuredPlantFrames = [];
+  measuredPlantMinimumGroundClearanceM = Number.NaN;
+  simulatorGroundPlane = {
+    point: [0, 0, 0],
+    normal: [0, 0, 1],
+    source: "MuJoCo disconnected",
+  };
   activeForceArrow = null;
   pendingPushCommand = null;
   pushDrag = null;
@@ -231,6 +246,19 @@ function enqueuePlantState(message) {
   plantState = message;
   plantContacts = message.contacts || [];
   measuredPlantFrames = plantFrames(message);
+  const simulator = message.simulator || {};
+  const groundPoint = simulator.ground_plane_point_world;
+  const groundNormal = simulator.ground_plane_normal_world;
+  if (Array.isArray(groundPoint) && groundPoint.length === 3
+      && groundPoint.every(Number.isFinite)
+      && Array.isArray(groundNormal) && groundNormal.length === 3
+      && groundNormal.every(Number.isFinite)) {
+    simulatorGroundPlane = {
+      point: [...groundPoint],
+      normal: [...groundNormal],
+      source: "MuJoCo model",
+    };
+  }
   if (firstPlantState && interactionMode === "push") {
     previousSnapshot = null;
     latestSnapshot = null;
@@ -253,7 +281,7 @@ function enqueuePlantState(message) {
         minimum_support_margin_m: Number.NaN,
         minimum_joint_margin_rad: Number.NaN,
         minimum_joint_stopping_margin_rad_s2: Number.NaN,
-        center_of_mass_world: message.root_position,
+        center_of_mass_world: message.center_of_mass_world || message.root_position,
       },
     });
   }
@@ -297,6 +325,14 @@ function connectPlant() {
       plantHello = message;
       plantConnected = true;
       const simulator = message.simulator || {};
+      if (Array.isArray(simulator.ground_plane_point_world)
+          && Array.isArray(simulator.ground_plane_normal_world)) {
+        simulatorGroundPlane = {
+          point: [...simulator.ground_plane_point_world],
+          normal: [...simulator.ground_plane_normal_world],
+          source: "MuJoCo model",
+        };
+      }
       plantStatus.textContent = `${message.control_hz} Hz WBC · ${message.stream_hz} Hz stream`;
       simulatorState.textContent = `${simulator.backend || "MuJoCo"} ${simulator.version || ""} · ${simulator.integrator || "unknown integrator"}`.trim();
       runtimeRates.textContent = `${message.control_hz} / ${message.physics_hz} Hz · ${message.physics_substeps_per_control} substeps`;
@@ -620,14 +656,28 @@ function updatePlantTelemetry(message) {
   const metrics = message.metrics || {};
   const simulator = message.simulator || {};
   plantStatus.textContent = `${metrics.wbc_status || "unknown"} · ${Number(metrics.controller_step_us || 0).toFixed(1)} µs`;
-  simulatorState.textContent = `t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter · E=${(Number(simulator.kinetic_energy_j || 0) + Number(simulator.potential_energy_j || 0)).toFixed(2)} J · warnings ${Number(simulator.warning_count || 0)}`;
+  const forwardInverse = simulator.solver_forward_inverse || [];
+  const solverResidual = Math.max(
+    ...forwardInverse.map((value) => Math.abs(Number(value))),
+    0,
+  );
+  simulatorState.textContent = `t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter / ${Number(simulator.constraint_count || 0)} rows · fwd/inv ${solverResidual.toExponential(1)} · E=${(Number(simulator.kinetic_energy_j || 0) + Number(simulator.potential_energy_j || 0)).toFixed(2)} J · warnings ${Number(simulator.warning_count || 0)}`;
   const root = message.root_position || [0, 0, 0];
+  const centerOfMass = message.center_of_mass_world || root;
   const twist = message.root_twist_world || [0, 0, 0, 0, 0, 0];
   plantRootState.textContent = `xyz ${root.map((value) => Number(value).toFixed(3)).join(" · ")} m · tilt ${(Number(metrics.root_tilt_rad || 0) * 180 / Math.PI).toFixed(2)}°`;
+  plantComState.textContent = `xyz ${centerOfMass.map((value) => Number(value).toFixed(3)).join(" · ")} m · projection ${(Number(centerOfMass[2]) - Number(simulatorGroundPlane.point[2])).toFixed(3)} m`;
   plantMotionState.textContent = `|v| ${Math.hypot(...twist.slice(3)).toFixed(3)} m/s · |ω| ${Math.hypot(...twist.slice(0, 3)).toFixed(3)} rad/s · joint ${Number(metrics.maximum_abs_joint_speed_rad_s || 0).toFixed(2)} rad/s`;
-  plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m max · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
-  plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized max`;
-  groundContactState.textContent = `${Number(metrics.ground_contact_count || 0)} ground / ${Number(metrics.contact_count || 0)} total · ${(1000 * Number(metrics.maximum_penetration_m || 0)).toFixed(2)} mm penetration`;
+  const actualActuatorForce = Math.max(
+    ...(message.actuator_force || []).map((value) => Math.abs(Number(value))),
+    0,
+  );
+  plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m command · ${actualActuatorForce.toFixed(3)} actuator force · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
+  plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized · ${Number(metrics.maximum_abs_constraint_scalar_force || 0).toFixed(2)} scalar · |pos| ${Number(metrics.maximum_abs_constraint_position || 0).toExponential(1)} · |vel| ${Number(metrics.maximum_abs_constraint_velocity || 0).toExponential(1)}`;
+  const planePoint = simulatorGroundPlane.point;
+  const planeNormal = simulatorGroundPlane.normal;
+  plantGroundState.textContent = `point ${planePoint.map((value) => Number(value).toFixed(3)).join(" · ")} m · normal ${planeNormal.map((value) => Number(value).toFixed(2)).join(" · ")} · ${Number.isFinite(measuredPlantMinimumGroundClearanceM) ? `${(1000 * measuredPlantMinimumGroundClearanceM).toFixed(2)} mm collision clearance` : "collision geometry pending"}`;
+  groundContactState.textContent = `${Number(metrics.ground_contact_count || 0)} ground / ${Number(metrics.contact_count || 0)} total · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N normal · ${(1000 * Number(metrics.maximum_penetration_m || 0)).toFixed(2)} mm penetration`;
   plantWrench.textContent = message.external_load?.active
     ? `${Math.hypot(...message.external_load.force_world).toFixed(2)} N · ${Number(message.external_load.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.external_load.body} · ${(message.external_load.provenance?.source || "unavailable").replaceAll("_", " ")}`
     : message.command_expired ? "expired safely" : "released";
@@ -687,6 +737,12 @@ function connect() {
       }));
       const geometrySource = authoredVisuals.length ? authoredVisuals : (message.geometry || []);
       geometry = geometrySource.map((sourceShape) => {
+        const shape = { ...sourceShape };
+        const surface = buildGeometrySurface(shape);
+        shape.surface = surface ? prepareGeometrySurface(shape, surface) : null;
+        return shape;
+      });
+      collisionGeometry = (message.geometry || []).map((sourceShape) => {
         const shape = { ...sourceShape };
         const surface = buildGeometrySurface(shape);
         shape.surface = surface ? prepareGeometrySurface(shape, surface) : null;
@@ -1183,6 +1239,88 @@ function drawPlantContactLayer() {
   context.restore();
 }
 
+function normalizedPlaneNormal() {
+  const normal = simulatorGroundPlane.normal;
+  const length = Math.max(Math.hypot(...normal), 1e-12);
+  return normal.map((value) => value / length);
+}
+
+function groundSignedDistance(point) {
+  const normal = normalizedPlaneNormal();
+  return dot(subtractVector(point, simulatorGroundPlane.point), normal);
+}
+
+function drawMeasuredPlantCollisionLayer() {
+  if (!plantConnected || !measuredPlantFrames.length || !collisionGeometry.length) return;
+  let minimumClearance = Infinity;
+  const safeFaces = [];
+  const penetratingFaces = [];
+  for (const shape of collisionGeometry) {
+    if (!shape.surface) continue;
+    const body = measuredPlantFrames[shape.body];
+    if (!body) continue;
+    const vertices = shape.surface.bodyVertices.map(
+      (vertex) => geometryVertexWorld(body, vertex),
+    );
+    for (const vertex of vertices) {
+      minimumClearance = Math.min(minimumClearance, groundSignedDistance(vertex));
+    }
+    const destination = vertices.some((vertex) => groundSignedDistance(vertex) < -0.001)
+      ? penetratingFaces
+      : safeFaces;
+    for (const indices of shape.surface.faces) {
+      if (indices.length < 3) continue;
+      destination.push(indices.map((index) => project(vertices[index])));
+    }
+  }
+  measuredPlantMinimumGroundClearanceM = Number.isFinite(minimumClearance)
+    ? minimumClearance
+    : Number.NaN;
+  const strokeFaces = (faces, color, width) => {
+    if (!faces.length) return;
+    context.beginPath();
+    for (const face of faces) {
+      context.moveTo(face[0].x, face[0].y);
+      for (let index = 1; index < face.length; index += 1) {
+        context.lineTo(face[index].x, face[index].y);
+      }
+      context.closePath();
+    }
+    context.strokeStyle = color;
+    context.lineWidth = width;
+    context.stroke();
+  };
+  context.save();
+  context.lineJoin = "round";
+  strokeFaces(safeFaces, interactionMode === "target"
+    ? "rgba(255,157,69,0.24)"
+    : "rgba(255,181,111,0.15)", 0.7);
+  strokeFaces(penetratingFaces, "rgba(239,117,106,0.95)", 1.8);
+
+  const centerOfMass = plantState?.center_of_mass_world;
+  if (Array.isArray(centerOfMass) && centerOfMass.length === 3) {
+    const normal = normalizedPlaneNormal();
+    const distance = groundSignedDistance(centerOfMass);
+    const projection = centerOfMass.map(
+      (value, axis) => value - normal[axis] * distance,
+    );
+    const comPoint = project(centerOfMass);
+    const groundPoint = project(projection);
+    context.setLineDash([3, 4]);
+    context.strokeStyle = "rgba(255,181,111,0.72)";
+    context.beginPath();
+    context.moveTo(comPoint.x, comPoint.y);
+    context.lineTo(groundPoint.x, groundPoint.y);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = "rgba(255,181,111,0.95)";
+    context.beginPath();
+    context.arc(groundPoint.x, groundPoint.y, 4, 0, 2 * Math.PI);
+    context.fill();
+  }
+  context.restore();
+}
+
 function drawMeasuredPlantLayer() {
   if (interactionMode === "push" || !measuredPlantFrames.length) return;
   context.save();
@@ -1217,7 +1355,7 @@ function drawMeasuredPlantLayer() {
     context.font = "700 9px Inter, ui-sans-serif, system-ui";
     context.textAlign = "left";
     context.fillStyle = "rgba(255,214,174,0.94)";
-    context.fillText("MUJOCO MEASURED", point.x + 9, point.y - 8);
+    context.fillText("MUJOCO MEASURED · COLLISION WIREFRAME", point.x + 9, point.y - 8);
     const twist = plantState?.root_twist_world || [0, 0, 0, 0, 0, 0];
     const velocity = twist.slice(3).map((value) => Number(value) * 0.18);
     if (Math.hypot(...velocity) > 0.002) {
@@ -1247,8 +1385,18 @@ function drawPreviewSourceLabel() {
 
 function drawGrid(width, height) {
   context.save();
+  const normal = normalizedPlaneNormal();
+  const reference = Math.abs(normal[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const rawAxisX = crossVector(reference, normal);
+  const axisXLength = Math.max(Math.hypot(...rawAxisX), 1e-12);
+  const axisX = rawAxisX.map((value) => value / axisXLength);
+  const axisY = crossVector(normal, axisX);
+  const planePoint = (x, y) => simulatorGroundPlane.point.map(
+    (value, axis) => value + axisX[axis] * x + axisY[axis] * y,
+  );
   const groundCorners = [
-    [-1.2, -1.2, 0], [1.2, -1.2, 0], [1.2, 1.2, 0], [-1.2, 1.2, 0],
+    planePoint(-1.2, -1.2), planePoint(1.2, -1.2),
+    planePoint(1.2, 1.2), planePoint(-1.2, 1.2),
   ].map(project);
   context.beginPath();
   context.moveTo(groundCorners[0].x, groundCorners[0].y);
@@ -1265,10 +1413,10 @@ function drawGrid(width, height) {
   const step = 0.1;
   for (let index = -12; index <= 12; index += 1) {
     const coordinate = index * step;
-    const alongXStart = project([-extent, coordinate, 0]);
-    const alongXEnd = project([extent, coordinate, 0]);
-    const alongYStart = project([coordinate, -extent, 0]);
-    const alongYEnd = project([coordinate, extent, 0]);
+    const alongXStart = project(planePoint(-extent, coordinate));
+    const alongXEnd = project(planePoint(extent, coordinate));
+    const alongYStart = project(planePoint(coordinate, -extent));
+    const alongYEnd = project(planePoint(coordinate, extent));
     context.strokeStyle = index === 0 ? "#34413d" : "#171d22";
     context.beginPath();
     context.moveTo(alongXStart.x, alongXStart.y);
@@ -1279,11 +1427,19 @@ function drawGrid(width, height) {
     context.lineTo(alongYEnd.x, alongYEnd.y);
     context.stroke();
   }
-  const origin = project([0, 0, 0]);
+  const origin = project(simulatorGroundPlane.point);
   context.fillStyle = "#668078";
   context.beginPath();
   context.arc(origin.x, origin.y, 2, 0, Math.PI * 2);
   context.fill();
+  context.fillStyle = "rgba(157,184,174,0.88)";
+  context.font = "700 9px SFMono-Regular, Consolas, monospace";
+  context.textAlign = "left";
+  context.fillText(
+    `MUJOCO GROUND · z=${Number(simulatorGroundPlane.point[2]).toFixed(3)} m`,
+    origin.x + 7,
+    origin.y + 14,
+  );
   context.restore();
 }
 
@@ -1583,6 +1739,7 @@ function draw() {
   drawSupportLayer();
   const geometryStartedAt = performance.now();
   drawGeometryLayer();
+  drawMeasuredPlantCollisionLayer();
   drawPreviewSourceLabel();
   pushBounded(viewportPerformance.geometryDurations, performance.now() - geometryStartedAt);
   drawPlantContactLayer();
@@ -1847,6 +2004,7 @@ function beginPush(event, pick) {
 }
 
 function currentPushCommand() {
+  if (!plantGateway?.available || interactionMode !== "push") return null;
   if (!pushDrag) return null;
   return {
     type: "plant_push",

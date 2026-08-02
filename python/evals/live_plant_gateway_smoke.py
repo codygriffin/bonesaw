@@ -100,6 +100,12 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert initial["simulator"]["control_dt_s"] == 0.020, initial["simulator"]
         assert initial["simulator"]["physics_substeps"] == 5, initial["simulator"]
         assert initial["simulator"]["ground_plane_z_m"] == 0.0, initial["simulator"]
+        assert initial["simulator"]["ground_plane_point_world"] == [0.0, 0.0, 0.0]
+        assert initial["simulator"]["ground_plane_normal_world"] == [0.0, 0.0, 1.0]
+        assert len(initial["simulator"]["solver_forward_inverse"]) == 2
+        assert initial["simulator"]["constraint_count"] == len(
+            initial["constraint_force"]
+        )
         assert initial["simulator"]["warning_count"] == 0, initial["simulator"]
         assert math.isfinite(initial["simulator"]["kinetic_energy_j"])
         assert math.isfinite(initial["simulator"]["potential_energy_j"])
@@ -108,6 +114,12 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert len(initial["actuator_effort_nm"]) == 6
         assert len(initial["generalized_acceleration"]) == 12
         assert len(initial["constraint_generalized_force"]) == 12
+        assert len(initial["actuator_generalized_force"]) == 12
+        assert len(initial["passive_generalized_force"]) == 12
+        assert len(initial["bias_generalized_force"]) == 12
+        assert len(initial["center_of_mass_world"]) == 3
+        assert all(math.isfinite(value) for value in initial["center_of_mass_world"])
+        assert initial["metrics"]["total_ground_normal_force_n"] > 0.0
         assert not initial["external_load"]["active"], initial["external_load"]
         assert not initial["measured_impact_impulse"]["available"]
         assert not initial["unobserved_model_reserve"]["available"]

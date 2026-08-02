@@ -2287,6 +2287,19 @@ generalized constraint forces, kinetic/potential energy, warning count,
 contacts, penetration, and solver state at the existing 250/50 Hz split. See
 the [r223 live ground/simulator-state audit](benchmarks/results/live-ground-sim-state-r223/LIVE_GROUND_SIM_STATE_AUDIT.md).
 
+R234 makes that simulator boundary geometric rather than label-only. The
+filled grid is constructed from MuJoCo's streamed plane point and normal, and
+TARGET overlays the measured collision body as an orange wireframe alongside
+the dashed measured rig. MuJoCo's physical CoM and its ground projection are
+separate from the green preview CoM. The plant record adds actual actuator
+force, generalized actuator/passive/bias force, scalar constraint
+force/position/velocity, solver forward/inverse residual, exact constraint-row
+count, and summed ground-normal load. The expanded live gateway passes on the
+existing single port-8777 service, while the one-metre-down preview still
+retains 0.250000 mm collision and 0.162025 mm exact visual clearance. Green
+base intent remains a non-plant query; R234 admits observability, not physical
+realization. See the [r234 measured MuJoCo ground-state audit](benchmarks/results/live-mujoco-ground-state-r234/LIVE_MUJOCO_GROUND_STATE_AUDIT.md).
+
 R224 closes the nonlinear consequence-propagation gap exposed by R222. Generic
 Rust now scores an entire componentwise generalized-velocity box: ballistic
 impact time is bounded from vertical-speed endpoints, while root attitude,

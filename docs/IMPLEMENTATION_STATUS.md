@@ -2,6 +2,23 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current live editor checkpoint — r234 measured MuJoCo geometry/state
+
+The ground grid now comes from MuJoCo's streamed plane point and normal rather
+than an implicit browser constant. TARGET overlays the measured collision body
+as an orange wireframe, plus the dashed measured rig, contacts, physical CoM,
+and its projection onto the simulator plane. Green remains the authored WBC
+query. Measured collision vertices below the plane turn red.
+
+The 50 Hz plant record now includes actual actuator force, generalized
+actuator/passive/bias force, scalar constraint force/position/velocity, solver
+forward/inverse residual, exact constraint-row count, and summed ground-normal
+load in addition to the existing 250 Hz MuJoCo state. Worker, UI-contract, and
+live WebSocket regressions pass. A one-metre-down preview still retains
+0.250000 mm collision and 0.162025 mm exact visual clearance. This admits
+ground/state observability, not green-target plant realization, and the browser
+frame-time gate remains unrun because no in-app browser is attached.
+
 ## Current CPU checkpoint — r231 rejects generalized RK4 transfer
 
 R230 adds a model-owned, allocation-free contact evolution query. Rust retains

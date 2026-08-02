@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "revision": "model-coupled-rk4-holdout-rejection-r231",
+  "revision": "measured-mujoco-ground-state-r234",
   "updated": "2026-08-02",
-  "stage": "Model-owned Euler contact evolution freezes on spent evidence, then fresh RK4 transfer rejects the profile; authority remains absent · r231",
-  "checkpoint": "R230 moves five authored 1 ms event ticks, sphere support geometry, convective point acceleration, inverse dynamics, full Delassus refresh, and evolved floating state into allocation-free Rust. Prediction-only convergence selects 32 sweeps at 1.619% of the useful-width gate and about 0.70 ms p99; spent R228 stiff active sets become 48/48 exact at fitted combined width 0.168/0.023/9.893. R231 then rejects transfer: medium/pyramidal/implicit-fast covers 47/48, while hard/elliptic/RK4 covers 24/48 and misses 22 actual contacts. The profile and authority are rejected without retuning.",
-  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. External command provenance remains separate from contact/impact evidence and unobserved-model reserve. Rust now owns causal Euler-family contact event/state evolution and returns the evolved floating state, but R231 proves that the reduced trapezoidal point update is not a generalized RK4 implementation. The next CPU gate is a true four-stage generalized dynamics/contact construction frozen independently of these spent labels, then another untouched holdout and plant non-regression. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "Measured MuJoCo plane, collision body, CoM, contacts, and constraint state are explicit in the live editor; CPU RK4 authority remains rejected · r234",
+  "checkpoint": "R234 derives the viewport plane from MuJoCo's streamed point/normal, overlays the measured collision geometry and physical CoM independently from the green WBC preview, and expands the plant record with solver forward/inverse residual, scalar constraint state, generalized actuator/passive/bias force, actual actuator force, and summed ground-normal load. The one-metre-down preview retains 0.250000 mm collision and 0.162025 mm visual clearance. The existing single 8777 server passes the expanded live gateway regression. R231's model-coupled cross-integrator profile remains rejected.",
+  "summary": "State ownership is now geometric: green is WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED; the filled grid is constructed from the streamed MuJoCo plane. External command provenance remains separate from contact/impact evidence and unobserved-model reserve. Rust owns causal Euler-family contact event/state evolution, but R231 proves the reduced trapezoidal point update is not generalized RK4. The next CPU gate is a true four-stage generalized dynamics/contact construction, then another untouched holdout and plant non-regression. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
-      "detail": "TARGET green handles → /ws Cartesian preview intent · continuously connected /plant-ws → dashed orange measured MuJoCo state · Ctrl+rendered-body ray hit → finite world wrench carrying interactive_operator / declared_continuous_wrench / world-frame provenance · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
+      "detail": "TARGET green handles → /ws Cartesian preview intent · continuously connected /plant-ws → orange measured MuJoCo collision wireframe, dashed rig, CoM, contacts, and constraint state · Ctrl+rendered-body ray hit → finite world wrench carrying interactive_operator / declared_continuous_wrench / world-frame provenance · empty drag orbits · Shift-drag pans · wheel zooms · lost transport ghosts state and disables commands"
     },
     {
       "name": "Live plant authority boundary",
-      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever, then MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · accepted provenance, measured transforms, root twist, q/v/qdd, actuator effort, generalized constraint force, contacts, force, moment, penetration, energy, warnings, solver work, simulator clocks, and separate authority witnesses stream at 50 Hz"
+      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever, then MuJoCo advances five 4 ms soft-contact steps per held command · persistent Rust capture and WBC run at 50 Hz · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
     },
     {
       "name": "Explicit tick input",
@@ -81,7 +81,7 @@
     {
       "name": "bonesaw-tools",
       "role": "Compiler, native eval sentinel, Pinocchio fixtures, and local WebSocket editor adapter.",
-      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over z=0, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies the dashed measured rig, contacts, root motion, effort, acceleration, generalized constraint force, energy, warnings, accepted provenance, and force/moment evidence; PUSH makes those transforms primary."
+      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over the MuJoCo plane, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies plane point/normal, orange measured collision geometry and dashed rig, physical CoM, contacts and summed ground load, root motion, actual/generalized actuator/passive/bias force, acceleration, generalized/scalar constraint state, energy, warnings, solver work/residual, accepted provenance, and force/moment evidence; PUSH makes measured transforms primary."
     },
         {
             "name": "bonesaw-cuda",
@@ -90,6 +90,12 @@
         }
   ],
   "decisions": [
+    {
+      "status": "admitted",
+      "title": "Measured MuJoCo ground and collision state are distinct from preview intent",
+      "detail": "R234 constructs the filled grid from MuJoCo's streamed plane point/normal and overlays its collision geometry, CoM projection, contacts, and constraint witnesses in orange while green remains a non-plant WBC query. The one-metre-down preview retains 0.250000 mm collision and 0.162025 mm exact visual clearance. The expanded 250/50 Hz gateway passes contact/load, finite-vector, command expiry, fall/reset/recovery, and reconnect tests on the existing single port-8777 service. This admits observability and state ownership only, not green-target plant realization.",
+      "evidence": "/LIVE_MUJOCO_GROUND_STATE_R234.html"
+    },
     {
       "status": "rejected",
       "title": "Fresh RK4 evidence rejects the Euler-family model-coupled profile",
@@ -815,6 +821,12 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R234 measured MuJoCo ground/collision state",
+      "result": "LIVE TRANSPORT PASS · STREAMED PLANE POINT/NORMAL · ORANGE COLLISION WIREFRAME + PHYSICAL COM · 4 GROUND CONTACTS / 52.420 N · 0.00657 MM SOFT PENETRATION · 12 CONSTRAINT ROWS · SOLVER FWD/INV RESIDUAL EXPLICIT · ONE-METRE-DOWN PREVIEW 0.250000 MM COLLISION / 0.162025 MM VISUAL CLEARANCE · ZERO WARNINGS",
+      "scope": "existing single server/tunnel pair on port 8777 · 250 Hz MuJoCo / 50 Hz Rust WBC and stream · measured state is visually and semantically separate from green query preview · browser frame-time and visual inspection remain not run because no in-app browser target is attached",
+      "href": "/LIVE_MUJOCO_GROUND_STATE_R234.html"
+    },
     {
       "metric": "R231 fresh model-coupled cross-integrator holdout",
       "result": "MECHANISM PASS / PROFILE REJECTED / AUTHORITY NO · MEDIUM IMPLICIT-FAST 47/48 WITH ACTIVE SETS 48/48 · HARD RK4 24/48 WITH 22 MISSED CONTACT POINTS · FITTED RK4 WIDTH 1.894/0.247/62.325 · P99 BELOW 0.8 MS · 60-ARRAY EXACT REPLAY · ZERO TIMED RUST ALLOCATION",

@@ -97,6 +97,12 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(hello["control_hz"], 50)
         self.assertEqual(hello["physics_hz"], 250)
         self.assertEqual(hello["physics_substeps_per_control"], 5)
+        np.testing.assert_allclose(
+            hello["simulator"]["ground_plane_point_world"], [0.0, 0.0, 0.0]
+        )
+        np.testing.assert_allclose(
+            hello["simulator"]["ground_plane_normal_world"], [0.0, 0.0, 1.0]
+        )
         before = float(self.worker.data.time)
         result = self.worker.step({"type": "step"})
         self.assertAlmostEqual(float(self.worker.data.time) - before, CONTROL_DT, places=12)
@@ -111,6 +117,26 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(
             len(result["constraint_generalized_force"]), self.worker.model.nv
         )
+        self.assertEqual(len(result["actuator_generalized_force"]), self.worker.model.nv)
+        self.assertEqual(len(result["passive_generalized_force"]), self.worker.model.nv)
+        self.assertEqual(len(result["bias_generalized_force"]), self.worker.model.nv)
+        self.assertEqual(len(result["actuator_force"]), 6)
+        self.assertEqual(len(result["center_of_mass_world"]), 3)
+        self.assertTrue(np.all(np.isfinite(result["center_of_mass_world"])))
+        self.assertEqual(len(result["simulator"]["solver_forward_inverse"]), 2)
+        self.assertEqual(
+            result["simulator"]["constraint_count"],
+            len(result["constraint_force"]),
+        )
+        self.assertEqual(
+            len(result["constraint_position"]),
+            result["simulator"]["constraint_count"],
+        )
+        self.assertEqual(
+            len(result["constraint_velocity"]),
+            result["simulator"]["constraint_count"],
+        )
+        self.assertGreater(result["metrics"]["total_ground_normal_force_n"], 0.0)
         for key in (
             "kinetic_energy_j",
             "potential_energy_j",
