@@ -2,7 +2,49 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r222 terminal consequence exposes point-score optimism
+## Current live editor checkpoint — r223 explicit preview/plant ground state
+
+The editor now retains two explicitly labelled states while TARGET is active:
+green is the authored state-local WBC preview and a dashed orange rig is the
+measured 250 Hz MuJoCo plant under its independent 50 Hz Rust command stream.
+The z=0 ground is a filled plane, contacts render in either mode, and the
+preview reserves 0.25 mm collision clearance. An end-to-end local/public gate
+transforms all 41 authored visuals and 25 STL instances from streamed frame
+records. Reachable and one-metre-down/clamped base requests retain exactly
+0.250000 mm collision clearance and at least 0.135636 mm visual clearance.
+
+The plant record now includes root pose/twist, joint state, actuator effort,
+generalized acceleration, generalized constraint force, contact/penetration,
+energy, solver iterations, and warning count. Worker and WebSocket tests retain
+250 Hz physics, 50 Hz WBC/stream, five substeps, finite vectors, zero warnings,
+lease expiry, fall report, next-step simulator reset, and fresh reconnect. This
+does not execute green base intent in MuJoCo and does not replace the unrun
+browser frame-time gate.
+
+## Current CPU checkpoint — r224 propagates the full velocity box to terminal pressure
+
+R224 adds a generic allocation-free Rust outer bound over the velocity
+coordinates consumed by terminal consequence. Ballistic time is monotone-
+bounded from the supplied vertical-speed interval. Root tilt/rate and joint
+position/velocity are then propagated across the whole impact-time interval;
+all pressure and aggregate fields are upper bounds, while joint headroom is a
+lower bound. The componentwise box carries neither probability nor a claim
+that every Cartesian corner is reachable. A 729-point core oracle, generic
+PyO3 containment/atomicity tests, bitwise repeat, and zero timed allocation
+pass.
+
+On immutable R221 contact-only states, center scoring's 7/1 mid/hard false-safe
+crossings become 0/0 under box scoring, with zero bound violations or
+false-safe rows among completed states inside the terminal projection. Query
+p99 is 1.344/1.194 µs. This does not restore authority: source sample coverage
+is still only 91.667%/64.583%, contact-only terminal-projection coverage is
+91.667%/39.583%, and the broad box rejects 10/48 and 2/48 safe completed
+states. The generic consequence bound is retained; the R220/R221 profile,
+selector, and command authority remain rejected. The remaining CPU authority
+work is a tighter independently motivated transition set, an untouched
+holdout, and only then plant non-regression for a state-conditioned action.
+
+## Prior CPU checkpoint — r222 terminal consequence exposes point-score optimism
 
 R222 adds a generic arbitrary-joint-count PyO3 batch over Rust's existing
 ballistic terminal-impact proxy. Caller-supplied prediction/oracle state rows

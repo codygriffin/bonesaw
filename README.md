@@ -2271,6 +2271,38 @@ propagated through nonlinear consequence rather than scoring only its center.
 Pair scoring is below 1 µs p99, bitwise repeatable, and allocation-free. See the
 [r222 terminal consequence audit](benchmarks/results/g1-compliant-terminal-consequence-audit-r222/G1_COMPLIANT_TERMINAL_CONSEQUENCE_AUDIT.md).
 
+R223 separates the editor's authored and realized state instead of making the
+user infer the boundary from mode switches. TARGET retains the green guided
+WBC pose and labels it `WBC TARGET PREVIEW · NOT PLANT`; an always-running
+dashed orange rig shows `MUJOCO MEASURED` state and its contacts. PUSH makes
+that measured stream primary. The viewport now fills the exact z=0 plane,
+reserves 0.25 mm collision clearance for the preview, reports collision and
+visual-mesh clearance separately, and colors visual vertices below ground.
+The end-to-end gate transforms all 41 visuals and 25 STL instances from the
+streamed frames: reachable and one-metre-down/clamped base intents retain
+0.250000 mm collision clearance and at least 0.135636 mm exact visual
+clearance locally and through Cloudflare. MuJoCo additionally streams root
+motion, six actuator efforts, twelve generalized accelerations, twelve
+generalized constraint forces, kinetic/potential energy, warning count,
+contacts, penetration, and solver state at the existing 250/50 Hz split. See
+the [r223 live ground/simulator-state audit](benchmarks/results/live-ground-sim-state-r223/LIVE_GROUND_SIM_STATE_AUDIT.md).
+
+R224 closes the nonlinear consequence-propagation gap exposed by R222. Generic
+Rust now scores an entire componentwise generalized-velocity box: ballistic
+impact time is bounded from vertical-speed endpoints, while root attitude,
+angular rate, joint position, and joint velocity use conservative interval
+propagation across that time interval. Pressure and aggregate fields are upper
+bounds and joint headroom is a lower bound. A 729-point core oracle, the
+generic Python boundary, late-row atomicity, bitwise repeat, and zero timed
+allocation all pass. On the immutable R221 replay, observed false-safe
+threshold crossings fall from 7→0 and 1→0; no contained completed state
+violates the bound. Query p99 is 1.344/1.194 µs. The frozen transition profile
+still covers only 91.667% of mid-law source rows and 64.583% of hard-law source
+rows (the contact-only terminal projection covers 91.667%/39.583%), and the
+wide bound conservatively rejects 10/48 and 2/48 safe completed states. The
+mechanism stays; profile, selector, and authority remain rejected. See the
+[r224 terminal velocity-box audit](benchmarks/results/g1-terminal-velocity-box-audit-r224/G1_TERMINAL_VELOCITY_BOX_AUDIT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2381,6 +2413,7 @@ Reproduce it with:
 ./scripts/run-g1-substepped-compliant-contact-replay.sh
 ./scripts/run-g1-substepped-compliant-contact-holdout.sh
 ./scripts/run-g1-compliant-terminal-consequence-audit.sh
+./scripts/run-g1-terminal-velocity-box-audit.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh
