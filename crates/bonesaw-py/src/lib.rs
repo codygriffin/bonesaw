@@ -15614,14 +15614,15 @@ impl FloatingWbcSession {
             let reference_tick = reference_phase.floor() as usize;
             let reference_next_tick = (reference_tick + 1).min(ticks.saturating_sub(1));
             let reference_fraction = reference_phase - reference_tick as f64;
-            // A complete authored support-free interval is the explicit
-            // recovery edge for the session-level free-body fallback.  This
-            // keeps a failed transfer fail-closed while still allowing a
-            // later touchdown to reacquire after the schedule has genuinely
-            // released every target (or after reset).
-            if !(0..target_count).any(|target| {
+            // A newly requested target whose own release latch is clear is an
+            // explicit recovery edge for the session-level free-body
+            // fallback. Failed targets remain suppressed independently, but
+            // one stale authored request must not prevent a different target
+            // from reacquiring after its genuine swing/re-touchdown edge.
+            if (0..target_count).any(|target| {
                 contact_active[[reference_tick, target]] != 0
                     && target_active[[reference_tick, target]] != 0
+                    && !self.contact_release_suppressed[target]
             }) {
                 self.no_contact_safe_mode = false;
             }

@@ -2,7 +2,26 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r265 rejects the frozen profile on its one-shot holdout
+## Current CPU checkpoint — r267 localizes reacquisition without controller promotion
+
+R267 makes contact release ownership per target: an unsuppressed requested
+target can leave session-level free-body mode even if a different failed target
+remains latched out. The retained trace exercises target 0 Precontact at tick
+428 while target 1 stays suppressed. Target 0 never locks and releases at tick
+460 after 116 unsupported ticks, so the mechanism closes a global-latch bug but
+does not claim recovery.
+
+Artifact-only cap and active-set sweeps reject both obvious shortcuts. Cap 768
+first retains locked contact at tick 300 but reaches 22.9 ms. Equality-first
+repair needs 16 active-set iterations and retains contact only through tick
+329. Its native 600-tick row has 270 contingency ticks, 23.264 ms p99,
+33.291 ms maximum, and 51 twenty-millisecond misses. R165 independently moved
+11 fall boundaries earlier with this seed rule, so the default remains off.
+The next functional slice is causal single-support reference compatibility,
+not more solver work or a late-fall reset. See
+[`G1_FLOATING_REACQUISITION_LOCALIZATION.md`](../benchmarks/results/g1-floating-reacquisition-localization-r267/G1_FLOATING_REACQUISITION_LOCALIZATION.md).
+
+## Prior CPU checkpoint — r265 rejects the frozen profile on its one-shot holdout
 
 R265 consumes R264's single authorized holdout with no refit, widening, retry,
 or authority path. New medium elliptic/Euler and stiff elliptic/RK4 laws use

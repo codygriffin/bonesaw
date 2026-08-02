@@ -2470,6 +2470,19 @@ normal-contact contingency and fails tracking/residual gates. The default
 remains unchanged and authority remains closed. See the [r262 floating
 projection budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
 
+R267 separates contact reacquisition from the still-red transfer controller.
+A target whose own release latch is clear can now attempt touchdown even while
+a different failed target remains suppressed. The stress trace exercises that
+edge at tick 428, but the late target never locks after 116 unsupported ticks.
+Budget localization finds the full-contact knee at 768 Dykstra sweeps and
+22.9 ms. Equality-first repair retains contact through tick 329 at 16 active-
+set iterations, but its native 600-tick profile has 270 contingency ticks,
+23.264 ms p99, and 51 deadline misses; R165 already rejected the same seed rule
+for earlier plant falls. It remains diagnostic and default-off. The next
+behavior slice must repair single-support reference compatibility before tick
+300, not increase work or pretend a late fall is recovery. See the [r267
+reacquisition localization](benchmarks/results/g1-floating-reacquisition-localization-r267/G1_FLOATING_REACQUISITION_LOCALIZATION.md).
+
 R264 freezes the first useful correlated profile across all four already-spent
 R248/R254 contact-law families. Python fits a 55-coordinate observed-state
 nearest-residual profile inside the existing 16 causal closing-speed/tilt

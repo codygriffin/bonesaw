@@ -59,6 +59,20 @@ release contingency, zero 20 ms misses, and 4.757 ms p99. The fallback is not a 
 or plant-authority claim: contact, tracking, residual, MuJoCo feedback, and
 thermal gates remain open. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
+R267 localizes the next failure without promoting another fallback. Per-target
+release ownership now lets target 0 enter Precontact at tick 428 even while the
+failed target 1 remains suppressed; this knocks off the global-latch bug. It is
+not physical recovery: after 116 unsupported ticks the root is already below
+the plane, target 0 never locks, and it releases at tick 460. A Dykstra cap of
+768 retains locked contact at tick 300 but costs 22.9 ms. The existing
+equality-first accelerator with 16 iterations retains it through tick 329, but
+the native 600-tick trace still has 270 contingency ticks, 23.264 ms p99, and
+51 twenty-millisecond misses. R165 also showed that this faster seed moves 11
+plant fall boundaries earlier, so it remains default-off. The open behavior
+complaint is now narrower: make the authored single-support CoM/root/foot
+reference physically compatible before tick 300 while retaining R262's bounded
+timing contract. See the [r267 localization](benchmarks/results/g1-floating-reacquisition-localization-r267/G1_FLOATING_REACQUISITION_LOCALIZATION.md).
+
 ## Open CPU authority gate: useful physical transition tube
 
 The RK4 stage-force and implicitfast-integrator conflation complaints are now

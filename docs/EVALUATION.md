@@ -970,6 +970,20 @@ spent rehearsal, identifying action-selection support as a separate necessary
 gate. The holdout is consumed and may not be repeated. See the [r265 one-shot
 report](../benchmarks/results/g1-residual-prototype-plant-holdout-r265/G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md).
 
+### Revision r267 floating reacquisition localization
+
+`python/evals/g1_floating_reacquisition_localization_r267.py` composes only
+completed traces. It records that per-target suppression permits target 0's
+new Precontact edge at tick 428 while failed target 1 remains isolated, but the
+late target never locks and releases at tick 460. Cap sweeps place the
+full-contact convergence knee at 768 sweeps with a 22.9 ms maximum. Equality-
+first active-set repair needs 16 iterations to retain contact through tick 329;
+the native 600-tick row still records 270 contingency ticks, 23.264 ms p99,
+33.291 ms maximum, and 51 twenty-millisecond misses. Combined with R165's 11
+earlier plant fall boundaries, the profile is rejected and default-off. No
+policy, physics, or plant step is rerun by the report. See the [r267
+localization](../benchmarks/results/g1-floating-reacquisition-localization-r267/G1_FLOATING_REACQUISITION_LOCALIZATION.md).
+
 ### Revision r262 floating feasibility budget profile
 
 `scripts/run-g1-floating-projection-budget-profile-r262.sh` compares the

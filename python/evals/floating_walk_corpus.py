@@ -89,6 +89,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="optional normalized violation threshold for continuing a bounded Dykstra prefix",
     )
+    parser.add_argument(
+        "--repair-feasibility-equalities-before-inequalities",
+        action="store_true",
+        help="opt in to equality-first active-set repair after the bounded Dykstra prefix",
+    )
     parser.add_argument("--joint-limit-braking", action="store_true")
     parser.add_argument("--root-frequency-hz", type=float, default=2.0)
     parser.add_argument("--root-angular-task-weight", type=float, default=1.0)
@@ -2894,6 +2899,9 @@ def main() -> None:
         ),
         feasibility_projection_continuation_violation_threshold=(
             args.feasibility_projection_continuation_violation_threshold
+        ),
+        repair_feasibility_equalities_before_inequalities=(
+            args.repair_feasibility_equalities_before_inequalities
         ),
         joint_limit_braking=args.joint_limit_braking,
         root_frequency_hz=args.root_frequency_hz,
