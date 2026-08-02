@@ -325,15 +325,15 @@ gate is a new MuJoCo baseline/candidate non-regression matrix without retuning.
 
 ## Current CPU checkpoint — r248 rejects held-torque plant realization
 
-R248 executes the frozen R247 family without retuning on two new pyramidal
-laws and offsets 250,000/260,000. Every state forks before execution into a
-zero-generalized-joint-effort baseline and a five-millisecond held selected-
-torque candidate. The mechanism passes: 288 WBC queries admit, WBC and selector
+R248 executes the frozen R247 family without retuning on the primitive
+two-probe G1 fixture, two new pyramidal laws, and offsets 250,000/260,000. Every
+state forks before execution into a zero-generalized-joint-effort baseline and
+a selected-torque candidate held for five 4 ms MuJoCo steps (one 20 ms / 50 Hz
+WBC update). The mechanism passes: 288 WBC queries admit, WBC and selector
 allocate zero Rust bytes, WBC p99 remains below five milliseconds, 960 MuJoCo
 steps complete, and neither branch emits a warning. Strict plant non-regression
-fails at 2/48 implicitfast and 0/48 RK4 rows. The dominant regression is
-terminal joint-position pressure; a held torque can move a low-inertia joint
-by over 30 rad/s in five milliseconds. R248 therefore rejects the action
+fails at 14/48 implicitfast and 12/48 RK4 rows. Joint-position pressure remains
+dominant. R248 therefore rejects the action
 profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.

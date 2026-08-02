@@ -59,14 +59,14 @@ uncertainty width was fit on spent R246 labels, so this freezes a candidate
 family for new plant evidence rather than serving as a holdout. It emits no
 torque, plant command, or authority.
 
-R248 performs that fresh no-retuning plant A/B on two new pyramidal laws and
-offsets 250,000/260,000. The mechanism remains clean—every candidate WBC query
-admits, hot paths allocate zero Rust bytes, p99 stays below five milliseconds,
-and both 480-step branches produce zero MuJoCo warnings—but the action profile
-is rejected. Only 2/48 implicitfast and 0/48 RK4 rows avoid every terminal
-component regression against zero joint effort. Joint-position pressure is the
-dominant miss; five milliseconds of held WBC torque changes some joint speeds
-by more than 30 rad/s in the unmodeled actuator plant. This is direct evidence
+R248 performs that fresh no-retuning plant A/B on the primitive two-probe G1
+fixture, two new pyramidal laws, and offsets 250,000/260,000. The mechanism
+remains clean—every candidate WBC query admits, hot paths allocate zero Rust
+bytes, p99 stays below five milliseconds, and both 480-step branches produce
+zero MuJoCo warnings—but the action profile is rejected. Only 14/48
+implicitfast and 12/48 RK4 rows avoid every terminal component regression
+against zero joint effort. Each branch uses five 4 ms physics steps per 20 ms
+50 Hz WBC tick. Joint-position pressure remains the dominant miss, exposing
 that effort magnitude alone is insufficient: bandwidth/slew realization must
 enter the action boundary before another fresh holdout.
 

@@ -25,20 +25,14 @@ from g1_compliant_terminal_consequence_audit import (
     joint_limits,
 )
 from g1_contact_law_momentum_holdout import (
-    CONTROL_DT,
     FOOT_FRAMES,
-    PHYSICS_DT,
-    SPHERE_RADIUS_M,
-    SUBSTEPS,
     ContactLaw,
-    build_plant,
-    plant_layout,
-    point_velocities_world,
     quaternion_from_rpy,
     sha256,
     standing_posture,
     to_bonesaw_tangent,
 )
+from g1_mujoco_model import FOOT_SPHERE_NAMES, load_g1_model
 from g1_terminal_box_wbc_action_audit import (
     CANDIDATE_COUNT,
     CANDIDATE_NAMES,
@@ -83,6 +77,13 @@ WIDTH_SOURCE_LAWS = (
     "rigid_pyramidal_rk4_surface_r246",
 )
 SAMPLES_PER_LAW = 48
+# The live rig contract is five 4 ms MuJoCo steps per 50 Hz WBC update.
+# R247's candidate family remains frozen; this plant gate deliberately applies
+# it at the requested 20 ms hold without retuning its state-local law.
+CONTROL_DT = 0.020
+PHYSICS_DT = 0.004
+SUBSTEPS = int(round(CONTROL_DT / PHYSICS_DT))
+SPHERE_RADIUS_M = 0.045
 PRESSURE_INDICES = tuple(range(8, 17))
 HEADROOM_INDEX = 6
 NONREGRESSION_TOLERANCE = 1.0e-12
@@ -100,6 +101,68 @@ def parse_args() -> argparse.Namespace:
         "--web-report", default="web/G1_TERMINAL_BOX_WBC_PLANT_AB_R248.html"
     )
     return parser.parse_args()
+
+
+def build_plant(
+    model_path: pathlib.Path, law: ContactLaw
+) -> tuple[mujoco.MjModel, mujoco.MjData]:
+    """Load the self-contained primitive G1 fixture and apply a fresh law.
+
+    The older contact-transition corpus deliberately used a 1 kHz, four-probe
+    model.  R248 is the first plant gate on the live 250/50 contract, so it
+    uses the checked-in two-probe-per-foot primitive fixture instead and only
+    changes MuJoCo's declared contact law before any state is generated.
+    """
+
+    model, data = load_g1_model(model_path)
+    model.opt.timestep = PHYSICS_DT
+    model.opt.integrator = law.integrator
+    model.opt.cone = law.cone
+    model.geom_friction[:, 0] = law.friction
+    model.geom_friction[:, 1] = 0.01
+    model.geom_friction[:, 2] = 0.001
+    model.geom_solref[:, 0] = law.solref_time_s
+    model.geom_solref[:, 1] = 1.0
+    model.geom_solimp[:] = [law.solimp_min, law.solimp_max, 0.001, 0.5, 2.0]
+    mujoco.mj_forward(model, data)
+    return model, data
+
+
+def plant_layout(
+    model: mujoco.MjModel, joint_names: list[str]
+) -> tuple[int, list[int], list[int], int, list[int], dict[int, int]]:
+    root_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "root")
+    if root_id < 0:
+        raise ValueError("primitive G1 fixture is missing its free root")
+    root_qpos = int(model.jnt_qposadr[root_id])
+    joint_qpos = [
+        int(model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)])
+        for name in joint_names
+    ]
+    joint_qvel = [
+        int(model.jnt_dofadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)])
+        for name in joint_names
+    ]
+    ground = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "ground")
+    foot_geoms = [
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)
+        for name in FOOT_SPHERE_NAMES
+    ]
+    if ground < 0 or any(geom < 0 for geom in foot_geoms):
+        raise ValueError("primitive G1 fixture is missing ground or foot probes")
+    return root_qpos, joint_qpos, joint_qvel, ground, foot_geoms, {}
+
+
+def point_velocities_world(
+    model: mujoco.MjModel, data: mujoco.MjData, geom_ids: list[int]
+) -> np.ndarray:
+    velocities = np.empty((len(geom_ids), 3), np.float64)
+    jacobian = np.empty((3, model.nv), np.float64)
+    for index, geom in enumerate(geom_ids):
+        body = int(model.geom_bodyid[geom])
+        mujoco.mj_jac(model, data, jacobian, None, data.geom_xpos[geom], body)
+        velocities[index] = jacobian @ data.qvel
+    return velocities
 
 
 def copy_state(model: mujoco.MjModel, source: mujoco.MjData) -> mujoco.MjData:
@@ -240,7 +303,7 @@ def prepare_initial_state(
     points[:, 2] -= SPHERE_RADIUS_M
     point_velocity = point_velocities_world(model, data, foot_geoms)
     predicted_active = points[:, 2] <= np.maximum(-point_velocity[:, 2], 0.0) * CONTROL_DT + 1.0e-12
-    contacts = np.any(predicted_active.reshape(2, 4), axis=1).astype(np.uint8)
+    contacts = np.any(predicted_active.reshape(2, 2), axis=1).astype(np.uint8)
     return (
         np.asarray(data.qpos[root_qpos : root_qpos + 3], np.float64).copy(),
         quaternion,
@@ -275,7 +338,7 @@ def main() -> int:
     }
     widths = frozen_widths(json.loads(r246_metrics_path.read_text()))
     selector = bonesaw.ContactTransitionModelSession(
-        str(model_path), [FOOT_FRAMES[0]] * 4 + [FOOT_FRAMES[1]] * 4
+        str(model_path), [FOOT_FRAMES[0]] * 2 + [FOOT_FRAMES[1]] * 2
     )
     wbc = make_wbc_session(bonesaw, model_path)
     joint_names = list(wbc.joint_names)
@@ -293,7 +356,7 @@ def main() -> int:
         root_qvel = int(model.jnt_dofadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "root")])
         samples = args.samples_per_law
         selected_index = np.empty(samples, np.uint8)
-        predicted_active = np.empty((samples, 8), np.uint8)
+        predicted_active = np.empty((samples, 4), np.uint8)
         predicted_foot_active = np.empty((samples, 2), np.uint8)
         selected_torque = np.empty((samples, len(joint_names)), np.float64)
         wbc_status = np.empty((samples, CANDIDATE_COUNT), np.uint8)
@@ -529,9 +592,13 @@ def main() -> int:
         "fresh_laws": [law.__dict__ for law in FRESH_PLANT_LAWS],
         "sample_offsets": SAMPLE_OFFSETS,
         "samples": sum(row["samples"] for row in results),
-        "baseline": "zero generalized joint effort held for 5 ms",
-        "candidate": "R247-selected WBC joint effort held for 5 ms",
-        "contact_activation": "pre-step sphere surface gap <= closing speed * 5 ms, collapsed per foot",
+        "baseline": "zero generalized joint effort held for five 4 ms MuJoCo steps (20 ms)",
+        "candidate": "R247-selected WBC joint effort held for five 4 ms MuJoCo steps (20 ms)",
+        "contact_activation": "pre-step sphere surface gap <= closing speed * 20 ms, collapsed per foot",
+        "plant_fixture": "primitive two-foot-probe G1 MJCF generated from the pinned URDF",
+        "physics_dt_seconds": PHYSICS_DT,
+        "wbc_control_dt_seconds": CONTROL_DT,
+        "foot_probes_per_foot": 2,
         "physics_steps_per_branch": SUBSTEPS,
         "physics_steps": len(FRESH_PLANT_LAWS) * SAMPLES_PER_LAW * 2 * SUBSTEPS,
         "policy_steps": 0,
@@ -568,7 +635,7 @@ def main() -> int:
             "",
             f"> Mechanism **{'PASS' if mechanism_passed else 'FAIL'}** · strict plant non-regression **{'PASS' if plant_nonregression else 'FAIL'}** · authority **NOT ADMITTED**.",
             "",
-            "R247's fixed three-candidate laws are evaluated without retuning on two new pyramidal contact laws and disjoint offsets 250,000/260,000. Every pre-impact state is forked: baseline holds zero generalized joint effort for five MuJoCo substeps; candidate holds the torque selected before either branch advances. No policy is queried.",
+            "R247's fixed three-candidate laws are evaluated without retuning on two new pyramidal contact laws and disjoint offsets 250,000/260,000. Every pre-impact state is forked: baseline holds zero generalized joint effort and candidate holds the selected torque for five 4 ms MuJoCo steps (one 20 ms, 50 Hz WBC tick). The primitive G1 fixture has two measured collision probes per foot; no policy is queried.",
             "",
             *markdown_table(
                 [
