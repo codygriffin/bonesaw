@@ -34,25 +34,28 @@ R241 holdout crosses the prior cone/integrator pairing. RK4/id 4 again covers
 The pyramidal implicitfast/id-0 row covers 47/48 at 0.124 / 0.025 / 17.138;
 its lone failure predicts three unloaded foot points. Both meet deadline,
 repeat, allocation, and 62-array replay gates, but the combined profile is
-rejected. The live CPU complaint is now non-RK within-tick contact activation
-and within-foot wrench distribution—not RK stage timing or enum mapping. No
-R224 selection, plant non-regression, or authority follows this failed holdout.
+rejected.
 
-Two opt-in diagnostics are also rejected. R242's ABI 6 predicted-gap activation
-rule produces 19 extra unloaded contacts on the spent R241 replay and widens
-the implicitfast row to 22.719 rad/s joint width. R243's pyramid-edge cone
-coordinates (`N ± μT`) fail the causal convergence gate even at 256 sweeps.
-Historical ABI 0 and Cartesian pyramid ABI 1 remain unchanged; neither
-diagnostic is a production mapping.
+R245 corrects the cross-profile loophole and freezes work independently from
+causal prediction refinement: ABI 0 selects 64 sweeps and ABI 4 selects 32.
+The model evaluates spherical friction motion at the instantaneous surface
+material point (including `ω × r`), keeps centre-minus-radius gap geometry,
+and evaluates contact `aref` from the current collision-boundary gap. R246 is
+the untouched confirmation on two new pyramidal laws and offsets
+230,000/240,000. Both rows cover 48/48 with exact active sets: implicitfast
+fits 0.059 / 0.007 / 4.949 angular / linear / joint width at 0.861 ms p99;
+RK4 fits 0.065 / 0.010 / 2.239 at 3.415 ms. Both allocate zero timed Rust
+bytes, repeat bitwise, meet five milliseconds, and reproduce all 62 semantic
+arrays in an independent process. The physical-transition evaluator profile
+is promoted; no R224 selection, plant action, or authority follows yet.
 
-R244 is the fresh edge-coordinate holdout: implicitfast/id 0 covers 47/48 at
-0.220 / 0.048 / 16.030 width, while RK4/id 4 misses the 5 ms mechanism gate at
-5.549 ms and needs 0.128 / 0.007 / 6.279. The candidate remains rejected.
+ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
+contacts on the spent R241 replay and widens the implicitfast row to 22.719
+rad/s joint width. Historical ABI 0 and Cartesian pyramid ABI 1 remain
+unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive a label-independent non-RK within-tick activation/wrench construction
-  without fitting R241 labels, then pass a new strict mixed-integrator holdout;
 - demonstrate an R224-bounded state/trajectory-conditioned action with strict
   plant non-regression after, and only after, that transferable holdout passes;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond

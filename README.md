@@ -2516,16 +2516,27 @@ R242 isolates the opt-in ABI 6 predicted-gap activation rule. It admits a
 positive-gap contact only when the one-state-step prediction crosses the plane
 while the current normal velocity is closing. On the spent R241 replay it
 produces 19 extra unloaded contacts, 77.083% coverage, and 1.478/0.275/22.719
-fitted angular/linear/joint width, so it is rejected. R243 also keeps the
-historical Cartesian pyramid and tests an opt-in edge-coordinate cone (`N ± μT`);
-no sweep through 256 reaches the 2% convergence gate. Both remain diagnostic
-only. See the [r242 activation localization](benchmarks/results/g1-predicted-gap-activation-localization-r242/G1_PREDICTED_GAP_ACTIVATION_LOCALIZATION.md) and [r243 pyramid-edge audit](benchmarks/results/g1-pyramid-edge-convergence-audit-r243/G1_PYRAMID_EDGE_CONVERGENCE_AUDIT.md).
+fitted angular/linear/joint width, so it is rejected. R243 freezes the first
+edge-coordinate profile at 64 sweeps using causal refinement only. See the [r242 activation localization](benchmarks/results/g1-predicted-gap-activation-localization-r242/G1_PREDICTED_GAP_ACTIVATION_LOCALIZATION.md) and [r243 pyramid-edge audit](benchmarks/results/g1-pyramid-edge-convergence-audit-r243/G1_PYRAMID_EDGE_CONVERGENCE_AUDIT.md).
 
-R244 is the required untouched follow-up for the edge candidate. Both new
-pyramidal laws use cone ABI 2; the implicitfast row covers 47/48 with
-0.220/0.048/16.030 width, while the RK4 row misses the 5 ms mechanism deadline
-at 5.549 ms and needs 0.128/0.007/6.279. The candidate and authority remain
-rejected. See the [r244 pyramid-edge holdout](benchmarks/results/g1-pyramid-edge-cross-integrator-holdout-r244/G1_PYRAMID_EDGE_CROSS_INTEGRATOR_HOLDOUT.md).
+R244 is the historical untouched follow-up for that first edge candidate. Its
+implicitfast row covers 47/48 and its RK4 row exceeds five milliseconds, so it
+remains immutable failed evidence. See the [r244 pyramid-edge holdout](benchmarks/results/g1-pyramid-edge-cross-integrator-holdout-r244/G1_PYRAMID_EDGE_CROSS_INTEGRATOR_HOLDOUT.md).
+
+R245 corrects the cross-profile selection by forcing edge coordinates for both
+integrators and freezing work independently: ABI 0 selects 64 sweeps and ABI 4
+selects 32. No completed labels participate. The Rust model also separates
+sphere gap geometry from friction kinematics: centre-minus-radius owns the
+gap, while the instantaneous surface material point includes `ω × r`; contact
+`aref` uses the current collision-boundary gap.
+
+R246 is the untouched confirmation on two new pyramidal laws and offsets
+230,000/240,000. Both rows cover 48/48 with exact active sets. Implicitfast
+needs 0.059/0.007/4.949 angular/linear/joint width at 0.861 ms p99; RK4 needs
+0.065/0.010/2.239 at 3.415 ms. Both meet the five-millisecond,
+zero-allocation, bitwise-repeat, and strict component gates; an independent
+process reproduces all 62 semantic arrays. The evaluator profile is promoted,
+but plant action and authority remain disabled. See the [r245 per-integrator profile audit](benchmarks/results/g1-pyramid-edge-cross-profile-audit-r245/G1_PYRAMID_EDGE_CROSS_PROFILE_AUDIT.md) and [r246 fresh surface-material holdout](benchmarks/results/g1-surface-material-cross-integrator-holdout-r246/G1_SURFACE_MATERIAL_CROSS_INTEGRATOR_HOLDOUT.md).
 
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
@@ -2644,6 +2655,8 @@ Reproduce it with:
 ./scripts/run-g1-stiff-contact-activation-localization.sh
 ./scripts/run-g1-model-coupled-positive-reference-compliance-audit.sh
 ./scripts/run-g1-model-coupled-positive-reference-compliance-holdout.sh
+./scripts/run-g1-pyramid-edge-cross-profile-audit.sh
+./scripts/run-g1-surface-material-cross-integrator-holdout.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

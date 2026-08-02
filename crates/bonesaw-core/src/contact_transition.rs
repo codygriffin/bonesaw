@@ -1139,6 +1139,7 @@ pub struct ModelCoupledPositiveReferenceContactScratch {
     pyramid_edge_desired_delta: Vec<f64>,
     pyramid_edge_step_impulse: Vec<f64>,
     pyramid_edge_delassus: Vec<f64>,
+    pyramid_edge_response: Vec<f64>,
     contact_velocity: Vec<f64>,
     contact_free_acceleration: Vec<f64>,
     contact_acceleration_bias: Vec<f64>,
@@ -1190,6 +1191,7 @@ impl ModelCoupledPositiveReferenceContactScratch {
             pyramid_edge_desired_delta: vec![0.0; pyramid_edges],
             pyramid_edge_step_impulse: vec![0.0; pyramid_edges],
             pyramid_edge_delassus: vec![0.0; pyramid_edges * pyramid_edges],
+            pyramid_edge_response: vec![0.0; pyramid_edges],
             contact_velocity: vec![0.0; axes],
             contact_free_acceleration: vec![0.0; axes],
             contact_acceleration_bias: vec![0.0; axes],
@@ -2464,32 +2466,49 @@ fn update_pyramid_edge_coordinate(
     desired: &[f64],
     delassus: &[f64],
     edge_impulse: &mut [f64],
+    response: &mut [f64],
 ) {
     let edges = edge_impulse.len();
     let diagonal = delassus[edge * edges + edge];
-    let response = (0..edges)
-        .map(|column| delassus[edge * edges + column] * edge_impulse[column])
-        .sum::<f64>();
-    edge_impulse[edge] = (edge_impulse[edge] + (desired[edge] - response) / diagonal).max(0.0);
+    let contact_start = (edge / 4) * 4;
+    let previous = [
+        edge_impulse[contact_start],
+        edge_impulse[contact_start + 1],
+        edge_impulse[contact_start + 2],
+        edge_impulse[contact_start + 3],
+    ];
+    edge_impulse[edge] =
+        (edge_impulse[edge] + (desired[edge] - response[edge]) / diagonal).max(0.0);
     scale_pyramid_contact_to_bounds(edge / 4, friction, impulse_upper, edge_impulse);
+    for local in 0..4 {
+        let column = contact_start + local;
+        let delta = edge_impulse[column] - previous[local];
+        if delta == 0.0 {
+            continue;
+        }
+        // The validated operator is symmetric, so its stored row `column`
+        // is the contiguous column needed to update D*lambda incrementally.
+        for row in 0..edges {
+            response[row] += delassus[column * edges + row] * delta;
+        }
+    }
 }
 
 fn solve_model_pyramidal_edge_contact_stage(
     input: ModelCoupledPositiveReferenceCompliantContactImpulseInput<'_>,
     state_step_s: f64,
-    evaluate_current_stage_gap: bool,
+    _evaluate_current_stage_gap: bool,
     scratch: &mut ModelCoupledPositiveReferenceContactScratch,
 ) -> Result<(), ModelCoupledPositiveReferenceContactError> {
     let axes = scratch.contact_velocity.len();
     let contacts = scratch.live_contacts.len();
     let edges = contacts * 4;
-    if evaluate_current_stage_gap {
-        scratch
-            .step_gap_after
-            .copy_from_slice(&scratch.rk4_contact_gap);
-    } else {
-        scratch.step_gap_after.copy_from_slice(&scratch.contact_gap);
-    }
+    // Unlike the historical Cartesian reduced solver, edge ABI 2 is a
+    // current constraint-RHS evaluation: MuJoCo constructs aref from the gap
+    // at the collision-detection boundary. Do not advance that gap once more
+    // inside the force solve. Generalized state integration below determines
+    // the following boundary and refreshes collision membership there.
+    scratch.step_gap_after.copy_from_slice(&scratch.contact_gap);
     validate_coupled_positive_reference_compliant_contact(
         CoupledPositiveReferenceCompliantContactImpulseInput {
             contact_gap: &scratch.step_gap_after,
@@ -2532,15 +2551,12 @@ fn solve_model_pyramidal_edge_contact_stage(
         let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
         let tangent_y = tangent_x + 1;
         let normal = tangent_x + 2;
-        let predicted_gap = scratch.step_gap_after[contact]
-            + state_step_s * scratch.contact_velocity[normal]
-            + 0.5 * state_step_s * state_step_s * scratch.contact_free_acceleration[normal];
-        scratch.step_gap_after[contact] = predicted_gap;
-        if predicted_gap >= 0.0 || scratch.remaining_impulse_upper[normal] == 0.0 {
+        let current_gap = scratch.step_gap_after[contact];
+        if current_gap > 0.0 || scratch.remaining_impulse_upper[normal] == 0.0 {
             continue;
         }
         let impedance = positive_reference_impedance(
-            predicted_gap,
+            current_gap,
             input.impedance_min[contact],
             input.impedance_max[contact],
             input.impedance_width_m[contact],
@@ -2557,7 +2573,7 @@ fn solve_model_pyramidal_edge_contact_stage(
                 * input.damping_ratio[contact]
                 * input.damping_ratio[contact]);
         let reference_acceleration = -reference_damping * scratch.contact_velocity[normal]
-            - reference_stiffness * predicted_gap;
+            - reference_stiffness * current_gap;
         scratch.desired_velocity_delta[normal] = (impedance
             * (reference_acceleration - scratch.contact_free_acceleration[normal])
             * state_step_s)
@@ -2650,6 +2666,14 @@ fn solve_model_pyramidal_edge_contact_stage(
                     * scratch.delassus[tangent * axes + other_tangent];
         }
     }
+    for row in 0..edges {
+        scratch.pyramid_edge_response[row] = (0..edges)
+            .map(|column| {
+                scratch.pyramid_edge_delassus[row * edges + column]
+                    * scratch.pyramid_edge_step_impulse[column]
+            })
+            .sum();
+    }
     for _ in 0..input.projection_sweeps {
         for edge in 0..edges {
             update_pyramid_edge_coordinate(
@@ -2659,6 +2683,7 @@ fn solve_model_pyramidal_edge_contact_stage(
                 &scratch.pyramid_edge_desired_delta,
                 &scratch.pyramid_edge_delassus,
                 &mut scratch.pyramid_edge_step_impulse,
+                &mut scratch.pyramid_edge_response,
             );
         }
         for edge in (0..edges).rev() {
@@ -2669,6 +2694,7 @@ fn solve_model_pyramidal_edge_contact_stage(
                 &scratch.pyramid_edge_desired_delta,
                 &scratch.pyramid_edge_delassus,
                 &mut scratch.pyramid_edge_step_impulse,
+                &mut scratch.pyramid_edge_response,
             );
         }
     }
@@ -2844,6 +2870,7 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
         || scratch.pyramid_edge_desired_delta.len() != contacts * 4
         || scratch.pyramid_edge_step_impulse.len() != contacts * 4
         || scratch.pyramid_edge_delassus.len() != contacts * 4 * contacts * 4
+        || scratch.pyramid_edge_response.len() != contacts * 4
         || scratch.remaining_impulse_upper.len() != axes
         || scratch.outer_impulse.len() != axes
         || scratch.total_impulse.len() != axes

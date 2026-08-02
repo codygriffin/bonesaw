@@ -140,14 +140,27 @@ current normal velocity closes. On spent R241 labels it predicts 19 unloaded
 points, covers 77.083%, and fits 1.478/0.275/22.719 angular/linear/joint width;
 the historical ABI 0 boundary guard remains unchanged. R243 evaluates an
 edge-coordinate pyramid cone (`N ± μT`) against the causal R241 replay, while
-retaining Cartesian ABI 1. No projection sweep through 256 reaches the 2%
-refinement gate, so neither diagnostic can enter a fresh holdout or authority.
+retaining Cartesian ABI 1, and freezes its first causal profile at 64 sweeps.
 
-R244 is the untouched edge-coordinate follow-up at offsets 190,000/200,000.
-The implicitfast/id-0 row covers 47/48 with 0.220/0.048/16.030 width; the RK4
-row covers 48/48 but exceeds the 5 ms query deadline at 5.549 ms and needs
-0.128/0.007/6.279. The edge candidate therefore fails both mechanism and
-transfer gates, and no authority follows it.
+R244 is the historical untouched edge-coordinate follow-up at offsets
+190,000/200,000. Its implicitfast row covers 47/48 and its RK4 row exceeds the
+five-millisecond gate. It remains immutable failed evidence.
+
+R245 corrects the cross-profile loophole by forcing cone ABI 2 for both
+integrators and freezing them independently before opening completed labels:
+ABI 0 selects 64 sweeps and ABI 4 selects 32. Rust now evaluates spherical
+friction motion at the instantaneous surface material point (including
+`ω × r`), retains centre-minus-radius gap geometry, and computes reference
+acceleration from the current collision-boundary gap. Incremental `D·λ`
+updates remain caller-owned and allocation-free.
+
+R246 generates two new pyramidal laws at disjoint offsets 230,000/240,000 only
+after that freeze. Both implicitfast/id-0 and RK4/id-4 rows cover 48/48 with
+exact active sets. Widths are 0.059/0.007/4.949 and 0.065/0.010/2.239
+angular/linear/joint; p99 is 0.861/3.415 ms. Both repeat bitwise, allocate zero
+timed Rust bytes, meet five milliseconds, and reproduce all 62 semantic arrays
+in an independent process. The evaluator profile is promoted. R224-bounded
+plant action, non-regression, and authority remain closed.
 
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 
