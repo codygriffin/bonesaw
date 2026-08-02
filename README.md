@@ -83,7 +83,7 @@ This is an engineering prototype, not a safety-rated robot controller.
   retried once as normal-only, then latched out per target; a bounded
   free-body damping/gravity fallback keeps the state advancing without
   granting contact or plant authority. The r263 600-tick regression removes a
-  171-tick exact state stall at 3.974 ms p99, while functional walking remains
+  171-tick exact state stall; the latest replay is 4.757 ms p99, while functional walking remains
   explicitly unadmitted. See the
   [r263 contact-release report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 - A policy-free, simulator-free G1 admission pipeline: standalone authored

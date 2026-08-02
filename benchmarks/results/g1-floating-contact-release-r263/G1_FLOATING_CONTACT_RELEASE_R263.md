@@ -25,7 +25,7 @@ contact. Functional walking admission remains **closed**.
 | profile | first contingency | longest exact state stall | post-contingency motion | p50 µs | p99 µs | max µs | >5 ms | >20 ms | release ticks |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | r262 cap8 | 300 | 171 | True | 1665.9 | 4027.8 | 16698.0 | 2 | 0 | 0 |
-| r263 release cap8 | 300 | 0 | True | 1758.2 | 3974.2 | 5172.9 | 1 | 0 | 1 |
+| r263 release cap8 | 300 | 0 | True | 1731.2 | 4757.2 | 5631.7 | 4 | 0 | 1 |
 
 Candidate status counts: `{"0": 199, "1": 101, "4": 299, "5": 1}`.
 

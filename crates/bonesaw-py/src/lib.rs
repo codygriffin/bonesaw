@@ -15614,6 +15614,17 @@ impl FloatingWbcSession {
             let reference_tick = reference_phase.floor() as usize;
             let reference_next_tick = (reference_tick + 1).min(ticks.saturating_sub(1));
             let reference_fraction = reference_phase - reference_tick as f64;
+            // A complete authored support-free interval is the explicit
+            // recovery edge for the session-level free-body fallback.  This
+            // keeps a failed transfer fail-closed while still allowing a
+            // later touchdown to reacquire after the schedule has genuinely
+            // released every target (or after reset).
+            if !(0..target_count).any(|target| {
+                contact_active[[reference_tick, target]] != 0
+                    && target_active[[reference_tick, target]] != 0
+            }) {
+                self.no_contact_safe_mode = false;
+            }
             let phase_rate = if self.reference_phase_retiming_enabled {
                 self.reference_phase_rate
             } else {

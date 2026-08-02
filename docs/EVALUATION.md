@@ -1000,8 +1000,8 @@ latches released targets out of hard rows until a schedule/reset edge permits
 reacquisition. If no contact solve remains executable, Rust advances with a
 bounded free-body damping/gravity fallback rather than repeatedly spending the
 feasibility budget or freezing the state. The 600-tick comparison has zero
-exact state stalls, one release contingency, zero 20 ms misses, and 3.974 ms
-p99. This closes the reset/freeze failure mode and preserves typed degraded
+exact state stalls, one release contingency, zero 20 ms misses, and 4.757 ms
+p99 in the latest replay. This closes the reset/freeze failure mode and preserves typed degraded
 state evidence; it does not admit functional walking, physical CoM/contact
 tracking, or plant authority. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 

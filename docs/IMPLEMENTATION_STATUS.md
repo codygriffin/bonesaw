@@ -36,7 +36,7 @@ acceleration envelope) and keeps contingency status visible; it never turns an
 unfinished contact solve into authority. The latch clears only on reset or a
 schedule edge that actually releases the target. A 600-tick r262→r263
 comparison removes the 171-tick exact state stall, records one release
-contingency, zero 20 ms misses, and 3.974 ms p99. This closes the interactive
+contingency, zero 20 ms misses, and 4.757 ms p99 in the latest replay. This closes the interactive
 freeze/reset failure mode, not the functional floating-walk, MuJoCo tracking,
 thermal, or authority gates. See the [r263 recovery report](../benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 

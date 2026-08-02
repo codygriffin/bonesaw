@@ -54,8 +54,8 @@ R263 closes the separate interactive freeze/reset complaint. On the retained
 other unsolved contact result as non-executable, retries once with normal-only
 rows, latches released targets out of hard rows until reset/schedule release,
 and advances under a bounded free-body damping/gravity fallback when no
-contact solve remains. The r263 trace has zero exact state stalls, one release
-contingency, zero 20 ms misses, and 3.974 ms p99. The fallback is not a walking
+contact solve remains. The latest r263 replay has zero exact state stalls, one
+release contingency, zero 20 ms misses, and 4.757 ms p99. The fallback is not a walking
 or plant-authority claim: contact, tracking, residual, MuJoCo feedback, and
 thermal gates remain open. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
