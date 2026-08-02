@@ -309,10 +309,19 @@ R247 adds an allocation-free PyO3 boundary that scores and conservatively
 selects exactly three R224 componentwise velocity-box candidates. All rows are
 preflighted before diagnostics or selection outputs are written; the timed
 repeat reports zero Rust allocation, and the Python contract covers both the
-improving candidate and a late invalid-row atomic rejection. The selector is
-explicitly evaluation-only and emits no torque, plant command, lease, or
-authority. The remaining gate is a trajectory-conditioned G1 action with a
-fresh MuJoCo baseline/candidate non-regression matrix.
+improving candidate and a late invalid-row atomic rejection.
+
+The policy-free, simulator-free action audit runs three fixed desired-
+acceleration laws through exact G1 floating WBC on all 96 spent R246 states.
+All 288 primary solves admit, the WBC and selector stay below five milliseconds
+p99 and allocate zero Rust bytes, the selector chooses 85 zero-acceleration / 8
+velocity-damping / 3 neutral-recovery candidates with zero component
+regression, and 34/34 non-timing arrays reproduce bitwise in a fresh session.
+Per-sample access is limited to root height and model-predicted contact
+activation. The uncertainty width was already fit on spent R246 labels, so
+this freezes the candidate family for a fresh plant A/B; it is not holdout or
+authority evidence. No selected acceleration or torque is applied. The next
+gate is a new MuJoCo baseline/candidate non-regression matrix without retuning.
 
 ## Prior CPU checkpoint — r222 terminal consequence exposes point-score optimism
 

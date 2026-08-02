@@ -50,8 +50,14 @@ arrays in an independent process. The physical-transition evaluator profile
 is promoted; no R224 selection, plant action, or authority follows yet.
 
 R247 now exposes a Rust-owned, allocation-free selector over three R224
-velocity-box candidates with atomic diagnostics, but it remains an evaluation
-candidate boundary and does not emit torque, a plant command, or authority.
+velocity-box candidates with atomic diagnostics. A simulator-free audit runs
+zero-desired-acceleration WBC, velocity damping, and neutral recovery on all
+96 spent R246 states. All 288 primary WBC queries admit, hot paths allocate
+zero Rust bytes, 34/34 non-timing arrays repeat bitwise, and the conservative
+chooser selects 85 / 8 / 3 candidates with zero component regression. The
+uncertainty width was fit on spent R246 labels, so this freezes a candidate
+family for new plant evidence rather than serving as a holdout. It emits no
+torque, plant command, or authority.
 
 ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
 contacts on the spent R241 replay and widens the implicitfast row to 22.719
@@ -60,8 +66,8 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- demonstrate an R224-bounded state/trajectory-conditioned action with strict
-  plant non-regression after, and only after, that transferable holdout passes;
+- run the frozen R247 state-conditioned WBC family on fresh MuJoCo trajectories
+  and require strict baseline/candidate plant non-regression without retuning;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

@@ -2330,10 +2330,17 @@ R247 adds a Rust-owned `ContactTransitionModelSession` selector over exactly
 three R224 velocity-box candidates. It validates every row before mutating
 diagnostics, repeats the conservative componentwise chooser in the timed
 region, and the Python contract test observes zero timed Rust allocation,
-deterministic selection, and late-row atomic rejection. This is still an
-evaluation candidate boundary: it emits no actuator torque, plant command,
-lease, or authority. The missing gate is a trajectory-conditioned G1 action
-with a fresh MuJoCo baseline/candidate non-regression matrix.
+deterministic selection, and late-row atomic rejection. The state-local R247
+audit then evaluates zero-desired-acceleration WBC, velocity damping, and
+neutral recovery on all 96 spent R246 states without policy or physics. All
+288 primary WBC queries admit below the five-millisecond p99 gate, the selector
+chooses 85 / 8 / 3 candidates with zero component regression, and an
+independent rerun reproduces 34/34 non-timing arrays bitwise. Only root height
+and model-predicted contact activation are opened per sample; the residual
+width was fit on spent R246 labels, so this is a design freeze rather than a
+holdout. It emits no actuator torque, plant command, lease, or authority. The
+missing gate is a fresh MuJoCo baseline/candidate non-regression matrix with no
+candidate retuning. See the [r247 terminal-box WBC action audit](benchmarks/results/g1-terminal-box-wbc-action-audit-r247/G1_TERMINAL_BOX_WBC_ACTION_AUDIT.md).
 
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type

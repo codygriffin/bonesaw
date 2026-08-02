@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw terminal-box WBC audit · r247</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw terminal-box WBC action audit · r247</h1>
+<blockquote>State-local mechanism **PASS** · plant non-regression **NOT RUN** · authority **NOT ADMITTED**.</blockquote>
+<p>This design audit evaluates three fixed acceleration laws on all 96 spent R246 pre-impact states. The exact Rust floating WBC admits each law independently, then the R224 componentwise terminal box and R247 Rust selector choose only candidates with zero component regression. No policy is queried, no physics is stepped, and no selected acceleration or torque is applied.</p>
+<div class=table-wrap><table><thead><tr><th>law</th><th>selected · zero / damp / recover</th><th>strictly improved</th><th>max regression</th><th>improvement · p50 / p99</th><th>WBC p99 ms</th><th>selector p99 µs</th><th>WBC</th></tr></thead><tbody><tr><td>medium_pyramidal_implicitfast_surface_r246</td><td>48 / 0 / 0</td><td>0</td><td>0</td><td>0.000 / 0.000</td><td>3.218</td><td>9.759</td><td>PASS</td></tr><tr><td>rigid_pyramidal_rk4_surface_r246</td><td>37 / 8 / 3</td><td>11</td><td>0</td><td>0.000 / 1.332</td><td>3.211</td><td>3.121</td><td>PASS</td></tr></tbody></table></div>
+<p>Combined selection is **85 / 8 / 3** over 96 states. The independent full rerun reproduces 34/34 non-timing arrays bitwise; WBC and selector hot paths report zero Rust allocation.</p>
+<p>Causality boundary: the evaluator opens only R246 root height and model-predicted contact activation per sample. Its uncertainty widths were already fit on the spent R246 completed labels, so this is deliberately not fresh evidence. The frozen candidate laws must next face a new MuJoCo baseline/candidate plant matrix before command admission can be reconsidered.</p></main></body></html>
