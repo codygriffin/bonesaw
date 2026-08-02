@@ -6,7 +6,8 @@ command.  This audit keeps the failed plant evidence immutable and exercises
 only the existing Rust first-order bandwidth/slew realization boundary on its
 spent selected-effort rows.  It performs no policy query and no rigid-body
 physics step.  The profile family is declared before reading the outcomes; the
-next fresh plant gate must still test the frozen choice without retuning.
+the stricter R250 spent-state plant audit decides whether the diagnostic
+reference can become a fresh action candidate.
 """
 
 from __future__ import annotations
@@ -221,10 +222,10 @@ def main() -> int:
             for row in profile_metrics
         )
     )
-    # This is a construction freeze, not an authority decision.  The
-    # conservative finite candidate is retained for the next fresh plant
-    # matrix; the ideal row remains an explicit reference, never a command.
-    selected_profile = "bandwidth_25hz_slew_1000_nm_s"
+    # This is a construction diagnostic, not a plant-profile selection.  The
+    # stricter R250 spent-state action freeze decides whether any finite row is
+    # useful; until that passes, retain only a named reference row.
+    diagnostic_reference_profile = "bandwidth_25hz_slew_1000_nm_s"
     metrics = {
         "revision": REVISION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -240,7 +241,9 @@ def main() -> int:
         "plant_actions": 0,
         "profile_names": PROFILE_NAMES,
         "profile_parameters": [serial_parameters(row) for row in PROFILE_PARAMETERS],
-        "selected_profile_for_fresh_plant": selected_profile,
+        "selected_profile_for_fresh_plant": None,
+        "diagnostic_reference_profile": diagnostic_reference_profile,
+        "fresh_plant_profile_selected": False,
         "profile_selection_is_authority": False,
         "mechanism_passed": mechanism_passed,
         "authority_admitted": False,
@@ -270,7 +273,7 @@ def main() -> int:
                 rows,
             ),
             "",
-            f"The selected construction profile for the next fresh plant matrix is **{selected_profile}**. This is a declared sensitivity profile, not G1 actuator calibration and not authority; the next gate must apply it without retuning on new plant laws and offsets.",
+            f"The diagnostic reference row is **{diagnostic_reference_profile}**. R250's stricter spent-state action-freeze audit found no useful safe profile, so no finite row is selected for a fresh plant. These are declared sensitivity profiles, not G1 actuator calibration or authority.",
         ]
     ) + "\n"
     output = pathlib.Path(args.output)
@@ -298,7 +301,7 @@ def main() -> int:
         json.dumps(
             {
                 "mechanism_passed": mechanism_passed,
-                "selected_profile_for_fresh_plant": selected_profile,
+                "selected_profile_for_fresh_plant": None,
                 "plant_actions": 0,
                 "authority_admitted": False,
             },

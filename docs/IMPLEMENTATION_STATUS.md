@@ -338,6 +338,19 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
+## Current CPU checkpoint — r250 rejects the spent actuator action family
+
+R249 replays the 96 selected R248 effort rows through Rust's persistent
+first-order bandwidth/slew session at 20 ms / 50 Hz. Four declared profiles
+include ideal, 50 Hz no-slew, 25 Hz / 1,000 N·m/s, and 12 Hz / 500 N·m/s. Each
+row atomically resets realized effort; all four repeat bitwise, report zero
+timed Rust allocation, and remain below the 5 ms query gate. The 25 Hz row
+exercises three slew-limited coordinates. R250's stricter spent-state action freeze
+then re-solves fixed realized effort and rolls out all profiles/families in
+MuJoCo: no profile has zero component regression plus a useful nonzero action.
+R250 therefore selects no fresh action and keeps authority closed; a
+state-conditioned residual/action family is required before another holdout.
+
 ## Prior CPU checkpoint — r222 terminal consequence exposes point-score optimism
 
 R222 adds a generic arbitrary-joint-count PyO3 batch over Rust's existing

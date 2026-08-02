@@ -33,7 +33,13 @@ class G1ActuatorRealizationProfileEvidenceTests(unittest.TestCase):
         self.assertEqual(metrics["policy_steps"], 0)
         self.assertEqual(metrics["plant_actions"], 0)
         self.assertTrue(metrics["mechanism_passed"])
+        self.assertIsNone(metrics["selected_profile_for_fresh_plant"])
+        self.assertFalse(metrics["fresh_plant_profile_selected"])
         self.assertFalse(metrics["authority_admitted"])
+        self.assertEqual(
+            metrics["diagnostic_reference_profile"],
+            "bandwidth_25hz_slew_1000_nm_s",
+        )
         self.assertEqual(len(metrics["profiles"]), 4)
         self.assertTrue(all(row["repeat_passed"] for row in metrics["profiles"]))
         self.assertTrue(all(row["zero_rust_allocation"] for row in metrics["profiles"]))

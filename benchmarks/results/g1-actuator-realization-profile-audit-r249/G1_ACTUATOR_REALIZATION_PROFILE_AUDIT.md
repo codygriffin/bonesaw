@@ -6,9 +6,9 @@ R249 replays 96 selected R248 efforts through Rust's first-order bandwidth and s
 
 | profile | response norm · p50 / p99 | max |error| Nm | slew-limited coordinates | p99 µs | decision |
 |---|---|---|---|---|---|
-| ideal_no_bandwidth_no_slew | 1.000 / 1.000 | 0.000 | 0 | 2.20 | PASS |
-| bandwidth_50hz_no_slew | 0.998 / 0.998 | 0.041 | 0 | 0.42 | PASS |
-| bandwidth_25hz_slew_1000_nm_s | 0.957 / 0.957 | 1.814 | 3 | 3.48 | PASS |
-| bandwidth_12hz_slew_500_nm_s | 0.779 / 0.779 | 11.814 | 60 | 2.26 | PASS |
+| ideal_no_bandwidth_no_slew | 1.000 / 1.000 | 0.000 | 0 | 2.03 | PASS |
+| bandwidth_50hz_no_slew | 0.998 / 0.998 | 0.041 | 0 | 0.48 | PASS |
+| bandwidth_25hz_slew_1000_nm_s | 0.957 / 0.957 | 1.814 | 3 | 2.21 | PASS |
+| bandwidth_12hz_slew_500_nm_s | 0.779 / 0.779 | 11.814 | 60 | 2.32 | PASS |
 
-The selected construction profile for the next fresh plant matrix is **bandwidth_25hz_slew_1000_nm_s**. This is a declared sensitivity profile, not G1 actuator calibration and not authority; the next gate must apply it without retuning on new plant laws and offsets.
+The diagnostic reference row is **bandwidth_25hz_slew_1000_nm_s**. R250's stricter spent-state action-freeze audit found no useful safe profile, so no finite row is selected for a fresh plant. These are declared sensitivity profiles, not G1 actuator calibration or authority.

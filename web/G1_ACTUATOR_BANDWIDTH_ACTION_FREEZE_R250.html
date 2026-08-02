@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw actuator-bandwidth freeze · r250</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw actuator-bandwidth action freeze · r250</h1>
+<blockquote>Mechanism **PASS** · useful safe profile **NOT FOUND** · authority **NOT ADMITTED**.</blockquote>
+<p>The rejected R248 states are deliberately spent design evidence. Candidate zero is now exact fixed-zero-effort WBC realization. Two nonzero candidates pass the frozen WBC effort through Rust&#x27;s persistent bandwidth/slew model at each plant substep, then exact fixed-effort WBC predicts the average realized acceleration. All three candidates are rolled out on the spent states to fit one global componentwise plant-residual tube per candidate. The state-local Rust selector sees only those frozen tubes; a minimum-improvement guard may only fall back to zero and cannot switch to an outcome-fitted action.</p>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>family</th><th>raw selected · zero / zero-WBC / third</th><th>safe threshold</th><th>nonzero / actually improved</th><th>decision</th></tr></thead><tbody><tr><td>bandwidth_25hz_slew_1000_nm_s</td><td>zero_wbc_and_velocity_damping</td><td>96 / 0 / 0</td><td>NONE</td><td>0 / 0</td><td>REJECT</td></tr><tr><td>bandwidth_25hz_slew_1000_nm_s</td><td>zero_wbc_and_neutral_recovery</td><td>96 / 0 / 0</td><td>NONE</td><td>0 / 0</td><td>REJECT</td></tr></tbody></table></div>
+<p>A profile passes only with zero component regressions on all 96 spent plant states, at least one nonzero action, at least one actual aggregate-score improvement, zero MuJoCo warnings, admitted raw and fixed-effort WBC, and zero Rust allocation in WBC and realization hot paths. Any frozen profile must next face new laws and offsets without retuning; this report cannot admit authority.</p></main></body></html>

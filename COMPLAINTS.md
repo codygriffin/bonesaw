@@ -70,12 +70,12 @@ against zero joint effort. Each branch uses five 4 ms physics steps per 20 ms
 that effort magnitude alone is insufficient: bandwidth/slew realization must
 enter the action boundary before another fresh holdout.
 
-R249 now freezes a declared 20 ms Rust first-order realization sensitivity
-family on those spent efforts. The 25 Hz / 1,000 N·m/s profile is the next
-plant candidate: its replay is bitwise exact, zero-allocation, sub-5 ms, and
-actually exercises three slew-limited coordinates; it still has no physics,
-policy, promotion, or authority evidence. The remaining gate is a fresh
-250/50 MuJoCo A/B with that profile and untouched laws/offsets.
+R249 now exposes a declared 20 ms Rust first-order realization sensitivity
+family on those spent efforts. The boundary is bitwise exact, zero-allocation,
+and sub-5 ms; its 25 Hz / 1,000 N·m/s row exercises three slew-limited
+coordinates. R250's stricter spent-state action-freeze audit then runs realized
+effort through fixed-effort WBC and MuJoCo and finds no useful safe profile:
+there is no fresh action candidate or authority to promote.
 
 ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
 contacts on the spent R241 replay and widens the implicitfast row to 22.719
@@ -84,9 +84,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- run the frozen R249 25 Hz / 1,000 N·m/s realization through a fresh 250/50
-  MuJoCo baseline/candidate matrix and require strict no-retuning
-  non-regression on new plant laws and offsets;
+- design a state-conditioned action/residual family that survives the spent R250 bandwidth/plant
+  evidence, then require strict no-retuning non-regression on new 250/50 laws
+  and offsets;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

@@ -2359,10 +2359,11 @@ R249 adds the Rust-owned first-order actuator realization boundary to the
 failed R248 effort rows at the requested 20 ms / 50 Hz cadence. Four declared
 sensitivity profiles replay 96 reset-every-sample efforts with no policy or
 physics: all repeat bitwise, allocate zero Rust bytes, and stay below 5 ms
-p99. The retained next-plant profile is 25 Hz effort bandwidth with a 1,000
-N·m/s slew; it exercises three slew-limited coordinates while remaining a
-declared sensitivity, not G1 calibration, promotion, or authority. See the
-[r249 realization audit](benchmarks/results/g1-actuator-realization-profile-audit-r249/G1_ACTUATOR_REALIZATION_PROFILE_AUDIT.md).
+p99; the 25 Hz / 1,000 N·m/s row exercises three slew-limited coordinates. A
+stricter R250 spent-state action freeze passes realized effort through fixed-effort
+WBC and MuJoCo, but finds no useful safe profile, so no fresh action or
+authority follows. See the [r249 realization audit](benchmarks/results/g1-actuator-realization-profile-audit-r249/G1_ACTUATOR_REALIZATION_PROFILE_AUDIT.md)
+and [r250 action rejection](benchmarks/results/g1-actuator-bandwidth-action-freeze-r250/G1_ACTUATOR_BANDWIDTH_ACTION_FREEZE.md).
 
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
