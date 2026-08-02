@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw floating projection budget · r262</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw floating feasibility projection budget · r262</h1>
+<blockquote>This report compares already-generated floating-WBC traces. It runs zero policy steps, physics steps, and plant actions; authority is not admitted.</blockquote>
+<h2>Result</h2>
+<p>The unbounded profile misses the 50 Hz (20 ms) deadline on 281/600 ticks, with p99 276773.8 µs and a 7296-sweep contingency. A finite 8-sweep ceiling bounds p99 to 4027.8 µs and max to 16698.0 µs, with zero 20 ms misses and no failed/infeasible or contact-release tick.</p>
+<p>The cap is therefore a useful real-time fail-closed policy, not a functional walking admission: every bounded trace still exercises normal-contact contingency and retains red tracking/residual gates. The default remains unbounded until a multi-law floating transfer profile proves that bounded recovery preserves behavior.</p>
+<h2>Sweep</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>projection cap</th><th>p50 µs</th><th>p99 µs</th><th>max µs</th><th>20 ms misses</th><th>5 ms p99</th><th>contingency ticks</th><th>dynamics residual</th><th>foot RMS m</th><th>functional</th></tr></thead><tbody><tr><td>unbounded</td><td>unbounded</td><td>4883.8</td><td>276773.8</td><td>376164.7</td><td>281</td><td>FAIL</td><td>249</td><td>304</td><td>0.282</td><td>FAIL</td></tr><tr><td>cap8</td><td>8</td><td>1665.9</td><td>4027.8</td><td>16698.0</td><td>0</td><td>PASS</td><td>299</td><td>433</td><td>0.154</td><td>FAIL</td></tr><tr><td>cap16</td><td>16</td><td>1621.4</td><td>3924.6</td><td>16605.0</td><td>0</td><td>PASS</td><td>299</td><td>433</td><td>0.154</td><td>FAIL</td></tr><tr><td>cap32</td><td>32</td><td>1652.0</td><td>4273.8</td><td>16441.0</td><td>0</td><td>PASS</td><td>299</td><td>433</td><td>0.154</td><td>FAIL</td></tr><tr><td>cap64</td><td>64</td><td>2003.2</td><td>3961.3</td><td>16481.4</td><td>0</td><td>PASS</td><td>299</td><td>433</td><td>0.154</td><td>FAIL</td></tr></tbody></table></div>
+<h2>Interpretation</h2>
+<ul><li>A finite projection cap makes the 50 Hz timing contract explicit and keeps the existing contingency path state-retaining; it does not turn an unfinished hard-feasibility solve into an executable nominal command.</li><li>The identical bounded behavior across 8–64 sweeps indicates that this stress trace reaches the same normal-contact fallback before the cap matters to tracking. The lower cap is recommended only for the measured timing envelope, not as a universal controller constant.</li><li>The next functional gate is a fresh floating transfer holdout with contact-law/geometry improvements and a typed degraded-state metric; no policy or GPU batching is implied by this report.</li></ul></main></body></html>

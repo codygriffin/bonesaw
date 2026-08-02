@@ -922,6 +922,21 @@ Artifacts live in
 Future variants add model-aware support viability, morphology sweeps,
 missing-hand channels, and a second independently licensed clip.
 
+### Revision r262 floating feasibility budget profile
+
+`scripts/run-g1-floating-projection-budget-profile-r262.sh` compares the
+unbounded floating support-transfer stress trace with explicit 8/16/32/64
+Dykstra projection ceilings. This is an artifact-backed WBC timing evaluation:
+it performs no policy step, physics step, or plant action. The unbounded trace
+misses the 20 ms 50 Hz budget on 281/600 ticks at 276.8 ms p99. Every finite
+profile has zero 20 ms misses, no failed/infeasible or contact-release tick,
+and p99 below 5 ms; the measured 8-sweep option is the smallest passing timing
+cap. The behavior remains functionally red: all bounded traces exercise
+normal-contact contingency and retain the transfer tracking/residual gates.
+The finite ceiling is therefore a fail-closed profile option, not a silent
+default change or an authority admission. See the
+[r262 floating projection-budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
 ### Revision r260 behavior manifest
 
 `scripts/run-wbc-benchmark-manifest-r260.sh` composes the pinned fixed-base,

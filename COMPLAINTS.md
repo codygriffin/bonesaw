@@ -32,6 +32,18 @@ decisions. The next WBC slice is a causal support-transition/contact-mode
 improvement with the same 250 Hz MuJoCo / 50 Hz measured-feedback contract.
 See the [r260 WBC benchmark manifest](benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md).
 
+R262 now makes the timeout behavior explicit. The existing PyO3 floating WBC
+session accepts a finite total Dykstra projection ceiling; the Python sweep
+retains the unbounded baseline and 8/16/32/64-sweep traces. Unbounded work
+misses the 20 ms 50 Hz deadline on 281/600 ticks at 276.8 ms p99. Every finite
+profile has zero 20 ms misses, no failed/infeasible or contact-release tick,
+and p99 below 5 ms; 8 sweeps is the measured minimum. This fixes the
+"solver runs until the web view appears to stop" timing failure, but not the
+floating contact-transfer behavior: normal-contact contingency remains active
+and tracking/residual acceptance stays red. The ceiling is fail-closed and
+does not make an unfinished solve executable, reset the state, or grant
+authority. See the [r262 budget report](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
 ## Open CPU authority gate: useful physical transition tube
 
 The RK4 stage-force and implicitfast-integrator conflation complaints are now

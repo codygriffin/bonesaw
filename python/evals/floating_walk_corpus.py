@@ -71,6 +71,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--maximum-acceleration", type=float, default=200.0)
     parser.add_argument("--maximum-torque", type=float, default=2_000.0)
     parser.add_argument("--maximum-normal-force-multiple", type=float, default=3.0)
+    parser.add_argument(
+        "--maximum-feasibility-iterations",
+        type=int,
+        default=64,
+        help="bounded active-set polish iterations per WBC query",
+    )
+    parser.add_argument(
+        "--maximum-feasibility-projection-sweeps",
+        type=int,
+        default=None,
+        help="optional total Dykstra sweeps per WBC query; finite values fail closed when exhausted",
+    )
+    parser.add_argument(
+        "--feasibility-projection-continuation-violation-threshold",
+        type=float,
+        default=None,
+        help="optional normalized violation threshold for continuing a bounded Dykstra prefix",
+    )
     parser.add_argument("--joint-limit-braking", action="store_true")
     parser.add_argument("--root-frequency-hz", type=float, default=2.0)
     parser.add_argument("--root-angular-task-weight", type=float, default=1.0)
@@ -2870,6 +2888,13 @@ def main() -> None:
         maximum_acceleration=args.maximum_acceleration,
         maximum_torque=args.maximum_torque,
         maximum_normal_force_multiple=args.maximum_normal_force_multiple,
+        maximum_feasibility_iterations=args.maximum_feasibility_iterations,
+        maximum_feasibility_projection_sweeps=(
+            args.maximum_feasibility_projection_sweeps
+        ),
+        feasibility_projection_continuation_violation_threshold=(
+            args.feasibility_projection_continuation_violation_threshold
+        ),
         joint_limit_braking=args.joint_limit_braking,
         root_frequency_hz=args.root_frequency_hz,
         root_angular_task_weight=args.root_angular_task_weight,
@@ -3361,6 +3386,13 @@ def main() -> None:
         "maximum_touchdown_normal_speed_mps": (
             session.maximum_touchdown_normal_speed_mps
         ),
+        "maximum_feasibility_iterations": args.maximum_feasibility_iterations,
+        "maximum_feasibility_projection_sweeps": (
+            args.maximum_feasibility_projection_sweeps
+        ),
+        "feasibility_projection_continuation_violation_threshold": (
+            args.feasibility_projection_continuation_violation_threshold
+        ),
         "joint_limit_braking": args.joint_limit_braking,
         "touchdown_blend_ticks": args.touchdown_blend_ticks,
         "touchdown_blend_seconds": args.touchdown_blend_ticks * DT,
@@ -3379,6 +3411,13 @@ def main() -> None:
         "maximum_acceleration": args.maximum_acceleration,
         "maximum_torque": args.maximum_torque,
         "maximum_normal_force_multiple": args.maximum_normal_force_multiple,
+        "maximum_feasibility_iterations": args.maximum_feasibility_iterations,
+        "maximum_feasibility_projection_sweeps": (
+            args.maximum_feasibility_projection_sweeps
+        ),
+        "feasibility_projection_continuation_violation_threshold": (
+            args.feasibility_projection_continuation_violation_threshold
+        ),
         "center_of_mass_task_weight": args.center_of_mass_task_weight,
         "motion": report_metadata,
         "metrics": metrics,

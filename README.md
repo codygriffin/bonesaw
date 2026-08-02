@@ -2448,6 +2448,18 @@ aggregate regression. The source-local candidate is therefore not frozen for a
 new holdout and admits no authority. See the [r261 correlated complete-state
 exemplar profile](benchmarks/results/g1-correlated-state-exemplar-profile-r261/G1_CORRELATED_STATE_EXEMPLAR_PROFILE.md).
 
+R262 bounds the other obvious floating-transfer failure mode: unbounded hard
+feasibility projection work. The artifact-only Python sweep compares the
+unbounded 600-tick trace with 8/16/32/64-sweep `FloatingWbcSession` ceilings.
+Unbounded work misses the 20 ms 50 Hz budget on 281/600 ticks at 276.8 ms p99;
+the smallest finite cap has zero 20 ms misses, p99 4.03 ms, max 16.70 ms, and
+no failed/infeasible or contact-release tick. This is a typed fail-closed
+timing profile, not a claim that the
+floating transfer works: bounded traces still exercise 299 normal-contact
+contingency ticks and fail tracking/residual gates. The default remains
+unchanged and authority remains closed. See the [r262 floating projection
+budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
 R260 consolidates the behavior-level WBC evidence into one pinned Python
 manifest. It keeps end-effector reach, bimanual priority conflict, CMU 37/01
 walking retargeting, measured-feedback floating moving liftoff, the 600-tick

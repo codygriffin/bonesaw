@@ -338,7 +338,22 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r261 finds a useful source profile but rejects transfer
+## Current CPU checkpoint — r262 bounds floating feasibility work without functional admission
+
+R262 adds an explicit finite `FloatingWbcSession` feasibility policy and a
+reproducible Python sweep over 8/16/32/64 total Dykstra projection sweeps. The
+unbounded 600-tick floating support-transfer trace misses the 20 ms 50 Hz
+budget on 281 ticks at 276.8 ms p99. Every finite profile has zero 20 ms
+misses, p99 below 5 ms, no failed/infeasible tick, and no contact-release
+reset; 8 sweeps is the smallest measured timing cap. This is fail-closed
+budgeting: the unfinished hard solve never becomes an executable command and
+the existing normal-contact contingency keeps state flow alive. All bounded
+traces remain functionally red (299 contingency ticks, large tracking and
+residual gates), so the default, transfer behavior, profile admission, and
+authority remain unchanged. See
+[`G1_FLOATING_PROJECTION_BUDGET_PROFILE.md`](../benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
+## Prior CPU checkpoint — r261 finds a useful source profile but rejects transfer
 
 R261 replaces independent terminal-state coordinate boxes with 3–12 complete
 residual exemplars per causal state group. A new Rust/PyO3 boundary keeps each
