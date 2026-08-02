@@ -58,7 +58,7 @@ This window ends immediately before the first normal-only, contact-release, infe
 
 | ticks | duration | root RMS | stance foot RMS | swing foot RMS | hand RMS | max root rotation | max joint speed | p99 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 875 | 4.375 s | 2.099 cm | 0.355 cm | 0.110 cm | 34.930 cm | 1.218° | 8.000 rad/s | 5146.0 µs |
+| 875 | 4.375 s | 2.099 cm | 0.355 cm | 0.110 cm | 34.930 cm | 1.218° | 8.000 rad/s | 5357.4 µs |
 
 Nominal hard residual maxima: dynamics `1.685e-09`, contact acceleration `5.972e-11`.
 
@@ -112,7 +112,7 @@ Nominal hard residual maxima: dynamics `1.685e-09`, contact acceleration `5.972e
 
 | ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | relock admitted | relock rejected | solve hold | localized handoff | release fallback | infeasible | failed |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2,317 | 11.6 s | 1681.3 µs | 3453.4 µs | 4574.7 µs | 83143.3 µs | 312 | 560 | 0 | 85 | 1,354 | 0 | 3 | 0 | 0 | 3 | 0 | 0 |
+| 2,317 | 11.6 s | 1723.8 µs | 3577.7 µs | 4715.7 µs | 85266.2 µs | 312 | 560 | 0 | 85 | 1,354 | 0 | 3 | 0 | 0 | 3 | 0 | 0 |
 
 ### Latency distribution and deadlines
 
@@ -120,18 +120,18 @@ The per-tick timer is inside the Rust batch loop. Call-level wall/CPU measuremen
 
 | mean µs | std µs | MAD µs | p90 µs | p99.9 µs | p99.99 µs | jitter p99 µs | >1 ms | >5 ms | >20 ms | ticks/s |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1429.3 | 2232.4 | 1673.1 | 3126.3 | 6667.7 | 65446.7 | 1971.5 | 1,193 | 14 | 1 | 699.7 |
+| 1464.4 | 2290.3 | 1715.6 | 3207.7 | 6914.7 | 67268.9 | 2042.0 | 1,193 | 19 | 1 | 682.9 |
 
 ### Latency by solver/contact status
 
 | status | ticks | p50 µs | p95 µs | p99 µs | max µs |
 |---|---:|---:|---:|---:|---:|
-| solved | 312 | 1794.9 | 2935.1 | 2984.9 | 3093.9 |
-| solved_with_slack | 560 | 3020.0 | 4514.5 | 5488.6 | 6733.4 |
-| normal_contact_contingency | 1,354 | 6.5 | 2777.4 | 3219.3 | 4470.1 |
-| contact_release_contingency | 3 | 1368.9 | 1446.5 | 1453.4 | 1455.1 |
-| touchdown_transition | 85 | 2131.6 | 3292.6 | 4138.6 | 4424.0 |
-| normal_fallback_relock_probe_rejected | 3 | 3724.1 | 75201.3 | 81554.9 | 83143.3 |
+| solved | 312 | 1858.5 | 2994.0 | 3049.3 | 3472.8 |
+| solved_with_slack | 560 | 3092.3 | 4581.3 | 5918.9 | 7557.4 |
+| normal_contact_contingency | 1,354 | 6.6 | 2846.5 | 3233.6 | 4485.3 |
+| contact_release_contingency | 3 | 1395.5 | 1456.9 | 1462.3 | 1463.7 |
+| touchdown_transition | 85 | 1945.8 | 3330.6 | 4175.5 | 4498.8 |
+| normal_fallback_relock_probe_rejected | 3 | 3806.4 | 77120.3 | 83637.0 | 85266.2 |
 
 ### Strict-solver work attribution
 
@@ -139,13 +139,13 @@ A task pseudoinverse is the dominant dense kernel. Each active priority normally
 
 | pseudoinverse mean | pseudoinverse p95 | pseudoinverse p99 | pseudoinverse max | clipped-step mean | clipped-step p99 | clipped-step max | calls↔latency correlation |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 3.72 | 11.0 | 15.0 | 23 | 2.57 | 13.8 | 21 | 0.5883 |
+| 3.72 | 11.0 | 15.0 | 23 | 2.57 | 13.8 | 21 | 0.5873 |
 
 The feasibility seed is a cyclic hard-halfspace projection before semantic task solving. Near-feasible seeds may then enter a dense active-set polish; these counters make that previously hidden work visible without timing inside the solver.
 
 | projection sweeps mean/p95/p99/max | halfspace projections mean/p95/p99/max | polish iterations mean/p99/max | polish pseudoinverses mean/p99/max | polish Jacobi sweeps mean/p99/max | projections↔latency correlation |
 |---:|---:|---:|---:|---:|---:|
-| 0.93/8.0/8.0/8 | 206.30/1728.0/1728.0/1776 | 0.12/2.0/5 | 0.06/1.0/4 | 0.51/9.0/32 | 0.3889 |
+| 0.93/8.0/8.0/8 | 206.30/1728.0/1728.0/1776 | 0.12/2.0/5 | 0.06/1.0/4 | 0.51/9.0/32 | 0.3873 |
 
 | status | ticks | pseudoinverse mean/p99/max | clipped-step mean/p99/max |
 |---|---:|---:|---:|
@@ -184,7 +184,7 @@ All large NumPy input/output buffers and the Rust session are constructed before
 
 | call wall s | process CPU s | thread CPU s | process CPU/wall | thread CPU/wall | RSS before MB | RSS after MB | RSS delta MB | peak RSS MB | Python trace peak MB | GC collections | minor faults | major faults | voluntary ctx | involuntary ctx |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 3.312 | 3.311 | 3.311 | 1.000 | 1.000 | 52.375 | 55.770 | 3.395 | 55.770 | 0.002 | 0 | 793 | 0 | 0 | 34 |
+| 3.394 | 3.393 | 3.393 | 1.000 | 1.000 | 52.457 | 55.789 | 3.332 | 55.789 | 0.002 | 0 | 792 | 0 | 0 | 33 |
 
 ### Execution over time
 
@@ -192,16 +192,16 @@ Each row is one tenth of the run so warm drift, scheduler tails, tracking loss, 
 
 | ticks | p50 µs | p99 µs | pseudoinverse mean | Jacobi-sweep mean | clipped-step mean | feasibility sweeps mean | halfspace projections mean | root RMS cm | foot RMS cm | dynamics max | contact max | contingency/rejected |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0–231 | 2907.1 | 6217.0 | 5.41 | 37.75 | 2.17 | 1.00 | 234.00 | 0.345 | 0.404 | 1.69e-09 | 4.84e-11 | 0 |
-| 232–463 | 1999.1 | 4480.7 | 6.72 | 37.97 | 3.28 | 1.57 | 352.78 | 0.665 | 0.334 | 1.29e-09 | 4.22e-11 | 0 |
-| 464–695 | 2945.4 | 4669.0 | 6.98 | 41.75 | 4.09 | 1.00 | 230.56 | 0.221 | 0.286 | 1.11e-09 | 5.97e-11 | 0 |
-| 696–927 | 2914.4 | 5604.9 | 8.38 | 47.35 | 7.21 | 1.45 | 327.75 | 11.013 | 6.991 | 1.27e-09 | 4.09e-11 | 53 |
-| 928–1159 | 1928.1 | 4193.7 | 6.63 | 41.25 | 5.94 | 3.10 | 669.41 | 136.778 | 117.749 | 1.02e-09 | 6.79e-12 | 232 |
+| 0–231 | 2969.8 | 6561.9 | 5.41 | 37.75 | 2.17 | 1.00 | 234.00 | 0.345 | 0.404 | 1.69e-09 | 4.84e-11 | 0 |
+| 232–463 | 2063.7 | 4534.7 | 6.72 | 37.97 | 3.28 | 1.57 | 352.78 | 0.665 | 0.334 | 1.29e-09 | 4.22e-11 | 0 |
+| 464–695 | 3041.4 | 4870.1 | 6.98 | 41.75 | 4.09 | 1.00 | 230.56 | 0.221 | 0.286 | 1.11e-09 | 5.97e-11 | 0 |
+| 696–927 | 2989.3 | 5703.3 | 8.38 | 47.35 | 7.21 | 1.45 | 327.75 | 11.013 | 6.991 | 1.27e-09 | 4.09e-11 | 53 |
+| 928–1159 | 1940.5 | 4259.2 | 6.63 | 41.25 | 5.94 | 3.10 | 669.41 | 136.778 | 117.749 | 1.02e-09 | 6.79e-12 | 232 |
 | 1160–1391 | 6.5 | 12.8 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 550.245 | 530.114 | 0.00e+00 | 0.00e+00 | 232 |
-| 1392–1623 | 6.4 | 12.4 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1167.451 | 1152.266 | 0.00e+00 | 0.00e+00 | 232 |
-| 1624–1854 | 6.5 | 3624.2 | 1.67 | 10.01 | 1.65 | 0.92 | 199.17 | 1766.272 | 1760.530 | 3.05e-09 | 1.86e-11 | 186 |
-| 1855–2085 | 6.4 | 11.6 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 2488.893 | 2487.448 | 0.00e+00 | 0.00e+00 | 231 |
-| 2086–2316 | 5.7 | 2458.7 | 1.37 | 8.55 | 1.33 | 0.22 | 47.69 | 3320.519 | 3315.571 | 1.47e-09 | 1.60e-11 | 194 |
+| 1392–1623 | 6.5 | 11.6 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1167.451 | 1152.266 | 0.00e+00 | 0.00e+00 | 232 |
+| 1624–1854 | 6.7 | 3716.2 | 1.67 | 10.01 | 1.65 | 0.92 | 199.17 | 1766.272 | 1760.530 | 3.05e-09 | 1.86e-11 | 186 |
+| 1855–2085 | 6.5 | 11.8 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 2488.893 | 2487.448 | 0.00e+00 | 0.00e+00 | 231 |
+| 2086–2316 | 5.8 | 2357.6 | 1.37 | 8.55 | 1.33 | 0.22 | 47.69 | 3320.519 | 3315.571 | 1.47e-09 | 1.60e-11 | 194 |
 
 ## Cadence sensitivity
 

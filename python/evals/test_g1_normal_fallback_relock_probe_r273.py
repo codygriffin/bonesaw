@@ -7,6 +7,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 METRICS = ROOT / "benchmarks/results/g1-normal-fallback-relock-probe-r273/g1-normal-fallback-relock-probe-metrics.json"
+MODEL = ROOT / "benchmarks/cache/unitree-g1/g1_23dof_mode_10.urdf"
 
 
 class NormalFallbackRelockProbeR273Test(unittest.TestCase):
@@ -42,6 +43,14 @@ class NormalFallbackRelockProbeR273Test(unittest.TestCase):
                 )
         self.assertGreaterEqual(admitted_profiles, 2)
         self.assertEqual(metrics["profiles"]["r273_interval64"]["probe_admissions"], 0)
+
+    def test_probe_interval_is_bounded_at_the_pyO3_boundary(self) -> None:
+        import bonesaw
+
+        with self.assertRaises(ValueError):
+            bonesaw.FloatingWbcSession(
+                str(MODEL), normal_fallback_relock_probe_interval_ticks=513
+            )
 
 
 if __name__ == "__main__":
