@@ -2435,6 +2435,18 @@ tube width/profile is not frozen and authority stays closed. See the [r256
 paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
 and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
+R258 retains the missing terminal-state corpus on immutable spent evidence.
+The already-spent R250 reset-every-sample traces now include terminal
+clearance/vertical speed, roll/pitch and roll/pitch angular rates, every joint
+position, and every generalized velocity for all 96 × 3 branches. The
+extraction runs 480 historical WBC queries and 1,440 MuJoCo steps with zero
+warnings; an independent allocation-free Rust state rescore reproduces all
+4,896 terminal diagnostics exactly (recorded p99 0.524 ms). This is corpus
+extraction only: no policy, plant action, profile, or authority is admitted.
+R259 must fit the causal paired tube from these immutable states and prove a
+useful nonzero profile before any new-law holdout. See the [r258 spent
+terminal-state corpus](benchmarks/results/g1-spent-terminal-state-corpus-r258/G1_SPENT_TERMINAL_STATE_CORPUS.md).
+
 R257 tries to freeze a useful paired state profile without a policy or physics
 step. It fits only generalized-velocity residuals from immutable R250 arrays,
 retains two declared contact-law hypotheses, and lifts endpoint uncertainty to

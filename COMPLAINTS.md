@@ -125,6 +125,16 @@ are fully covered; tilt, joint position, and raw headroom are not, with a
 residual fitting as an acceptable next step. A terminal-state corpus or a
 certified within-step position/attitude trajectory bound is required.
 
+R258 closes the missing-data seam without widening authority. The already-spent
+R250 reset-every-sample traces now retain terminal clearance/vertical speed,
+roll/pitch, roll/pitch angular rates, every joint position, and every
+generalized velocity for all 96 × 3 branches. The extraction executes the
+historical 480 WBC queries and 1,440 MuJoCo steps, emits no warnings, and an
+independent allocation-free Rust state rescore reproduces all 4,896 diagnostics
+exactly. This is spent design evidence only: R259 must fit a causal paired tube
+from these immutable states and still demonstrate a useful nonzero profile;
+profile and authority remain closed.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -139,10 +149,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- retain true terminal joint position and attitude (or certify their complete
-  within-step trajectory bounds), then freeze R256's paired contact/estimator
-  tube on spent state evidence and require a useful nonzero profile before any
-  new-law holdout;
+- fit R256's paired contact/estimator tube from the retained R258 terminal state
+  corpus (or certify complete within-step trajectory bounds) and require a
+  useful nonzero profile before any new-law holdout;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

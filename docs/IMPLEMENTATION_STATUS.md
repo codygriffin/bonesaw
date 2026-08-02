@@ -338,7 +338,23 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r257 rejects endpoint-only state-tube freeze
+## Current CPU checkpoint — r258 retains the spent terminal-state corpus
+
+R258 extends the already-spent R250 reset-every-sample replay so the terminal
+state needed by the paired consequence boundary is retained rather than
+reconstructed from endpoint velocity. For all 96 × 3 branches it stores root
+clearance/vertical speed, roll/pitch and roll/pitch angular rates, every joint
+position, and every generalized velocity. The extraction executes the frozen
+480 WBC queries and 1,440 MuJoCo steps, emits zero warnings, and an independent
+allocation-free Rust state rescore reproduces all 4,896 diagnostics exactly
+(p99 0.524 ms in the recorded host run).
+
+This is spent design evidence, not a holdout: no policy step, plant action, or
+authority is emitted. R259 must construct a causal paired state tube from the
+immutable corpus, require complete component/aggregate coverage and a useful
+nonzero selection, and only then earn one new-law/offset holdout.
+
+## Prior CPU checkpoint — r257 rejects endpoint-only state-tube freeze
 
 R257 consumes only immutable R250 arrays and fits baseline plus
 candidate-minus-baseline generalized-velocity residual boxes inside fixed

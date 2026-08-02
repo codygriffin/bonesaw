@@ -44,6 +44,7 @@ from g1_terminal_box_wbc_plant_ab import (
     copy_state,
     plant_layout,
     prepare_initial_state,
+    quaternion_roll_pitch,
     score_terminal_state,
     warning_count,
 )
@@ -172,6 +173,10 @@ def evaluate_case(
     )
     candidate_average_effort = np.empty((samples, candidates, wbc.dof), np.float64)
     actual_velocity = np.empty((samples, candidates, generalized), np.float64)
+    actual_root_terminal_state = np.empty((samples, candidates, 6), np.float64)
+    actual_joint_terminal_position = np.empty(
+        (samples, candidates, wbc.dof), np.float64
+    )
     actual_diagnostics = np.empty((samples, candidates, 17), np.float64)
     actual_energy = np.empty((samples, candidates), np.float64)
     selected_index = np.empty(samples, np.uint8)
@@ -329,6 +334,23 @@ def evaluate_case(
                 )
                 actual_diagnostics[row, candidate] = diagnostics
                 actual_velocity[row, candidate] = terminal_velocity
+                terminal_quaternion = np.asarray(
+                    terminal.qpos[root_qpos + 3 : root_qpos + 7], np.float64
+                )
+                terminal_roll, terminal_pitch = quaternion_roll_pitch(
+                    terminal_quaternion
+                )
+                actual_root_terminal_state[row, candidate] = [
+                    float(terminal.qpos[root_qpos + 2]) - ROOT_IMPACT_PLANE_M,
+                    terminal_velocity[5],
+                    terminal_roll,
+                    terminal_pitch,
+                    terminal_velocity[0],
+                    terminal_velocity[1],
+                ]
+                actual_joint_terminal_position[row, candidate] = terminal.qpos[
+                    joint_qpos
+                ]
                 actual_energy[row, candidate] = terminal.energy[1]
             row += 1
 
@@ -497,6 +519,8 @@ def evaluate_case(
         "candidate_effort_trace": candidate_effort_trace,
         "candidate_average_effort": candidate_average_effort,
         "actual_velocity": actual_velocity,
+        "actual_root_terminal_state": actual_root_terminal_state,
+        "actual_joint_terminal_position": actual_joint_terminal_position,
         "actual_diagnostics": actual_diagnostics,
         "actual_energy": actual_energy,
         "plant_residual": plant_residual,
