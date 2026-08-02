@@ -336,6 +336,9 @@ struct FloatingWbcSession {
     maximum_contact_solve_hold_ticks: usize,
     contact_solve_hold_ticks: usize,
     localized_contact_fallback_target: Option<usize>,
+    /// Default-off bounded search over active contact targets. Each candidate
+    /// spends at most one normal-only solve and no unfinished output is used.
+    automatic_contact_fault_localization: bool,
     support_transition_config: SupportTransitionConfig,
     precontact_authored_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
     precontact_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
@@ -13370,6 +13373,7 @@ impl FloatingWbcSession {
         continue_identical_exhausted_feasibility_prefix=false,
         maximum_contact_solve_hold_ticks=0,
         localized_contact_fallback_target=None,
+        automatic_contact_fault_localization=false,
         joint_limit_braking=false,
         root_frequency_hz=2.0,
         root_angular_task_weight=1.0,
@@ -13449,6 +13453,7 @@ impl FloatingWbcSession {
         continue_identical_exhausted_feasibility_prefix: bool,
         maximum_contact_solve_hold_ticks: usize,
         localized_contact_fallback_target: Option<usize>,
+        automatic_contact_fault_localization: bool,
         joint_limit_braking: bool,
         root_frequency_hz: f64,
         root_angular_task_weight: f64,
@@ -13543,6 +13548,11 @@ impl FloatingWbcSession {
         {
             return Err(PyValueError::new_err(
                 "localized_contact_fallback_target exceeds the fixed target capacity",
+            ));
+        }
+        if localized_contact_fallback_target.is_some() && automatic_contact_fault_localization {
+            return Err(PyValueError::new_err(
+                "localized_contact_fallback_target and automatic_contact_fault_localization are mutually exclusive",
             ));
         }
         if !minimum_support_load_fraction.is_finite()
@@ -13869,6 +13879,7 @@ impl FloatingWbcSession {
             maximum_contact_solve_hold_ticks,
             contact_solve_hold_ticks: 0,
             localized_contact_fallback_target,
+            automatic_contact_fault_localization,
             support_transition_config: SupportTransitionConfig::default(),
             precontact_authored_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
             precontact_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
@@ -15518,6 +15529,8 @@ impl FloatingWbcSession {
         mut pre_contingency_maximum_linear_violation_out: PyReadwriteArray1<'_, f64>,
         mut pre_contingency_limiting_linear_constraint_out: PyReadwriteArray1<'_, u32>,
         mut pre_contingency_limiting_linear_is_upper_out: PyReadwriteArray1<'_, u8>,
+        mut contact_localization_probe_attempts_out: PyReadwriteArray1<'_, u8>,
+        mut contact_localization_admitted_target_out: PyReadwriteArray1<'_, i8>,
         mut center_of_mass_velocity_out: PyReadwriteArray2<'_, f64>,
         mut dcm_out: PyReadwriteArray2<'_, f64>,
         mut target_dcm_out: PyReadwriteArray2<'_, f64>,
@@ -15621,6 +15634,10 @@ impl FloatingWbcSession {
             pre_contingency_limiting_linear_constraint_out.as_slice_mut()?;
         let pre_contingency_limiting_linear_is_upper_out =
             pre_contingency_limiting_linear_is_upper_out.as_slice_mut()?;
+        let contact_localization_probe_attempts_out =
+            contact_localization_probe_attempts_out.as_slice_mut()?;
+        let contact_localization_admitted_target_out =
+            contact_localization_admitted_target_out.as_slice_mut()?;
         let mut center_of_mass_velocity_out = center_of_mass_velocity_out.as_array_mut();
         let mut dcm_out = dcm_out.as_array_mut();
         let mut target_dcm_out = target_dcm_out.as_array_mut();
@@ -15725,6 +15742,8 @@ impl FloatingWbcSession {
             && pre_contingency_maximum_linear_violation_out.len() == ticks
             && pre_contingency_limiting_linear_constraint_out.len() == ticks
             && pre_contingency_limiting_linear_is_upper_out.len() == ticks
+            && contact_localization_probe_attempts_out.len() == ticks
+            && contact_localization_admitted_target_out.len() == ticks
             && center_of_mass_velocity_out.shape() == [ticks, 3]
             && dcm_out.shape() == [ticks, 3]
             && target_dcm_out.shape() == [ticks, 3]
@@ -17204,6 +17223,134 @@ impl FloatingWbcSession {
                 self.output.status,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
             );
+            let mut contact_localization_probe_attempts = 0u8;
+            let mut contact_localization_admitted_target = None;
+            if contact_solve_unsolved
+                && self.automatic_contact_fault_localization
+                && !self.contacts.is_empty()
+                && !normal_contact_contingency
+            {
+                let mut represented_targets = [false; FLOATING_POINT_TASK_CAPACITY];
+                for contact in &self.contacts {
+                    let target = contact.stable_id.saturating_sub(1) as usize / 4;
+                    if target < target_count {
+                        represented_targets[target] = true;
+                    }
+                }
+                let represented_target_count = represented_targets[..target_count]
+                    .iter()
+                    .filter(|represented| **represented)
+                    .count();
+                if represented_target_count > 1 {
+                    for (target, represented) in represented_targets[..target_count]
+                        .iter()
+                        .copied()
+                        .enumerate()
+                    {
+                        if !represented {
+                            continue;
+                        }
+                        contact_localization_probe_attempts =
+                            contact_localization_probe_attempts.saturating_add(1);
+                        for contact in &mut self.contacts {
+                            let contact_target = contact.stable_id.saturating_sub(1) as usize / 4;
+                            if contact_target != target {
+                                continue;
+                            }
+                            let point = contact.stable_id.saturating_sub(1) as usize % 4;
+                            contact.mode = ContactMode::NormalPoint;
+                            contact.kinematic_enabled =
+                                self.contact_points_per_target == 1 || point < 3;
+                        }
+                        if let Some(task) = self
+                            .point_tasks
+                            .iter_mut()
+                            .find(|task| task.stable_id == 10 + target as u32)
+                        {
+                            task.priority = Priority::Viability;
+                            task.weight = weights[target];
+                        }
+                        self.controller
+                            .solve_into(
+                                FloatingDynamicWbcInput {
+                                    state: &self.state.robot,
+                                    root_twist_world: self.state.root_twist_world,
+                                    desired_generalized_acceleration: &self.desired_acceleration,
+                                    task_priorities: FloatingTaskPriorities {
+                                        root_angular: Priority::Invariant,
+                                        root_horizontal: self.root_horizontal_task_priority,
+                                        root_height: Priority::Invariant,
+                                        joint_posture: self.joint_posture_priority,
+                                    },
+                                    task_weights: FloatingTaskWeights {
+                                        root_angular: self.root_angular_task_weight,
+                                        root_horizontal: self.root_horizontal_task_weight,
+                                        root_height: self.root_height_task_weight,
+                                        joint_posture: 1.0,
+                                    },
+                                    joint_posture_weight: self.joint_posture_weight,
+                                    joint_acceleration_task,
+                                    center_of_mass_task,
+                                    centroidal_angular_momentum_task,
+                                    frame_angular_acceleration_tasks: &self.angular_tasks,
+                                    point_acceleration_tasks: &self.point_tasks,
+                                    generalized_acceleration_bounds: &self.acceleration_bounds,
+                                    torque_bounds: &self.torque_bounds,
+                                    actuator_effort: self.coupled_actuation_enabled.then_some(
+                                        ActuatorEffortInput {
+                                            actuation: &self.program.actuation,
+                                            bounds: &self.actuator_effort_bounds,
+                                        },
+                                    ),
+                                    contacts: &self.contacts,
+                                    support_patches: &self.support_patches,
+                                },
+                                &mut self.output,
+                                &mut self.scratch,
+                            )
+                            .map_err(value_error)?;
+                        if matches!(
+                            self.output.status,
+                            SolveStatus::Solved | SolveStatus::SolvedWithSlack
+                        ) {
+                            self.support_transitions[target].mark_normal_fallback();
+                            normal_contact_contingency = true;
+                            contact_localization_admitted_target = Some(target);
+                            break;
+                        }
+
+                        // The candidate was not executable. Restore the exact
+                        // declared rank-minimal sole pattern before probing the
+                        // next target or entering the established global retry.
+                        for contact in &mut self.contacts {
+                            let contact_target = contact.stable_id.saturating_sub(1) as usize / 4;
+                            if contact_target != target {
+                                continue;
+                            }
+                            let point = contact.stable_id.saturating_sub(1) as usize % 4;
+                            if self.contact_points_per_target == 4 {
+                                (contact.mode, contact.kinematic_enabled) = match point {
+                                    0 => (ContactMode::LockedPoint, true),
+                                    1 => (ContactMode::NormalPoint, true),
+                                    2 => (ContactMode::LockedPoint, false),
+                                    3 => (ContactMode::RollingPoint, true),
+                                    _ => unreachable!(),
+                                };
+                            } else {
+                                contact.mode = ContactMode::LockedPoint;
+                                contact.kinematic_enabled = true;
+                            }
+                        }
+                        if let Some(task) = self
+                            .point_tasks
+                            .iter_mut()
+                            .find(|task| task.stable_id == 10 + target as u32)
+                        {
+                            task.weight = 0.0;
+                        }
+                    }
+                }
+            }
             if contact_solve_unsolved && !self.contacts.is_empty() && !normal_contact_contingency {
                 for (point, contact) in self.contacts.iter_mut().enumerate() {
                     let fallback_kinematic = self.contact_points_per_target == 1 || point % 4 < 3;
@@ -17592,6 +17739,10 @@ impl FloatingWbcSession {
             dynamics_residual_out[tick] = self.output.dynamics_residual_linf;
             contact_residual_out[tick] = self.output.contact_acceleration_residual_linf;
             minimum_support_margin_out[tick] = self.output.minimum_support_margin_m;
+            contact_localization_probe_attempts_out[tick] = contact_localization_probe_attempts;
+            contact_localization_admitted_target_out[tick] = contact_localization_admitted_target
+                .and_then(|target| i8::try_from(target).ok())
+                .unwrap_or(-1);
             status_out[tick] = match self.output.status {
                 _ if contact_solve_hold => 8,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack if localized_contact_handoff => {
@@ -17599,6 +17750,11 @@ impl FloatingWbcSession {
                 }
                 _ if contact_release_contingency && normal_fallback_relock_probe_attempted => 12,
                 _ if contact_release_contingency => 5,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+                    if contact_localization_admitted_target.is_some() =>
+                {
+                    13
+                }
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
                     if normal_fallback_relock_probe_admitted =>
                 {

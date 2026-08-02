@@ -43,6 +43,18 @@ localizer that retains useful support through the tick-1108 handoff, restores
 tracking, and stays below the CPU deadline. See the
 [r275 hard-feasibility report](benchmarks/results/g1-hard-feasibility-witness-r275/G1_HARD_FEASIBILITY_WITNESS_R275.md).
 
+R276 closes that automatic-localizer implementation seam. On a multi-target
+hard failure, Rust tries at most one normal-only solve per represented target
+in stable order, restores every rejected candidate exactly, and integrates
+only a solved candidate. Single-target failures are not probed. The default-off
+trace preserves all 81 shared R275 non-timing arrays; the enabled tick-875 path
+rejects left, admits right on probe two, emits typed status 13, and keeps left
+locked. The walking profile is still rejected: left-only support falls back at
+885 and releases at 886, root/foot RMS regresses to 16.782/16.376 m, and p99 is
+5.216 ms. The remaining complaint is now pre-liftoff coupled root/CoM/support
+shaping or a support-feasible trajectory tube—not more failure-time contact
+selection. See the [r276 automatic-localization report](benchmarks/results/g1-automatic-contact-localization-r276/G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

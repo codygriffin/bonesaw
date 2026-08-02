@@ -110,6 +110,11 @@ def parse_args() -> argparse.Namespace:
         help="opt-in target index to demote first when a mixed contact solve exhausts",
     )
     parser.add_argument(
+        "--automatic-contact-fault-localization",
+        action="store_true",
+        help="probe active targets one at a time for a bounded normal-only contingency",
+    )
+    parser.add_argument(
         "--feasibility-projection-continuation-violation-threshold",
         type=float,
         default=None,
@@ -1495,6 +1500,8 @@ def summarize(
     pre_contingency_maximum_linear_violation: np.ndarray,
     pre_contingency_limiting_linear_constraint: np.ndarray,
     pre_contingency_limiting_linear_is_upper: np.ndarray,
+    contact_localization_probe_attempts: np.ndarray,
+    contact_localization_admitted_target: np.ndarray,
     dcm: np.ndarray,
     target_dcm: np.ndarray,
     virtual_zmp: np.ndarray,
@@ -1624,6 +1631,9 @@ def summarize(
         "normal_fallback_relock_probe_rejected_release": int(
             np.count_nonzero(status == 12)
         ),
+        "automatic_contact_localization_admitted": int(
+            np.count_nonzero(status == 13)
+        ),
     }
     pre_contingency_status_counts = {
         "solved": int(np.count_nonzero(pre_contingency_status == 0)),
@@ -1724,7 +1734,7 @@ def summarize(
             )
         )
     }
-    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7, 9, 10, 11, 12))
+    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7, 9, 10, 11, 12, 13))
     if not np.any(physical_tick):
         physical_tick = np.ones_like(status, dtype=bool)
     non_nominal = np.flatnonzero(~np.isin(status, (0, 1, 6, 7)))
@@ -1779,6 +1789,7 @@ def summarize(
         10: "normal_fallback_relock_probe_admitted",
         11: "normal_fallback_relock_probe_rejected",
         12: "normal_fallback_relock_probe_rejected_release",
+        13: "automatic_contact_localization_admitted",
     }
     for code, name in status_names.items():
         selected = step_ns[status == code]
@@ -2055,6 +2066,28 @@ def summarize(
             for stable_id in np.unique(failed_linear_constraints)
         },
     }
+    localization_admitted = contact_localization_admitted_target >= 0
+    contact_localization_metrics = {
+        "probe_ticks": int(
+            np.count_nonzero(contact_localization_probe_attempts > 0)
+        ),
+        "total_probes": int(np.sum(contact_localization_probe_attempts)),
+        "maximum_probes_per_tick": int(
+            np.max(contact_localization_probe_attempts)
+        ),
+        "admitted_ticks": int(np.count_nonzero(localization_admitted)),
+        "admitted_target_counts": {
+            str(int(target)): int(
+                np.count_nonzero(
+                    contact_localization_admitted_target[localization_admitted]
+                    == target
+                )
+            )
+            for target in np.unique(
+                contact_localization_admitted_target[localization_admitted]
+            )
+        },
+    }
     metrics: dict[str, Any] = {
         "ticks": len(step_ns),
         "dt_seconds": DT,
@@ -2068,6 +2101,7 @@ def summarize(
         "touchdown_phase_retiming": phase_retiming_metrics,
         "touchdown_viability": touchdown_viability,
         "hard_feasibility_witness": hard_feasibility_witness,
+        "automatic_contact_localization": contact_localization_metrics,
         "foot_tracking_rms_m": rms(foot_error),
         "hand_tracking_rms_m": rms(hand_error),
         "hand_task_commanded": hand_task_weight > 0.0,
@@ -3140,6 +3174,13 @@ def main() -> None:
         and args.localized_contact_fallback_target < 0
     ):
         raise ValueError("--localized-contact-fallback-target must be nonnegative")
+    if (
+        args.localized_contact_fallback_target is not None
+        and args.automatic_contact_fault_localization
+    ):
+        raise ValueError(
+            "localized and automatic contact-fault selection are mutually exclusive"
+        )
     if not 0 <= args.normal_fallback_relock_probe_interval_ticks <= 512:
         raise ValueError(
             "--normal-fallback-relock-probe-interval-ticks must be in 0..=512"
@@ -3372,6 +3413,9 @@ def main() -> None:
         ),
         maximum_contact_solve_hold_ticks=args.maximum_contact_solve_hold_ticks,
         localized_contact_fallback_target=args.localized_contact_fallback_target,
+        automatic_contact_fault_localization=(
+            args.automatic_contact_fault_localization
+        ),
         joint_limit_braking=args.joint_limit_braking,
         root_frequency_hz=args.root_frequency_hz,
         root_angular_task_weight=args.root_angular_task_weight,
@@ -3564,6 +3608,8 @@ def main() -> None:
     pre_contingency_limiting_linear_is_upper = np.empty(
         args.ticks, dtype=np.uint8
     )
+    contact_localization_probe_attempts = np.empty(args.ticks, dtype=np.uint8)
+    contact_localization_admitted_target = np.empty(args.ticks, dtype=np.int8)
     center_of_mass_velocity = np.empty((args.ticks, 3), dtype=np.float64)
     dcm = np.empty((args.ticks, 3), dtype=np.float64)
     target_dcm = np.empty((args.ticks, 3), dtype=np.float64)
@@ -3679,6 +3725,8 @@ def main() -> None:
         pre_contingency_maximum_linear_violation,
         pre_contingency_limiting_linear_constraint,
         pre_contingency_limiting_linear_is_upper,
+        contact_localization_probe_attempts,
+        contact_localization_admitted_target,
         center_of_mass_velocity,
         dcm,
         target_dcm,
@@ -3781,6 +3829,8 @@ def main() -> None:
         pre_contingency_maximum_linear_violation,
         pre_contingency_limiting_linear_constraint,
         pre_contingency_limiting_linear_is_upper,
+        contact_localization_probe_attempts,
+        contact_localization_admitted_target,
         dcm,
         target_dcm,
         virtual_zmp,
@@ -3843,6 +3893,9 @@ def main() -> None:
         ),
         "maximum_contact_solve_hold_ticks": args.maximum_contact_solve_hold_ticks,
         "localized_contact_fallback_target": args.localized_contact_fallback_target,
+        "automatic_contact_fault_localization": (
+            args.automatic_contact_fault_localization
+        ),
         "joint_posture_priority": PRIORITY_NAMES[args.joint_posture_priority],
         "center_of_mass_task_weight": args.center_of_mass_task_weight,
         "center_of_mass_task_priority": PRIORITY_NAMES[
@@ -4115,6 +4168,8 @@ def main() -> None:
         pre_contingency_limiting_linear_is_upper=(
             pre_contingency_limiting_linear_is_upper
         ),
+        contact_localization_probe_attempts=contact_localization_probe_attempts,
+        contact_localization_admitted_target=contact_localization_admitted_target,
     )
     report = output / "FLOATING_WALK_CORPUS.md"
     report.write_text(render_report(metrics, report_metadata))
