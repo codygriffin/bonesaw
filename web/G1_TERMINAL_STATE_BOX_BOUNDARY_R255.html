@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw terminal state box · r255</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw complete terminal-state box boundary · r255</h1>
+<blockquote>Mechanism **PASS** · profile **NOT FROZEN** · authority **NOT ADMITTED**.</blockquote>
+<p>R255 adds a Rust-owned complete state interval before support-free terminal propagation. Clearance, vertical speed, roll/pitch, angular rate, joint position, and joint velocity are all bounded; pressure fields are upper bounds and joint headroom is a lower bound. The query performs no policy step, physics step, selector call, plant action, probability assignment, or command admission.</p>
+<p>A G1-shaped 64-row batch repeats 500 times with p50/p99 50.72/75.50 µs and zero measured Rust allocation. 2,048 independently scored box points are contained; minimum upper/headroom slack is -4.44e-16/-2.78e-17.</p>
+<p>This boundary closes only the interval-composition mechanism. Independent candidate boxes cannot prove a paired candidate-minus-baseline improvement because their errors may be correlated. A causal shared-hypothesis or paired state tube must be frozen on spent contact-law/estimator evidence before another new-law holdout.</p></main></body></html>

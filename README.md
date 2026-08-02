@@ -2408,6 +2408,18 @@ component, two regress aggregate score, and only one of five nonzero actions
 is both strictly nonregressing and improving. No widening or authority follows.
 See the [r254 fresh paired-score holdout](benchmarks/results/g1-paired-terminal-score-plant-holdout-r254/G1_PAIRED_TERMINAL_SCORE_PLANT_HOLDOUT.md).
 
+R255 adds the policy-free, physics-free composition boundary needed for the
+next model. Rust consumes complete terminal-state intervals—clearance,
+vertical speed, roll/pitch, angular rates, joint positions, and joint
+velocities—and returns conservative upper pressure/aggregate consequences plus
+a lower joint-headroom bound. A G1-shaped 64-row batch repeats 500 times with
+exact output, zero timed Rust allocation, and 50.61/71.12 microsecond p50/p99;
+2,048 independently scored interior points are contained to floating-point
+roundoff. This passes the mechanism only. Independent candidate boxes discard
+the correlation needed to certify candidate-minus-baseline improvement, so no
+profile or authority is admitted. See the [r255 terminal-state box
+boundary](benchmarks/results/g1-terminal-state-box-boundary-r255/G1_TERMINAL_STATE_BOX_BOUNDARY.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

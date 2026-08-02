@@ -98,6 +98,14 @@ headroom transform; four selected rows regress a component, two regress
 aggregate consequence, and only one of five nonzero selections is both
 strictly nonregressing and improving. No widening or refit follows.
 
+R255 now supplies the missing complete-state interval composition boundary in
+allocation-free Rust. It bounds clearance, vertical speed, root attitude/rate,
+joint position, and joint velocity before terminal scoring; 2,048 independent
+point checks are contained and a 64-row batch remains below 0.1 ms p99 with no
+policy or physics. This does not resolve transfer by itself: independently
+bounding candidate and baseline loses their shared uncertainty and cannot
+certify a paired improvement. No profile or authority follows.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -112,9 +120,10 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- replace the state-only R253 residual partition with a causal contact-law or
-  estimator-uncertainty terminal tube that bounds transferred joint position
-  and headroom, then freeze it on spent evidence before any new-law holdout;
+- compose R255's complete-state bounds into a causal shared-hypothesis or
+  paired contact-law/estimator-uncertainty state tube that preserves
+  candidate/baseline correlation, then freeze it on spent evidence before any
+  new-law holdout;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

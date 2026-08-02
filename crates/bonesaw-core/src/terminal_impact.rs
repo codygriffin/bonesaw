@@ -85,6 +85,31 @@ pub struct TerminalImpactVelocityBoxState<'a> {
     pub joint_velocity_limit_rad_s: &'a [f64],
 }
 
+/// Componentwise interval for the complete terminal-impact state at the
+/// beginning of the support-free propagation.  Unlike
+/// [`TerminalImpactVelocityBoxState`], this also carries position, attitude,
+/// and clearance intervals.  A caller can therefore compose a causal
+/// contact-law or estimator tube before asking for a terminal consequence
+/// bound; no candidate-minus-baseline residual is inferred here.
+#[derive(Clone, Copy, Debug)]
+pub struct TerminalImpactStateBox<'a> {
+    pub root_clearance_lower_m: f64,
+    pub root_clearance_upper_m: f64,
+    pub root_vertical_velocity_lower_m_s: f64,
+    pub root_vertical_velocity_upper_m_s: f64,
+    pub root_tilt_lower_rad: [f64; 2],
+    pub root_tilt_upper_rad: [f64; 2],
+    pub root_angular_rate_lower_rad_s: [f64; 2],
+    pub root_angular_rate_upper_rad_s: [f64; 2],
+    pub joint_position_lower_state_rad: &'a [f64],
+    pub joint_position_upper_state_rad: &'a [f64],
+    pub joint_velocity_lower_rad_s: &'a [f64],
+    pub joint_velocity_upper_rad_s: &'a [f64],
+    pub joint_position_lower_rad: &'a [f64],
+    pub joint_position_upper_rad: &'a [f64],
+    pub joint_velocity_limit_rad_s: &'a [f64],
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct TerminalImpactCandidate<'a> {
     /// Whether the ordinary dynamics/resource path admitted this command.
@@ -240,6 +265,47 @@ fn acceleration_position_coefficient(time_s: f64, hold_s: f64) -> f64 {
 /// Bound the output of [`propagate`] over independent velocity and time
 /// intervals. The interval arithmetic deliberately retains dependency
 /// over-approximation between the velocity and acceleration terms.
+fn propagate_interval_box(
+    position_lower: f64,
+    position_upper: f64,
+    velocity_lower: f64,
+    velocity_upper: f64,
+    acceleration_lower: f64,
+    acceleration_upper: f64,
+    time_lower_s: f64,
+    time_upper_s: f64,
+    hold_s: f64,
+) -> ((f64, f64), (f64, f64)) {
+    let (velocity_position_lower, velocity_position_upper) =
+        interval_product(velocity_lower, velocity_upper, time_lower_s, time_upper_s);
+    let coefficient_lower = acceleration_position_coefficient(time_lower_s, hold_s);
+    let coefficient_upper = acceleration_position_coefficient(time_upper_s, hold_s);
+    let (acceleration_position_lower, acceleration_position_upper) = interval_product(
+        acceleration_lower,
+        acceleration_upper,
+        coefficient_lower,
+        coefficient_upper,
+    );
+    let accelerated_time_lower = time_lower_s.min(hold_s);
+    let accelerated_time_upper = time_upper_s.min(hold_s);
+    let (acceleration_velocity_lower, acceleration_velocity_upper) = interval_product(
+        acceleration_lower,
+        acceleration_upper,
+        accelerated_time_lower,
+        accelerated_time_upper,
+    );
+    (
+        (
+            position_lower + velocity_position_lower + acceleration_position_lower,
+            position_upper + velocity_position_upper + acceleration_position_upper,
+        ),
+        (
+            velocity_lower + acceleration_velocity_lower,
+            velocity_upper + acceleration_velocity_upper,
+        ),
+    )
+}
+
 fn propagate_interval(
     position: f64,
     velocity_lower: f64,
@@ -584,6 +650,217 @@ pub fn score_terminal_impact_velocity_box_upper(
     };
     let impact_speed_pressure =
         vertical_impact_velocity_m_s.abs() / config.vertical_impact_speed_soft_limit_m_s;
+    let tilt_pressure = terminal_tilt_rad / config.tilt_soft_limit_rad;
+    let angular_rate_pressure = terminal_angular_rate_rad_s / config.angular_rate_soft_limit_rad_s;
+    let joint_position_pressure = ((config.joint_position_soft_headroom_fraction
+        - minimum_terminal_joint_headroom_fraction)
+        / config.joint_position_soft_headroom_fraction)
+        .max(0.0);
+    let joint_velocity_pressure = soft_upper_pressure(
+        maximum_terminal_joint_velocity_utilization,
+        config.joint_velocity_soft_utilization,
+    );
+    let actuator_effort_pressure = soft_upper_pressure(
+        candidate.maximum_actuator_effort_utilization,
+        config.actuator_effort_soft_utilization,
+    );
+    let admission_pressure = if candidate.available { 0.0 } else { 1.0 };
+    let maximum_terminal_harm_pressure = tilt_pressure
+        .max(angular_rate_pressure)
+        .max(joint_position_pressure)
+        .max(joint_velocity_pressure)
+        .max(actuator_effort_pressure)
+        .max(admission_pressure);
+    let aggregate_score = impact_speed_pressure
+        + config.tilt_weight * tilt_pressure
+        + config.angular_rate_weight * angular_rate_pressure
+        + config.joint_position_weight * joint_position_pressure
+        + config.joint_velocity_weight * joint_velocity_pressure
+        + config.actuator_effort_weight * actuator_effort_pressure
+        + admission_pressure;
+
+    Ok(TerminalImpactScore {
+        available: candidate.available,
+        time_to_impact_s: time_upper_s,
+        vertical_impact_velocity_m_s,
+        vertical_specific_impact_energy_j_kg,
+        terminal_tilt_rad,
+        terminal_angular_rate_rad_s,
+        minimum_terminal_joint_headroom_fraction,
+        maximum_terminal_joint_velocity_utilization,
+        impact_speed_pressure,
+        tilt_pressure,
+        angular_rate_pressure,
+        joint_position_pressure,
+        joint_velocity_pressure,
+        actuator_effort_pressure,
+        admission_pressure,
+        maximum_terminal_harm_pressure,
+        aggregate_score,
+    })
+}
+
+/// Conservatively score every state in a complete componentwise terminal
+/// state box.
+///
+/// This is the composition seam for a causal contact-law or estimator tube:
+/// callers provide intervals for the state *before* support-free propagation,
+/// while the candidate acceleration remains an independently admitted input.
+/// Impact time is bounded from clearance/vertical-velocity monotonicity;
+/// position, attitude, and rate are propagated with fixed interval arithmetic.
+/// The returned pressure fields are upper bounds and joint headroom is a lower
+/// bound. No probability, policy, plant step, or authority is implied.
+pub fn score_terminal_impact_state_box_upper(
+    state: TerminalImpactStateBox<'_>,
+    candidate: TerminalImpactCandidate<'_>,
+    config: TerminalImpactConfig,
+) -> Result<TerminalImpactScore, TerminalImpactError> {
+    let joints = state.joint_position_lower_state_rad.len();
+    if state.joint_position_upper_state_rad.len() != joints
+        || state.joint_velocity_lower_rad_s.len() != joints
+        || state.joint_velocity_upper_rad_s.len() != joints
+        || state.joint_position_lower_rad.len() != joints
+        || state.joint_position_upper_rad.len() != joints
+        || state.joint_velocity_limit_rad_s.len() != joints
+        || candidate.joint_acceleration_rad_s2.len() != joints
+    {
+        return Err(TerminalImpactError::Dimension);
+    }
+    if !state.root_clearance_lower_m.is_finite()
+        || !state.root_clearance_upper_m.is_finite()
+        || state.root_clearance_lower_m < 0.0
+        || state.root_clearance_lower_m > state.root_clearance_upper_m
+        || !state.root_vertical_velocity_lower_m_s.is_finite()
+        || !state.root_vertical_velocity_upper_m_s.is_finite()
+        || state.root_vertical_velocity_lower_m_s > state.root_vertical_velocity_upper_m_s
+        || state
+            .root_tilt_lower_rad
+            .iter()
+            .zip(state.root_tilt_upper_rad.iter())
+            .chain(
+                state
+                    .root_angular_rate_lower_rad_s
+                    .iter()
+                    .zip(state.root_angular_rate_upper_rad_s.iter()),
+            )
+            .any(|(lower, upper)| !lower.is_finite() || !upper.is_finite() || lower > upper)
+        || state
+            .joint_position_lower_state_rad
+            .iter()
+            .zip(state.joint_position_upper_state_rad.iter())
+            .chain(
+                state
+                    .joint_velocity_lower_rad_s
+                    .iter()
+                    .zip(state.joint_velocity_upper_rad_s.iter()),
+            )
+            .any(|(lower, upper)| !lower.is_finite() || !upper.is_finite() || lower > upper)
+    {
+        return Err(TerminalImpactError::InvalidState);
+    }
+
+    // Reuse the point scorer's complete config, candidate, limit, and
+    // continuous-coordinate validation before performing interval arithmetic.
+    let validation_state = TerminalImpactState {
+        root_clearance_m: state.root_clearance_lower_m,
+        root_vertical_velocity_m_s: state.root_vertical_velocity_lower_m_s,
+        root_tilt_rad: state.root_tilt_lower_rad,
+        root_angular_rate_rad_s: state.root_angular_rate_lower_rad_s,
+        joint_position_rad: state.joint_position_lower_state_rad,
+        joint_velocity_rad_s: state.joint_velocity_lower_rad_s,
+        joint_position_lower_rad: state.joint_position_lower_rad,
+        joint_position_upper_rad: state.joint_position_upper_rad,
+        joint_velocity_limit_rad_s: state.joint_velocity_limit_rad_s,
+    };
+    score_terminal_impact(validation_state, candidate, config)?;
+
+    let impact_time = |clearance: f64, velocity: f64| {
+        let discriminant = velocity * velocity + 2.0 * config.gravity_mps2 * clearance;
+        let time = (velocity + discriminant.sqrt()) / config.gravity_mps2;
+        (time, -discriminant.sqrt())
+    };
+    let (time_lower_s, _) = impact_time(
+        state.root_clearance_lower_m,
+        state.root_vertical_velocity_lower_m_s,
+    );
+    let (time_upper_s, _) = impact_time(
+        state.root_clearance_upper_m,
+        state.root_vertical_velocity_upper_m_s,
+    );
+    if !time_lower_s.is_finite()
+        || !time_upper_s.is_finite()
+        || time_lower_s < 0.0
+        || time_lower_s > time_upper_s
+    {
+        return Err(TerminalImpactError::InvalidState);
+    }
+
+    let maximum_vertical_speed = state
+        .root_vertical_velocity_lower_m_s
+        .abs()
+        .max(state.root_vertical_velocity_upper_m_s.abs());
+    let impact_discriminant = maximum_vertical_speed * maximum_vertical_speed
+        + 2.0 * config.gravity_mps2 * state.root_clearance_upper_m;
+    let vertical_impact_speed_m_s = impact_discriminant.sqrt();
+    let vertical_impact_velocity_m_s = -vertical_impact_speed_m_s;
+    let vertical_specific_impact_energy_j_kg = 0.5 * vertical_impact_speed_m_s.powi(2);
+
+    let mut terminal_tilt_maximum = [0.0; 2];
+    let mut terminal_rate_maximum = [0.0; 2];
+    for axis in 0..2 {
+        let (tilt, rate) = propagate_interval_box(
+            state.root_tilt_lower_rad[axis],
+            state.root_tilt_upper_rad[axis],
+            state.root_angular_rate_lower_rad_s[axis],
+            state.root_angular_rate_upper_rad_s[axis],
+            candidate.root_angular_acceleration_rad_s2[axis],
+            candidate.root_angular_acceleration_rad_s2[axis],
+            time_lower_s,
+            time_upper_s,
+            config.acceleration_hold_s,
+        );
+        terminal_tilt_maximum[axis] = maximum_absolute(tilt.0, tilt.1);
+        terminal_rate_maximum[axis] = maximum_absolute(rate.0, rate.1);
+    }
+    let terminal_tilt_rad = terminal_tilt_maximum[0].hypot(terminal_tilt_maximum[1]);
+    let terminal_angular_rate_rad_s = terminal_rate_maximum[0].hypot(terminal_rate_maximum[1]);
+
+    let mut minimum_terminal_joint_headroom_fraction = 0.5_f64;
+    let mut has_bounded_joint = false;
+    let mut maximum_terminal_joint_velocity_utilization = 0.0_f64;
+    for joint in 0..joints {
+        let (position, velocity) = propagate_interval_box(
+            state.joint_position_lower_state_rad[joint],
+            state.joint_position_upper_state_rad[joint],
+            state.joint_velocity_lower_rad_s[joint],
+            state.joint_velocity_upper_rad_s[joint],
+            candidate.joint_acceleration_rad_s2[joint],
+            candidate.joint_acceleration_rad_s2[joint],
+            time_lower_s,
+            time_upper_s,
+            config.acceleration_hold_s,
+        );
+        let lower = state.joint_position_lower_rad[joint];
+        let upper = state.joint_position_upper_rad[joint];
+        if lower.is_finite() && upper.is_finite() {
+            has_bounded_joint = true;
+            let span = upper - lower;
+            let lower_endpoint_headroom = ((position.0 - lower).min(upper - position.0)) / span;
+            let upper_endpoint_headroom = ((position.1 - lower).min(upper - position.1)) / span;
+            minimum_terminal_joint_headroom_fraction = minimum_terminal_joint_headroom_fraction
+                .min(lower_endpoint_headroom.min(upper_endpoint_headroom));
+        }
+        maximum_terminal_joint_velocity_utilization = maximum_terminal_joint_velocity_utilization
+            .max(
+                maximum_absolute(velocity.0, velocity.1) / state.joint_velocity_limit_rad_s[joint],
+            );
+    }
+    if !has_bounded_joint {
+        minimum_terminal_joint_headroom_fraction = 0.5;
+    }
+
+    let impact_speed_pressure =
+        vertical_impact_speed_m_s / config.vertical_impact_speed_soft_limit_m_s;
     let tilt_pressure = terminal_tilt_rad / config.tilt_soft_limit_rad;
     let angular_rate_pressure = terminal_angular_rate_rad_s / config.angular_rate_soft_limit_rad_s;
     let joint_position_pressure = ((config.joint_position_soft_headroom_fraction
@@ -1297,6 +1574,127 @@ mod tests {
             );
             assert!(point.aggregate_score <= bound.aggregate_score + 1.0e-12);
         }
+    }
+
+    #[test]
+    fn complete_state_box_bounds_dense_point_samples() {
+        let joint_position_lower_state = [-0.40, -0.30, -0.20];
+        let joint_position_upper_state = [0.45, 0.35, 0.40];
+        let joint_velocity_lower = [-1.4, -0.7, -2.3];
+        let joint_velocity_upper = [1.9, 1.2, 2.8];
+        let joint_acceleration = [3.0, -5.0, 7.0];
+        let candidate = candidate([12.0, -9.0], &joint_acceleration);
+        let config = TerminalImpactConfig::default();
+        let box_state = TerminalImpactStateBox {
+            root_clearance_lower_m: 0.08,
+            root_clearance_upper_m: 0.24,
+            root_vertical_velocity_lower_m_s: -1.2,
+            root_vertical_velocity_upper_m_s: 0.3,
+            root_tilt_lower_rad: [-0.20, -0.25],
+            root_tilt_upper_rad: [0.30, 0.15],
+            root_angular_rate_lower_rad_s: [-2.0, -1.5],
+            root_angular_rate_upper_rad_s: [2.5, 1.8],
+            joint_position_lower_state_rad: &joint_position_lower_state,
+            joint_position_upper_state_rad: &joint_position_upper_state,
+            joint_velocity_lower_rad_s: &joint_velocity_lower,
+            joint_velocity_upper_rad_s: &joint_velocity_upper,
+            joint_position_lower_rad: &LOWER,
+            joint_position_upper_rad: &UPPER,
+            joint_velocity_limit_rad_s: &V_LIMIT,
+        };
+        let bound = score_terminal_impact_state_box_upper(box_state, candidate, config).unwrap();
+        let mut seed = 0x7e57_1a11_d15c_a11u64;
+        let mut sample = |lower: f64, upper: f64| {
+            seed = seed
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            let unit = ((seed >> 11) as f64) * (1.0 / ((1_u64 << 53) as f64));
+            lower + unit * (upper - lower)
+        };
+        for _ in 0..4_096 {
+            let joint_position: [f64; 3] = std::array::from_fn(|joint| {
+                sample(
+                    joint_position_lower_state[joint],
+                    joint_position_upper_state[joint],
+                )
+            });
+            let joint_velocity: [f64; 3] = std::array::from_fn(|joint| {
+                sample(joint_velocity_lower[joint], joint_velocity_upper[joint])
+            });
+            let point = score_terminal_impact(
+                TerminalImpactState {
+                    root_clearance_m: sample(0.08, 0.24),
+                    root_vertical_velocity_m_s: sample(-1.2, 0.3),
+                    root_tilt_rad: [sample(-0.20, 0.30), sample(-0.25, 0.15)],
+                    root_angular_rate_rad_s: [sample(-2.0, 2.5), sample(-1.5, 1.8)],
+                    joint_position_rad: &joint_position,
+                    joint_velocity_rad_s: &joint_velocity,
+                    joint_position_lower_rad: &LOWER,
+                    joint_position_upper_rad: &UPPER,
+                    joint_velocity_limit_rad_s: &V_LIMIT,
+                },
+                candidate,
+                config,
+            )
+            .unwrap();
+            assert!(point.time_to_impact_s <= bound.time_to_impact_s + 1.0e-12);
+            assert!(
+                point.vertical_specific_impact_energy_j_kg
+                    <= bound.vertical_specific_impact_energy_j_kg + 1.0e-12
+            );
+            assert!(point.terminal_tilt_rad <= bound.terminal_tilt_rad + 1.0e-12);
+            assert!(
+                point.terminal_angular_rate_rad_s <= bound.terminal_angular_rate_rad_s + 1.0e-12
+            );
+            assert!(
+                point.minimum_terminal_joint_headroom_fraction + 1.0e-12
+                    >= bound.minimum_terminal_joint_headroom_fraction
+            );
+            assert!(
+                point.maximum_terminal_joint_velocity_utilization
+                    <= bound.maximum_terminal_joint_velocity_utilization + 1.0e-12
+            );
+            assert!(point.impact_speed_pressure <= bound.impact_speed_pressure + 1.0e-12);
+            assert!(point.tilt_pressure <= bound.tilt_pressure + 1.0e-12);
+            assert!(point.angular_rate_pressure <= bound.angular_rate_pressure + 1.0e-12);
+            assert!(point.joint_position_pressure <= bound.joint_position_pressure + 1.0e-12);
+            assert!(point.joint_velocity_pressure <= bound.joint_velocity_pressure + 1.0e-12);
+            assert!(
+                point.maximum_terminal_harm_pressure
+                    <= bound.maximum_terminal_harm_pressure + 1.0e-12
+            );
+            assert!(point.aggregate_score <= bound.aggregate_score + 1.0e-12);
+        }
+    }
+
+    #[test]
+    fn complete_state_box_rejects_inverted_coordinates() {
+        let joint = [0.0; 3];
+        let state = TerminalImpactStateBox {
+            root_clearance_lower_m: 0.1,
+            root_clearance_upper_m: 0.2,
+            root_vertical_velocity_lower_m_s: -0.2,
+            root_vertical_velocity_upper_m_s: 0.2,
+            root_tilt_lower_rad: [0.0; 2],
+            root_tilt_upper_rad: [0.0; 2],
+            root_angular_rate_lower_rad_s: [0.0; 2],
+            root_angular_rate_upper_rad_s: [0.0; 2],
+            joint_position_lower_state_rad: &[0.0, 0.1, 0.0],
+            joint_position_upper_state_rad: &[0.0, -0.1, 0.0],
+            joint_velocity_lower_rad_s: &joint,
+            joint_velocity_upper_rad_s: &joint,
+            joint_position_lower_rad: &LOWER,
+            joint_position_upper_rad: &UPPER,
+            joint_velocity_limit_rad_s: &V_LIMIT,
+        };
+        assert_eq!(
+            score_terminal_impact_state_box_upper(
+                state,
+                candidate([0.0; 2], &joint),
+                TerminalImpactConfig::default(),
+            ),
+            Err(TerminalImpactError::InvalidState)
+        );
     }
 
     #[test]

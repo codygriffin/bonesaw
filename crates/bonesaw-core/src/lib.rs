@@ -194,8 +194,9 @@ pub use terminal_impact::{
     ConservativeTerminalImpactDeltaSelection, ConservativeTerminalImpactSelection,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
     TerminalImpactConfig, TerminalImpactError, TerminalImpactScore, TerminalImpactState,
-    TerminalImpactVelocityBoxState, score_terminal_impact,
-    score_terminal_impact_velocity_box_upper, select_conservative_terminal_impact_candidate,
+    TerminalImpactStateBox, TerminalImpactVelocityBoxState, score_terminal_impact,
+    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
+    select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate,
     write_terminal_impact_hypothesis_envelopes,
 };

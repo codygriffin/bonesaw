@@ -48,20 +48,21 @@ use bonesaw_core::{
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
-    TerminalImpactConfig, TerminalImpactScore, TerminalImpactState, TerminalImpactVelocityBoxState,
-    TimingSpec, TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput, Transform3,
-    VIABILITY_EXECUTION_COMPONENTS, VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds,
-    ViabilityConfirmationConfig, ViabilityConfirmationState, ViabilityExecutionMonitorConfig,
-    ViabilityExecutionMonitorState, ViabilityForecastCandidate, ViabilityForecastConfig,
-    ViabilityForecastKnot, ViabilityForecastState, ViabilityHybridGuardConfig,
-    ViabilityHybridGuardState, ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig,
-    ViabilityRequestState, WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions,
-    WholeBodyPointIkTarget, WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity,
-    balance_feedback_authority, capture_landing_retarget, contact_phase_authority,
-    cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
-    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
-    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
-    sample_quintic_vector_jet, score_terminal_impact, score_terminal_impact_velocity_box_upper,
+    TerminalImpactConfig, TerminalImpactScore, TerminalImpactState, TerminalImpactStateBox,
+    TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
+    TouchdownPhaseRetimingInput, Transform3, VIABILITY_EXECUTION_COMPONENTS,
+    VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds, ViabilityConfirmationConfig,
+    ViabilityConfirmationState, ViabilityExecutionMonitorConfig, ViabilityExecutionMonitorState,
+    ViabilityForecastCandidate, ViabilityForecastConfig, ViabilityForecastKnot,
+    ViabilityForecastState, ViabilityHybridGuardConfig, ViabilityHybridGuardState,
+    ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig, ViabilityRequestState,
+    WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions, WholeBodyPointIkTarget,
+    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
+    capture_landing_retarget, contact_phase_authority, cubic_precontact_acceleration,
+    dcm_balance_acceleration, joint_acceleration_interval, joint_velocity_envelope_acceleration,
+    maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
+    predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
+    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
     score_viability_forecast, select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
@@ -1549,6 +1550,139 @@ impl ContactTransitionModelSession {
         if allocation_after != allocation_before {
             return Err(PyValueError::new_err(
                 "terminal-impact state batch allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Conservatively score a bounded batch of complete terminal state boxes.
+    /// Root lower/upper columns are clearance, vertical velocity, roll,
+    /// pitch, roll rate, and pitch rate. Joint position and velocity are also
+    /// interval-valued. This is a policy- and plant-independent consequence
+    /// query; it neither chooses nor executes a command.
+    #[allow(clippy::too_many_arguments)]
+    fn score_terminal_impact_state_box_batch(
+        &self,
+        root_lower: PyReadonlyArray2<'_, f64>,
+        root_upper: PyReadonlyArray2<'_, f64>,
+        joint_position_lower_state: PyReadonlyArray2<'_, f64>,
+        joint_position_upper_state: PyReadonlyArray2<'_, f64>,
+        joint_velocity_lower: PyReadonlyArray2<'_, f64>,
+        joint_velocity_upper: PyReadonlyArray2<'_, f64>,
+        joint_position_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray1<'_, u8>,
+        root_angular_acceleration: PyReadonlyArray2<'_, f64>,
+        joint_acceleration: PyReadonlyArray2<'_, f64>,
+        maximum_actuator_effort_utilization: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray2<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let root_lower_shape = root_lower.as_array().dim();
+        let root_upper_shape = root_upper.as_array().dim();
+        let position_lower_shape = joint_position_lower_state.as_array().dim();
+        let position_upper_shape = joint_position_upper_state.as_array().dim();
+        let velocity_lower_shape = joint_velocity_lower.as_array().dim();
+        let velocity_upper_shape = joint_velocity_upper.as_array().dim();
+        let root_acceleration_shape = root_angular_acceleration.as_array().dim();
+        let joint_acceleration_shape = joint_acceleration.as_array().dim();
+        let diagnostic_shape = diagnostics_out.as_array().dim();
+        let root_lower = root_lower.as_slice()?;
+        let root_upper = root_upper.as_slice()?;
+        let joint_position_lower_state = joint_position_lower_state.as_slice()?;
+        let joint_position_upper_state = joint_position_upper_state.as_slice()?;
+        let joint_velocity_lower = joint_velocity_lower.as_slice()?;
+        let joint_velocity_upper = joint_velocity_upper.as_slice()?;
+        let joint_position_lower = joint_position_lower.as_slice()?;
+        let joint_position_upper = joint_position_upper.as_slice()?;
+        let joint_velocity_limit = joint_velocity_limit.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let root_acceleration = root_angular_acceleration.as_slice()?;
+        let joint_acceleration = joint_acceleration.as_slice()?;
+        let effort = maximum_actuator_effort_utilization.as_slice()?;
+        let diagnostics = diagnostics_out.as_slice_mut()?;
+        let rows = root_lower_shape.0;
+        let joints = joint_position_lower.len();
+        if rows == 0
+            || rows > 64
+            || root_lower_shape != (rows, 6)
+            || root_upper_shape != (rows, 6)
+            || position_lower_shape != (rows, joints)
+            || position_upper_shape != (rows, joints)
+            || velocity_lower_shape != (rows, joints)
+            || velocity_upper_shape != (rows, joints)
+            || joint_position_upper.len() != joints
+            || joint_velocity_limit.len() != joints
+            || available.len() != rows
+            || available.iter().any(|value| *value > 1)
+            || root_acceleration_shape != (rows, 2)
+            || joint_acceleration_shape != (rows, joints)
+            || effort.len() != rows
+            || diagnostic_shape != (rows, 17)
+        {
+            return Err(PyValueError::new_err(
+                "terminal state box expects root lower/upper[N,6], joint position-state and velocity lower/upper[N,J], joint limits[J], availability/effort[N], root acceleration[N,2], joint acceleration[N,J], and diagnostics[N,17] for 1<=N<=64",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let state_at = |row: usize| TerminalImpactStateBox {
+            root_clearance_lower_m: root_lower[6 * row],
+            root_clearance_upper_m: root_upper[6 * row],
+            root_vertical_velocity_lower_m_s: root_lower[6 * row + 1],
+            root_vertical_velocity_upper_m_s: root_upper[6 * row + 1],
+            root_tilt_lower_rad: [root_lower[6 * row + 2], root_lower[6 * row + 3]],
+            root_tilt_upper_rad: [root_upper[6 * row + 2], root_upper[6 * row + 3]],
+            root_angular_rate_lower_rad_s: [root_lower[6 * row + 4], root_lower[6 * row + 5]],
+            root_angular_rate_upper_rad_s: [root_upper[6 * row + 4], root_upper[6 * row + 5]],
+            joint_position_lower_state_rad: &joint_position_lower_state
+                [row * joints..(row + 1) * joints],
+            joint_position_upper_state_rad: &joint_position_upper_state
+                [row * joints..(row + 1) * joints],
+            joint_velocity_lower_rad_s: &joint_velocity_lower[row * joints..(row + 1) * joints],
+            joint_velocity_upper_rad_s: &joint_velocity_upper[row * joints..(row + 1) * joints],
+            joint_position_lower_rad: joint_position_lower,
+            joint_position_upper_rad: joint_position_upper,
+            joint_velocity_limit_rad_s: joint_velocity_limit,
+        };
+        let candidate_at = |row: usize| TerminalImpactCandidate {
+            available: available[row] != 0,
+            root_angular_acceleration_rad_s2: [
+                root_acceleration[2 * row],
+                root_acceleration[2 * row + 1],
+            ],
+            joint_acceleration_rad_s2: &joint_acceleration[row * joints..(row + 1) * joints],
+            maximum_actuator_effort_utilization: effort[row],
+        };
+        // Validate every row before mutating caller-owned output.
+        for row in 0..rows {
+            score_terminal_impact_state_box_upper(state_at(row), candidate_at(row), config)
+                .map_err(|error| {
+                    PyValueError::new_err(format!(
+                        "invalid terminal-impact state box row {row}: {error:?}"
+                    ))
+                })?;
+        }
+
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        for row in 0..rows {
+            let score =
+                score_terminal_impact_state_box_upper(state_at(row), candidate_at(row), config)
+                    .expect("validated terminal-impact state box row");
+            write_terminal_impact_score_diagnostics(
+                score,
+                &mut diagnostics[row * 17..(row + 1) * 17],
+            );
+        }
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "terminal-impact state box batch allocated inside the Rust hot path",
             ));
         }
         Ok((

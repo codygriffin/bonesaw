@@ -338,7 +338,25 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r254 rejects state-only paired transfer
+## Current CPU checkpoint — r255 composes complete terminal-state boxes
+
+R255 adds an atomic, allocation-free Rust interval boundary over the complete
+state consumed by the ballistic terminal-impact proxy: clearance, vertical
+speed, roll/pitch, angular rates, joint positions, and joint velocities.
+Pressure and aggregate consequence fields are upper bounds; raw joint headroom
+is a lower bound. A G1-shaped 64-row PyO3 batch repeats 500 times at
+50.61/71.12 microsecond p50/p99 with exact output and zero measured Rust
+allocation. Dense Rust tests and 2,048 independently scored interior points
+remain inside the reported bounds to floating-point roundoff.
+
+The checkpoint executes zero policy steps, physics steps, selector calls, or
+plant actions. It closes the interval-composition mechanism, not action
+selection: independent candidate boxes erase shared candidate/baseline
+correlation and therefore cannot establish paired improvement. No profile is
+frozen and authority remains closed. The next CPU seam is a causal
+shared-hypothesis or paired state tube built on this complete-state boundary.
+
+## Prior CPU checkpoint — r254 rejects state-only paired transfer
 
 R254 spends the exact no-refit plant gate declared by R253. Two new laws—
 elliptic/implicitfast and pyramidal/Euler—start at untouched deterministic

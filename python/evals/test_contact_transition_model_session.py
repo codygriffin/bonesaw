@@ -730,6 +730,197 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             )
         np.testing.assert_array_equal(unchanged, 7.0)
 
+    def test_terminal_state_box_is_atomic_allocation_free_and_replayable(self) -> None:
+        joints = self.generic.joint_dof()
+        rows = 2
+        root_lower = np.asarray(
+            [
+                [0.20, -0.8, -0.15, -0.10, -1.2, -0.9],
+                [0.16, -0.4, -0.08, -0.06, -0.7, -0.5],
+            ],
+            np.float64,
+        )
+        root_upper = np.asarray(
+            [
+                [0.28, 0.2, 0.20, 0.18, 1.1, 0.8],
+                [0.24, 0.3, 0.16, 0.14, 0.9, 0.7],
+            ],
+            np.float64,
+        )
+        joint_position_lower_state = np.full((rows, joints), -0.15, np.float64)
+        joint_position_upper_state = np.full((rows, joints), 0.15, np.float64)
+        joint_velocity_lower = np.full((rows, joints), -0.5, np.float64)
+        joint_velocity_upper = np.full((rows, joints), 0.7, np.float64)
+        joint_position_lower = np.full(joints, -1.0, np.float64)
+        joint_position_upper = np.full(joints, 1.0, np.float64)
+        joint_velocity_limit = np.full(joints, 2.5, np.float64)
+        available = np.ones(rows, np.uint8)
+        root_acceleration = np.asarray([[4.0, -3.0], [-2.0, 1.0]], np.float64)
+        joint_acceleration = np.zeros((rows, joints), np.float64)
+        effort = np.zeros(rows, np.float64)
+        diagnostics = np.empty((rows, 17), np.float64)
+        timing = self.generic.score_terminal_impact_state_box_batch(
+            root_lower,
+            root_upper,
+            joint_position_lower_state,
+            joint_position_upper_state,
+            joint_velocity_lower,
+            joint_velocity_upper,
+            joint_position_lower,
+            joint_position_upper,
+            joint_velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            diagnostics,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(np.isfinite(diagnostics)))
+        replay = np.empty_like(diagnostics)
+        replay_timing = self.generic.score_terminal_impact_state_box_batch(
+            root_lower,
+            root_upper,
+            joint_position_lower_state,
+            joint_position_upper_state,
+            joint_velocity_lower,
+            joint_velocity_upper,
+            joint_position_lower,
+            joint_position_upper,
+            joint_velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            replay,
+        )
+        self.assertEqual(replay_timing[1:], (0, 0))
+        np.testing.assert_array_equal(diagnostics, replay)
+
+        invalid_upper = root_upper.copy()
+        invalid_upper[-1, 0] = root_lower[-1, 0] - 0.1
+        unchanged = np.full_like(diagnostics, 7.0)
+        with self.assertRaisesRegex(ValueError, "state box row 1"):
+            self.generic.score_terminal_impact_state_box_batch(
+                root_lower,
+                invalid_upper,
+                joint_position_lower_state,
+                joint_position_upper_state,
+                joint_velocity_lower,
+                joint_velocity_upper,
+                joint_position_lower,
+                joint_position_upper,
+                joint_velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                unchanged,
+            )
+        np.testing.assert_array_equal(unchanged, 7.0)
+
+    def test_complete_terminal_state_box_bounds_points_and_is_atomic(self) -> None:
+        joints = self.generic.joint_dof()
+        rows = 2
+        root_lower = np.asarray(
+            [
+                [0.10, -0.8, -0.20, -0.15, -1.2, -0.9],
+                [0.08, -1.0, -0.15, -0.25, -1.5, -0.7],
+            ],
+            np.float64,
+        )
+        root_upper = np.asarray(
+            [
+                [0.30, 0.2, 0.25, 0.18, 1.4, 1.1],
+                [0.25, 0.1, 0.20, 0.15, 1.2, 1.3],
+            ],
+            np.float64,
+        )
+        position_lower_state = np.full((rows, joints), -0.2, np.float64)
+        position_upper_state = np.full((rows, joints), 0.3, np.float64)
+        velocity_lower_state = np.full((rows, joints), -0.5, np.float64)
+        velocity_upper_state = np.full((rows, joints), 0.7, np.float64)
+        lower = np.full(joints, -1.0, np.float64)
+        upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 2.0, np.float64)
+        available = np.ones(rows, np.uint8)
+        root_acceleration = np.asarray([[3.0, -2.0], [-1.0, 4.0]], np.float64)
+        joint_acceleration = np.zeros((rows, joints), np.float64)
+        effort = np.zeros(rows, np.float64)
+        bounds = np.empty((rows, 17), np.float64)
+        timing = self.generic.score_terminal_impact_state_box_batch(
+            root_lower,
+            root_upper,
+            position_lower_state,
+            position_upper_state,
+            velocity_lower_state,
+            velocity_upper_state,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            bounds,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+
+        point_state = 0.5 * (root_lower + root_upper)
+        point_position = 0.5 * (position_lower_state[0] + position_upper_state[0])
+        point_velocity = 0.5 * (velocity_lower_state + velocity_upper_state)
+        points = np.empty_like(bounds)
+        self.generic.score_terminal_impact_state_batch(
+            point_state,
+            point_position,
+            point_velocity,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            points,
+        )
+        names = tuple(self.generic.terminal_impact_state_diagnostic_names)
+        for name in (
+            "vertical_specific_impact_energy_j_kg",
+            "terminal_tilt_rad",
+            "terminal_angular_rate_rad_s",
+            "maximum_terminal_joint_velocity_utilization",
+            "impact_speed_pressure",
+            "joint_position_pressure",
+            "maximum_terminal_harm_pressure",
+            "aggregate_score",
+        ):
+            coordinate = names.index(name)
+            self.assertTrue(np.all(bounds[:, coordinate] >= points[:, coordinate]))
+        headroom = names.index("minimum_terminal_joint_headroom_fraction")
+        self.assertTrue(np.all(bounds[:, headroom] <= points[:, headroom]))
+
+        invalid_position_upper = position_upper_state.copy()
+        invalid_position_upper[-1, -1] = position_lower_state[-1, -1] - 0.1
+        unchanged = np.full_like(bounds, 7.0)
+        with self.assertRaisesRegex(ValueError, "state box row 1"):
+            self.generic.score_terminal_impact_state_box_batch(
+                root_lower,
+                root_upper,
+                position_lower_state,
+                invalid_position_upper,
+                velocity_lower_state,
+                velocity_upper_state,
+                lower,
+                upper,
+                velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                unchanged,
+            )
+        np.testing.assert_array_equal(unchanged, 7.0)
+
     def test_terminal_velocity_box_bounds_points_and_is_atomic(self) -> None:
         joints = self.generic.joint_dof()
         rows = 2
