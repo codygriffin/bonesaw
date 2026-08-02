@@ -27,8 +27,8 @@ an open controller boundary.
 
 The mechanism passes, but the low-gain walking profile remains rejected. First
 NormalFallback is unchanged at tick 863; full-run root RMS is 17.026 m and
-attitude reaches 120.38 degrees. Candidate p99 is 4.906 ms, while the separate
-localized-handoff control is 6.042 ms. Defaults and
+attitude reaches 120.38 degrees. The candidate remains below the 5 ms p99 gate,
+while the separate localized-handoff control exceeds it. Defaults and
 authority are unchanged. The next controller slice is continuous recovery from
 persistent NormalFallback with post-touchdown root/attitude tracking, not more
 per-call solver work or weaker contact constraints. See

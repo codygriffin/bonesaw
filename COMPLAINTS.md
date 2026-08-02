@@ -77,7 +77,7 @@ below 1e-8. All global releases still clear rejected residual witnesses.
 This closes the complaint that one finite-cap exhaustion necessarily triggers
 an immediate whole-body release/reset. It does not close walking: first
 NormalFallback remains tick 863, full-run root RMS is 17.026 m, attitude reaches
-120.38 degrees, and the independent handoff control has 6.042 ms p99. The
+120.38 degrees, and the independent handoff control exceeds the 5 ms p99 gate. The
 profile, continuation, and timeout are
 default-off and grant no authority. The remaining behavior complaint is
 continuous exit from persistent NormalFallback while restoring post-touchdown
