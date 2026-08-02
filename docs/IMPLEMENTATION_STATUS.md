@@ -60,7 +60,7 @@ profile using only differences between causal predictions. The least-work row
 must change by at most 2% of each useful-width gate when projection sweeps
 double, at most 20% when microsteps double, and remain below a 5 ms CPU
 deadline. This freezes 32 microsteps × 32 forward/reverse sweeps: 1.200% sweep
-refinement, 16.858% substep refinement, and 0.631 ms worst-law p99. Completed
+refinement, 16.858% substep refinement, and 0.637 ms worst-law p99. Completed
 impulse and generalized-residual labels are accessed only after selection.
 
 The already-rejected R221 labels then show 48/48 coverage under each law at

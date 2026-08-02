@@ -2343,7 +2343,7 @@ impulse or residual labels for selection. Its causal convergence rule chooses
 the least work whose prediction changes by at most 2% of the useful-width gate
 when projection sweeps double and 20% when microsteps double, while retaining a
 5 ms CPU deadline. That selects 32 microsteps × 32 forward/reverse sweeps:
-1.200% sweep refinement, 16.858% substep refinement, and 0.631 ms worst-law
+1.200% sweep refinement, 16.858% substep refinement, and 0.637 ms worst-law
 p99. The label-free impulse cap is whole-model mass times maximum causal
 closing speed plus one tick of gravity; tangent capacity comes from authored
 friction. Two retained runs reproduce all 192 semantic arrays exactly. This

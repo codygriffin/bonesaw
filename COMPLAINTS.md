@@ -41,7 +41,7 @@ R227 removes the coupled solver profile freeze from this punch list. A causal
 convergence rule compares predictions only, selecting the least work whose
 double-sweep change is at most 2% and double-substep change at most 20% of the
 useful-width gates under a 5 ms deadline. It freezes 32 substeps × 32 sweeps:
-1.200%/16.858% refinement and 0.631 ms p99. Completed impulse/residual labels
+1.200%/16.858% refinement and 0.637 ms p99. Completed impulse/residual labels
 do not enter selection, and 192 semantic arrays replay exactly.
 
 R228 removes the untouched-holdout execution from this punch list and rejects
