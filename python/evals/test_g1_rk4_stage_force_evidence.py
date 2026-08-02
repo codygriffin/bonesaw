@@ -17,7 +17,14 @@ from g1_rk4_stage_force_cross_integrator_holdout import (
     FROZEN_PROJECTION_SWEEPS,
     SAMPLE_OFFSETS as R238_OFFSETS,
 )
+from g1_constraint_rhs_convergence_audit import PROJECTION_SWEEPS as R240_SWEEPS
+from g1_constraint_rhs_cross_integrator_holdout import (
+    FRESH_CONTACT_LAWS as R241_LAWS,
+    FROZEN_PROJECTION_SWEEPS as R241_FROZEN_SWEEPS,
+    SAMPLE_OFFSETS as R241_OFFSETS,
+)
 from g1_positive_reference_compliance_audit import (
+    law_model_constraint_rhs_integrator_id,
     law_model_stage_force_integrator_id,
 )
 
@@ -46,6 +53,24 @@ class G1Rk4StageForceEvidenceTests(unittest.TestCase):
         self.assertEqual(
             [law_model_stage_force_integrator_id(law) for law in R238_LAWS],
             [1, 4],
+        )
+        self.assertEqual(
+            [law_model_constraint_rhs_integrator_id(law) for law in R238_LAWS],
+            [0, 4],
+        )
+
+    def test_constraint_rhs_holdout_is_new_and_uses_causally_frozen_work(self) -> None:
+        self.assertEqual(R241_FROZEN_SWEEPS, 128)
+        self.assertIn(R241_FROZEN_SWEEPS, R240_SWEEPS)
+        self.assertTrue(
+            {law.name for law in R241_LAWS}.isdisjoint(
+                {law.name for law in R238_LAWS}
+            )
+        )
+        self.assertTrue(set(R241_OFFSETS).isdisjoint(R238_OFFSETS))
+        self.assertEqual(
+            [law_model_constraint_rhs_integrator_id(law) for law in R241_LAWS],
+            [0, 4],
         )
 
 

@@ -18,10 +18,15 @@ from g1_positive_reference_compliance_audit import (
     REFERENCE_DOCUMENTATION,
     SOLVER_FAMILIES,
     law_cone_id,
+    law_model_constraint_rhs_integrator_id,
+    law_model_implicit_stage_force_integrator_id,
     law_model_integrator_id,
     law_model_stage_force_integrator_id,
     law_reduced_integrator_id,
     reference_contact_acceleration,
+)
+from g1_model_coupled_positive_reference_compliance_holdout import (
+    FRESH_CONTACT_LAWS as MODEL_CONTACT_LAWS,
 )
 from g1_substepped_compliant_contact_holdout import FRESH_CONTACT_LAWS
 
@@ -47,6 +52,24 @@ class G1PositiveReferenceComplianceAuditTests(unittest.TestCase):
         self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[1]), 3)
         self.assertEqual(law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
         self.assertEqual(law_model_stage_force_integrator_id(FRESH_CONTACT_LAWS[1]), 4)
+        self.assertEqual(
+            law_model_constraint_rhs_integrator_id(FRESH_CONTACT_LAWS[0]), 0
+        )
+        self.assertEqual(
+            law_model_constraint_rhs_integrator_id(FRESH_CONTACT_LAWS[1]), 4
+        )
+
+    def test_implicit_stage_force_uses_new_model_only_id(self) -> None:
+        # Keep the historical implicitfast model id=1 untouched while the
+        # opt-in stage-local implicit candidate gets its own ABI id=5.
+        implicitfast, rk4 = MODEL_CONTACT_LAWS
+        self.assertEqual(law_model_integrator_id(implicitfast), 1)
+        self.assertEqual(
+            law_model_implicit_stage_force_integrator_id(implicitfast), 5
+        )
+        self.assertEqual(
+            law_model_implicit_stage_force_integrator_id(rk4), 4
+        )
 
     def test_stage_force_id_is_distinct_from_full_tick_generalized_rk4(self) -> None:
         # The stage-force path is a model-coupled ABI variant.  Scalar contact

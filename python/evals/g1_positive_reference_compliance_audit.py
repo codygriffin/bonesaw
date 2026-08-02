@@ -203,6 +203,7 @@ MODEL_INTEGRATOR_IDS = {
     "exponential_trapezoidal": 2,
     "generalized_rk4": 3,
     "generalized_rk4_stage_force": 4,
+    "generalized_implicit_stage_force": 5,
 }
 
 
@@ -225,6 +226,35 @@ def law_model_stage_force_integrator_id(law: Any) -> int:
     """Map RK4 to the current-stage contact-force generalized integrator."""
     if law.integrator == int(mujoco.mjtIntegrator.mjINT_IMPLICITFAST):
         return MODEL_INTEGRATOR_IDS["implicit"]
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
+        return MODEL_INTEGRATOR_IDS["generalized_rk4_stage_force"]
+    return MODEL_INTEGRATOR_IDS["explicit"]
+
+
+def law_model_implicit_stage_force_integrator_id(law: Any) -> int:
+    """Map each authored law to a stage-local model contact integrator.
+
+    RK4 keeps the id-4 explicit stage-force path, while implicitfast selects
+    the experimental id-5 path that applies one implicit local contact update
+    at each refreshed generalized RK stage.  The historical model id-1
+    implicitfast mapping remains available through :func:`law_model_integrator_id`.
+    """
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_IMPLICITFAST):
+        return MODEL_INTEGRATOR_IDS["generalized_implicit_stage_force"]
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
+        return MODEL_INTEGRATOR_IDS["generalized_rk4_stage_force"]
+    return MODEL_INTEGRATOR_IDS["explicit"]
+
+
+def law_model_constraint_rhs_integrator_id(law: Any) -> int:
+    """Map the reference engine's constraint RHS, not its smooth-force step.
+
+    MuJoCo's implicit and implicitfast velocity Jacobians explicitly exclude
+    constraint forces J^T f(v). Contact friction is a constraint-space
+    reference acceleration, so it must not inherit the smooth-force implicit
+    integrator here. RK4 still needs Bonesaw's current-stage generalized path.
+    See https://mujoco.readthedocs.io/en/stable/computation/#geintegrators.
+    """
     if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
         return MODEL_INTEGRATOR_IDS["generalized_rk4_stage_force"]
     return MODEL_INTEGRATOR_IDS["explicit"]

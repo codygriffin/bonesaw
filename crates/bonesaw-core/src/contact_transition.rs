@@ -989,6 +989,11 @@ pub enum CompliantStepIntegrator {
     /// complete state tick inside an RK derivative. It is model-coupled only
     /// and requires exactly one instantaneous compliance evaluation per stage.
     GeneralizedRk4StageForce,
+    /// Four-stage generalized RK4 with an implicit one-substep contact
+    /// derivative evaluated at the current stage state. This is a
+    /// model-coupled experimental path for the authored implicitfast family;
+    /// the historical scalar/model id [`Self::ImplicitEuler`] is unchanged.
+    GeneralizedImplicitStageForce,
 }
 
 /// Positive time-constant/damping-ratio compliant-contact law.
@@ -1098,8 +1103,10 @@ pub struct ModelCoupledPositiveReferenceCompliantContactImpulseInput<'a> {
     pub friction_cone: CompliantFrictionCone,
     /// `ExplicitEuler`, `ImplicitEuler`, and `ExponentialTrapezoidal` keep
     /// their legacy single-event behavior. `GeneralizedRk4` retains the R232
-    /// full-tick local contact update, while `GeneralizedRk4StageForce`
-    /// evaluates the contact right-hand side at the current RK stage.
+    /// full-tick local contact update, while `GeneralizedRk4StageForce` and
+    /// `GeneralizedImplicitStageForce` evaluate one contact right-hand side at
+    /// the current RK stage using explicit and implicit local contact updates,
+    /// respectively.
     pub integrator: CompliantStepIntegrator,
 }
 
@@ -1647,7 +1654,9 @@ pub fn solve_positive_reference_compliant_contact_impulse(
 ) -> Result<(), CoupledContactImpulseError> {
     if matches!(
         input.integrator,
-        CompliantStepIntegrator::GeneralizedRk4 | CompliantStepIntegrator::GeneralizedRk4StageForce
+        CompliantStepIntegrator::GeneralizedRk4
+            | CompliantStepIntegrator::GeneralizedRk4StageForce
+            | CompliantStepIntegrator::GeneralizedImplicitStageForce
     ) {
         return Err(CoupledContactImpulseError::InvalidConfig);
     }
@@ -1803,6 +1812,9 @@ pub fn solve_positive_reference_compliant_contact_impulse(
                 CompliantStepIntegrator::GeneralizedRk4StageForce => {
                     unreachable!("generalized RK4 stage force is model-coupled only")
                 }
+                CompliantStepIntegrator::GeneralizedImplicitStageForce => {
+                    unreachable!("generalized implicit stage force is model-coupled only")
+                }
             };
             let desired_total_x =
                 (impulse_out[tangent_x] + contact_velocity_delta(tangent_x) / diagonal_x).clamp(
@@ -1881,7 +1893,9 @@ fn validate_coupled_positive_reference_compliant_contact(
 ) -> Result<usize, CoupledContactImpulseError> {
     if matches!(
         input.integrator,
-        CompliantStepIntegrator::GeneralizedRk4 | CompliantStepIntegrator::GeneralizedRk4StageForce
+        CompliantStepIntegrator::GeneralizedRk4
+            | CompliantStepIntegrator::GeneralizedRk4StageForce
+            | CompliantStepIntegrator::GeneralizedImplicitStageForce
     ) {
         return Err(CoupledContactImpulseError::InvalidConfig);
     }
@@ -2113,6 +2127,9 @@ pub fn solve_coupled_positive_reference_compliant_contact_impulse(
                 }
                 CompliantStepIntegrator::GeneralizedRk4StageForce => {
                     unreachable!("generalized RK4 stage force is model-coupled only")
+                }
+                CompliantStepIntegrator::GeneralizedImplicitStageForce => {
+                    unreachable!("generalized implicit stage force is model-coupled only")
                 }
             };
             desired_velocity_delta_scratch[tangent_x] = tangent_delta(tangent_x);
@@ -2514,8 +2531,11 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
         || input.state_steps > 64
         || input.compliance_substeps == 0
         || input.compliance_substeps > 256
-        || (input.integrator == CompliantStepIntegrator::GeneralizedRk4StageForce
-            && input.compliance_substeps != 1)
+        || (matches!(
+            input.integrator,
+            CompliantStepIntegrator::GeneralizedRk4StageForce
+                | CompliantStepIntegrator::GeneralizedImplicitStageForce
+        ) && input.compliance_substeps != 1)
         || input.projection_sweeps == 0
         || input.projection_sweeps > 256
         || !input.time_step_s.is_finite()
@@ -2589,10 +2609,21 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
     let state_step_s = input.time_step_s / input.state_steps as f64;
     if matches!(
         input.integrator,
-        CompliantStepIntegrator::GeneralizedRk4 | CompliantStepIntegrator::GeneralizedRk4StageForce
+        CompliantStepIntegrator::GeneralizedRk4
+            | CompliantStepIntegrator::GeneralizedRk4StageForce
+            | CompliantStepIntegrator::GeneralizedImplicitStageForce
     ) {
-        let evaluate_current_stage_gap =
-            input.integrator == CompliantStepIntegrator::GeneralizedRk4StageForce;
+        let evaluate_current_stage_gap = matches!(
+            input.integrator,
+            CompliantStepIntegrator::GeneralizedRk4StageForce
+                | CompliantStepIntegrator::GeneralizedImplicitStageForce
+        );
+        let stage_integrator =
+            if input.integrator == CompliantStepIntegrator::GeneralizedImplicitStageForce {
+                CompliantStepIntegrator::ImplicitEuler
+            } else {
+                CompliantStepIntegrator::ExplicitEuler
+            };
         let stage_scale = [0.0, 0.5, 0.5, 1.0];
         let stage_source = [0, 0, 1, 2];
         let rk4_weight = [1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0];
@@ -2639,14 +2670,16 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
                 )?;
                 refresh_model_free_acceleration_from_held_force(model, scratch)?;
                 write_floating_velocity(&scratch.state, &mut scratch.rk4_stage_velocity[stage]);
-                // StageForce cancels the local solver's gap lookahead so this
-                // call evaluates the compliant-contact right-hand side at the
-                // current RK stage. Historical GeneralizedRk4 deliberately
-                // retains its full-tick local update for replay compatibility.
+                // StageForce variants cancel the local solver's gap lookahead
+                // so this call evaluates the compliant-contact right-hand
+                // side at the current RK stage. Historical GeneralizedRk4
+                // deliberately retains its full-tick local update for replay
+                // compatibility; id 5 selects the implicit local tangent
+                // update while preserving that same stage-local clock.
                 solve_model_contact_stage(
                     input,
                     state_step_s,
-                    CompliantStepIntegrator::ExplicitEuler,
+                    stage_integrator,
                     evaluate_current_stage_gap,
                     scratch,
                 )?;
@@ -4358,6 +4391,7 @@ mod tests {
         let model = crate::urdf::load_urdf(source).unwrap();
         let mut initial = FloatingRobotState::zeros(&model);
         initial.robot.control_world_from_root.translation.vector.z = -0.0001;
+        initial.root_twist_world.0[3] = 1.0;
         initial.root_twist_world.0[5] = -1.0;
         let contacts = [PointImpulseResponseSpec {
             frame: FrameId(model.root.0),
@@ -4377,7 +4411,7 @@ mod tests {
             plane_offset_m: 0.0,
             generalized_free_acceleration: &acceleration,
             initial_contact_free_acceleration: &[0.0; 3],
-            impulse_upper: &[0.0, 0.0, 10.0],
+            impulse_upper: &[10.0, 10.0, 10.0],
             friction: &[0.5],
             time_constant_s: &[0.02],
             damping_ratio: &[1.0],
@@ -4416,8 +4450,12 @@ mod tests {
         };
         let legacy = run(CompliantStepIntegrator::GeneralizedRk4).unwrap();
         let stage_force = run(CompliantStepIntegrator::GeneralizedRk4StageForce).unwrap();
+        let implicit_stage_force =
+            run(CompliantStepIntegrator::GeneralizedImplicitStageForce).unwrap();
         assert!(legacy.0[2] > stage_force.0[2]);
         assert!(stage_force.0[2] > 0.0);
+        assert!(implicit_stage_force.0[2] > 0.0);
+        assert_ne!(implicit_stage_force.0, stage_force.0);
 
         let invalid = ModelCoupledPositiveReferenceCompliantContactImpulseInput {
             integrator: CompliantStepIntegrator::GeneralizedRk4StageForce,
@@ -4433,6 +4471,33 @@ mod tests {
             solve_model_coupled_positive_reference_compliant_contact_impulse(
                 &model,
                 invalid,
+                &mut scratch,
+                &mut impulse,
+                &mut velocity,
+                &mut gap,
+                &mut after,
+            ),
+            Err(ModelCoupledPositiveReferenceContactError::InvalidConfig)
+        );
+        assert_eq!(impulse, [7.0; 3]);
+        assert_eq!(velocity, [8.0; 3]);
+        assert_eq!(gap, [9.0]);
+
+        let invalid_implicit_stage_force =
+            ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+                integrator: CompliantStepIntegrator::GeneralizedImplicitStageForce,
+                compliance_substeps: 2,
+                ..base_input
+            };
+        let mut scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut impulse = [7.0; 3];
+        let mut velocity = [8.0; 3];
+        let mut gap = [9.0];
+        let mut after = FloatingRobotState::zeros(&model);
+        assert_eq!(
+            solve_model_coupled_positive_reference_compliant_contact_impulse(
+                &model,
+                invalid_implicit_stage_force,
                 &mut scratch,
                 &mut impulse,
                 &mut velocity,
@@ -4917,6 +4982,10 @@ mod tests {
         assert_eq!(repeat, first);
         assert_eq!(
             run(CompliantStepIntegrator::GeneralizedRk4StageForce),
+            Err(CoupledContactImpulseError::InvalidConfig)
+        );
+        assert_eq!(
+            run(CompliantStepIntegrator::GeneralizedImplicitStageForce),
             Err(CoupledContactImpulseError::InvalidConfig)
         );
 

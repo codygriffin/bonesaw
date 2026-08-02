@@ -2483,6 +2483,35 @@ semantic arrays replay exactly. Retain the stage-force mechanism, admit no
 authority, and isolate the remaining implicitfast transfer tail without
 fitting these labels. See the [r238 fresh cross-integrator holdout](benchmarks/results/g1-rk4-stage-force-cross-integrator-holdout-r238/G1_RK4_STAGE_FORCE_CROSS_INTEGRATOR_HOLDOUT.md).
 
+R239 then checks the reference integrator equations rather than inferring
+contact semantics from an enum name. MuJoCo excludes constraint forces
+`Jᵀf(v)` from implicit/implicitfast force-velocity derivatives, so local
+implicit contact damping was the wrong mapping. On spent R238 rows, diagnostic
+ABI 0 removes one predicted-only activation and cuts fitted joint width from
+21.255 to 5.077 rad/s; one exact-set distribution miss remains. The diagnostic
+uses zero new reference steps and replays 33 semantic arrays exactly. See the
+[r239 constraint-RHS localization](benchmarks/results/g1-implicitfast-constraint-rhs-localization-r239/G1_IMPLICITFAST_CONSTRAINT_RHS_LOCALIZATION.md).
+
+R240 adds a separate equation-level mapper without changing historical replay:
+non-RK constraint RHS uses ABI 0 and RK4 uses current-stage ABI 4. Causal-only
+128→256 refinement is 1.980% of the width gate, freezing 128 sweeps at 3.34 ms
+selected p99 with bitwise repeat, zero timed Rust allocation, and 136 exact
+semantic arrays. See the [r240 constraint-RHS convergence audit](benchmarks/results/g1-constraint-rhs-convergence-audit-r240/G1_CONSTRAINT_RHS_CONVERGENCE_AUDIT.md).
+
+R241 crosses the previous cone/integrator pairing on new offsets
+170,000/180,000. Elliptic RK4/id 4 covers 48/48 at
+0.100/0.009/3.120 angular/linear/joint width and 3.56 ms p99. Pyramidal
+implicitfast/id 0 covers 47/48 and needs 0.124/0.025/17.138 after predicting
+three unloaded points in its lone miss. Both pass deadline/repeat/allocation
+and all 62 semantic arrays replay exactly; the conjunctive profile and
+authority remain rejected. See the [r241 fresh constraint-RHS holdout](benchmarks/results/g1-constraint-rhs-cross-integrator-holdout-r241/G1_CONSTRAINT_RHS_CROSS_INTEGRATOR_HOLDOUT.md).
+
+The core also exposes an opt-in model-only ABI 5 (`generalized-implicit-stage-force`)
+for isolating a different hypothesis: one local implicit contact update at each
+current generalized-RK stage. It is covered by atomicity and positive-impulse
+regressions, but has no fresh holdout and is not a production mapping; historical
+implicitfast ABI 1 and all prior evidence remain unchanged.
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the

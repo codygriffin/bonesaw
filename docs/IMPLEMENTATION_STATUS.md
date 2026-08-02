@@ -104,6 +104,36 @@ is retained; label-independent implicitfast/contact-update transfer remains
 the CPU accuracy gate. No R224 selection, plant non-regression, or authority
 follows the failed combined holdout.
 
+R239 isolates a second integration-category error using spent R238 labels only.
+MuJoCo's documented implicit/implicitfast velocity Jacobian excludes constraint
+forces `Jᵀf(v)`; contact friction remains a constraint-space reference
+acceleration. Mapping implicitfast onto Bonesaw's local implicit contact damping
+was therefore incorrect. Diagnostic ABI 0 removes sample 26's predicted-only
+point and cuts joint width from 21.255 to 5.077 rad/s, while sample 10 remains
+an exact-active-set distribution tail. R239 is ineligible for selection and
+replays 33 semantic arrays exactly.
+
+R240 preserves every historical mapper and adds the equation-level constraint-
+RHS mapper: non-RK uses ABI 0; RK4 uses current-stage ABI 4. Prediction-only
+128→256 refinement is 1.980% of the useful-width gate, freezing 128 sweeps at
+3.34 ms selected p99 with repeat, zero allocation, and 136 exact semantic
+arrays. Only afterward do spent R238 scores reopen.
+
+R241 spends new crossed cone/integrator laws at offsets 170,000/180,000. The
+elliptic RK4/id-4 row transfers strictly at 48/48 with
+0.100/0.009/3.120 angular/linear/joint width and 3.56 ms p99. The pyramidal
+implicitfast/id-0 row covers 47/48 and needs 0.124/0.025/17.138; its lone miss
+predicts three unloaded points. Both rows meet deadline, repeat, allocation,
+and 62-array replay gates, but the combined profile remains rejected. The next
+CPU mechanism is label-independent non-RK within-tick activation and
+within-foot wrench distribution—not RK stage timing or integrator-enum mapping.
+
+The model-only `generalized-implicit-stage-force` ABI id 5 is retained as an
+opt-in diagnostic hypothesis. It performs one local implicit contact update at
+each refreshed generalized-RK stage while preserving historical implicitfast
+id 1 and every prior mapper. Its atomicity and positive-impulse regressions
+pass, but it has not been promoted or evaluated on a fresh holdout.
+
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 
 R229 reads the completed immutable R228 labels explicitly, so it is a

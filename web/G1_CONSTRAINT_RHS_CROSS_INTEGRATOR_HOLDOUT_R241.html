@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw constraint RHS · r241</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw constraint-RHS fresh holdout · r241</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED**.</blockquote>
+<p>This untouched corpus crosses the R238 pairing: a new pyramidal implicitfast law uses explicit constraint-RHS ABI 0, while a new elliptic RK4 law uses current-stage-force ABI 4. Laws, offsets 170,000/180,000, 128 sweeps, deadline, and residual box were fixed before generation.</p>
+<div class=table-wrap><table><thead><tr><th>law</th><th>ABI</th><th>frozen coverage</th><th>exact active sets</th><th>pred-only / missed</th><th>fitted width · ang / lin / joint</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>compliant_pyramidal_implicitfast_r241</td><td>0</td><td>97.917%</td><td>45/48</td><td>3 / 0</td><td>0.124 / 0.025 / 17.138</td><td>0.754</td><td>REJECT</td></tr><tr><td>rigid_elliptic_rk4_constraint_rhs_r241</td><td>4</td><td>100.000%</td><td>48/48</td><td>0 / 0</td><td>0.100 / 0.009 / 3.120</td><td>3.559</td><td>PROMOTE</td></tr></tbody></table></div>
+<p>The predictor received causal arrays only. Scoring compares returned and reference final generalized tangents directly. Strict coverage, deadline, repeat, and zero allocation are conjunctive across both rows; authority remains separately disabled regardless of this result. An independent retained rerun reproduced all 62 non-timing arrays exactly; 10 measured timing arrays are excluded from semantic equality.</p></main></body></html>

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "stage-force-cross-integrator-holdout-r238",
+  "revision": "constraint-rhs-cross-integrator-holdout-r241",
   "updated": "2026-08-02",
-  "stage": "Current-stage-force RK4 passes its untouched row; the conjunctive cross-integrator profile remains rejected on implicitfast transfer · r238/r237",
-  "checkpoint": "R237 adds model-only ABI id 4, which evaluates the positive-reference law at the current generalized-RK4 stage instead of advancing gap by another full state tick; historical id 3 remains unchanged. Prediction-only refinement freezes 64 sweeps at 0.801% of the useful-width gate and 4.06 ms selected p99 (4.18 ms at 128 sweeps). On untouched R238 evidence, the new RK4 row covers 48/48 at 0.122/0.018/5.191 angular/linear/joint width and 2.82 ms p99, while the implicitfast comparator covers 46/48 and needs 0.213/0.045/21.255. Both repeat bitwise and allocate zero timed Rust bytes. The combined profile is therefore rejected and cannot enter R224 selection, plant non-regression, or authority.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED; the grid comes from the streamed MuJoCo plane. Intent, disturbance, and measured feedback have distinct typed owners. Rust now owns two explicitly separate four-stage paths: historical full-tick generalized RK4 (ABI 3) and current-stage-force RK4 (ABI 4). R237 selection sees only causal arrays; R238 gives the id-4 row strict 48/48 fresh coverage but rejects the mixed-integrator profile on its id-1 comparator. The next CPU gate is label-independent implicitfast/contact-update transfer, then another untouched mixed-integrator holdout before any R224-bounded plant action. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "Constraint-RHS integration is decoupled from implicitfast smooth-force integration; RK4 transfers strictly, while non-RK activation/wrench transfer remains rejected · r241/r240",
+  "checkpoint": "R239 confirms from MuJoCo's documented equations that implicitfast excludes constraint-force velocity derivatives; mapping that engine enum to local implicit contact damping was a category error. R240 preserves old evidence and freezes the corrected ABI 0/4 mapping at 128 sweeps from causal prediction refinement only: 128→256 is 1.980% of gate and selected p99 is 3.34 ms. On untouched crossed-pair R241 evidence, RK4/id 4 covers 48/48 at 0.100/0.009/3.120 angular/linear/joint width and 3.56 ms p99. Pyramidal implicitfast/id 0 covers 47/48 at 0.124/0.025/17.138; its lone miss predicts three unloaded foot points. The conjunctive profile remains rejected and cannot enter R224 selection, plant non-regression, or authority.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns historical full-tick generalized RK4 (ABI 3), current-stage-force RK4 (ABI 4), and a separately typed experimental generalized implicit stage-force ABI 5 that has no selection or authority evidence. Python evaluation maps reference constraint equations independently of the engine's smooth-force integrator: non-RK contact RHS uses ABI 0 and RK4 uses ABI 4. R240 selection sees causal arrays only; R241 transfers the RK4 row strictly but rejects the mixed profile on one non-RK predicted-contact tail. The next CPU gate is label-independent within-tick non-RK activation and within-foot wrench distribution, then a new untouched holdout before any R224-bounded plant action. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -24,7 +24,7 @@
     },
     {
       "name": "Model-owned physical transition query",
-      "detail": "caller-owned fixed storage · positive-reference compliance · complete Delassus coupling · explicit/implicit/exponential scalar ABI ids 0/1/2 · historical full-tick generalized RK4 id 3 retained for reproducibility · current-stage-force generalized RK4 id 4 evaluates one contact right-hand side at each refreshed stage · no policy, controller, selector, or plant authority"
+      "detail": "caller-owned fixed storage · positive-reference compliance · complete Delassus coupling · local constraint-RHS ABI ids 0/1/2 remain explicit/implicit/exponential · historical full-tick generalized RK4 id 3 retained for reproducibility · current-stage-force generalized RK4 id 4 evaluates one contact right-hand side at each refreshed stage · opt-in generalized implicit stage-force id 5 is diagnostic only and leaves historical id 1 unchanged · reference-engine smooth-force integrator enums are mapped separately from contact constraint equations · no policy, controller, selector, or plant authority"
     },
         {
             "name": "Fixed-capacity IR",
@@ -80,7 +80,7 @@
     {
       "name": "bonesaw-py",
       "role": "Narrow PyO3/NumPy boundary for corpus-scale evaluation and replaceable plant integration.",
-      "runtime": "PyO3 exposes persistent UpkieBalanceSession and floating WBC sessions plus allocation-guarded request, forecast, path, poll, hybrid-guard, confirmation, execution-monitor, hard-witness-copy, support-contingency, contact-program transitions, the r188/r189 retained-effort selector/gate, r190's fresh support-free command boundary, r191's fixed three-candidate terminal score/selection buffers, and r195's [3,4,17] terminal hypothesis aggregation boundary. Rust owns FK/CoM support-centroid construction, target evidence, ballistic terminal propagation, componentwise selection, enable/lease/hold state, Q15 scaling, deterministic tie breaking, and typed selection/provenance. Python owns immutable corpora, declared impact fixtures, MuJoCo, Pinocchio, and comparison orchestration. R195 records every fixed-effort support hypothesis, envelope, typed action, measured physical mask, following-interval realization, and independent re-audit. R211 adds generic construction-time frame resolution with preallocated arbitrary-morphology point/spatial response, generalized-momentum residual and inverse-mass interval queries. R212 replays the grouped set without plant/policy/controller execution. R213 exposes the same directional query through ContactTransitionModelSession and evaluates eight G1 foot points under reset-every-sample contact laws; completed velocity/impulse remain labels only. R214 exposes a generic kinetic-ellipsoid velocity-jump bound. R215 exposes a fixed-shape finite-patch spatial-transition query. R216 exposes split root/articulated kinetic support. R217 adds a generic caller-owned coupled-contact impulse boundary; R218 drives it on fresh reset laws. R219 exposes a caller-owned finite-hypothesis envelope. R220 exposes allocation-guarded substepped compliant evolution; R221 generates two new law/state label sets and repeats every query bitwise. R222 exposes a bounded generic terminal-state batch using the same Rust impact proxy, leaving Python to construct paired contact-only prediction/oracle states and report consequence errors. R224 exposes an atomic bounded batch for componentwise root/joint velocity boxes; Python only constructs immutable replay rows, statistics, and reports. R226 exposes atomic allocation-guarded independent-mass and complete-Delassus positive-reference contact evolution with typed causal free acceleration and explicit cone/integrator IDs; model ABI ids 0/1/2 remain explicit/implicit/exponential, id 3 remains historical full-tick generalized RK4, and id 4 is current-stage-force generalized RK4. R237 keeps profile selection in Python but makes completed R233 labels unreachable until 64 sweeps is frozen; R238 creates fresh mixed-integrator labels only afterward and passes causal arrays alone to prediction. Planner, final authority, support-free WBC, hypothesis queries, terminal audit, and contact-transition response use separate mutable workspaces."
+      "runtime": "PyO3 exposes persistent UpkieBalanceSession and floating WBC sessions plus allocation-guarded request, forecast, path, poll, hybrid-guard, confirmation, execution-monitor, hard-witness-copy, support-contingency, contact-program transitions, the r188/r189 retained-effort selector/gate, r190's fresh support-free command boundary, r191's fixed three-candidate terminal score/selection buffers, and r195's [3,4,17] terminal hypothesis aggregation boundary. Rust owns FK/CoM support-centroid construction, target evidence, ballistic terminal propagation, componentwise selection, enable/lease/hold state, Q15 scaling, deterministic tie breaking, and typed selection/provenance. Python owns immutable corpora, declared impact fixtures, MuJoCo, Pinocchio, and comparison orchestration. R195 records every fixed-effort support hypothesis, envelope, typed action, measured physical mask, following-interval realization, and independent re-audit. R211 adds generic construction-time frame resolution with preallocated arbitrary-morphology point/spatial response, generalized-momentum residual and inverse-mass interval queries. R212 replays the grouped set without plant/policy/controller execution. R213 exposes the same directional query through ContactTransitionModelSession and evaluates eight G1 foot points under reset-every-sample contact laws; completed velocity/impulse remain labels only. R214 exposes a generic kinetic-ellipsoid velocity-jump bound. R215 exposes a fixed-shape finite-patch spatial-transition query. R216 exposes split root/articulated kinetic support. R217 adds a generic caller-owned coupled-contact impulse boundary; R218 drives it on fresh reset laws. R219 exposes a caller-owned finite-hypothesis envelope. R220 exposes allocation-guarded substepped compliant evolution; R221 generates two new law/state label sets and repeats every query bitwise. R222 exposes a bounded generic terminal-state batch using the same Rust impact proxy, leaving Python to construct paired contact-only prediction/oracle states and report consequence errors. R224 exposes an atomic bounded batch for componentwise root/joint velocity boxes; Python only constructs immutable replay rows, statistics, and reports. R226 exposes atomic allocation-guarded independent-mass and complete-Delassus positive-reference contact evolution with typed causal free acceleration and explicit cone/integrator IDs; model ABI ids 0/1/2 remain explicit/implicit/exponential, id 3 remains historical full-tick generalized RK4, id 4 is current-stage-force generalized RK4, and opt-in id 5 is a model-only implicit stage-force diagnostic. R237 keeps profile selection in Python but makes completed R233 labels unreachable until 64 sweeps is frozen; R238 creates fresh mixed-integrator labels only afterward and passes causal arrays alone to prediction. R239-R241 map reference constraint equations separately from smooth-force integrator enums; the non-RK row remains rejected on within-tick activation. Planner, final authority, support-free WBC, hypothesis queries, terminal audit, and contact-transition response use separate mutable workspaces."
     },
     {
       "name": "bonesaw-tools",
@@ -94,6 +94,24 @@
         }
   ],
   "decisions": [
+    {
+      "status": "rejected",
+      "title": "Fresh crossed-pair evidence retains constraint-RHS semantics but rejects non-RK transfer",
+      "detail": "R241 spends new pyramidal/implicitfast and elliptic/RK4 laws at offsets 170,000/180,000 after R240 freezes 128 sweeps. RK4/id 4 covers 48/48 at 0.100/0.009/3.120 angular/linear/joint width and 3.56 ms p99. Implicitfast/id 0 covers 47/48 and needs 0.124/0.025/17.138; its lone miss predicts three extra contact points. Both meet deadline, repeat, zero-allocation, and 62-array exact-replay gates. The mechanism stays, the mixed profile and authority do not.",
+      "evidence": "/G1_CONSTRAINT_RHS_CROSS_INTEGRATOR_HOLDOUT_R241.html"
+    },
+    {
+      "status": "frozen",
+      "title": "Decoupled constraint-RHS work is selected from causal refinement",
+      "detail": "R240 maps non-RK contact RHS to ABI 0 and RK4 to current-stage ABI 4 without changing historical mappers. Completed R238 labels are unreachable while prediction refinement selects 128 sweeps: 128→256 is 1.980% of the useful-width gate, selected p99 is 3.34 ms, calls repeat bitwise and allocate zero timed Rust bytes, and 136 semantic arrays replay exactly. Spent scores open only after selection.",
+      "evidence": "/G1_CONSTRAINT_RHS_CONVERGENCE_AUDIT_R240.html"
+    },
+    {
+      "status": "localized",
+      "title": "Implicitfast smooth-force integration does not make contact constraints implicit",
+      "detail": "R239 is spent-label diagnostic only. MuJoCo documents that implicit/implicitfast omit Jᵀf(v) constraint forces from their velocity Jacobian. On R238, diagnostic ABI 0 removes sample 26's predicted-only point and cuts joint width from 21.255 to 5.077 rad/s, while one exact-active-set distribution miss remains. This supplies equation-level rationale, not selection or authority; 33 semantic arrays replay exactly.",
+      "evidence": "/G1_IMPLICITFAST_CONSTRAINT_RHS_LOCALIZATION_R239.html"
+    },
     {
       "status": "rejected",
       "title": "Fresh mixed-integrator evidence passes stage-force RK4 but rejects combined transfer",
@@ -861,6 +879,24 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R241 fresh constraint-RHS cross-integrator holdout",
+      "result": "MECHANISM PASS / COMBINED PROFILE REJECTED / AUTHORITY NO · RK4 ID 4 COVERAGE 48/48 + WIDTH 0.100/0.009/3.120 · IMPLICITFAST ID 0 COVERAGE 47/48 + WIDTH 0.124/0.025/17.138 · P99 3.56/0.75 MS · BITWISE REPEAT · ZERO TIMED RUST ALLOCATION · 62 ARRAYS EXACT",
+      "scope": "new crossed cone/integrator laws and offsets 170,000/180,000 · profile frozen before 480 fresh MuJoCo label steps · predictor receives causal arrays only · direct returned-final-tangent scoring · no policy, controller, selector, plant action, terminal selection, hardware, safety, or authority claim",
+      "href": "/G1_CONSTRAINT_RHS_CROSS_INTEGRATOR_HOLDOUT_R241.html"
+    },
+    {
+      "metric": "R240 constraint-RHS prediction-only convergence",
+      "result": "128 SWEEPS FROZEN / AUTHORITY NO · NON-RK ABI 0 + RK4 ABI 4 · 128→256 REFINEMENT 1.980% OF WIDTH GATE · SELECTED P99 3.34 MS · BITWISE REPEAT · ZERO TIMED RUST ALLOCATION · 136 ARRAYS EXACT",
+      "scope": "selection sees only causal immutable R238 prestate geometry/velocity · completed impulses/residuals reopen after selection · documented constraint equations determine ABI mapping · zero new MuJoCo, policy, controller, selector, or plant steps",
+      "href": "/G1_CONSTRAINT_RHS_CONVERGENCE_AUDIT_R240.html"
+    },
+    {
+      "metric": "R239 implicitfast constraint-RHS localization",
+      "result": "SPENT-LABEL DIAGNOSTIC / AUTHORITY NO · ABI 0 REMOVES SAMPLE-26 ACTIVATION MISS · COVERAGE 46/48→47/48 · JOINT WIDTH 21.255→5.077 RAD/S · SAMPLE 10 EXACT-SET DISTRIBUTION TAIL REMAINS · 33 ARRAYS EXACT",
+      "scope": "immutable R238 replay · official MuJoCo integrator equations · zero new MuJoCo, policy, controller, selector, or plant steps · ineligible for construction selection, command, hardware, safety, or authority",
+      "href": "/G1_IMPLICITFAST_CONSTRAINT_RHS_LOCALIZATION_R239.html"
+    },
     {
       "metric": "R238 fresh stage-force cross-integrator holdout",
       "result": "MECHANISM PASS / COMBINED PROFILE REJECTED / AUTHORITY NO · RK4 ID 4 COVERAGE 48/48 + WIDTH 0.122/0.018/5.191 · IMPLICITFAST ID 1 COVERAGE 46/48 + WIDTH 0.213/0.045/21.255 · P99 2.82/0.66 MS · BITWISE REPEAT · ZERO TIMED RUST ALLOCATION · 62 ARRAYS EXACT",

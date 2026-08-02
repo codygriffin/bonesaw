@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw implicitfast constraint RHS · r239</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw implicitfast constraint-RHS localization · r239</h1>
+<blockquote>SPENT-LABEL DIAGNOSTIC ONLY · construction/selection/authority **INELIGIBLE** · new MuJoCo/policy/controller/selector/plant steps **0 / 0 / 0 / 0 / 0**.</blockquote>
+<p>MuJoCo documents that implicit and implicitfast exclude constraint forces Jᵀf(v) from the force-velocity Jacobian. Contact friction remains a constraint-space reference acceleration. Mapping the reference engine&#x27;s implicitfast setting onto Bonesaw&#x27;s local implicit contact damping therefore conflates smooth-force integration with constraint-RHS evaluation.</p>
+<div class=table-wrap><table><thead><tr><th>diagnostic ABI</th><th>coverage</th><th>exact active sets</th><th>pred-only / missed</th><th>fitted width · ang / lin / joint</th><th>p99 ms</th></tr></thead><tbody><tr><td>0</td><td>97.917%</td><td>48/48</td><td>0 / 0</td><td>0.145 / 0.039 / 5.077</td><td>0.906</td></tr><tr><td>1</td><td>95.833%</td><td>47/48</td><td>1 / 0</td><td>0.213 / 0.045 / 21.255</td><td>0.666</td></tr><tr><td>2</td><td>95.833%</td><td>47/48</td><td>1 / 0</td><td>0.204 / 0.043 / 21.414</td><td>0.668</td></tr></tbody></table></div>
+<p>ABI 0 removes the predicted-only point in sample 26 and reduces fitted joint width from 21.255 to 5.077 rad/s. Sample 10 remains uncovered with an exact active set, localizing the residual tail to within-foot wrench distribution rather than activation.</p>
+<ul><li>ABI 0: s10 right_ankle_roll_joint -2.539 rad/s (exact), s38 right_ankle_roll_joint +2.045 rad/s (exact), s40 left_ankle_roll_joint +2.001 rad/s (exact).</li><li>ABI 1: s26 left_ankle_roll_joint +10.628 rad/s (set mismatch), s10 right_ankle_roll_joint -2.782 rad/s (exact), s27 left_ankle_roll_joint -2.577 rad/s (exact).</li><li>ABI 2: s26 left_ankle_roll_joint +10.707 rad/s (set mismatch), s10 right_ankle_roll_joint -2.646 rad/s (exact), s27 left_ankle_roll_joint -2.295 rad/s (exact).</li></ul>
+<p>This comparison read completed R238 labels and cannot choose a production mapping or numerical profile. The documented constraint semantics supply the independent equation-level rationale; a causal-only convergence freeze and a new untouched holdout are still required. An independent retained rerun reproduced all 33 non-timing arrays exactly; three measured timing arrays are excluded from semantic equality.</p></main></body></html>
