@@ -2,7 +2,36 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r268 bridges the native reference into integration
+## Current CPU checkpoint — r269 bounds continuation and localizes handoff
+
+R269 makes finite-cap contact failure continuous across controller calls without
+turning unfinished work into an executable command. An opt-in hard-problem cache
+can resume the exact Dykstra point and row multipliers for an identical problem;
+each solver query still spends at most eight feasibility sweeps. The current
+primary-plus-retry path can issue two queries, making the observable WBC-tick
+ceiling 16 sweeps. A session-level hold budget (12 ticks in this evaluation)
+emits typed status 8 and integrates no output. Ticks 876–887 preserve q, v,
+root pose, tracked points, and CoM bit-for-bit while cumulative work advances
+16, 32, …, 192 sweeps.
+
+At tick 869, typed status 9 removes only the failed right support and retains
+the locked left support with 336.5 N and hard residuals below 1e-8. First global
+release moves from tick 869 to 888. A separate centroidal control exercises
+the same localized handoff at tick 529: only the failed right
+support is removed, the incoming left support remains active with 227.3 N, and
+the accepted partial-support solution has hard residuals below 1e-8. Status 5
+remains global free-body release and its rejected residual witnesses are zero.
+
+The mechanism passes, but the low-gain walking profile remains rejected. First
+NormalFallback is unchanged at tick 863; full-run root RMS is 17.026 m and
+attitude reaches 120.38 degrees. Candidate p99 is 4.906 ms, while the separate
+localized-handoff control is 6.042 ms. Defaults and
+authority are unchanged. The next controller slice is continuous recovery from
+persistent NormalFallback with post-touchdown root/attitude tracking, not more
+per-call solver work or weaker contact constraints. See
+[`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
+
+## Prior CPU checkpoint — r268 bridges the native reference into integration
 
 R268 exercises the retained four-step Rust LIPM reference through the bounded
 integrated floating controller with no policy and no physics simulator. The

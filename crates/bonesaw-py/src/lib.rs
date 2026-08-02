@@ -317,11 +317,14 @@ struct FloatingWbcSession {
     support_patches: Vec<SupportPatchSpec>,
     support_transitions: [SupportTransitionState; FLOATING_POINT_TASK_CAPACITY],
     /// Contacts that were deliberately released after an unsolved contact
-    /// solve.  This is controller-owned hysteresis: keep the failed contact
-    /// out of subsequent hard rows until the authored schedule releases it,
-    /// rather than retrying the same expensive contact problem every tick.
+    /// solve. This is controller-owned hysteresis: keep the failed contact
+    /// out of subsequent hard rows until the authored schedule releases it or
+    /// its measured material point passes the ordinary touchdown gate again.
     contact_release_suppressed: [bool; FLOATING_POINT_TASK_CAPACITY],
     no_contact_safe_mode: bool,
+    maximum_contact_solve_hold_ticks: usize,
+    contact_solve_hold_ticks: usize,
+    localized_contact_fallback_target: Option<usize>,
     support_transition_config: SupportTransitionConfig,
     precontact_authored_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
     precontact_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
@@ -13340,6 +13343,9 @@ impl FloatingWbcSession {
         repair_feasibility_equalities_before_inequalities=false,
         use_feasibility_row_spans=false,
         reuse_identical_hard_feasibility_seed=false,
+        continue_identical_exhausted_feasibility_prefix=false,
+        maximum_contact_solve_hold_ticks=0,
+        localized_contact_fallback_target=None,
         joint_limit_braking=false,
         root_frequency_hz=2.0,
         root_angular_task_weight=1.0,
@@ -13406,6 +13412,9 @@ impl FloatingWbcSession {
         repair_feasibility_equalities_before_inequalities: bool,
         use_feasibility_row_spans: bool,
         reuse_identical_hard_feasibility_seed: bool,
+        continue_identical_exhausted_feasibility_prefix: bool,
+        maximum_contact_solve_hold_ticks: usize,
+        localized_contact_fallback_target: Option<usize>,
         joint_limit_braking: bool,
         root_frequency_hz: f64,
         root_angular_task_weight: f64,
@@ -13469,6 +13478,27 @@ impl FloatingWbcSession {
         if maximum_feasibility_projection_sweeps.is_some_and(|sweeps| sweeps == 0) {
             return Err(PyValueError::new_err(
                 "maximum_feasibility_projection_sweeps must be positive when provided",
+            ));
+        }
+        if maximum_contact_solve_hold_ticks > 16 {
+            return Err(PyValueError::new_err(
+                "maximum_contact_solve_hold_ticks must be in 0..=16",
+            ));
+        }
+        if continue_identical_exhausted_feasibility_prefix
+            && (!reuse_identical_hard_feasibility_seed
+                || maximum_feasibility_projection_sweeps.is_none()
+                || maximum_contact_solve_hold_ticks == 0)
+        {
+            return Err(PyValueError::new_err(
+                "cross-tick continuation requires seed reuse, a finite projection cap, and a positive contact-solve hold budget",
+            ));
+        }
+        if localized_contact_fallback_target
+            .is_some_and(|target| target >= FLOATING_POINT_TASK_CAPACITY)
+        {
+            return Err(PyValueError::new_err(
+                "localized_contact_fallback_target exceeds the fixed target capacity",
             ));
         }
         if feasibility_projection_continuation_violation_threshold
@@ -13670,6 +13700,7 @@ impl FloatingWbcSession {
                 repair_feasibility_equalities_before_inequalities,
                 use_feasibility_row_spans,
                 reuse_identical_hard_feasibility_seed,
+                continue_identical_exhausted_feasibility_prefix,
                 ..DynamicWbcConfig::default()
             },
         )
@@ -13736,6 +13767,9 @@ impl FloatingWbcSession {
             support_transitions: [SupportTransitionState::default(); FLOATING_POINT_TASK_CAPACITY],
             contact_release_suppressed: [false; FLOATING_POINT_TASK_CAPACITY],
             no_contact_safe_mode: false,
+            maximum_contact_solve_hold_ticks,
+            contact_solve_hold_ticks: 0,
+            localized_contact_fallback_target,
             support_transition_config: SupportTransitionConfig::default(),
             precontact_authored_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
             precontact_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
@@ -14282,6 +14316,7 @@ impl FloatingWbcSession {
             .fill(SupportTransitionState::default());
         self.contact_release_suppressed.fill(false);
         self.no_contact_safe_mode = false;
+        self.contact_solve_hold_ticks = 0;
         self.precontact_authored_anchor_world.fill(Vec3::zeros());
         self.precontact_anchor_world.fill(Vec3::zeros());
         self.precontact_future_root_world.fill(Vec3::zeros());
@@ -15506,6 +15541,14 @@ impl FloatingWbcSession {
         let target_count = frame_ids.len();
         let dof = self.dof();
         let generalized_dof = dof + 6;
+        if self
+            .localized_contact_fallback_target
+            .is_some_and(|target| target >= target_count)
+        {
+            return Err(PyValueError::new_err(
+                "localized_contact_fallback_target must refer to a supplied target",
+            ));
+        }
         let valid_shapes = target_count <= FLOATING_POINT_TASK_CAPACITY
             && root_target_positions.shape() == [ticks, 3]
             && root_target_velocities.shape() == [ticks, 3]
@@ -15977,14 +16020,14 @@ impl FloatingWbcSession {
                     effective_target_positions_out[[tick, target, axis]] = target_position[axis];
                 }
                 let contact_requested = contact_active[[reference_tick, target]] != 0;
-                // A release contingency is sticky while the schedule still
-                // requests this contact.  Once the schedule goes through a
-                // swing sample, clear the latch so a later touchdown can
-                // acquire the contact again.
+                // A release contingency remains outside hard rows until a
+                // later measured material-point observation passes the
+                // ordinary touchdown gate. A schedule swing also clears the
+                // latch for the next authored touchdown edge.
                 if !contact_requested {
                     self.contact_release_suppressed[target] = false;
                 }
-                let contact_release_suppressed = self.contact_release_suppressed[target];
+                let mut contact_release_suppressed = self.contact_release_suppressed[target];
                 effective_contact_active_out[[tick, target]] = u8::from(contact_requested);
                 let prior_phase = self.support_transitions[target].phase;
                 let precontact_offset = (!contact_requested && self.precontact_ticks > 0)
@@ -16006,7 +16049,8 @@ impl FloatingWbcSession {
                 };
                 let material_state_required = scheduled_precontact
                     || admission_pending
-                    || prior_phase == SupportPhase::TouchdownNormal;
+                    || prior_phase == SupportPhase::TouchdownNormal
+                    || (contact_requested && contact_release_suppressed);
                 let (transition_position, transition_velocity) = if material_state_required {
                     self.program
                         .model
@@ -16055,6 +16099,29 @@ impl FloatingWbcSession {
                         });
                         maximum_patch_tangential_speed = maximum_patch_tangential_speed
                             .max(point_velocity.fixed_rows::<2>(0).norm());
+                    }
+                }
+                if contact_requested && contact_release_suppressed {
+                    // Re-admission is never inferred from the authored bit
+                    // alone. Compare the measured sole material point with
+                    // the requested frame pose and require the same bounded
+                    // position/tangential/normal gate as a normal touchdown.
+                    // A successful observation starts another normal-only
+                    // transition; it does not jump directly back to Locked.
+                    let requested_material_anchor =
+                        target_position + (transition_position - current_position);
+                    let reacquisition_admitted = self
+                        .support_transition_config
+                        .accepts_touchdown(
+                            (transition_position - requested_material_anchor).norm(),
+                            maximum_patch_tangential_speed,
+                            transition_velocity.z.abs(),
+                        )
+                        .map_err(value_error)?;
+                    if reacquisition_admitted {
+                        self.contact_release_suppressed[target] = false;
+                        contact_release_suppressed = false;
+                        self.no_contact_safe_mode = false;
                     }
                 }
                 let prospective_precontact_anchor = precontact_offset.map(|offset| {
@@ -16646,7 +16713,9 @@ impl FloatingWbcSession {
             }
             joint_velocity_envelope_active_coordinates_out[tick] =
                 self.velocity_envelope_coordinates.len() as u8;
-            let velocity_envelope_task = (!self.velocity_envelope_coordinates.is_empty())
+            let velocity_envelope_task = (!self.velocity_envelope_coordinates.is_empty()
+                && self.joint_velocity_envelope_weight > 0.0
+                && self.contact_phase_authority_scale > 0.0)
                 .then_some(FloatingJointAccelerationTask {
                     coordinates: &self.velocity_envelope_coordinates,
                     desired_accelerations: &self.velocity_envelope_accelerations,
@@ -16679,6 +16748,8 @@ impl FloatingWbcSession {
                 .iter()
                 .any(|state| state.phase == SupportPhase::NormalFallback);
             let mut contact_release_contingency = false;
+            let mut localized_contact_handoff = false;
+            let mut contact_solve_hold = false;
             let mut no_contact_safe_fallback = false;
             if self.no_contact_safe_mode && self.contacts.is_empty() {
                 // The controller has already entered the bounded free-body
@@ -16735,9 +16806,15 @@ impl FloatingWbcSession {
             if contact_solve_unsolved && !self.contacts.is_empty() && !normal_contact_contingency {
                 for (point, contact) in self.contacts.iter_mut().enumerate() {
                     let fallback_kinematic = self.contact_points_per_target == 1 || point % 4 < 3;
+                    let target = (contact.stable_id - 1) as usize / 4;
+                    if self
+                        .localized_contact_fallback_target
+                        .is_some_and(|fallback_target| target != fallback_target)
+                    {
+                        continue;
+                    }
                     contact.mode = ContactMode::NormalPoint;
                     contact.kinematic_enabled = fallback_kinematic;
-                    let target = (contact.stable_id - 1) as usize / 4;
                     self.support_transitions[target].mark_normal_fallback();
                     if let Some(task) = self
                         .point_tasks
@@ -16789,10 +16866,148 @@ impl FloatingWbcSession {
                     )
                     .map_err(value_error)?;
             }
+            // A stale normal-only support must not take a newly arrived,
+            // independently represented support down with it. If the mixed
+            // hard problem is unsolved, release only targets already in
+            // NormalFallback, rebuild retained contact indexing, and retry
+            // once. The incoming target keeps its ordinary touchdown phase;
+            // no failed acceleration is integrated.
+            let mixed_contact_unsolved = !matches!(
+                self.output.status,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+            );
+            let mut locally_released = [false; FLOATING_POINT_TASK_CAPACITY];
+            if mixed_contact_unsolved && !self.contacts.is_empty() {
+                let mut has_fallback_target = false;
+                let mut has_other_target = false;
+                for contact in &self.contacts {
+                    let target = contact.stable_id.saturating_sub(1) as usize / 4;
+                    if target < target_count
+                        && self.support_transitions[target].phase == SupportPhase::NormalFallback
+                    {
+                        has_fallback_target = true;
+                        locally_released[target] = true;
+                    } else {
+                        has_other_target = true;
+                    }
+                }
+                if has_fallback_target && has_other_target {
+                    for target in 0..target_count {
+                        if !locally_released[target] {
+                            continue;
+                        }
+                        self.contact_release_suppressed[target] = true;
+                        self.support_transitions[target].clear();
+                        self.precontact_planned[target] = false;
+                        self.precontact_authored_anchor_world[target] = Vec3::zeros();
+                        self.precontact_anchor_world[target] = Vec3::zeros();
+                        self.precontact_future_root_world[target] = Vec3::zeros();
+                        self.precontact_rotation_world[target] = UnitQuaternion::identity();
+                        self.contact_anchor_world[target] = Vec3::zeros();
+                        self.contact_patch_anchor_world[target] = [Vec3::zeros(); 4];
+                    }
+                    self.contacts.retain(|contact| {
+                        let target = contact.stable_id.saturating_sub(1) as usize / 4;
+                        target >= locally_released.len() || !locally_released[target]
+                    });
+                    self.point_tasks.retain(|task| {
+                        let target = task.stable_id.saturating_sub(10) as usize;
+                        target >= locally_released.len() || !locally_released[target]
+                    });
+                    self.support_patches.clear();
+                    if self.contact_points_per_target == 4
+                        && self.minimum_contact_cop_margin_m > 0.0
+                    {
+                        for target in 0..target_count {
+                            if locally_released[target]
+                                || !self.support_transitions[target].phase.is_contact()
+                            {
+                                continue;
+                            }
+                            if let Some(first_contact) = self.contacts.iter().position(|contact| {
+                                contact.stable_id.saturating_sub(1) as usize / 4 == target
+                            }) {
+                                self.support_patches.push(SupportPatchSpec {
+                                    stable_id: 1 + target as u32,
+                                    first_contact,
+                                    contact_count: self.contact_points_per_target,
+                                    minimum_margin_m: self.minimum_contact_cop_margin_m,
+                                });
+                            }
+                        }
+                    }
+                    if !self.contacts.is_empty() {
+                        let nominal_normal_force =
+                            self.supported_weight / self.contacts.len() as f64;
+                        for contact in &mut self.contacts {
+                            contact.nominal_normal_force = nominal_normal_force;
+                        }
+                    }
+                    contact_release_contingency = true;
+                    localized_contact_handoff = true;
+                    self.controller
+                        .solve_into(
+                            FloatingDynamicWbcInput {
+                                state: &self.state.robot,
+                                root_twist_world: self.state.root_twist_world,
+                                desired_generalized_acceleration: &self.desired_acceleration,
+                                task_priorities: FloatingTaskPriorities {
+                                    root_angular: Priority::Invariant,
+                                    root_horizontal: self.root_horizontal_task_priority,
+                                    root_height: Priority::Invariant,
+                                    joint_posture: self.joint_posture_priority,
+                                },
+                                task_weights: FloatingTaskWeights {
+                                    root_angular: self.root_angular_task_weight,
+                                    root_horizontal: self.root_horizontal_task_weight,
+                                    root_height: self.root_height_task_weight,
+                                    joint_posture: 1.0,
+                                },
+                                joint_posture_weight: self.joint_posture_weight,
+                                joint_acceleration_task,
+                                center_of_mass_task,
+                                centroidal_angular_momentum_task,
+                                frame_angular_acceleration_tasks: &self.angular_tasks,
+                                point_acceleration_tasks: &self.point_tasks,
+                                generalized_acceleration_bounds: &self.acceleration_bounds,
+                                torque_bounds: &self.torque_bounds,
+                                actuator_effort: self.coupled_actuation_enabled.then_some(
+                                    ActuatorEffortInput {
+                                        actuation: &self.program.actuation,
+                                        bounds: &self.actuator_effort_bounds,
+                                    },
+                                ),
+                                contacts: &self.contacts,
+                                support_patches: &self.support_patches,
+                            },
+                            &mut self.output,
+                            &mut self.scratch,
+                        )
+                        .map_err(value_error)?;
+                }
+            }
+            let contact_still_unsolved = !matches!(
+                self.output.status,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+            );
+            if contact_still_unsolved
+                && !self.contacts.is_empty()
+                && self.contact_solve_hold_ticks < self.maximum_contact_solve_hold_ticks
+            {
+                // The hard result remains non-executable. Preserve the exact
+                // represented state so the next call can resume the cached
+                // feasibility prefix under another independently bounded
+                // slice. Status 8 makes this hold visible to the caller.
+                self.contact_solve_hold_ticks += 1;
+                contact_solve_hold = true;
+            } else if !contact_still_unsolved {
+                self.contact_solve_hold_ticks = 0;
+            }
             if !matches!(
                 self.output.status,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
             ) && !self.contacts.is_empty()
+                && !contact_solve_hold
             {
                 for contact in &self.contacts {
                     let target = contact.stable_id.saturating_sub(1) as usize / 4;
@@ -16812,6 +17027,7 @@ impl FloatingWbcSession {
                 self.support_patches.clear();
                 contact_release_contingency = true;
                 self.no_contact_safe_mode = true;
+                self.contact_solve_hold_ticks = 0;
             }
             // A contact-free unsolved result is recoverable.  Enter a
             // deterministic free-body fallback instead of paying the dense
@@ -16956,6 +17172,10 @@ impl FloatingWbcSession {
             contact_residual_out[tick] = self.output.contact_acceleration_residual_linf;
             minimum_support_margin_out[tick] = self.output.minimum_support_margin_m;
             status_out[tick] = match self.output.status {
+                _ if contact_solve_hold => 8,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack if localized_contact_handoff => {
+                    9
+                }
                 _ if contact_release_contingency => 5,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
                     if normal_contact_contingency =>

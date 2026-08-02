@@ -661,6 +661,11 @@ pub struct HierarchicalSolver {
     /// and never enter the soft hierarchy. Disabled by default and never
     /// shared across sessions.
     pub reuse_identical_hard_feasibility_seed: bool,
+    /// Continue an exhausted, bit-identical bounded feasibility problem from
+    /// its cached Dykstra point and multipliers. Each call receives a fresh
+    /// ceiling-sized slice; diagnostics report cumulative work so callers can
+    /// observe the continuation. Disabled by default.
+    pub continue_identical_exhausted_feasibility_prefix: bool,
 }
 
 impl Default for HierarchicalSolver {
@@ -674,6 +679,7 @@ impl Default for HierarchicalSolver {
             repair_feasibility_equalities_before_inequalities: false,
             use_feasibility_row_spans: false,
             reuse_identical_hard_feasibility_seed: false,
+            continue_identical_exhausted_feasibility_prefix: false,
         }
     }
 }
@@ -878,7 +884,9 @@ impl HierarchicalSolver {
             let resume_cached_feasibility_prefix = reuse_cached_feasibility_seed
                 && workspace.cached_feasibility_exhausted
                 && workspace.cached_feasibility_prefix_continuable
-                && workspace.feasibility_problem_bits != workspace.cached_feasibility_problem_bits;
+                && (workspace.feasibility_problem_bits
+                    != workspace.cached_feasibility_problem_bits
+                    || self.continue_identical_exhausted_feasibility_prefix);
             let feasibility_seed = if resume_cached_feasibility_prefix {
                 workspace.solution[..dof]
                     .copy_from_slice(&workspace.cached_feasibility_solution[..dof]);
@@ -919,6 +927,14 @@ impl HierarchicalSolver {
                     let maximum_projection_sweeps = self
                         .maximum_feasibility_projection_sweeps
                         .unwrap_or_else(|| maximum_dykstra_sweeps(workspace.halfspaces.len()));
+                    let identical_bounded_continuation = workspace.feasibility_problem_bits
+                        == workspace.cached_feasibility_problem_bits;
+                    let additional_projection_sweeps = if identical_bounded_continuation {
+                        maximum_projection_sweeps
+                    } else {
+                        maximum_projection_sweeps
+                            .saturating_sub(workspace.cached_feasibility_projection_sweeps)
+                    };
                     let continued = continue_feasible_point_into(
                         bounds,
                         constraints,
@@ -928,8 +944,7 @@ impl HierarchicalSolver {
                         &workspace.feasibility_nonzero_indices,
                         &workspace.feasibility_nonzero_values,
                         &mut workspace.multipliers,
-                        maximum_projection_sweeps
-                            .saturating_sub(workspace.cached_feasibility_projection_sweeps),
+                        additional_projection_sweeps,
                         self.use_feasibility_row_spans,
                     );
                     FeasibilitySeedOutcome {
@@ -1151,7 +1166,7 @@ impl HierarchicalSolver {
                 seed
             };
             if self.reuse_identical_hard_feasibility_seed
-                && !reuse_cached_feasibility_seed
+                && (!reuse_cached_feasibility_seed || resume_cached_feasibility_prefix)
                 && matches!(
                     feasibility_seed.seed,
                     FeasibilitySeed::Exact | FeasibilitySeed::Exhausted(_)
@@ -1186,9 +1201,10 @@ impl HierarchicalSolver {
                         );
                 workspace.cached_feasibility_prefix_continuable =
                     matches!(feasibility_seed.seed, FeasibilitySeed::Exhausted(_))
-                        && exhausted_prefix_is_projection_continuable(
-                            self.maximum_feasibility_projection_sweeps,
-                        );
+                        && (self.continue_identical_exhausted_feasibility_prefix
+                            || exhausted_prefix_is_projection_continuable(
+                                self.maximum_feasibility_projection_sweeps,
+                            ));
                 workspace.cached_feasibility_maximum_violation = match feasibility_seed.seed {
                     FeasibilitySeed::Exhausted(violation) => violation,
                     _ => 0.0,
@@ -6131,6 +6147,59 @@ mod tests {
         assert_eq!(
             imported.diagnostics.maximum_constraint_violation.to_bits(),
             first.diagnostics.maximum_constraint_violation.to_bits()
+        );
+    }
+
+    #[test]
+    fn identical_exhausted_problem_can_spend_a_second_bounded_slice() {
+        let constraints = [
+            LinearConstraint {
+                stable_id: 1,
+                coefficients: RowDVector::from_row_slice(&[1.0]),
+                lower: 1.0,
+                upper: f64::INFINITY,
+            },
+            LinearConstraint {
+                stable_id: 2,
+                coefficients: RowDVector::from_row_slice(&[1.0]),
+                lower: f64::NEG_INFINITY,
+                upper: 0.0,
+            },
+        ];
+        let solver = HierarchicalSolver {
+            maximum_feasibility_projection_sweeps: Some(3),
+            reuse_identical_hard_feasibility_seed: true,
+            continue_identical_exhausted_feasibility_prefix: true,
+            ..HierarchicalSolver::default()
+        };
+        let mut workspace = SolverWorkspace::new(1, 0, 0, 2);
+        let mut first = SolveResult::workspace(1, 2);
+        solver.solve_constrained_into(
+            1,
+            &[],
+            &VelocityBounds::unbounded(1),
+            &constraints,
+            &mut first,
+            &mut workspace,
+        );
+        let mut second = SolveResult::workspace(1, 2);
+        solver.solve_constrained_into(
+            1,
+            &[],
+            &VelocityBounds::unbounded(1),
+            &constraints,
+            &mut second,
+            &mut workspace,
+        );
+        assert_eq!(first.diagnostics.status, SolveStatus::MaxIterations);
+        assert_eq!(second.diagnostics.status, SolveStatus::MaxIterations);
+        assert!(second.diagnostics.feasibility_seed_reused);
+        assert!(second.diagnostics.feasibility_prefix_resumed);
+        assert_eq!(first.diagnostics.feasibility_projection_sweeps, 3);
+        assert_eq!(second.diagnostics.feasibility_projection_sweeps, 6);
+        assert_eq!(
+            second.diagnostics.feasibility_halfspace_projections,
+            2 * first.diagnostics.feasibility_halfspace_projections
         );
     }
 

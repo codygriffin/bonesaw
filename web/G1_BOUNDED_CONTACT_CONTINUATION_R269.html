@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 bounded contact continuation · R269</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 bounded contact continuation · R269</h1>
+<p>**Mechanism PASS / walking profile REJECTED.** No policy or physics simulator is involved. The Rust controller integrates only accepted outputs; typed hold ticks preserve the represented state exactly while an identical exhausted hard problem receives another bounded feasibility slice.</p>
+<h2>Result</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>first contingency</th><th>first global release</th><th>full root RMS m</th><th>max attitude deg</th><th>p99 ms</th></tr></thead><tbody><tr><td>r268 low gain baseline</td><td>863</td><td>869</td><td>18.879</td><td>40.48</td><td>4.911</td></tr><tr><td>r269 bounded continuation</td><td>863</td><td>888</td><td>17.026</td><td>120.38</td><td>4.844</td></tr><tr><td>r269 localized handoff control</td><td>511</td><td>584</td><td>22.423</td><td>84.93</td><td>6.097</td></tr></tbody></table></div>
+<p>The low-gain frontier still enters NormalFallback at tick 863, but the first all-contact release moves from tick 869 to tick 888—a 19-tick (0.095 s) extension. This is a failure-handling improvement, not nominal tracking progress.</p>
+<p>At tick 869, localized handoff removes only the failed right support while the left foot remains Locked with 336.5 N. The accepted partial-support solution has hard residuals below 1e-8.</p>
+<p>Ticks 876–887 are status 8 (`contact_solve_hold`). State is bitwise constant across q, v, root pose, tracked points, and CoM. Cumulative feasibility work advances 16, 32, …, 192 sweeps. The configured cap is eight sweeps per solver query, while this WBC path can issue a primary query plus one retry, so the observable aggregate ceiling is 16 sweeps per WBC tick. Rejected residuals on hold ticks are diagnostic only and are never integrated.</p>
+<p>The independent centroidal control exercises status 9 (`localized_contact_handoff`) at tick 529: the failed right support is removed while the incoming left support remains active with 227.3 N and 1.30e-10/1.26e-12 residuals. All later global-release ticks clear rejected residual diagnostics to zero.</p>
+<h2>Decision</h2>
+<p>The candidate remains red: first contingency is unchanged at tick 863, global release still occurs after only 0.095 s of additional degraded operation, full-run root RMS is 17.026 m, and maximum attitude error is 120.38°. Candidate p99 is 4.844 ms, but the independent localized-handoff control is 6.097 ms and misses the 5 ms target.</p>
+<p>Defaults and execution authority remain unchanged. Cross-tick continuation requires seed reuse, a finite per-call sweep cap, and an explicit hold timeout. The next large controller slice is continuous recovery from persistent NormalFallback with post-touchdown root/attitude tracking—not more solver work and not weaker contact constraints.</p>
+<h2>Contract</h2>
+<ul><li>Reference SHA-256: `429baba94dae0c3b4e490dc7f0bc107416d3c0559fbfbad4df6e009fac3e48c6`.</li><li>Witness SHA-256: `f1521acd7a0cc777f61407e49865f5953355d4382035421fb2582f2fa0164295`.</li><li>Status 8 is a bounded, non-integrating hold; status 9 is a physically checked partial-support solution.</li><li>Status 5 remains global free-body release and carries zero dynamics/contact residual witnesses.</li><li>The continuation is opt-in and capped at 12 hold ticks in this evaluation; each solve is capped at eight sweeps and the current WBC retry path can issue two solves per tick.</li><li>No future oracle WBC force, acceleration, status, or policy outputs are consumed.</li></ul></main></body></html>

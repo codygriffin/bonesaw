@@ -59,25 +59,30 @@ release contingency, zero 20 ms misses, and 4.757 ms p99. The fallback is not a 
 or plant-authority claim: contact, tracking, residual, MuJoCo feedback, and
 thermal gates remain open. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
-R268 replaces the known-invalid CMU reference in this localization with the
-already-admitted Rust-native four-step LIPM reference and the first state of its
-offline morphology witness. The standalone boundary now preserves authored
-pelvis position/velocity/acceleration independently from CoM jets, and Rust can
-start from an explicit root twist. With no policy or physics simulator, the
-bounded integrated controller reaches liftoff tick 300 at 0.003 mm root error
-and extends the earlier native-reference clean prefix from 265 to 501 ticks.
-It still releases the outgoing support 28 ticks before the first touchdown at
-529. Reusing the stateless oracle task stack fails at 188; using the offline
-q/v/qdd witness as a lower-priority posture jet fails at 439. Both are rejected
-and default-off. A low-gain morphology posture row (weight 0.05) carries the
-first transfer through touchdown and remains nominal through tick 863, but is
-still red later and is not promoted. The remaining complaint is therefore the
-post-touchdown support/attitude transition without importing oracle WBC outputs,
-raising the bounded solver budget, or weakening contact admission. The release
-fallback now clears rejected contact and authority diagnostics before
-integrating; all regenerated status-5 ticks are explicitly zero-residual
-telemetry, not fake support evidence. See the
-[r268 native-reference bridge](benchmarks/results/g1-native-reference-integration-r268/G1_NATIVE_REFERENCE_INTEGRATION.md).
+R269 removes the next all-or-nothing failure in that native-reference path.
+An identical exhausted hard problem can now resume its exact cached Dykstra
+prefix on a later solve while every solve remains capped at eight sweeps. The
+current WBC retry path can issue two solves, for a visible 16-sweep aggregate
+ceiling per tick. A typed status-8 hold integrates no unfinished output and
+preserves q, v, root pose, tracked points, and CoM bit-for-bit. A separately
+typed status-9 handoff can remove only a failed support and retain its
+physically solved peer. In the retained low-gain trace, localized handoff at
+tick 869 drops only the failed right foot and retains 336.5 N on the locked
+left support. Ticks 876–887 then preserve state exactly across twelve bounded
+holds; first global release moves from tick 869 to 888. An independent
+control exercises localized handoff at tick 529 with 227.3 N and hard residuals
+below 1e-8. All global releases still clear rejected residual witnesses.
+
+This closes the complaint that one finite-cap exhaustion necessarily triggers
+an immediate whole-body release/reset. It does not close walking: first
+NormalFallback remains tick 863, full-run root RMS is 17.026 m, attitude reaches
+120.38 degrees, and the independent handoff control has 6.042 ms p99. The
+profile, continuation, and timeout are
+default-off and grant no authority. The remaining behavior complaint is
+continuous exit from persistent NormalFallback while restoring post-touchdown
+root/attitude tracking, without more per-call solver work or weaker contact
+admission. See the
+[r269 bounded continuation report](benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
 ## Open CPU authority gate: useful physical transition tube
 

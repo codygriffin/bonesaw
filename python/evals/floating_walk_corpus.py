@@ -93,6 +93,23 @@ def parse_args() -> argparse.Namespace:
         help="optional total Dykstra sweeps per WBC query; finite values fail closed when exhausted",
     )
     parser.add_argument(
+        "--continue-identical-exhausted-feasibility-prefix",
+        action="store_true",
+        help="resume an identical exhausted Dykstra prefix in another capped controller call",
+    )
+    parser.add_argument(
+        "--maximum-contact-solve-hold-ticks",
+        type=int,
+        default=0,
+        help="maximum typed non-integrating ticks available to cross-tick continuation",
+    )
+    parser.add_argument(
+        "--localized-contact-fallback-target",
+        type=int,
+        default=None,
+        help="opt-in target index to demote first when a mixed contact solve exhausts",
+    )
+    parser.add_argument(
         "--feasibility-projection-continuation-violation-threshold",
         type=float,
         default=None,
@@ -117,6 +134,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--point-frequency-hz", type=float, default=4.0)
     parser.add_argument("--joint-posture-weight", type=float, default=0.25)
+    parser.add_argument(
+        "--morphology-posture-position-only",
+        action="store_true",
+        help="when replaying a morphology posture trace, discard authored q-dot/q-ddot jets",
+    )
     parser.add_argument(
         "--joint-posture-priority",
         type=int,
@@ -1534,6 +1556,8 @@ def summarize(
         "contact_release_contingency": int(np.count_nonzero(status == 5)),
         "touchdown_transition": int(np.count_nonzero(status == 6)),
         "precontact_transition": int(np.count_nonzero(status == 7)),
+        "contact_solve_hold": int(np.count_nonzero(status == 8)),
+        "localized_contact_handoff": int(np.count_nonzero(status == 9)),
     }
     maximum_touchdown_transition_ticks = longest_true_run(status == 6)
     maximum_precontact_transition_ticks = longest_true_run(status == 7)
@@ -1582,7 +1606,7 @@ def summarize(
             )
         )
     }
-    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7))
+    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7, 9))
     if not np.any(physical_tick):
         physical_tick = np.ones_like(status, dtype=bool)
     non_nominal = np.flatnonzero(~np.isin(status, (0, 1, 6, 7)))
@@ -1632,6 +1656,8 @@ def summarize(
         5: "contact_release_contingency",
         6: "touchdown_transition",
         7: "precontact_transition",
+        8: "contact_solve_hold",
+        9: "localized_contact_handoff",
     }
     for code, name in status_names.items():
         selected = step_ns[status == code]
@@ -2017,6 +2043,8 @@ def summarize(
         "no_contact_contingency_ticks": (
             status_counts["normal_contact_contingency"] == 0
             and status_counts["contact_release_contingency"] == 0
+            and status_counts["contact_solve_hold"] == 0
+            and status_counts["localized_contact_handoff"] == 0
         ),
         "touchdown_transition_completes_within_8_ticks": (
             metrics["maximum_touchdown_transition_ticks"] <= 8
@@ -2425,8 +2453,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         "",
         "## Runtime",
         "",
-        "| ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | release fallback | infeasible | failed |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | solve hold | localized handoff | release fallback | infeasible | failed |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         f"| {metrics['ticks']:,} | {metrics['duration_seconds']:.1f} s | "
         f"{metrics['latency_us']['p50']:.1f} µs | "
         f"{metrics['latency_us']['p95']:.1f} µs | "
@@ -2437,6 +2465,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"{metrics['status_counts']['precontact_transition']:,} | "
         f"{metrics['status_counts']['touchdown_transition']:,} | "
         f"{metrics['status_counts']['normal_contact_contingency']:,} | "
+        f"{metrics['status_counts']['contact_solve_hold']:,} | "
+        f"{metrics['status_counts']['localized_contact_handoff']:,} | "
         f"{metrics['status_counts']['contact_release_contingency']:,} | "
         f"{metrics['status_counts']['primal_infeasible']:,} | "
         f"{metrics['status_counts']['failed']:,} |",
@@ -2891,6 +2921,12 @@ def main() -> None:
         raise ValueError("--initial-state-inputs requires --reference-inputs")
     if args.morphology_posture_trace and not args.initial_state_inputs:
         raise ValueError("--morphology-posture-trace requires --initial-state-inputs")
+    if args.morphology_posture_position_only and not args.morphology_posture_trace:
+        raise ValueError(
+            "--morphology-posture-position-only requires --morphology-posture-trace"
+        )
+    if args.localized_contact_fallback_target is not None and args.localized_contact_fallback_target < 0:
+        raise ValueError("--localized-contact-fallback-target must be nonnegative")
     if args.reference_inputs:
         standalone_reference = load_standalone_reference(
             pathlib.Path(args.reference_inputs),
@@ -3111,6 +3147,14 @@ def main() -> None:
         repair_feasibility_equalities_before_inequalities=(
             args.repair_feasibility_equalities_before_inequalities
         ),
+        reuse_identical_hard_feasibility_seed=(
+            args.continue_identical_exhausted_feasibility_prefix
+        ),
+        continue_identical_exhausted_feasibility_prefix=(
+            args.continue_identical_exhausted_feasibility_prefix
+        ),
+        maximum_contact_solve_hold_ticks=args.maximum_contact_solve_hold_ticks,
+        localized_contact_fallback_target=args.localized_contact_fallback_target,
         joint_limit_braking=args.joint_limit_braking,
         root_frequency_hz=args.root_frequency_hz,
         root_angular_task_weight=args.root_angular_task_weight,
@@ -3209,8 +3253,12 @@ def main() -> None:
     )
     if standalone_initial_state is not None and args.morphology_posture_trace:
         posture_positions = standalone_initial_state.posture_positions
-        posture_velocities = standalone_initial_state.posture_velocities
-        posture_accelerations = standalone_initial_state.posture_accelerations
+        if args.morphology_posture_position_only:
+            posture_velocities = np.zeros_like(posture_positions)
+            posture_accelerations = np.zeros_like(posture_positions)
+        else:
+            posture_velocities = standalone_initial_state.posture_velocities
+            posture_accelerations = standalone_initial_state.posture_accelerations
     else:
         posture_positions = np.broadcast_to(q, (args.ticks, len(q)))
         posture_velocities = np.zeros((args.ticks, len(q)), dtype=np.float64)
@@ -3514,6 +3562,12 @@ def main() -> None:
         "point_frequency_hz": args.point_frequency_hz,
         "joint_posture_weight": args.joint_posture_weight,
         "morphology_posture_trace": args.morphology_posture_trace,
+        "morphology_posture_position_only": args.morphology_posture_position_only,
+        "continue_identical_exhausted_feasibility_prefix": (
+            args.continue_identical_exhausted_feasibility_prefix
+        ),
+        "maximum_contact_solve_hold_ticks": args.maximum_contact_solve_hold_ticks,
+        "localized_contact_fallback_target": args.localized_contact_fallback_target,
         "joint_posture_priority": PRIORITY_NAMES[args.joint_posture_priority],
         "center_of_mass_task_weight": args.center_of_mass_task_weight,
         "center_of_mass_task_priority": PRIORITY_NAMES[

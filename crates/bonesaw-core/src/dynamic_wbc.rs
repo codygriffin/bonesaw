@@ -809,6 +809,9 @@ pub struct DynamicWbcConfig {
     /// bit-identical hard problem. Exact seeds still run every soft task;
     /// exhausted seeds remain fail-closed.
     pub reuse_identical_hard_feasibility_seed: bool,
+    /// Opt-in continuation of an exhausted, bit-identical bounded problem in
+    /// another ceiling-sized slice on the next call.
+    pub continue_identical_exhausted_feasibility_prefix: bool,
     /// Optional locally linearized acceleration-level self-collision barrier
     /// for the floating solve. `None` preserves an explicit collision-disabled
     /// profile; trajectory command admission remains a separate gate.
@@ -832,6 +835,7 @@ impl Default for DynamicWbcConfig {
             repair_feasibility_equalities_before_inequalities: false,
             use_feasibility_row_spans: false,
             reuse_identical_hard_feasibility_seed: false,
+            continue_identical_exhausted_feasibility_prefix: false,
             floating_collision_barrier: None,
             floating_world_collision_barrier: None,
         }
@@ -1762,6 +1766,8 @@ impl FloatingDynamicWbc {
             config.repair_feasibility_equalities_before_inequalities;
         let use_feasibility_row_spans = config.use_feasibility_row_spans;
         let reuse_identical_hard_feasibility_seed = config.reuse_identical_hard_feasibility_seed;
+        let continue_identical_exhausted_feasibility_prefix =
+            config.continue_identical_exhausted_feasibility_prefix;
         Ok(Self {
             model,
             config,
@@ -1776,6 +1782,7 @@ impl FloatingDynamicWbc {
                 repair_feasibility_equalities_before_inequalities,
                 use_feasibility_row_spans,
                 reuse_identical_hard_feasibility_seed,
+                continue_identical_exhausted_feasibility_prefix,
             },
         })
     }

@@ -79,6 +79,16 @@ This is an engineering prototype, not a safety-rated robot controller.
 - A narrow PyO3/NumPy batch API: Python owns corpus generation, statistics,
   plots, and reports while Rust executes the complete tick loop into
   caller-owned fixed-shape arrays.
+- The r269 floating boundary can resume an identical exhausted Dykstra prefix
+  across explicitly bounded solver queries, emit a typed non-integrating hold,
+  and localize a failed support without releasing its physically solved peer.
+  On the policy/physics-free G1 trace, localized handoff retains 336.5 N on the
+  left foot and delays global release 95 ms; a separate control retains 227.3 N
+  with hard residuals below 1e-8. The walking profile remains rejected because
+  first NormalFallback is unchanged, full-run root/attitude tracking diverges,
+  and the control p99 exceeds 5 ms. Defaults and authority remain unchanged.
+  See the
+  [r269 bounded-continuation report](benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

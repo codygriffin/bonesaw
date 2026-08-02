@@ -2823,6 +2823,29 @@ the withheld endpoint advances five. Two process repetitions retain 192–210
 deadline misses, 8.847–9.448 µs selector maxima, 6.134–7.039 ms loop maxima,
 and 5.699–6.645 ms controller maxima. Reproduce with
 `scripts/run-upkie-inexact-hold-improvement-gate-ab.sh`.
+### Revision r269 bounded contact continuation
+
+`python/evals/g1_bounded_contact_continuation_r269.py` compares the retained
+r268 low-gain native-reference trace with two regenerated r269 traces. It uses
+no policy or physics simulator. The first trace enables exact-prefix reuse,
+eight feasibility sweeps per solver query, and a 12-tick non-integrating hold.
+The second independently exercises localized handoff under a centroidal
+control profile.
+
+The evaluator checks that status-8 ticks preserve q, v, root pose, tracked
+points, and CoM bit-for-bit; that observable aggregate work remains within two
+eight-sweep solver queries per WBC tick; that status 9 retains nonzero support
+force with dynamics/contact residuals below 1e-8; and that every global release
+clears rejected residual diagnostics. The low-gain case delays first global
+release from 869 to 888 after retaining the locked left foot at tick 869. The
+mechanism passes, but first NormalFallback is unchanged at 863 and full-run
+root/attitude behavior remains red. Defaults and authority are unchanged.
+
+Run `scripts/run-g1-bounded-contact-continuation-r269.sh` to rebuild the PyO3
+extension, regenerate both traces, and render the Markdown/HTML decision
+report. The retained artifact is
+[`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
+
 ### Revision r268 native-reference integrated bridge
 
 `python/evals/g1_native_reference_integration_r268.py` is a report-only,
