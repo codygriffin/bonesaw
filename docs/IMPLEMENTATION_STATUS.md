@@ -2,7 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r272 NormalFallback task-scale causal split
+## Current CPU checkpoint — r273 bounded NormalFallback relock probe
+
+R273 makes `NormalFallback` recoverable without making a schedule bit or an
+unfinished solve authoritative. `normal_fallback_relock_probe_interval_ticks`
+defaults to zero. On an eligible tick, Rust emits the ordinary full locked
+contact modes and spends one bounded solve. A solved result is the only event
+that promotes the target back to `Locked`; an unsolved result is discarded,
+the normal-only modes and viability task are restored, and the controller
+spends one bounded retry. Admission, rejection, and rejection-with-release have
+typed statuses 10/11/12. Interval zero reproduces all 72 R272 non-timing arrays
+bit-for-bit, and every enabled trace is identical through fallback tick 875.
+Intervals 1/4/8/16/32 produce full-lock episodes lasting up to ten ticks,
+proving the former absorbing state is gone, but release earlier at ticks
+916/926/976/957/1011 versus baseline 1108. Interval 64 rejects all three probes and preserves tick 1108
+while adding work. The mechanism passes; all tested walking profiles and
+authority remain rejected. The next slice is pre-limit feasibility and
+compositional tracking recovery, not another post-event gain. See the
+[`G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md`](../benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md)
+report.
+
+## Prior CPU checkpoint — r272 NormalFallback task-scale causal split
 
 R272 makes the existing NormalFallback viability point-task weight an explicit
 scale (`normal_fallback_task_weight_scale`, default `1.0`). Scale `0.0`–`0.5`

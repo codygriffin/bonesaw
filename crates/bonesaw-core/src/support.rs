@@ -164,6 +164,16 @@ impl SupportTransitionState {
         self.set_phase(SupportPhase::NormalFallback);
     }
 
+    /// Promote a controller-owned normal-only contingency after an explicit
+    /// full-lock feasibility probe succeeds. The support schedule alone must
+    /// never call this: the caller owns the bounded solve that proves the hard
+    /// tangential rows executable.
+    pub fn mark_locked_after_feasibility_probe(&mut self) {
+        if self.phase == SupportPhase::NormalFallback {
+            self.set_phase(SupportPhase::Locked);
+        }
+    }
+
     /// Seed a contact that is already established at the beginning of a
     /// trace; startup stance is not a newly detected touchdown.
     pub fn initialize_locked(&mut self) {
@@ -787,6 +797,20 @@ mod tests {
             .advance(false, false, None, SupportTransitionConfig::default())
             .unwrap();
         assert_eq!(state, SupportTransitionState::default());
+    }
+
+    #[test]
+    fn normal_fallback_relocks_only_through_explicit_probe_result() {
+        let mut state = SupportTransitionState::default();
+        state.mark_locked_after_feasibility_probe();
+        assert_eq!(state.phase, SupportPhase::Swing);
+
+        state.initialize_locked();
+        state.mark_normal_fallback();
+        assert_eq!(state.phase, SupportPhase::NormalFallback);
+        state.mark_locked_after_feasibility_probe();
+        assert_eq!(state.phase, SupportPhase::Locked);
+        assert_eq!(state.phase_ticks, 1);
     }
 
     #[test]

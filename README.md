@@ -114,6 +114,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   through the tick-875 fallback, so none can change the tick-874 knee-limit
   cause; all release earlier than the scale-1 default. No authority is admitted. See the
   [r272 fallback-task report](benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md).
+- R273 removes the absorbing-state defect from `NormalFallback`. A default-off
+  cadence can probe the ordinary full contact lock, promote only a solved
+  result, or discard the failed result and retry the established normal-only
+  rows. Interval 1/4/8/16/32 probes re-lock for as many as ten ticks, proving a
+  continuous exit exists, but all then release earlier than the tick-1108
+  baseline. Interval 64 admits nothing and only adds work. The mechanism stays;
+  every tested walking cadence is rejected and receives no authority. See the
+  [r273 relock-probe report](benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

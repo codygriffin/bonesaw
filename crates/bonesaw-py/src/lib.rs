@@ -350,6 +350,9 @@ struct FloatingWbcSession {
     precontact_maximum_acceleration: f64,
     material_touchdown_task: bool,
     normal_fallback_task_weight_scale: f64,
+    /// Zero disables relock probes exactly. A positive interval spends at
+    /// most one extra full-lock solve on eligible NormalFallback ticks.
+    normal_fallback_relock_probe_interval_ticks: usize,
     contact_friction_coefficient: f64,
     maximum_normal_force_multiple: f64,
     maximum_acceleration: f64,
@@ -13408,6 +13411,7 @@ impl FloatingWbcSession {
         precontact_maximum_acceleration=25.0,
         material_touchdown_task=false,
         normal_fallback_task_weight_scale=1.0,
+        normal_fallback_relock_probe_interval_ticks=0,
         contact_patch_center_x=0.0,
         contact_patch_half_length=0.0,
         contact_patch_half_width=0.0,
@@ -13481,6 +13485,7 @@ impl FloatingWbcSession {
         precontact_maximum_acceleration: f64,
         material_touchdown_task: bool,
         normal_fallback_task_weight_scale: f64,
+        normal_fallback_relock_probe_interval_ticks: usize,
         contact_patch_center_x: f64,
         contact_patch_half_length: f64,
         contact_patch_half_width: f64,
@@ -13533,6 +13538,11 @@ impl FloatingWbcSession {
         {
             return Err(PyValueError::new_err(
                 "normal_fallback_task_weight_scale must be finite and nonnegative",
+            ));
+        }
+        if normal_fallback_relock_probe_interval_ticks > 512 {
+            return Err(PyValueError::new_err(
+                "normal_fallback_relock_probe_interval_ticks must be in 0..=512",
             ));
         }
         if feasibility_projection_continuation_violation_threshold
@@ -13842,6 +13852,7 @@ impl FloatingWbcSession {
             precontact_maximum_acceleration,
             material_touchdown_task,
             normal_fallback_task_weight_scale,
+            normal_fallback_relock_probe_interval_ticks,
             contact_friction_coefficient: friction_coefficient,
             maximum_normal_force_multiple,
             maximum_acceleration,
@@ -15998,6 +16009,7 @@ impl FloatingWbcSession {
                 landing_retarget_reach_out[[tick, target]] = f64::NAN;
                 landing_retarget_flags_out[[tick, target]] = 0;
             }
+            let mut normal_fallback_relock_probe_targets = [false; FLOATING_POINT_TASK_CAPACITY];
             let mut precontact_transition = false;
             // A scheduled handoff may ask the old support to release before
             // the incoming material point has actually landed. Keep that
@@ -16311,6 +16323,12 @@ impl FloatingWbcSession {
                     }
                 }
                 let support_phase = self.support_transitions[target].phase;
+                normal_fallback_relock_probe_targets[target] = support_phase
+                    == SupportPhase::NormalFallback
+                    && self.normal_fallback_relock_probe_interval_ticks > 0
+                    && self.support_transitions[target].phase_ticks
+                        % self.normal_fallback_relock_probe_interval_ticks
+                        == 0;
                 if support_phase == SupportPhase::Swing {
                     self.precontact_planned[target] = false;
                 }
@@ -16467,7 +16485,8 @@ impl FloatingWbcSession {
                 if is_contact {
                     let first_contact = self.contacts.len();
                     for point in 0..self.contact_points_per_target {
-                        let normal_only = support_phase.is_normal_only();
+                        let normal_only = support_phase.is_normal_only()
+                            && !normal_fallback_relock_probe_targets[target];
                         let (mode, kinematic_enabled) = if self.contact_points_per_target == 4 {
                             if normal_only {
                                 (ContactMode::NormalPoint, point < 3)
@@ -16612,7 +16631,9 @@ impl FloatingWbcSession {
                         } else {
                             point_priorities[target]
                         },
-                        weight: if is_contact && !support_phase.is_normal_only() {
+                        weight: if normal_fallback_relock_probe_targets[target]
+                            || (is_contact && !support_phase.is_normal_only())
+                        {
                             0.0
                         } else if support_phase == SupportPhase::NormalFallback {
                             weights[target] * self.normal_fallback_task_weight_scale
@@ -16838,6 +16859,12 @@ impl FloatingWbcSession {
                 .support_transitions
                 .iter()
                 .any(|state| state.phase == SupportPhase::NormalFallback);
+            let normal_fallback_relock_probe_attempted = normal_fallback_relock_probe_targets
+                [..target_count]
+                .iter()
+                .any(|attempted| *attempted);
+            let mut normal_fallback_relock_probe_admitted = false;
+            let mut normal_fallback_relock_probe_rejected = false;
             let mut contact_release_contingency = false;
             let mut localized_contact_handoff = false;
             let mut contact_solve_hold = false;
@@ -16884,6 +16911,92 @@ impl FloatingWbcSession {
                 self.controller
                     .solve_into(solve_input, &mut self.output, &mut self.scratch)
                     .map_err(value_error)?;
+            }
+            // NormalFallback is conservative but no longer absorbing when a
+            // caller explicitly budgets relock probes. On a cadence tick,
+            // the first solve above contains the ordinary full-lock rows for
+            // only the eligible fallback targets. A solved result is the
+            // authority to promote them. A rejected result is never
+            // integrated: restore the established normal-only contingency
+            // and spend one bounded retry on the previously executable rows.
+            if normal_fallback_relock_probe_attempted {
+                if matches!(
+                    self.output.status,
+                    SolveStatus::Solved | SolveStatus::SolvedWithSlack
+                ) {
+                    for (target, attempted) in normal_fallback_relock_probe_targets[..target_count]
+                        .iter()
+                        .copied()
+                        .enumerate()
+                    {
+                        if attempted {
+                            self.support_transitions[target].mark_locked_after_feasibility_probe();
+                        }
+                    }
+                    normal_contact_contingency = self
+                        .support_transitions
+                        .iter()
+                        .any(|state| state.phase == SupportPhase::NormalFallback);
+                    normal_fallback_relock_probe_admitted = true;
+                } else {
+                    for contact in &mut self.contacts {
+                        let target = contact.stable_id.saturating_sub(1) as usize / 4;
+                        if target >= target_count || !normal_fallback_relock_probe_targets[target] {
+                            continue;
+                        }
+                        let point = contact.stable_id.saturating_sub(1) as usize % 4;
+                        contact.mode = ContactMode::NormalPoint;
+                        contact.kinematic_enabled =
+                            self.contact_points_per_target == 1 || point < 3;
+                    }
+                    for task in &mut self.point_tasks {
+                        let target = task.stable_id.saturating_sub(10) as usize;
+                        if target < target_count && normal_fallback_relock_probe_targets[target] {
+                            task.priority = Priority::Viability;
+                            task.weight = weights[target] * self.normal_fallback_task_weight_scale;
+                        }
+                    }
+                    self.controller
+                        .solve_into(
+                            FloatingDynamicWbcInput {
+                                state: &self.state.robot,
+                                root_twist_world: self.state.root_twist_world,
+                                desired_generalized_acceleration: &self.desired_acceleration,
+                                task_priorities: FloatingTaskPriorities {
+                                    root_angular: Priority::Invariant,
+                                    root_horizontal: self.root_horizontal_task_priority,
+                                    root_height: Priority::Invariant,
+                                    joint_posture: self.joint_posture_priority,
+                                },
+                                task_weights: FloatingTaskWeights {
+                                    root_angular: self.root_angular_task_weight,
+                                    root_horizontal: self.root_horizontal_task_weight,
+                                    root_height: self.root_height_task_weight,
+                                    joint_posture: 1.0,
+                                },
+                                joint_posture_weight: self.joint_posture_weight,
+                                joint_acceleration_task,
+                                center_of_mass_task,
+                                centroidal_angular_momentum_task,
+                                frame_angular_acceleration_tasks: &self.angular_tasks,
+                                point_acceleration_tasks: &self.point_tasks,
+                                generalized_acceleration_bounds: &self.acceleration_bounds,
+                                torque_bounds: &self.torque_bounds,
+                                actuator_effort: self.coupled_actuation_enabled.then_some(
+                                    ActuatorEffortInput {
+                                        actuation: &self.program.actuation,
+                                        bounds: &self.actuator_effort_bounds,
+                                    },
+                                ),
+                                contacts: &self.contacts,
+                                support_patches: &self.support_patches,
+                            },
+                            &mut self.output,
+                            &mut self.scratch,
+                        )
+                        .map_err(value_error)?;
+                    normal_fallback_relock_probe_rejected = true;
+                }
             }
             // Any non-solved contact result is unsafe to integrate with the
             // authored hard rows.  Demote once to normal-only rows, then
@@ -17279,7 +17392,18 @@ impl FloatingWbcSession {
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack if localized_contact_handoff => {
                     9
                 }
+                _ if contact_release_contingency && normal_fallback_relock_probe_attempted => 12,
                 _ if contact_release_contingency => 5,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+                    if normal_fallback_relock_probe_admitted =>
+                {
+                    10
+                }
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+                    if normal_fallback_relock_probe_rejected =>
+                {
+                    11
+                }
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
                     if normal_contact_contingency =>
                 {

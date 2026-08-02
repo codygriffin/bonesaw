@@ -2848,6 +2848,30 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r273 bounded NormalFallback relock probe
+
+`python/evals/g1_normal_fallback_relock_probe_r273.py` tests the smallest
+continuous recovery mechanism after the R272 causal split. The PyO3 session
+accepts a default-zero probe interval. An eligible `NormalFallback` target is
+temporarily represented by the ordinary full-lock modes for one bounded solve;
+success promotes it to `Locked`, while failure restores the prior normal-only
+problem before a bounded retry. The rejected full-lock acceleration is never
+integrated. Status 10/11/12 exposes admission, rejection, and
+rejection-with-release independently for timing and solver-work analysis.
+
+The dormant trace matches all 72 R272 non-timing arrays, and intervals
+1/4/8/16/32/64 are exact through fallback tick 875. Intervals 1/4/8/16/32 admit
+at least one relock and hold it for up to 6/6/6/1/10 ticks, respectively,
+demonstrating that fallback is no longer absorbing. They still release at
+916/926/976/957/1011 versus baseline 1108. Interval 64 rejects every probe and preserves the release tick,
+so it adds work without useful authority. The mechanism passes, the walking
+profiles are rejected, and policy/physics counts remain zero.
+
+Run `scripts/run-g1-normal-fallback-relock-probe-r273.sh` to rebuild the PyO3
+extension, regenerate the dormant plus six cadence traces, and render the
+Markdown/HTML report. The retained artifact is
+[`G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md`](../benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
+
 ### Revision r272 NormalFallback point-task scale causal split
 
 `python/evals/g1_normal_fallback_task_scale_r272.py` compares the retained R270

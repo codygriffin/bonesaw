@@ -266,6 +266,12 @@ def parse_args() -> argparse.Namespace:
         help="default-preserving scale for the soft point task after NormalFallback",
     )
     parser.add_argument(
+        "--normal-fallback-relock-probe-interval-ticks",
+        type=int,
+        default=0,
+        help="default-off cadence for bounded full-lock feasibility probes from NormalFallback",
+    )
+    parser.add_argument(
         "--capture-landing-retarget",
         action="store_true",
         help="retarget the latched sole-center landing in Rust from measured DCM",
@@ -1575,11 +1581,20 @@ def summarize(
         "primal_infeasible": int(np.count_nonzero(status == 2)),
         "failed": int(np.count_nonzero(status == 3)),
         "normal_contact_contingency": int(np.count_nonzero(status == 4)),
-        "contact_release_contingency": int(np.count_nonzero(status == 5)),
+        "contact_release_contingency": int(np.count_nonzero(np.isin(status, (5, 12)))),
         "touchdown_transition": int(np.count_nonzero(status == 6)),
         "precontact_transition": int(np.count_nonzero(status == 7)),
         "contact_solve_hold": int(np.count_nonzero(status == 8)),
         "localized_contact_handoff": int(np.count_nonzero(status == 9)),
+        "normal_fallback_relock_probe_admitted": int(
+            np.count_nonzero(status == 10)
+        ),
+        "normal_fallback_relock_probe_rejected": int(
+            np.count_nonzero(np.isin(status, (11, 12)))
+        ),
+        "normal_fallback_relock_probe_rejected_release": int(
+            np.count_nonzero(status == 12)
+        ),
     }
     maximum_touchdown_transition_ticks = longest_true_run(status == 6)
     maximum_precontact_transition_ticks = longest_true_run(status == 7)
@@ -1628,7 +1643,7 @@ def summarize(
             )
         )
     }
-    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7, 9))
+    physical_tick = np.isin(status, (0, 1, 4, 5, 6, 7, 9, 10, 11, 12))
     if not np.any(physical_tick):
         physical_tick = np.ones_like(status, dtype=bool)
     non_nominal = np.flatnonzero(~np.isin(status, (0, 1, 6, 7)))
@@ -1680,6 +1695,9 @@ def summarize(
         7: "precontact_transition",
         8: "contact_solve_hold",
         9: "localized_contact_handoff",
+        10: "normal_fallback_relock_probe_admitted",
+        11: "normal_fallback_relock_probe_rejected",
+        12: "normal_fallback_relock_probe_rejected_release",
     }
     for code, name in status_names.items():
         selected = step_ns[status == code]
@@ -2477,8 +2495,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         "",
         "## Runtime",
         "",
-        "| ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | solve hold | localized handoff | release fallback | infeasible | failed |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| ticks | duration | p50 | p95 | p99 | max | solved | slack | pre-contact | touchdown | normal fallback | relock admitted | relock rejected | solve hold | localized handoff | release fallback | infeasible | failed |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         f"| {metrics['ticks']:,} | {metrics['duration_seconds']:.1f} s | "
         f"{metrics['latency_us']['p50']:.1f} µs | "
         f"{metrics['latency_us']['p95']:.1f} µs | "
@@ -2489,6 +2507,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"{metrics['status_counts']['precontact_transition']:,} | "
         f"{metrics['status_counts']['touchdown_transition']:,} | "
         f"{metrics['status_counts']['normal_contact_contingency']:,} | "
+        f"{metrics['status_counts']['normal_fallback_relock_probe_admitted']:,} | "
+        f"{metrics['status_counts']['normal_fallback_relock_probe_rejected']:,} | "
         f"{metrics['status_counts']['contact_solve_hold']:,} | "
         f"{metrics['status_counts']['localized_contact_handoff']:,} | "
         f"{metrics['status_counts']['contact_release_contingency']:,} | "
@@ -2954,6 +2974,10 @@ def main() -> None:
         and args.localized_contact_fallback_target < 0
     ):
         raise ValueError("--localized-contact-fallback-target must be nonnegative")
+    if not 0 <= args.normal_fallback_relock_probe_interval_ticks <= 512:
+        raise ValueError(
+            "--normal-fallback-relock-probe-interval-ticks must be in 0..=512"
+        )
     if args.reference_inputs:
         standalone_reference = load_standalone_reference(
             pathlib.Path(args.reference_inputs),
@@ -3267,6 +3291,9 @@ def main() -> None:
         precontact_maximum_acceleration=args.precontact_maximum_acceleration,
         material_touchdown_task=args.material_touchdown_task,
         normal_fallback_task_weight_scale=args.normal_fallback_task_weight_scale,
+        normal_fallback_relock_probe_interval_ticks=(
+            args.normal_fallback_relock_probe_interval_ticks
+        ),
         contact_patch_center_x=args.contact_patch_center_x,
         contact_patch_half_length=args.contact_patch_half_length,
         contact_patch_half_width=args.contact_patch_half_width,
@@ -3677,6 +3704,9 @@ def main() -> None:
             args.precontact_maximum_acceleration
         ),
         "normal_fallback_task_weight_scale": args.normal_fallback_task_weight_scale,
+        "normal_fallback_relock_probe_interval_ticks": (
+            args.normal_fallback_relock_probe_interval_ticks
+        ),
         "capture_landing_retarget_enabled": args.capture_landing_retarget,
         "capture_landing_activation_margin_m": (
             args.capture_landing_activation_margin

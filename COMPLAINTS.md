@@ -3,28 +3,19 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R272 makes the existing `NormalFallback` viability point-task weight an
-explicit scale. Scale 0.25 stays under 5 ms p99 but worsens root RMS to
-17.030 m; scale 0.5 improves RMS to 14.691 m but crosses the timing gate, and
-every reduced trace is bitwise identical through fallback tick 875. It cannot
-change the tick-874 knee-limit event and all reduced scales release earlier
-than the default. The split is partial and
-rejected/default-off. R270 addresses the specific early upper-body activation/velocity-cap symptom
-without closing the behavior gate. Its causal split shows that the default-off
-hard lower-body bound keeps the critical knee above -8 rad/s and delays first
-fallback, while the much longer release delay requires the soft+hard
-interaction. R271 then adds a hard aggregate support-load floor as a falsifier:
-even a 0.5% floor moves fallback 875→505, and 10%/25% move it to 424/308,
-exposing earlier authority exhaustion instead of accepting 42–58 N as meaningful
-support. The 0% control preserves 72/72 non-timing arrays and enabled rows have
-zero violations, so the generic mechanism passes; all global walking floor
-profiles are rejected and the mechanism stays default-off. The remaining complaint
-is therefore continuous position-limit/support-transition recovery and
-compositional authority after the knee event, not an unbounded solver timeout.
-See the [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md)
-and [r271 support-load report](benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
-The [r272 fallback-task report](benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md)
-captures the newer causal split.
+R273 closes the narrow absorbing-state complaint: `NormalFallback` now has an
+explicit, default-off route back to `Locked` through a bounded full-lock
+feasibility probe. Rejected probe output is never integrated; Rust restores the
+established normal-only rows and retries once, with admission, rejection, and
+rejection-with-release typed separately. The 0-tick control preserves all 72
+non-timing arrays. Intervals 1/4/8/16/32 do re-lock for up to ten ticks, but
+release at 916/926/976/957/1011 instead of baseline tick 1108; interval 64 admits nothing and
+only adds work. The completed state-machine mechanism has therefore moved out
+of this punch list. The remaining complaint is useful pre-limit prevention and
+compositional recovery: avoid the tick-874 knee-limit/fallback cause, retain
+support through the tick-1108 handoff, and restore bounded root/attitude
+tracking without weakening contact admission or exceeding the CPU budget. See
+the [r273 relock-probe report](benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
 
 ## Open browser gate: viewport frame time
 
@@ -102,10 +93,10 @@ an immediate whole-body release/reset. It does not close walking: first
 NormalFallback remains tick 863, full-run root RMS is 17.026 m, attitude reaches
 120.38 degrees, and the independent handoff control exceeds the 5 ms p99 gate. The
 profile, continuation, and timeout are
-default-off and grant no authority. The remaining behavior complaint is
-continuous exit from persistent NormalFallback while restoring post-touchdown
-root/attitude tracking, without more per-call solver work or weaker contact
-admission. Automatic contact-fault localization also remains open. See the
+default-off and grant no authority. R273 has since demonstrated an explicit
+bounded exit from persistent NormalFallback, but no tested cadence retains it
+through the handoff or restores post-touchdown root/attitude tracking. Useful
+pre-limit recovery and automatic contact-fault localization remain open. See the
 [r269 bounded continuation report](benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
 ## Open CPU authority gate: useful physical transition tube
