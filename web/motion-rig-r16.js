@@ -196,14 +196,16 @@ function sendPlant(message) {
   return requestId;
 }
 
-function disconnectPlant() {
+function disconnectPlant({ preserveGhost = false, closeSocket = true } = {}) {
   plantConnected = false;
   plantHello = null;
   plantContacts = [];
   plantState = null;
   plantPaused = false;
-  measuredPlantFrames = [];
-  measuredPlantMinimumGroundClearanceM = Number.NaN;
+  if (!preserveGhost) {
+    measuredPlantFrames = [];
+    measuredPlantMinimumGroundClearanceM = Number.NaN;
+  }
   simulatorGroundPlane = {
     point: [0, 0, 0],
     normal: [0, 0, 1],
@@ -212,7 +214,7 @@ function disconnectPlant() {
   activeForceArrow = null;
   pendingPushCommand = null;
   pushDrag = null;
-  if (plantSocket) {
+  if (closeSocket && plantSocket) {
     plantSocket.onclose = null;
     plantSocket.close();
     plantSocket = null;
@@ -365,14 +367,18 @@ function connectPlant() {
     plantStatus.textContent = "connection fault";
   };
   plantSocket.onclose = () => {
-    plantConnected = false;
+    // Keep the last measured geometry as a disconnected ghost while clearing
+    // all live plant state and command leases. The main /ws preview may still
+    // be healthy, but a missing MuJoCo feedback stream must fail closed for
+    // every interaction mode rather than leaving stale orange telemetry and
+    // enabled controls on screen.
     plantSocket = null;
+    disconnectPlant({ preserveGhost: true, closeSocket: false });
+    plantStatus.textContent = "disconnected · ghost";
+    plantWrench.textContent = "unavailable";
+    connectionLabel.textContent = "Plant reconnecting";
+    setRobotControlsEnabled(false);
     if (socket?.readyState === WebSocket.OPEN) {
-      plantStatus.textContent = "reconnecting plant";
-      if (interactionMode === "push") {
-        connectionLabel.textContent = "Plant reconnecting";
-        setRobotControlsEnabled(false);
-      }
       setTimeout(connectPlant, 800);
     }
   };

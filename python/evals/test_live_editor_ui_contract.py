@@ -38,6 +38,18 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("performance.now() - lastSocketMessageAt > 1500", self.javascript)
         self.assertIn("if (robotControlsEnabled && event.key.toLowerCase()", self.javascript)
 
+    def test_plant_only_disconnect_clears_live_state_and_keeps_a_ghost(self) -> None:
+        self.assertIn(
+            "disconnectPlant({ preserveGhost: true, closeSocket: false })",
+            self.javascript,
+        )
+        self.assertIn("plantStatus.textContent = \"disconnected · ghost\"", self.javascript)
+        self.assertIn("plantWrench.textContent = \"unavailable\"", self.javascript)
+        self.assertIn("connectionLabel.textContent = \"Plant reconnecting\"", self.javascript)
+        self.assertIn("setRobotControlsEnabled(false)", self.javascript)
+        self.assertIn("if (!preserveGhost)", self.javascript)
+        self.assertIn("measuredPlantFrames = []", self.javascript)
+
     def test_handles_are_visible_and_only_visible_frames_are_hit_tested(self) -> None:
         self.assertIn('id="target-guide"', self.html)
         self.assertIn("GREEN CONTROLS", self.html)
