@@ -5101,6 +5101,68 @@ mod tests {
     }
 
     #[test]
+    fn model_sphere_contact_motion_uses_the_surface_material_point() {
+        let source = include_str!("../../../models/toy_humanoid.urdf");
+        let model = crate::urdf::load_urdf(source).unwrap();
+        let mut initial = FloatingRobotState::zeros(&model);
+        initial.robot.control_world_from_root.translation.vector.z = 1.0;
+        initial.root_twist_world.0[0] = 10.0;
+        let contacts = [PointImpulseResponseSpec {
+            frame: FrameId(model.root.0),
+            point_world: crate::math::Vec3::new(0.0, 0.0, 0.9),
+            basis_world: [
+                crate::math::Vec3::x(),
+                crate::math::Vec3::y(),
+                crate::math::Vec3::z(),
+            ],
+        }];
+        let acceleration = vec![0.0; model.dof + 6];
+        let mut scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut impulse = [0.0; 3];
+        let mut velocity = [0.0; 3];
+        let mut gap = [0.0];
+        let mut after = FloatingRobotState::zeros(&model);
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &model,
+            ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+                initial_state: &initial,
+                contacts: &contacts,
+                contact_surface_radius_m: &[0.1],
+                plane_normal_world: crate::math::Vec3::z(),
+                plane_offset_m: 0.0,
+                generalized_free_acceleration: &acceleration,
+                initial_contact_free_acceleration: &[0.0; 3],
+                impulse_upper: &[0.0; 3],
+                friction: &[0.5],
+                time_constant_s: &[0.02],
+                damping_ratio: &[1.0],
+                impedance_min: &[0.8],
+                impedance_max: &[0.9],
+                impedance_width_m: &[0.001],
+                impedance_midpoint: &[0.5],
+                impedance_power: &[2.0],
+                minimum_time_constant_s: 0.002,
+                time_step_s: 0.001,
+                state_steps: 1,
+                compliance_substeps: 1,
+                projection_sweeps: 1,
+                friction_cone: CompliantFrictionCone::Circular,
+                integrator: CompliantStepIntegrator::ExplicitEuler,
+            },
+            &mut scratch,
+            &mut impulse,
+            &mut velocity,
+            &mut gap,
+            &mut after,
+        )
+        .unwrap();
+        assert_eq!(impulse, [0.0; 3]);
+        assert!((velocity[1] - 1.0).abs() < 1.0e-12);
+        assert!(velocity[0].abs() < 1.0e-12);
+        assert!(velocity[2].abs() < 1.0e-12);
+    }
+
+    #[test]
     fn model_coupled_contact_rejects_bad_clock_atomically() {
         let source = include_str!("../../../models/toy_humanoid.urdf");
         let model = crate::urdf::load_urdf(source).unwrap();
