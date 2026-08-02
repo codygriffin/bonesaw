@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw pyramid-edge convergence · r243</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw pyramid-edge convergence audit · r243</h1>
+<blockquote>Prediction-only profile **FROZEN** · authority **NOT ADMITTED**.</blockquote>
+<p>Pyramidal contacts now have an opt-in model-only cone ABI 2 that solves nonnegative edge variables N±μTᵢ. Historical Cartesian diamond ABI 1 remains unchanged. Selection uses causal prediction refinement only.</p>
+<div class=table-wrap><table><thead><tr><th>sweeps</th><th>2× width · ang / lin / joint</th><th>% gate</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>1</td><td>0.4969 / 0.0861 / 5.5688</td><td>55.688%</td><td>2.569</td><td>—</td></tr><tr><td>2</td><td>0.6950 / 0.1214 / 5.0710</td><td>50.710%</td><td>2.680</td><td>—</td></tr><tr><td>4</td><td>0.5237 / 0.0943 / 2.5662</td><td>26.184%</td><td>2.649</td><td>—</td></tr><tr><td>8</td><td>0.3213 / 0.0628 / 2.0874</td><td>20.874%</td><td>2.526</td><td>—</td></tr><tr><td>16</td><td>0.1475 / 0.0308 / 1.9101</td><td>19.101%</td><td>2.582</td><td>—</td></tr><tr><td>32</td><td>0.0622 / 0.0123 / 0.8132</td><td>8.132%</td><td>2.747</td><td>—</td></tr><tr><td>64</td><td>0.0070 / 0.0026 / 0.1930</td><td>1.930%</td><td>2.988</td><td>FREEZE</td></tr><tr><td>128</td><td>0.0150 / 0.0024 / 0.2254</td><td>2.254%</td><td>3.501</td><td>—</td></tr><tr><td>256</td><td>—</td><td>—</td><td>4.585</td><td>—</td></tr></tbody></table></div>
+<p>The smallest stable profile is **64 sweeps**.</p>
+<h2>Spent R241 diagnostic (ineligible for selection)</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>cone ABI</th><th>coverage</th><th>exact active sets</th><th>width · ang / lin / joint</th></tr></thead><tbody><tr><td>compliant_pyramidal_implicitfast_r241</td><td>2</td><td>100.000%</td><td>48/48</td><td>0.063 / 0.014 / 2.745</td></tr><tr><td>rigid_elliptic_rk4_constraint_rhs_r241</td><td>0</td><td>100.000%</td><td>48/48</td><td>0.100 / 0.009 / 3.120</td></tr></tbody></table></div>
+<p>No new reference physics, policy, controller, selector, or plant step is used. A new untouched holdout is required before promotion.</p></main></body></html>

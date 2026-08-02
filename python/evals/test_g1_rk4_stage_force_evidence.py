@@ -23,8 +23,14 @@ from g1_constraint_rhs_cross_integrator_holdout import (
     FROZEN_PROJECTION_SWEEPS as R241_FROZEN_SWEEPS,
     SAMPLE_OFFSETS as R241_OFFSETS,
 )
+from g1_pyramid_edge_cross_integrator_holdout import (
+    FRESH_CONTACT_LAWS as R244_LAWS,
+    SAMPLE_OFFSETS as R244_OFFSETS,
+)
 from g1_positive_reference_compliance_audit import (
     law_model_constraint_rhs_integrator_id,
+    law_model_edge_cone_id,
+    law_model_predicted_gap_activation_integrator_id,
     law_model_stage_force_integrator_id,
 )
 
@@ -72,6 +78,25 @@ class G1Rk4StageForceEvidenceTests(unittest.TestCase):
             [law_model_constraint_rhs_integrator_id(law) for law in R241_LAWS],
             [0, 4],
         )
+
+    def test_predicted_gap_activation_candidate_is_opt_in(self) -> None:
+        self.assertEqual(
+            [law_model_predicted_gap_activation_integrator_id(law) for law in R241_LAWS],
+            [6, 4],
+        )
+
+    def test_pyramid_edge_followup_is_new_and_diagnostic_only(self) -> None:
+        self.assertTrue(
+            {law.name for law in R244_LAWS}.isdisjoint(
+                {law.name for law in R241_LAWS}
+            )
+        )
+        self.assertTrue(set(R244_OFFSETS).isdisjoint(R241_OFFSETS))
+        self.assertEqual(
+            [law_model_constraint_rhs_integrator_id(law) for law in R244_LAWS],
+            [0, 4],
+        )
+        self.assertEqual([law_model_edge_cone_id(law) for law in R244_LAWS], [2, 2])
 
 
 if __name__ == "__main__":

@@ -18,7 +18,9 @@ from g1_positive_reference_compliance_audit import (
     REFERENCE_DOCUMENTATION,
     SOLVER_FAMILIES,
     law_cone_id,
+    law_model_edge_cone_id,
     law_model_constraint_rhs_integrator_id,
+    law_model_predicted_gap_activation_integrator_id,
     law_model_implicit_stage_force_integrator_id,
     law_model_integrator_id,
     law_model_stage_force_integrator_id,
@@ -46,6 +48,8 @@ class G1PositiveReferenceComplianceAuditTests(unittest.TestCase):
         self.assertTrue(REFERENCE_DOCUMENTATION.startswith("https://mujoco.readthedocs.io/"))
         self.assertEqual(law_cone_id(FRESH_CONTACT_LAWS[0]), 0)
         self.assertEqual(law_cone_id(FRESH_CONTACT_LAWS[1]), 1)
+        self.assertEqual(law_model_edge_cone_id(FRESH_CONTACT_LAWS[0]), 0)
+        self.assertEqual(law_model_edge_cone_id(FRESH_CONTACT_LAWS[1]), 2)
         self.assertEqual(law_reduced_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
         self.assertEqual(law_reduced_integrator_id(FRESH_CONTACT_LAWS[1]), 2)
         self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
@@ -57,6 +61,14 @@ class G1PositiveReferenceComplianceAuditTests(unittest.TestCase):
         )
         self.assertEqual(
             law_model_constraint_rhs_integrator_id(FRESH_CONTACT_LAWS[1]), 4
+        )
+        self.assertEqual(
+            law_model_predicted_gap_activation_integrator_id(FRESH_CONTACT_LAWS[0]),
+            6,
+        )
+        self.assertEqual(
+            law_model_predicted_gap_activation_integrator_id(FRESH_CONTACT_LAWS[1]),
+            4,
         )
 
     def test_implicit_stage_force_uses_new_model_only_id(self) -> None:

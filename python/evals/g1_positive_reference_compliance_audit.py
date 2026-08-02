@@ -204,6 +204,7 @@ MODEL_INTEGRATOR_IDS = {
     "generalized_rk4": 3,
     "generalized_rk4_stage_force": 4,
     "generalized_implicit_stage_force": 5,
+    "generalized_explicit_activation": 6,
 }
 
 
@@ -260,8 +261,26 @@ def law_model_constraint_rhs_integrator_id(law: Any) -> int:
     return MODEL_INTEGRATOR_IDS["explicit"]
 
 
+def law_model_predicted_gap_activation_integrator_id(law: Any) -> int:
+    """Select the opt-in non-RK within-tick activation candidate.
+
+    The candidate keeps RK4 on the proven current-stage-force ABI 4 while
+    routing the authored non-RK/implicitfast constraint RHS through model ABI
+    6. Historical ABI 0/1/3/4/5 mappers remain unchanged and no production
+    authority is implied by this diagnostic mapper.
+    """
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
+        return MODEL_INTEGRATOR_IDS["generalized_rk4_stage_force"]
+    return MODEL_INTEGRATOR_IDS["generalized_explicit_activation"]
+
+
 def law_cone_id(law: Any) -> int:
     return 0 if law.cone == int(mujoco.mjtCone.mjCONE_ELLIPTIC) else 1
+
+
+def law_model_edge_cone_id(law: Any) -> int:
+    """Use reference pyramid-edge optimization coordinates when authored."""
+    return 0 if law.cone == int(mujoco.mjtCone.mjCONE_ELLIPTIC) else 2
 
 
 def evaluate_profile_law(

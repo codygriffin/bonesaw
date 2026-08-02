@@ -40,6 +40,7 @@ class G1GeneralizedRk4EvidenceTests(unittest.TestCase):
                 "generalized_rk4": 3,
                 "generalized_rk4_stage_force": 4,
                 "generalized_implicit_stage_force": 5,
+                "generalized_explicit_activation": 6,
             },
         )
 

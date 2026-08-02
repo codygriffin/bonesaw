@@ -134,6 +134,21 @@ each refreshed generalized-RK stage while preserving historical implicitfast
 id 1 and every prior mapper. Its atomicity and positive-impulse regressions
 pass, but it has not been promoted or evaluated on a fresh holdout.
 
+R242 rejects the next opt-in non-RK activation hypothesis: ABI 6 admits a
+positive-gap point only when its one-state-step predicted gap crosses while the
+current normal velocity closes. On spent R241 labels it predicts 19 unloaded
+points, covers 77.083%, and fits 1.478/0.275/22.719 angular/linear/joint width;
+the historical ABI 0 boundary guard remains unchanged. R243 evaluates an
+edge-coordinate pyramid cone (`N ± μT`) against the causal R241 replay, while
+retaining Cartesian ABI 1. No projection sweep through 256 reaches the 2%
+refinement gate, so neither diagnostic can enter a fresh holdout or authority.
+
+R244 is the untouched edge-coordinate follow-up at offsets 190,000/200,000.
+The implicitfast/id-0 row covers 47/48 with 0.220/0.048/16.030 width; the RK4
+row covers 48/48 but exceeds the 5 ms query deadline at 5.549 ms and needs
+0.128/0.007/6.279. The edge candidate therefore fails both mechanism and
+transfer gates, and no authority follows it.
+
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 
 R229 reads the completed immutable R228 labels explicitly, so it is a

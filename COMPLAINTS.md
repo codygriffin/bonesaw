@@ -38,6 +38,17 @@ rejected. The live CPU complaint is now non-RK within-tick contact activation
 and within-foot wrench distribution—not RK stage timing or enum mapping. No
 R224 selection, plant non-regression, or authority follows this failed holdout.
 
+Two opt-in diagnostics are also rejected. R242's ABI 6 predicted-gap activation
+rule produces 19 extra unloaded contacts on the spent R241 replay and widens
+the implicitfast row to 22.719 rad/s joint width. R243's pyramid-edge cone
+coordinates (`N ± μT`) fail the causal convergence gate even at 256 sweeps.
+Historical ABI 0 and Cartesian pyramid ABI 1 remain unchanged; neither
+diagnostic is a production mapping.
+
+R244 is the fresh edge-coordinate holdout: implicitfast/id 0 covers 47/48 at
+0.220 / 0.048 / 16.030 width, while RK4/id 4 misses the 5 ms mechanism gate at
+5.549 ms and needs 0.128 / 0.007 / 6.279. The candidate remains rejected.
+
 Acceptance still requires all of the following independent witnesses:
 
 - derive a label-independent non-RK within-tick activation/wrench construction

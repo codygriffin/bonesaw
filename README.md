@@ -2512,6 +2512,21 @@ current generalized-RK stage. It is covered by atomicity and positive-impulse
 regressions, but has no fresh holdout and is not a production mapping; historical
 implicitfast ABI 1 and all prior evidence remain unchanged.
 
+R242 isolates the opt-in ABI 6 predicted-gap activation rule. It admits a
+positive-gap contact only when the one-state-step prediction crosses the plane
+while the current normal velocity is closing. On the spent R241 replay it
+produces 19 extra unloaded contacts, 77.083% coverage, and 1.478/0.275/22.719
+fitted angular/linear/joint width, so it is rejected. R243 also keeps the
+historical Cartesian pyramid and tests an opt-in edge-coordinate cone (`N ± μT`);
+no sweep through 256 reaches the 2% convergence gate. Both remain diagnostic
+only. See the [r242 activation localization](benchmarks/results/g1-predicted-gap-activation-localization-r242/G1_PREDICTED_GAP_ACTIVATION_LOCALIZATION.md) and [r243 pyramid-edge audit](benchmarks/results/g1-pyramid-edge-convergence-audit-r243/G1_PYRAMID_EDGE_CONVERGENCE_AUDIT.md).
+
+R244 is the required untouched follow-up for the edge candidate. Both new
+pyramidal laws use cone ABI 2; the implicitfast row covers 47/48 with
+0.220/0.048/16.030 width, while the RK4 row misses the 5 ms mechanism deadline
+at 5.549 ms and needs 0.128/0.007/6.279. The candidate and authority remain
+rejected. See the [r244 pyramid-edge holdout](benchmarks/results/g1-pyramid-edge-cross-integrator-holdout-r244/G1_PYRAMID_EDGE_CROSS_INTEGRATOR_HOLDOUT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the

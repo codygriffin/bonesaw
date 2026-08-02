@@ -106,6 +106,10 @@ def execute_law(
     q_nominal: np.ndarray,
     projection_sweeps: int,
     model_integrator_id_fn=law_reduced_integrator_id,
+    model_cone_id_fn=law_cone_id,
+    *,
+    state_steps: int = SUBSTEPS,
+    time_step_s: float = CONTROL_DT,
 ) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
     """Run one model-coupled law with an explicit ABI mapper.
 
@@ -172,11 +176,11 @@ def execute_law(
             plane_normal,
             0.0,
             2.0 * PHYSICS_DT,
-            CONTROL_DT,
-            SUBSTEPS,
+            time_step_s,
+            state_steps,
             1,
             projection_sweeps,
-            law_cone_id(law),
+            model_cone_id_fn(law),
             model_integrator_id_fn(law),
             impulse[sample],
             contact_velocity_after[sample],

@@ -1131,8 +1131,9 @@ impl ContactTransitionModelSession {
     /// clock, refreshing rigid point geometry and the full Delassus operator
     /// before each event test. Integrator ids are explicit=0, implicit=1,
     /// exponential-trapezoidal=2, generalized-rk4=3,
-    /// generalized-rk4-stage-force=4, and
-    /// generalized-implicit-stage-force=5. All numerical
+    /// generalized-rk4-stage-force=4,
+    /// generalized-implicit-stage-force=5, and
+    /// generalized-explicit-activation=6. All numerical
     /// outputs are caller-owned.
     #[allow(clippy::too_many_arguments)]
     fn solve_model_coupled_positive_reference_compliant_contact_impulse(
@@ -1175,9 +1176,10 @@ impl ContactTransitionModelSession {
         let friction_cone = match friction_cone {
             0 => CompliantFrictionCone::Circular,
             1 => CompliantFrictionCone::Pyramidal,
+            2 => CompliantFrictionCone::PyramidalEdges,
             _ => {
                 return Err(PyValueError::new_err(
-                    "model coupled positive reference contact cone must be circular=0 or pyramidal=1",
+                    "model coupled positive reference contact cone must be circular=0, pyramidal-cartesian=1, or pyramidal-edges=2",
                 ));
             }
         };
@@ -1190,9 +1192,10 @@ impl ContactTransitionModelSession {
             3 => CompliantStepIntegrator::GeneralizedRk4,
             4 => CompliantStepIntegrator::GeneralizedRk4StageForce,
             5 => CompliantStepIntegrator::GeneralizedImplicitStageForce,
+            6 => CompliantStepIntegrator::GeneralizedExplicitActivation,
             _ => {
                 return Err(PyValueError::new_err(
-                    "model coupled positive reference contact integrator must be explicit=0, implicit=1, exponential-trapezoidal=2, generalized-rk4=3, generalized-rk4-stage-force=4, or generalized-implicit-stage-force=5",
+                    "model coupled positive reference contact integrator must be explicit=0, implicit=1, exponential-trapezoidal=2, generalized-rk4=3, generalized-rk4-stage-force=4, generalized-implicit-stage-force=5, or generalized-explicit-activation=6",
                 ));
             }
         };
