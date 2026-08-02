@@ -2,7 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r273 bounded NormalFallback relock probe
+## Current CPU checkpoint — r274 joint-position stopping-headroom capture
+
+R274 adds `joint_position_capture_acceleration`, an allocation-free scalar
+request based on directional stopping distance plus a bounded reaction-time
+guard. The PyO3 profile defaults its weight to zero, selects lower-body joints
+from the pinned URDF names, composes into the existing preallocated Viability
+joint-task slot, and leaves hard stopping intervals unchanged. A dedicated raw
+array reports active coordinate count separately from velocity-envelope work.
+The dormant trace matches every shared R273 non-timing array and reports zero
+activity; every candidate is exact through its first activation at tick
+859–863. Five retained profiles activate for 13–17 ticks on up to three
+coordinates, but all reach the right-knee lower limit at tick 875. Fallback is
+876 or 888 and the best release is 1020 versus baseline 1108. Root RMS remains
+14.886–18.989 m; several profiles also exceed the 5 ms p99 gate. The mechanism
+passes, while walking profile and authority are rejected. The next slice must
+address coupled root/foot/support feasibility before the limit rather than add
+another local braking gain. See the
+[`G1_JOINT_POSITION_CAPTURE_R274.md`](../benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md)
+report.
+
+## Prior CPU checkpoint — r273 bounded NormalFallback relock probe
 
 R273 makes `NormalFallback` recoverable without making a schedule bit or an
 unfinished solve authoritative. `normal_fallback_relock_probe_interval_ticks`

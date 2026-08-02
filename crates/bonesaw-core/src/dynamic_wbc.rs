@@ -177,6 +177,53 @@ pub fn joint_velocity_envelope_acceleration(
     )
 }
 
+/// Smooth, allocation-free braking command when the current velocity can no
+/// longer stop inside the remaining authored position headroom plus a bounded
+/// reaction-time guard. This is a soft recovery request; the ordinary joint
+/// acceleration interval remains the hard fail-closed authority boundary.
+#[allow(clippy::too_many_arguments)]
+pub fn joint_position_capture_acceleration(
+    position: f64,
+    velocity: f64,
+    lower_position: f64,
+    upper_position: f64,
+    assumed_braking_acceleration: f64,
+    reaction_time_seconds: f64,
+    maximum_acceleration: f64,
+) -> Option<f64> {
+    if !position.is_finite()
+        || !velocity.is_finite()
+        || !lower_position.is_finite()
+        || !upper_position.is_finite()
+        || lower_position >= upper_position
+        || !assumed_braking_acceleration.is_finite()
+        || assumed_braking_acceleration <= 0.0
+        || !reaction_time_seconds.is_finite()
+        || reaction_time_seconds < 0.0
+        || !maximum_acceleration.is_finite()
+        || maximum_acceleration <= 0.0
+    {
+        return None;
+    }
+    if velocity == 0.0 {
+        return Some(0.0);
+    }
+    let headroom = if velocity > 0.0 {
+        upper_position - position
+    } else {
+        position - lower_position
+    };
+    let speed = velocity.abs();
+    let required_headroom =
+        speed * speed / (2.0 * assumed_braking_acceleration) + speed * reaction_time_seconds;
+    if headroom >= required_headroom || required_headroom <= 0.0 {
+        return Some(0.0);
+    }
+    let phase = ((required_headroom - headroom) / required_headroom).clamp(0.0, 1.0);
+    let smooth_phase = phase * phase * (3.0 - 2.0 * phase);
+    Some(-velocity.signum() * maximum_acceleration * smooth_phase)
+}
+
 /// Measured contact phase used to schedule soft authority without consulting
 /// the authored motion phase.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -3796,6 +3843,28 @@ mod tests {
         );
         assert_eq!(
             joint_velocity_envelope_acceleration(1.0, 0.0, 0.75, 10.0, 100.0),
+            None
+        );
+    }
+
+    #[test]
+    fn joint_position_capture_tracks_directional_stopping_headroom() {
+        assert_eq!(
+            joint_position_capture_acceleration(0.0, 1.0, -1.0, 1.0, 50.0, 0.02, 200.0),
+            Some(0.0)
+        );
+        let upper =
+            joint_position_capture_acceleration(0.98, 2.0, -1.0, 1.0, 50.0, 0.02, 200.0).unwrap();
+        let lower =
+            joint_position_capture_acceleration(-0.98, -2.0, -1.0, 1.0, 50.0, 0.02, 200.0).unwrap();
+        assert!(upper < 0.0 && upper >= -200.0);
+        assert_eq!(lower, -upper);
+        assert_eq!(
+            joint_position_capture_acceleration(0.0, 0.0, -1.0, 1.0, 50.0, 0.02, 200.0),
+            Some(0.0)
+        );
+        assert_eq!(
+            joint_position_capture_acceleration(0.0, 1.0, 1.0, -1.0, 50.0, 0.02, 200.0),
             None
         );
     }

@@ -17,6 +17,15 @@ support through the tick-1108 handoff, and restore bounded root/attitude
 tracking without weakening contact admission or exceeding the CPU budget. See
 the [r273 relock-probe report](benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
 
+R274 rules out the smallest soft position-capture version of that upstream
+fix. Its default-zero stopping-headroom request is exactly dormant, and enabled
+profiles activate at ticks 859–863 on as many as three lower-body joints. They
+still hit the knee limit at tick 875; the best release is 1020, short of 1108,
+and full root RMS remains 14.886–18.989 m. This completed falsifier has moved
+out of the punch list. The remaining behavior complaint is now coupled
+root/foot/support feasibility before the limit event, not more local braking
+gain. See the [r274 position-capture report](benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

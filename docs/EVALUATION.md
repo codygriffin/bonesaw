@@ -2848,6 +2848,30 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r274 joint-position stopping-headroom capture
+
+`python/evals/g1_joint_position_capture_r274.py` evaluates a soft pre-limit
+request over the same immutable G1 reference and morphology witness. Rust
+compares remaining directional joint-position headroom with stopping distance
+under an authored deceleration plus a reaction-time guard, emits a smooth
+outward acceleration in the existing fixed Viability slot, and reports a
+dedicated active-coordinate count. It adds no hard row, policy step, physics
+step, or hot-path allocation.
+
+The zero-weight replay matches all shared R273 non-timing arrays and reports no
+activity. Enabled profiles are exact until first activation at tick 859–863 and
+activate for 13–17 ticks on at most three coordinates. All still reach the
+right-knee limit at tick 875, then fall back at 876 or 888. Release ranges
+889–1020 versus baseline 1108, full root RMS is 14.886–18.989 m, and p99 is
+4.955–5.399 ms. Higher weights share the existing joint-task slot and therefore
+measure composition with velocity protection, not isolated position gain. The
+generic mechanism passes; every walking profile and authority gate is rejected.
+
+Run `scripts/run-g1-joint-position-capture-r274.sh` to rebuild the extension,
+regenerate the dormant plus five sensitivity traces, and render the retained
+[`G1_JOINT_POSITION_CAPTURE_R274.md`](../benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md)
+report.
+
 ### Revision r273 bounded NormalFallback relock probe
 
 `python/evals/g1_normal_fallback_relock_probe_r273.py` tests the smallest

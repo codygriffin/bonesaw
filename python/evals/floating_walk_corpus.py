@@ -225,6 +225,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--joint-velocity-envelope-frequency-hz", type=float, default=2.0
     )
+    parser.add_argument("--joint-position-capture-weight", type=float, default=0.0)
+    parser.add_argument(
+        "--joint-position-capture-assumed-braking-acceleration",
+        type=float,
+        default=50.0,
+    )
+    parser.add_argument(
+        "--joint-position-capture-reaction-time-seconds",
+        type=float,
+        default=0.02,
+    )
+    parser.add_argument(
+        "--joint-position-capture-all-joints",
+        action="store_true",
+        help="apply the opt-in stopping-headroom capture task beyond named lower-body joints",
+    )
     parser.add_argument(
         "--joint-velocity-envelope-phase-policy",
         choices=("always", "multi-support", "feedback"),
@@ -1487,6 +1503,7 @@ def summarize(
     joint_velocity_envelope_target_scale: np.ndarray,
     joint_velocity_envelope_scale: np.ndarray,
     joint_velocity_envelope_active_coordinates: np.ndarray,
+    joint_position_capture_active_coordinates: np.ndarray,
     reference_phase: np.ndarray,
     reference_phase_target_rate: np.ndarray,
     reference_phase_rate: np.ndarray,
@@ -1949,6 +1966,12 @@ def summarize(
             ),
             "joint_velocity_envelope_active_coordinates_maximum": int(
                 np.max(joint_velocity_envelope_active_coordinates)
+            ),
+            "joint_position_capture_active_ticks": int(
+                np.count_nonzero(joint_position_capture_active_coordinates)
+            ),
+            "joint_position_capture_active_coordinates_maximum": int(
+                np.max(joint_position_capture_active_coordinates)
             ),
             "joint_velocity_envelope_scale_mean": float(
                 np.mean(joint_velocity_envelope_scale)
@@ -2492,6 +2515,10 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"mean target/applied scale "
         f"`{metrics['contact_phase_authority']['joint_velocity_envelope_target_scale_mean']:.3f}` / "
         f"`{metrics['contact_phase_authority']['joint_velocity_envelope_scale_mean']:.3f}`.",
+        f"- Joint-position capture active on "
+        f"`{metrics['contact_phase_authority']['joint_position_capture_active_ticks']}` ticks; "
+        f"maximum active coordinates "
+        f"`{metrics['contact_phase_authority']['joint_position_capture_active_coordinates_maximum']}`.",
         "",
         "## Runtime",
         "",
@@ -3238,6 +3265,16 @@ def main() -> None:
         joint_velocity_envelope_frequency_hz=(
             args.joint_velocity_envelope_frequency_hz
         ),
+        joint_position_capture_weight=args.joint_position_capture_weight,
+        joint_position_capture_assumed_braking_acceleration=(
+            args.joint_position_capture_assumed_braking_acceleration
+        ),
+        joint_position_capture_reaction_time_seconds=(
+            args.joint_position_capture_reaction_time_seconds
+        ),
+        joint_position_capture_lower_body_only=(
+            not args.joint_position_capture_all_joints
+        ),
         joint_velocity_envelope_multi_support_only=(
             args.joint_velocity_envelope_phase_policy != "always"
         ),
@@ -3403,6 +3440,9 @@ def main() -> None:
     joint_velocity_envelope_active_coordinates = np.empty(
         args.ticks, dtype=np.uint8
     )
+    joint_position_capture_active_coordinates = np.empty(
+        args.ticks, dtype=np.uint8
+    )
     effective_root_targets = np.empty((args.ticks, 3), dtype=np.float64)
     effective_center_of_mass_targets = np.empty(
         (args.ticks, 3), dtype=np.float64
@@ -3494,6 +3534,7 @@ def main() -> None:
         joint_velocity_envelope_target_scale,
         joint_velocity_envelope_scale,
         joint_velocity_envelope_active_coordinates,
+        joint_position_capture_active_coordinates,
         effective_root_targets,
         effective_center_of_mass_targets,
         effective_target_positions,
@@ -3587,6 +3628,7 @@ def main() -> None:
         joint_velocity_envelope_target_scale,
         joint_velocity_envelope_scale,
         joint_velocity_envelope_active_coordinates,
+        joint_position_capture_active_coordinates,
         reference_phase,
         reference_phase_target_rate,
         reference_phase_rate,
@@ -3670,6 +3712,16 @@ def main() -> None:
         "joint_velocity_envelope_hard": args.joint_velocity_envelope_hard,
         "joint_velocity_envelope_frequency_hz": (
             args.joint_velocity_envelope_frequency_hz
+        ),
+        "joint_position_capture_weight": args.joint_position_capture_weight,
+        "joint_position_capture_assumed_braking_acceleration": (
+            args.joint_position_capture_assumed_braking_acceleration
+        ),
+        "joint_position_capture_reaction_time_seconds": (
+            args.joint_position_capture_reaction_time_seconds
+        ),
+        "joint_position_capture_lower_body_only": (
+            not args.joint_position_capture_all_joints
         ),
         "joint_velocity_envelope_phase_policy": (
             args.joint_velocity_envelope_phase_policy
@@ -3822,6 +3874,9 @@ def main() -> None:
         joint_velocity_envelope_scale=joint_velocity_envelope_scale,
         joint_velocity_envelope_active_coordinates=(
             joint_velocity_envelope_active_coordinates
+        ),
+        joint_position_capture_active_coordinates=(
+            joint_position_capture_active_coordinates
         ),
         root_tracked=root_out,
         root_quaternion_wxyz=root_quaternion,

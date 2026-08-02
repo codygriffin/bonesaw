@@ -63,12 +63,12 @@ use bonesaw_core::{
     WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
     bound_terminal_impact_paired_state_delta, capture_landing_retarget, contact_phase_authority,
     cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
-    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
-    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
-    sample_quintic_scalar_jet, sample_quintic_vector_jet, score_terminal_impact,
-    score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
-    score_terminal_impact_velocity_box_upper, score_viability_forecast,
-    select_conservative_terminal_impact_candidate,
+    joint_position_capture_acceleration, joint_velocity_envelope_acceleration,
+    maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
+    predict_viability_forecast_path, sample_quintic_scalar_jet, sample_quintic_vector_jet,
+    score_terminal_impact, score_terminal_impact_paired_state_exemplar_delta,
+    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
+    score_viability_forecast, select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
     solve_coupled_positive_reference_compliant_contact_impulse,
@@ -311,6 +311,8 @@ struct FloatingWbcSession {
     protected_joint_accelerations: Vec<f64>,
     velocity_envelope_coordinates: Vec<usize>,
     velocity_envelope_accelerations: Vec<f64>,
+    joint_position_lower_limits: Vec<f64>,
+    joint_position_upper_limits: Vec<f64>,
     joint_velocity_limits: Vec<f64>,
     tracking_cache: ModelCache,
     centroidal_dynamics: DynamicsCache,
@@ -378,6 +380,10 @@ struct FloatingWbcSession {
     joint_velocity_envelope_omega: f64,
     joint_velocity_envelope_lower_body_only: bool,
     joint_velocity_envelope_hard: bool,
+    joint_position_capture_weight: f64,
+    joint_position_capture_assumed_braking_acceleration: f64,
+    joint_position_capture_reaction_time_seconds: f64,
+    joint_position_capture_lower_body_only: bool,
     lower_body_joint_coordinate_mask: Vec<bool>,
     contact_phase_authority_config: ContactPhaseAuthorityConfig,
     contact_phase_authority_scale: f64,
@@ -13386,6 +13392,10 @@ impl FloatingWbcSession {
         joint_velocity_envelope_frequency_hz=2.0,
         joint_velocity_envelope_lower_body_only=false,
         joint_velocity_envelope_hard=false,
+        joint_position_capture_weight=0.0,
+        joint_position_capture_assumed_braking_acceleration=50.0,
+        joint_position_capture_reaction_time_seconds=0.02,
+        joint_position_capture_lower_body_only=true,
         joint_velocity_envelope_multi_support_only=false,
         joint_velocity_envelope_phase_transition_ticks=0,
         balance_feedback_authority_enabled=false,
@@ -13460,6 +13470,10 @@ impl FloatingWbcSession {
         joint_velocity_envelope_frequency_hz: f64,
         joint_velocity_envelope_lower_body_only: bool,
         joint_velocity_envelope_hard: bool,
+        joint_position_capture_weight: f64,
+        joint_position_capture_assumed_braking_acceleration: f64,
+        joint_position_capture_reaction_time_seconds: f64,
+        joint_position_capture_lower_body_only: bool,
         joint_velocity_envelope_multi_support_only: bool,
         joint_velocity_envelope_phase_transition_ticks: usize,
         balance_feedback_authority_enabled: bool,
@@ -13593,6 +13607,12 @@ impl FloatingWbcSession {
             || !(0.0..1.0).contains(&joint_velocity_envelope_activation_fraction)
             || !joint_velocity_envelope_frequency_hz.is_finite()
             || joint_velocity_envelope_frequency_hz <= 0.0
+            || !joint_position_capture_weight.is_finite()
+            || joint_position_capture_weight < 0.0
+            || !joint_position_capture_assumed_braking_acceleration.is_finite()
+            || joint_position_capture_assumed_braking_acceleration <= 0.0
+            || !joint_position_capture_reaction_time_seconds.is_finite()
+            || joint_position_capture_reaction_time_seconds < 0.0
             || !capture_landing_activation_margin_m.is_finite()
             || !capture_landing_full_scale_margin_m.is_finite()
             || capture_landing_full_scale_margin_m >= capture_landing_activation_margin_m
@@ -13681,9 +13701,11 @@ impl FloatingWbcSession {
                 "balance phase retiming requires DCM balance telemetry",
             ));
         }
-        if protected_joint_posture_weight > 0.0 && joint_velocity_envelope_weight > 0.0 {
+        if protected_joint_posture_weight > 0.0
+            && (joint_velocity_envelope_weight > 0.0 || joint_position_capture_weight > 0.0)
+        {
             return Err(PyValueError::new_err(
-                "protected posture and joint-velocity envelope share one fixed task slot; enable at most one",
+                "protected posture and joint recovery share one fixed task slot; enable at most one",
             ));
         }
         let contact_patch_points = if contact_points_per_target == 4 {
@@ -13730,29 +13752,35 @@ impl FloatingWbcSession {
         let model = &program.model;
         let generalized_dof = model.dof + 6;
         let mut lower_body_joint_coordinate_mask = vec![false; model.dof];
-        for joint in &model.joints {
-            let Some(coordinate) = joint.coordinate else {
-                continue;
-            };
+        // Build the mask from the model's canonical coordinate ordering. A
+        // URDF may store fixed/root joints interleaved with actuated joints;
+        // iterating raw joint storage and assuming its order is the q/v order
+        // would silently omit a valid lower-body coordinate.
+        for (coordinate, joint_name) in model.coordinate_names().into_iter().enumerate() {
             if ["hip", "knee", "ankle", "wheel", "leg"]
                 .iter()
-                .any(|part| joint.name.contains(part))
+                .any(|part| joint_name.contains(part))
             {
                 lower_body_joint_coordinate_mask[coordinate] = true;
             }
         }
-        if joint_velocity_envelope_lower_body_only
+        if (joint_velocity_envelope_lower_body_only
+            || (joint_position_capture_weight > 0.0 && joint_position_capture_lower_body_only))
             && !lower_body_joint_coordinate_mask
                 .iter()
                 .any(|active| *active)
         {
             return Err(PyValueError::new_err(
-                "lower-body joint-velocity envelope found no hip, knee, ankle, wheel, or leg coordinates",
+                "lower-body recovery found no hip, knee, ankle, wheel, or leg coordinates",
             ));
         }
+        let mut joint_position_lower_limits = vec![f64::NEG_INFINITY; model.dof];
+        let mut joint_position_upper_limits = vec![f64::INFINITY; model.dof];
         let mut joint_velocity_limits = vec![f64::INFINITY; model.dof];
         for joint in &model.joints {
             if let Some(coordinate) = joint.coordinate {
+                joint_position_lower_limits[coordinate] = joint.limit.lower;
+                joint_position_upper_limits[coordinate] = joint.limit.upper;
                 joint_velocity_limits[coordinate] = joint.limit.velocity.abs().min(8.0);
             }
         }
@@ -13817,6 +13845,8 @@ impl FloatingWbcSession {
             protected_joint_accelerations: vec![0.0; model.dof],
             velocity_envelope_coordinates: Vec::with_capacity(model.dof),
             velocity_envelope_accelerations: Vec::with_capacity(model.dof),
+            joint_position_lower_limits,
+            joint_position_upper_limits,
             joint_velocity_limits,
             tracking_cache: ModelCache::new(model),
             centroidal_dynamics: DynamicsCache::new(model),
@@ -13884,6 +13914,10 @@ impl FloatingWbcSession {
                 * joint_velocity_envelope_frequency_hz,
             joint_velocity_envelope_lower_body_only,
             joint_velocity_envelope_hard,
+            joint_position_capture_weight,
+            joint_position_capture_assumed_braking_acceleration,
+            joint_position_capture_reaction_time_seconds,
+            joint_position_capture_lower_body_only,
             lower_body_joint_coordinate_mask,
             contact_phase_authority_config: if joint_velocity_envelope_multi_support_only {
                 ContactPhaseAuthorityConfig {
@@ -14176,24 +14210,12 @@ impl FloatingWbcSession {
 
     #[getter]
     fn joint_position_lower_limits(&self) -> Vec<f64> {
-        let mut limits = vec![f64::NEG_INFINITY; self.program.model.dof];
-        for joint in &self.program.model.joints {
-            if let Some(coordinate) = joint.coordinate {
-                limits[coordinate] = joint.limit.lower;
-            }
-        }
-        limits
+        self.joint_position_lower_limits.clone()
     }
 
     #[getter]
     fn joint_position_upper_limits(&self) -> Vec<f64> {
-        let mut limits = vec![f64::INFINITY; self.program.model.dof];
-        for joint in &self.program.model.joints {
-            if let Some(coordinate) = joint.coordinate {
-                limits[coordinate] = joint.limit.upper;
-            }
-        }
-        limits
+        self.joint_position_upper_limits.clone()
     }
 
     #[getter]
@@ -15505,6 +15527,7 @@ impl FloatingWbcSession {
         mut joint_velocity_envelope_target_scale_out: PyReadwriteArray1<'_, f64>,
         mut joint_velocity_envelope_scale_out: PyReadwriteArray1<'_, f64>,
         mut joint_velocity_envelope_active_coordinates_out: PyReadwriteArray1<'_, u8>,
+        mut joint_position_capture_active_coordinates_out: PyReadwriteArray1<'_, u8>,
         mut effective_root_target_out: PyReadwriteArray2<'_, f64>,
         mut effective_center_of_mass_target_out: PyReadwriteArray2<'_, f64>,
         mut effective_target_positions_out: PyReadwriteArray3<'_, f64>,
@@ -15597,6 +15620,8 @@ impl FloatingWbcSession {
         let joint_velocity_envelope_scale_out = joint_velocity_envelope_scale_out.as_slice_mut()?;
         let joint_velocity_envelope_active_coordinates_out =
             joint_velocity_envelope_active_coordinates_out.as_slice_mut()?;
+        let joint_position_capture_active_coordinates_out =
+            joint_position_capture_active_coordinates_out.as_slice_mut()?;
         let mut effective_root_target_out = effective_root_target_out.as_array_mut();
         let mut effective_center_of_mass_target_out =
             effective_center_of_mass_target_out.as_array_mut();
@@ -15689,6 +15714,7 @@ impl FloatingWbcSession {
             && joint_velocity_envelope_target_scale_out.len() == ticks
             && joint_velocity_envelope_scale_out.len() == ticks
             && joint_velocity_envelope_active_coordinates_out.len() == ticks
+            && joint_position_capture_active_coordinates_out.len() == ticks
             && effective_root_target_out.shape() == [ticks, 3]
             && effective_center_of_mass_target_out.shape() == [ticks, 3]
             && effective_target_positions_out.shape() == [ticks, target_count, 3]
@@ -16787,6 +16813,34 @@ impl FloatingWbcSession {
             joint_velocity_envelope_scale_out[tick] = self.contact_phase_authority_scale;
             self.velocity_envelope_coordinates.clear();
             self.velocity_envelope_accelerations.clear();
+            let mut joint_position_capture_active_coordinates = 0usize;
+            if self.joint_position_capture_weight > 0.0 && self.contact_phase_authority_scale > 0.0
+            {
+                for coordinate in 0..dof {
+                    if self.joint_position_capture_lower_body_only
+                        && !self.lower_body_joint_coordinate_mask[coordinate]
+                    {
+                        continue;
+                    }
+                    let Some(acceleration) = joint_position_capture_acceleration(
+                        self.state.robot.q[coordinate],
+                        self.state.robot.v[coordinate],
+                        self.joint_position_lower_limits[coordinate],
+                        self.joint_position_upper_limits[coordinate],
+                        self.joint_position_capture_assumed_braking_acceleration,
+                        self.joint_position_capture_reaction_time_seconds,
+                        self.maximum_acceleration,
+                    ) else {
+                        continue;
+                    };
+                    if acceleration != 0.0 {
+                        joint_position_capture_active_coordinates += 1;
+                        self.velocity_envelope_coordinates.push(coordinate);
+                        self.velocity_envelope_accelerations.push(acceleration);
+                    }
+                }
+            }
+            let mut joint_velocity_envelope_active_coordinates = 0usize;
             if (self.joint_velocity_envelope_weight > 0.0 || self.joint_velocity_envelope_hard)
                 && self.contact_phase_authority_scale > 0.0
             {
@@ -16806,8 +16860,22 @@ impl FloatingWbcSession {
                         continue;
                     };
                     if acceleration != 0.0 {
-                        self.velocity_envelope_coordinates.push(coordinate);
-                        self.velocity_envelope_accelerations.push(acceleration);
+                        joint_velocity_envelope_active_coordinates += 1;
+                        if let Some(slot) = self
+                            .velocity_envelope_coordinates
+                            .iter()
+                            .position(|candidate| *candidate == coordinate)
+                        {
+                            let capture = self.velocity_envelope_accelerations[slot];
+                            if capture.signum() == acceleration.signum()
+                                && acceleration.abs() > capture.abs()
+                            {
+                                self.velocity_envelope_accelerations[slot] = acceleration;
+                            }
+                        } else {
+                            self.velocity_envelope_coordinates.push(coordinate);
+                            self.velocity_envelope_accelerations.push(acceleration);
+                        }
                         if self.joint_velocity_envelope_hard {
                             let generalized_coordinate = 6 + coordinate;
                             // Do not silently weaken an authored hard braking
@@ -16823,17 +16891,39 @@ impl FloatingWbcSession {
                     }
                 }
             }
+            // Capture and velocity requests are collected in separate
+            // lower-body passes, so an active capture coordinate can precede
+            // a lower-index velocity coordinate. The strict floating solver
+            // requires one deterministic, strictly increasing coordinate
+            // list; insertion-sort the fixed-capacity scratch pair in place
+            // without allocating or changing the authored request.
+            for index in 1..self.velocity_envelope_coordinates.len() {
+                let mut cursor = index;
+                while cursor > 0
+                    && self.velocity_envelope_coordinates[cursor - 1]
+                        > self.velocity_envelope_coordinates[cursor]
+                {
+                    self.velocity_envelope_coordinates.swap(cursor - 1, cursor);
+                    self.velocity_envelope_accelerations
+                        .swap(cursor - 1, cursor);
+                    cursor -= 1;
+                }
+            }
             joint_velocity_envelope_active_coordinates_out[tick] =
-                self.velocity_envelope_coordinates.len() as u8;
+                joint_velocity_envelope_active_coordinates as u8;
+            joint_position_capture_active_coordinates_out[tick] =
+                joint_position_capture_active_coordinates as u8;
+            let joint_recovery_weight = self
+                .joint_velocity_envelope_weight
+                .max(self.joint_position_capture_weight);
             let velocity_envelope_task = (!self.velocity_envelope_coordinates.is_empty()
-                && self.joint_velocity_envelope_weight > 0.0
+                && joint_recovery_weight > 0.0
                 && self.contact_phase_authority_scale > 0.0)
                 .then_some(FloatingJointAccelerationTask {
                     coordinates: &self.velocity_envelope_coordinates,
                     desired_accelerations: &self.velocity_envelope_accelerations,
                     priority: self.joint_velocity_envelope_priority,
-                    weight: self.joint_velocity_envelope_weight
-                        * self.contact_phase_authority_scale,
+                    weight: joint_recovery_weight * self.contact_phase_authority_scale,
                 });
             let joint_acceleration_task = if protected_joint_task.is_some() {
                 protected_joint_task

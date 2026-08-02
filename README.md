@@ -122,6 +122,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   baseline. Interval 64 admits nothing and only adds work. The mechanism stays;
   every tested walking cadence is rejected and receives no authority. See the
   [r273 relock-probe report](benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
+- R274 adds a default-off soft stopping-headroom capture request for selected
+  joints. It activates only when directional stopping distance plus a bounded
+  reaction guard exceeds remaining authored position headroom; hard joint
+  intervals remain unchanged. The zero-weight trace preserves every shared
+  R273 non-timing array and emits zero active coordinates. Five policy- and
+  physics-free profiles activate on up to three lower-body joints, but all hit
+  the knee limit at tick 875 and release by tick 1020 versus baseline 1108.
+  Mechanism retained, walking profile and authority rejected. See the
+  [r274 position-capture report](benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd
