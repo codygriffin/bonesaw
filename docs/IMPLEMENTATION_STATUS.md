@@ -338,15 +338,36 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r253 freezes a paired consequence profile
+## Current CPU checkpoint — r254 rejects state-only paired transfer
+
+R254 spends the exact no-refit plant gate declared by R253. Two new laws—
+elliptic/implicitfast and pyramidal/Euler—start at untouched deterministic
+offsets 310,000 and 320,000. Each of 96 states runs zero effort, realized
+zero-WBC effort, and realized neutral-recovery effort for five 4 ms MuJoCo
+steps, totaling 1,440 fresh physics steps and zero policy steps. The immutable
+R253 residual boxes, group map, zero-regression gate, and 0.01 guaranteed-
+improvement threshold are consumed without widening or fitting.
+
+The mechanism passes with complete causal-group support, admitted WBC, exact
+selector replay, zero timed Rust allocation, no MuJoCo warnings, and sub-5 ms
+p99. The action profile does not transfer. Boxes miss both laws, with the
+largest errors in joint-position pressure and raw headroom loss. Five rows
+select neutral recovery; three improve aggregate consequence, but four regress
+at least one component, two regress aggregate score, and only one is both
+strictly component-nonregressing and aggregate-improving. R254 therefore
+rejects the profile and keeps authority closed. The next CPU seam is a causal
+contact-law/estimator-uncertainty terminal tube, not an enlarged empirical box.
+
+## Prior CPU checkpoint — r253 freezes a paired consequence profile
 
 R253 adds an atomic, allocation-free Rust selector over exactly three
-candidate-minus-baseline terminal consequence boxes. Seven safety components
-remain separate—impact speed, tilt, angular rate, joint position, joint
-velocity, actuator effort, and raw joint-headroom loss—and aggregate score has
-its own non-regression gate. A second Rust boundary forms those boxes directly
-from four shared candidate/baseline terminal hypotheses, preserving paired
-correlation instead of subtracting independent envelopes.
+candidate-minus-baseline terminal consequence boxes. Six candidate-dependent
+deltas remain separate—tilt, angular rate, joint position, joint velocity,
+actuator effort, and raw joint-headroom loss—while ballistic impact speed is
+candidate-invariant and aggregate score has its own non-regression gate. A
+second Rust boundary forms those boxes directly from four shared
+candidate/baseline terminal hypotheses, preserving paired correlation instead
+of subtracting independent envelopes.
 
 Python reopens immutable R250 arrays without policy or physics, predicts the
 post-20 ms fixed-effort state, and fits residual boxes only within fixed causal

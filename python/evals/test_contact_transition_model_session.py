@@ -905,24 +905,24 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
     def test_paired_terminal_delta_selector_is_atomic_and_allocation_free(self) -> None:
         lower = np.asarray(
             [
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [-0.5, -0.2, -0.1, -0.1, -0.1, -0.1, -0.1],
-                [-0.4, -0.3, -0.2, -0.2, -0.2, -0.2, -0.2],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [-0.5, -0.2, -0.1, -0.1, -0.1, -0.1],
+                [-0.4, -0.3, -0.2, -0.2, -0.2, -0.2],
             ],
             np.float64,
         )
         upper = np.asarray(
             [
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [-0.2, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [-0.2, -0.1, 0.0, 0.0, 0.0, 0.0],
             ],
             np.float64,
         )
         aggregate_lower = np.asarray([0.0, -0.4, -0.3], np.float64)
         aggregate_upper = np.asarray([0.0, 0.1, -0.1], np.float64)
         available = np.ones(3, np.uint8)
-        diagnostics = np.empty((3, 16), np.float64)
+        diagnostics = np.empty((3, 14), np.float64)
         selection = np.empty(6, np.float64)
         timing = self.generic.select_terminal_impact_component_delta_box_candidates(
             lower,
@@ -941,12 +941,12 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         self.assertEqual(selection[1], 0.0)
         self.assertEqual(selection[2], 0.0)
         self.assertAlmostEqual(selection[3], 0.2)
-        np.testing.assert_array_equal(diagnostics[:, :7], lower)
-        np.testing.assert_array_equal(diagnostics[:, 7:14], upper)
+        np.testing.assert_array_equal(diagnostics[:, :6], lower)
+        np.testing.assert_array_equal(diagnostics[:, 6:12], upper)
 
         invalid_upper = upper.copy()
         invalid_upper[2, 4] = lower[2, 4] - 0.1
-        unchanged_diagnostics = np.full((3, 16), 7.0, np.float64)
+        unchanged_diagnostics = np.full((3, 14), 7.0, np.float64)
         unchanged_selection = np.full(6, 8.0, np.float64)
         with self.assertRaisesRegex(ValueError, "paired terminal-impact delta"):
             self.generic.select_terminal_impact_component_delta_box_candidates(
@@ -967,11 +967,10 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
     def test_paired_terminal_delta_hypotheses_preserve_shared_correlation(self) -> None:
         hypotheses = np.zeros((3, 4, 17), np.float64)
         hypotheses[:, :, 0] = 1.0
-        # Candidate one improves all seven paired components over four shared
+        # Candidate one improves all six paired components over four shared
         # baseline hypotheses. Candidate two has one positive tilt delta and
         # must therefore remain ineligible at zero regression tolerance.
         for hypothesis in range(4):
-            hypotheses[1, hypothesis, 8] = -0.04
             hypotheses[1, hypothesis, 9] = -0.20 - 0.01 * hypothesis
             hypotheses[1, hypothesis, 10] = -0.10
             hypotheses[1, hypothesis, 11] = -0.08
@@ -979,7 +978,6 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             hypotheses[1, hypothesis, 13] = -0.06
             hypotheses[1, hypothesis, 6] = 0.20 + 0.01 * hypothesis
             hypotheses[1, hypothesis, 16] = -0.30 - 0.01 * hypothesis
-            hypotheses[2, hypothesis, 8] = -0.03
             hypotheses[2, hypothesis, 9] = 0.05 if hypothesis == 3 else -0.10
             hypotheses[2, hypothesis, 10] = -0.08
             hypotheses[2, hypothesis, 11] = -0.07
@@ -987,8 +985,8 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             hypotheses[2, hypothesis, 13] = -0.05
             hypotheses[2, hypothesis, 6] = 0.10
             hypotheses[2, hypothesis, 16] = -0.20
-        delta_lower = np.full((3, 7), 7.0, np.float64)
-        delta_upper = np.full((3, 7), 7.0, np.float64)
+        delta_lower = np.full((3, 6), 7.0, np.float64)
+        delta_upper = np.full((3, 6), 7.0, np.float64)
         aggregate_lower = np.full(3, 7.0, np.float64)
         aggregate_upper = np.full(3, 7.0, np.float64)
         selection = np.full(6, 7.0, np.float64)
@@ -1006,19 +1004,17 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         self.assertEqual(timing[1:], (0, 0))
         self.assertEqual(selection[0], 1.0)
         self.assertEqual(selection[1], 0.0)
-        self.assertAlmostEqual(delta_upper[1, 0], -0.04)
-        self.assertAlmostEqual(delta_lower[1, 0], -0.04)
-        self.assertAlmostEqual(delta_upper[1, 1], -0.20)
-        self.assertAlmostEqual(delta_lower[1, 1], -0.23)
-        self.assertAlmostEqual(delta_upper[1, 6], -0.20)
+        self.assertAlmostEqual(delta_upper[1, 0], -0.20)
+        self.assertAlmostEqual(delta_lower[1, 0], -0.23)
+        self.assertAlmostEqual(delta_upper[1, 5], -0.20)
         self.assertAlmostEqual(aggregate_upper[1], -0.30)
-        self.assertEqual(selection[2], -0.04)
+        self.assertEqual(selection[2], -0.06)
         self.assertGreater(selection[3], 0.05)
 
         invalid = hypotheses.copy()
         invalid[2, 3, 16] = np.nan
-        unchanged_lower = np.full((3, 7), 8.0, np.float64)
-        unchanged_upper = np.full((3, 7), 8.0, np.float64)
+        unchanged_lower = np.full((3, 6), 8.0, np.float64)
+        unchanged_upper = np.full((3, 6), 8.0, np.float64)
         unchanged_aggregate_lower = np.full(3, 8.0, np.float64)
         unchanged_aggregate_upper = np.full(3, 8.0, np.float64)
         unchanged_selection = np.full(6, 8.0, np.float64)

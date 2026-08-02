@@ -78,15 +78,25 @@ effort through fixed-effort WBC and MuJoCo and finds no useful safe profile:
 there is no fresh action candidate or authority to promote.
 
 R253 closes the R251 implementation seam without adding a policy. Rust now
-selects from exact-three-candidate paired terminal-delta boxes over impact
-speed, tilt, angular rate, joint position, joint velocity, actuator effort,
-raw joint-headroom loss, and a separately gated aggregate score. The boundary
-is atomic, deterministic, and allocation-free. Fixed causal closing-speed and
-tilt-sign groups freeze the neutral-recovery profile on spent R250 evidence:
-three of 96 rows select the nonzero third candidate, all three improve
-aggregate consequence, and none regresses a measured component. This removes
-the missing Rust-bound complaint, but remains design evidence; the frozen
-profile still needs one fresh no-refit law/offset holdout.
+selects from exact-three-candidate paired terminal-delta boxes over six
+candidate-dependent deltas—tilt, angular rate, joint position, joint velocity,
+actuator effort, and raw joint-headroom loss—with impact speed retained as a
+candidate-invariant quantity and aggregate score separately gated. The
+boundary is atomic, deterministic, and allocation-free. Fixed causal
+closing-speed and tilt-sign groups freeze the neutral-recovery profile on
+spent R250 evidence: three of 96 rows select the nonzero third candidate, all
+three improve aggregate consequence, and none regresses a measured component.
+This removes the missing Rust-bound complaint.
+
+R254 has now spent the required one-shot no-refit holdout on new
+elliptic/implicitfast and pyramidal/Euler laws at offsets 310,000/320,000. The
+mechanism passes: all 96 causal groups are supported, WBC/realization/selector
+hot paths allocate zero Rust bytes, p99 remains below five milliseconds, all
+queries repeat, and 1,440 MuJoCo steps emit no warnings. The profile is
+rejected. Frozen boxes miss both laws, led by joint-position pressure and its
+headroom transform; four selected rows regress a component, two regress
+aggregate consequence, and only one of five nonzero selections is both
+strictly nonregressing and improving. No widening or refit follows.
 
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
@@ -102,9 +112,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- require the frozen R253 paired-delta profile to survive a fresh no-refit
-  250/50 plant matrix with strict component and aggregate non-regression on
-  new laws and offsets;
+- replace the state-only R253 residual partition with a causal contact-law or
+  estimator-uncertainty terminal tube that bounds transferred joint position
+  and headroom, then freeze it on spent evidence before any new-law holdout;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

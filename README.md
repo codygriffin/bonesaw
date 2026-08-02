@@ -2385,9 +2385,11 @@ passive damping audit](benchmarks/results/g1-passive-damping-action-audit-r252/G
 
 R253 implements the paired-consequence seam in Rust. An atomic,
 allocation-free exact-three-candidate selector consumes candidate-minus-zero
-outer boxes over six physical pressures plus raw joint-headroom loss, gates
-aggregate score separately, and requires a guaranteed improvement without any
-declared regression. A second boundary derives the same seven deltas from four
+outer boxes over six candidate-dependent deltas—tilt, angular rate,
+joint-position, joint-velocity, actuator-effort, and raw joint-headroom loss—
+while ballistic impact speed remains candidate-invariant. Aggregate score is
+gated separately, and a guaranteed improvement is required without any
+declared regression. A second boundary derives the same six deltas from four
 shared terminal hypotheses so candidate and baseline uncertainty remain
 paired. With zero policy and zero physics, fixed closing-speed/tilt-sign groups
 freeze the neutral-recovery profile on immutable R250 evidence: 3/96 rows
@@ -2395,6 +2397,16 @@ select the nonzero third candidate, all three improve aggregate consequence,
 and none regresses an observed safety component. This is spent design evidence
 only; authority stays closed until the frozen profile faces new laws and
 offsets once without refitting. See the [r253 paired score freeze](benchmarks/results/g1-paired-terminal-score-freeze-r253/G1_PAIRED_TERMINAL_SCORE_FREEZE.md).
+
+R254 spends that one-shot holdout without refitting. New elliptic/implicitfast
+and pyramidal/Euler laws at offsets 310,000/320,000 execute 1,440 primitive G1
+MuJoCo steps: the Rust/WBC/realization mechanism is admitted, allocation-free,
+warning-free, exact on semantic replay, and below five milliseconds p99. The
+state-only profile is rejected. Its frozen boxes miss both laws, dominated by
+joint-position pressure and raw headroom loss; four selected rows regress a
+component, two regress aggregate score, and only one of five nonzero actions
+is both strictly nonregressing and improving. No widening or authority follows.
+See the [r254 fresh paired-score holdout](benchmarks/results/g1-paired-terminal-score-plant-holdout-r254/G1_PAIRED_TERMINAL_SCORE_PLANT_HOLDOUT.md).
 
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type

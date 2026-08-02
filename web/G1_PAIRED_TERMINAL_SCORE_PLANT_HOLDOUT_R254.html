@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw paired plant holdout · r254</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw paired terminal-score plant holdout · r254</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED**.</blockquote>
+<p>R254 is the one-shot no-refit plant gate declared by R253. It uses new elliptic/implicitfast and pyramidal/Euler laws at untouched offsets 310,000 and 320,000. Each of 96 states produces exact zero, realized zero-WBC, and realized neutral-recovery candidates; all three execute five 4 ms MuJoCo steps. The fixed R253 closing-speed/tilt group boxes, zero-regression threshold, and 0.01 guaranteed-improvement threshold are consumed without fitting or widening. No policy runs.</p>
+<div class=table-wrap><table><thead><tr><th>fresh law</th><th>offset</th><th>selected zero / zero-WBC / neutral</th><th>strict safe + improved / nonzero</th><th>max selected regression</th><th>all boxes covered</th><th>warnings</th></tr></thead><tbody><tr><td>compliant_elliptic_implicitfast</td><td>310000</td><td>46 / 0 / 2</td><td>0 / 2</td><td>2.09</td><td>NO</td><td>0</td></tr><tr><td>stiff_pyramidal_euler</td><td>320000</td><td>45 / 0 / 3</td><td>1 / 3</td><td>1.45</td><td>NO</td><td>0</td></tr></tbody></table></div>
+<p>The run executes 1,440 fresh MuJoCo steps. Frozen-box coverage is incomplete; 5 rows select nonzero effort, 3 improve aggregate consequence, but only 1 is simultaneously component-nonregressing and aggregate-improving. Joint-position pressure and its headroom transform are the largest transfer misses on both laws; aggregate boxes miss too. WBC/selector p99 are 3335.89/0.12 µs with zero measured Rust allocation. The profile is retained as rejected evidence; no widening, refit, command, or authority follows.</p></main></body></html>

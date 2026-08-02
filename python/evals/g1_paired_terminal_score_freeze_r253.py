@@ -41,12 +41,10 @@ CLOSING_SPEED_BINS_M_S = (0.35, 0.50, 0.65)
 MINIMUM_GROUP_SAMPLES = 3
 MAXIMUM_COMPONENT_REGRESSION = 0.0
 MINIMUM_COMPONENT_IMPROVEMENT = 0.01
-# Physical pressure deltas. The predictor's impact-speed delta is zero, but
-# the completed plant label may differ through contact coupling, so it remains
-# an explicit safety component. Admission is represented by availability.
-COMPONENT_INDICES = (8, 9, 10, 11, 12, 13)
+# Candidate-dependent consequence deltas. Impact speed is candidate-invariant;
+# admission is represented separately by availability.
+COMPONENT_INDICES = (9, 10, 11, 12, 13)
 COMPONENT_NAMES = (
-    "impact_speed_pressure",
     "tilt_pressure",
     "angular_rate_pressure",
     "joint_position_pressure",
@@ -201,22 +199,22 @@ def evaluate_family(
     )
     component_indices = np.asarray(COMPONENT_INDICES)
     predicted_component_delta = np.empty(
-        (len(root_state), candidate_acceleration.shape[1], 7), np.float64
+        (len(root_state), candidate_acceleration.shape[1], 6), np.float64
     )
     actual_component_delta = np.empty_like(predicted_component_delta)
-    predicted_component_delta[:, :, :6] = (
+    predicted_component_delta[:, :, :5] = (
         predicted[:, :, component_indices]
         - predicted[:, 0:1, component_indices]
     )
-    actual_component_delta[:, :, :6] = (
+    actual_component_delta[:, :, :5] = (
         actual[:, :, component_indices] - actual[:, 0:1, component_indices]
     )
     # Larger joint headroom is safer, so candidate-minus-baseline harm is the
     # baseline fraction minus the candidate fraction.
-    predicted_component_delta[:, :, 6] = (
+    predicted_component_delta[:, :, 5] = (
         predicted[:, 0:1, HEADROOM_INDEX] - predicted[:, :, HEADROOM_INDEX]
     )
-    actual_component_delta[:, :, 6] = (
+    actual_component_delta[:, :, 5] = (
         actual[:, 0:1, HEADROOM_INDEX] - actual[:, :, HEADROOM_INDEX]
     )
     predicted_aggregate_delta = (
@@ -248,7 +246,7 @@ def evaluate_family(
     selection_ns = np.empty(samples, np.uint64)
     selection_calls = np.empty(samples, np.uint64)
     selection_bytes = np.empty(samples, np.uint64)
-    diagnostics = np.empty((3, 16), np.float64)
+    diagnostics = np.empty((3, 14), np.float64)
     second_selection = np.empty(6, np.float64)
     available = (fixed_status <= 1).astype(np.uint8)
     semantic_repeat = np.ones(samples, np.uint8)
@@ -291,8 +289,8 @@ def evaluate_family(
     paired_hypotheses = np.ascontiguousarray(
         actual[np.asarray(HYPOTHESIS_INDICES, np.int64)].transpose(1, 0, 2)
     )
-    hypothesis_lower = np.full((3, 7), 7.0, np.float64)
-    hypothesis_upper = np.full((3, 7), 7.0, np.float64)
+    hypothesis_lower = np.full((3, 6), 7.0, np.float64)
+    hypothesis_upper = np.full((3, 6), 7.0, np.float64)
     hypothesis_aggregate_lower = np.full(3, 7.0, np.float64)
     hypothesis_aggregate_upper = np.full(3, 7.0, np.float64)
     hypothesis_selection = np.full(6, 7.0, np.float64)
@@ -516,7 +514,7 @@ def main() -> int:
             "",
             f"> Mechanism **{'PASS' if mechanism_passed else 'FAIL'}** · action profile **{'FROZEN' if frozen else 'NOT FOUND'}** · authority **NOT ADMITTED**.",
             "",
-            "R253 predicts the post-20 ms state with fixed-effort acceleration, scores terminal consequence from that state, then fits candidate-vs-zero residual boxes for six physical pressure deltas and raw joint-headroom loss. Predicted ballistic impact speed is candidate-invariant, but the completed plant label can differ through contact coupling, so it remains an explicit safety component; admission is represented separately by availability. Fixed closing-speed and root-tilt bins are the only grouping features. Rust owns both the paired [3,4,17] hypothesis envelope and the exact-three-candidate delta-box selector, including zero-regression, aggregate nonregression, guaranteed-improvement, validation, atomic output, and allocation guards. Completed R250 labels fit the spent tubes; no fresh plant or authority is exercised.",
+            "R253 predicts the post-20 ms state with fixed-effort acceleration, scores terminal consequence from that state, then fits candidate-vs-zero residual boxes for six paired consequence deltas: tilt, angular rate, joint position, joint velocity, actuator effort, and raw joint-headroom loss. Ballistic impact speed is candidate-invariant and admission is represented separately by availability. Fixed closing-speed and root-tilt bins are the only grouping features. Rust owns both the paired [3,4,17] hypothesis envelope and the exact-three-candidate delta-box selector, including zero-regression, aggregate nonregression, guaranteed-improvement, validation, atomic output, and allocation guards. Completed R250 labels fit the spent tubes; no fresh plant or authority is exercised.",
             "",
             *markdown_table(
                 [
@@ -532,7 +530,7 @@ def main() -> int:
                 rows,
             ),
             "",
-            "A frozen row must select at least one nonzero action, cover every spent paired delta, keep all seven actual safety components and aggregate score nonregressing, improve aggregate score at least once, repeat bitwise, and allocate zero Rust bytes. The paired-hypothesis mechanism additionally uses four fixed completed rows and must remain baseline-safe and allocation-free. The frozen profile may now face new contact laws and offsets exactly once without refitting; this report cannot admit authority.",
+            "A frozen row must select at least one nonzero action, cover every spent paired delta, keep all six actual consequence deltas and aggregate score nonregressing, improve aggregate score at least once, repeat bitwise, and allocate zero Rust bytes. The paired-hypothesis mechanism additionally uses four fixed completed rows and must remain baseline-safe and allocation-free. The frozen profile may now face new contact laws and offsets exactly once without refitting; this report cannot admit authority.",
         ]
     ) + "\n"
     output = pathlib.Path(args.output)

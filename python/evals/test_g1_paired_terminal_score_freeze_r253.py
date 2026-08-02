@@ -18,11 +18,11 @@ METRICS = ROOT / f"benchmarks/results/{REVISION}/g1-paired-terminal-score-freeze
 
 
 class G1PairedTerminalScoreFreezeR253Tests(unittest.TestCase):
-    def test_seven_component_profile_is_frozen_for_holdout_only(self) -> None:
+    def test_six_component_profile_is_frozen_for_holdout_only(self) -> None:
         metrics = json.loads(METRICS.read_text())
         self.assertEqual(metrics["revision"], REVISION)
         self.assertEqual(tuple(metrics["component_names"]), COMPONENT_NAMES)
-        self.assertEqual(len(metrics["component_names"]), 7)
+        self.assertEqual(len(metrics["component_names"]), 6)
         self.assertEqual(tuple(metrics["closing_speed_bins_m_s"]), CLOSING_SPEED_BINS_M_S)
         self.assertEqual(metrics["minimum_group_samples"], MINIMUM_GROUP_SAMPLES)
         self.assertEqual(

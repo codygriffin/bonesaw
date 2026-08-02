@@ -130,19 +130,17 @@ pub struct ConservativeTerminalImpactSelection {
     pub maximum_component_improvement: f64,
 }
 
-/// Number of terminal consequence components used by the paired delta gate.
-/// The post-action plant can couple the candidate into impact speed even when
-/// the later support-free ballistic propagation is identical. Admission
-/// remains the separate `available` gate.
-pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 7;
+/// Number of candidate-dependent terminal consequence components used by the
+/// paired delta gate. Impact speed is candidate-invariant for this boundary;
+/// admission remains the separate `available` gate.
+pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 6;
 
 /// A caller-supplied outer bound on candidate-minus-baseline terminal
-/// consequence. The seven components are impact speed, tilt, angular rate,
-/// joint position, joint velocity, actuator effort pressure, and raw
-/// joint-headroom loss in that order. Negative is an improvement. Admission
-/// is represented by `available`. This representation preserves paired plant
-/// uncertainty without pretending baseline and candidate errors are
-/// independent.
+/// consequence. The six components are tilt, angular rate, joint position,
+/// joint velocity, actuator effort pressure, and raw joint-headroom loss in
+/// that order. Negative is an improvement. This representation preserves
+/// paired plant uncertainty without pretending baseline and candidate errors
+/// are independent.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TerminalImpactComponentDeltaBox {
     pub available: bool,
@@ -1061,15 +1059,15 @@ mod tests {
         };
         let optimistic_only = TerminalImpactComponentDeltaBox {
             available: true,
-            component_lower: [-0.5, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1],
-            component_upper: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            component_lower: [-0.5, -0.1, -0.1, -0.1, -0.1, -0.1],
+            component_upper: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
             aggregate_lower: -0.4,
             aggregate_upper: 0.1,
         };
         let guaranteed = TerminalImpactComponentDeltaBox {
             available: true,
-            component_lower: [-0.4, -0.2, -0.1, -0.1, -0.1, -0.1, -0.1],
-            component_upper: [-0.2, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            component_lower: [-0.4, -0.2, -0.1, -0.1, -0.1, -0.1],
+            component_upper: [-0.2, -0.1, 0.0, 0.0, 0.0, 0.0],
             aggregate_lower: -0.3,
             aggregate_upper: -0.1,
         };
