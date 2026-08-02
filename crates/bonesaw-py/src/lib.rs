@@ -9978,6 +9978,31 @@ impl ActuatorRealizationSession {
         self.profiles.len()
     }
 
+    /// Replace every persistent realized-effort state after validating the
+    /// complete vector. This supports reset-every-sample plant experiments
+    /// without reconstructing the session or partially mutating state on a
+    /// late invalid coordinate.
+    fn reset(&mut self, initial_realized_effort_nm: PyReadonlyArray1<'_, f64>) -> PyResult<()> {
+        let initial_realized_effort_nm = initial_realized_effort_nm.as_slice()?;
+        if initial_realized_effort_nm.len() != self.states.len()
+            || initial_realized_effort_nm
+                .iter()
+                .any(|effort| !effort.is_finite())
+        {
+            return Err(PyValueError::new_err(
+                "actuator realization reset expects one finite effort per actuator",
+            ));
+        }
+        for (state, effort) in self
+            .states
+            .iter_mut()
+            .zip(initial_realized_effort_nm.iter().copied())
+        {
+            state.realized_effort_nm = effort;
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn run_trace(
         &mut self,

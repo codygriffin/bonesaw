@@ -128,6 +128,8 @@ def run_wbc(
     root_quaternions_wxyz: np.ndarray,
     root_angular_velocities_world: np.ndarray,
     root_angular_accelerations_world: np.ndarray,
+    fixed_actuator_effort: np.ndarray | None = None,
+    realization_reference_acceleration: np.ndarray | None = None,
 ) -> None:
     session.run_oracle_trace(
         root_positions,
@@ -174,6 +176,8 @@ def run_wbc(
         outputs["feasibility_polish_iterations"],
         outputs["allocation_calls"],
         outputs["allocated_bytes"],
+        fixed_actuator_effort,
+        realization_reference_acceleration,
         root_quaternions_wxyz=root_quaternions_wxyz,
         root_angular_velocities_world=root_angular_velocities_world,
         root_angular_accelerations_world=root_angular_accelerations_world,

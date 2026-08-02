@@ -2355,6 +2355,15 @@ as failed evidence that torque magnitude constraints do not model actuator
 bandwidth or slew. The next profile must add that realization on spent R248
 data, freeze it, and face new laws/offsets. See the [r248 fresh plant A/B](benchmarks/results/g1-terminal-box-wbc-plant-ab-r248/G1_TERMINAL_BOX_WBC_PLANT_AB.md).
 
+R249 adds the Rust-owned first-order actuator realization boundary to the
+failed R248 effort rows at the requested 20 ms / 50 Hz cadence. Four declared
+sensitivity profiles replay 96 reset-every-sample efforts with no policy or
+physics: all repeat bitwise, allocate zero Rust bytes, and stay below 5 ms
+p99. The retained next-plant profile is 25 Hz effort bandwidth with a 1,000
+N·m/s slew; it exercises three slew-limited coordinates while remaining a
+declared sensitivity, not G1 calibration, promotion, or authority. See the
+[r249 realization audit](benchmarks/results/g1-actuator-realization-profile-audit-r249/G1_ACTUATOR_REALIZATION_PROFILE_AUDIT.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and
