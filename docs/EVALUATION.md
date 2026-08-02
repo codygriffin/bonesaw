@@ -2848,6 +2848,32 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r270 lower-body hard velocity envelope
+
+`python/evals/g1_lower_body_velocity_envelope_r270.py` compares the retained
+r268 low-gain native-reference trace with an opt-in r270 trace. It uses no
+policy and no physics simulator. The Rust session derives a lower-body-only
+velocity-envelope mask from the pinned URDF names and, when enabled, intersects
+active braking with hard acceleration bounds. The default session and authority
+boundary are unchanged.
+
+The mechanism checks pass: no upper-body envelope activity appears in the early
+multi-support window, the right-knee velocity remains above -8 rad/s in the
+critical window, first fallback moves 863→875, first release moves 869→1108,
+release diagnostics remain fail-closed, and candidate p99 is 4.752 ms with no
+20 ms misses. The dormant-field control is bitwise equal to r269, while
+composing the envelope with r269 continuation releases at tick 897 and records
+5.457 ms p99; composition is therefore rejected as a separate profile. The
+walking profile is deliberately rejected: full root RMS is 15.514 m, the knee
+reaches its position limit, and support force subsequently collapses. This
+isolates the remaining support-force/position-limit authority problem rather
+than treating extra solver work as a fix.
+
+Run `scripts/run-g1-lower-body-velocity-envelope-r270.sh` to rebuild the PyO3
+extension, regenerate the candidate trace, and render the Markdown/HTML report.
+The retained artifact is
+[`G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md`](../benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md).
+
 ### Revision r268 native-reference integrated bridge
 
 `python/evals/g1_native_reference_integration_r268.py` is a report-only,

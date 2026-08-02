@@ -213,6 +213,16 @@ def parse_args() -> argparse.Namespace:
         "--joint-velocity-envelope-activation-fraction", type=float, default=0.75
     )
     parser.add_argument(
+        "--joint-velocity-envelope-lower-body-only",
+        action="store_true",
+        help="restrict the velocity envelope to model joints named hip/knee/ankle/wheel/leg",
+    )
+    parser.add_argument(
+        "--joint-velocity-envelope-hard",
+        action="store_true",
+        help="intersect active velocity-envelope braking with the hard acceleration bounds",
+    )
+    parser.add_argument(
         "--joint-velocity-envelope-frequency-hz", type=float, default=2.0
     )
     parser.add_argument(
@@ -2263,6 +2273,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"response and `{metadata['joint_velocity_envelope_phase_policy']}` measured-phase policy "
         f"with immediate engagement and bounded release over "
         f"`{metadata['joint_velocity_envelope_phase_transition_ticks']}` ticks.",
+        f"- Joint-velocity envelope scope: `{'lower-body allowlist' if metadata.get('joint_velocity_envelope_lower_body_only', False) else 'all joint coordinates'}`; "
+        f"hard acceleration-bound intersection `{'enabled' if metadata.get('joint_velocity_envelope_hard', False) else 'disabled'}`.",
         f"- Centroidal angular-momentum damping: "
         f"`{metadata['centroidal_angular_momentum_priority']}` priority with weight "
         f"`{metadata['centroidal_angular_momentum_weight']:.3f}` and "
@@ -3183,6 +3195,10 @@ def main() -> None:
         joint_velocity_envelope_activation_fraction=(
             args.joint_velocity_envelope_activation_fraction
         ),
+        joint_velocity_envelope_lower_body_only=(
+            args.joint_velocity_envelope_lower_body_only
+        ),
+        joint_velocity_envelope_hard=args.joint_velocity_envelope_hard,
         joint_velocity_envelope_frequency_hz=(
             args.joint_velocity_envelope_frequency_hz
         ),
@@ -3607,6 +3623,10 @@ def main() -> None:
         "joint_velocity_envelope_activation_fraction": (
             args.joint_velocity_envelope_activation_fraction
         ),
+        "joint_velocity_envelope_lower_body_only": (
+            args.joint_velocity_envelope_lower_body_only
+        ),
+        "joint_velocity_envelope_hard": args.joint_velocity_envelope_hard,
         "joint_velocity_envelope_frequency_hz": (
             args.joint_velocity_envelope_frequency_hz
         ),
