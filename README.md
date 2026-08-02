@@ -2342,6 +2342,19 @@ holdout. It emits no actuator torque, plant command, lease, or authority. The
 missing gate is a fresh MuJoCo baseline/candidate non-regression matrix with no
 candidate retuning. See the [r247 terminal-box WBC action audit](benchmarks/results/g1-terminal-box-wbc-action-audit-r247/G1_TERMINAL_BOX_WBC_ACTION_AUDIT.md).
 
+R248 runs that matrix on two new pyramidal contact laws and disjoint offsets
+250,000/260,000. Each of 96 pre-impact states is forked before advancement:
+the baseline holds zero generalized joint effort and the candidate holds the
+R247-selected WBC torque for five one-millisecond MuJoCo steps. The mechanism
+passes with zero policy queries, 960 physics steps, no MuJoCo warnings, zero
+timed Rust allocation, and sub-five-millisecond WBC p99. The action profile
+does not: only 2/48 implicitfast and 0/48 RK4 rows avoid every terminal
+component regression. Joint-position pressure dominates, and the held effort
+can change a low-inertia joint's speed by more than 30 rad/s. R248 is retained
+as failed evidence that torque magnitude constraints do not model actuator
+bandwidth or slew. The next profile must add that realization on spent R248
+data, freeze it, and face new laws/offsets. See the [r248 fresh plant A/B](benchmarks/results/g1-terminal-box-wbc-plant-ab-r248/G1_TERMINAL_BOX_WBC_PLANT_AB.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

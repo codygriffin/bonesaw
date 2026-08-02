@@ -59,6 +59,17 @@ uncertainty width was fit on spent R246 labels, so this freezes a candidate
 family for new plant evidence rather than serving as a holdout. It emits no
 torque, plant command, or authority.
 
+R248 performs that fresh no-retuning plant A/B on two new pyramidal laws and
+offsets 250,000/260,000. The mechanism remains clean—every candidate WBC query
+admits, hot paths allocate zero Rust bytes, p99 stays below five milliseconds,
+and both 480-step branches produce zero MuJoCo warnings—but the action profile
+is rejected. Only 2/48 implicitfast and 0/48 RK4 rows avoid every terminal
+component regression against zero joint effort. Joint-position pressure is the
+dominant miss; five milliseconds of held WBC torque changes some joint speeds
+by more than 30 rad/s in the unmodeled actuator plant. This is direct evidence
+that effort magnitude alone is insufficient: bandwidth/slew realization must
+enter the action boundary before another fresh holdout.
+
 ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
 contacts on the spent R241 replay and widens the implicitfast row to 22.719
 rad/s joint width. Historical ABI 0 and Cartesian pyramid ABI 1 remain
@@ -66,8 +77,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- run the frozen R247 state-conditioned WBC family on fresh MuJoCo trajectories
-  and require strict baseline/candidate plant non-regression without retuning;
+- add an independently motivated actuator bandwidth/slew realization to the
+  state-conditioned action on spent R248 evidence, then require strict
+  no-retuning non-regression on new plant laws and offsets;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 
