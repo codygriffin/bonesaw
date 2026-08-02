@@ -1,0 +1,545 @@
+{
+  "schema": 1,
+  "ticks": 100000,
+  "dt_seconds": 0.005,
+  "common_subset": {
+    "floor_contact": true,
+    "target_ground_velocity": 0.0,
+    "target_yaw_velocity": 0.0,
+    "target_ground_position": 0.0
+  },
+  "provenance": {
+    "upkie_commit": "1abdf373bbe8ee7d9f081293024f961ae9a8e2c1",
+    "wheel_balancer_cpp_sha256": "4b65d9356f9e6f925b9470b587133f96d4119b0ef774b220e9c39bcd945ca984",
+    "wheel_balancer_h_sha256": "0028aa465c91feae2b8a9b713fa09365ab02aecdc32f4bbe8754a9fcdce6d20e"
+  },
+  "environment": {
+    "cpu": "AMD Ryzen 7 3700X 8-Core Processor",
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "comparisons": {
+    "official_aligned": {
+      "numerically_equal": true,
+      "canonical_bitwise_equal": true,
+      "canonical_bit_mismatches": 0,
+      "maximum_absolute_error": 0.0,
+      "rms_error": 0.0,
+      "relative_l2_error": 0.0,
+      "correlation": 1.0
+    },
+    "official_inferred_ground_velocity": {
+      "numerically_equal": false,
+      "canonical_bitwise_equal": false,
+      "canonical_bit_mismatches": 1748,
+      "maximum_absolute_error": 2.220446049250313e-16,
+      "rms_error": 1.5243990687374743e-17,
+      "relative_l2_error": 1.7735646693709278e-17,
+      "correlation": 1.0
+    },
+    "live_tuned": {
+      "numerically_equal": false,
+      "canonical_bitwise_equal": false,
+      "canonical_bit_mismatches": 66825,
+      "maximum_absolute_error": 0.3772297890862142,
+      "rms_error": 0.11771048975175444,
+      "relative_l2_error": 0.13695046797093907,
+      "correlation": 0.9950854506280272
+    },
+    "official_left_wheel": {
+      "numerically_equal": true,
+      "canonical_bitwise_equal": true,
+      "canonical_bit_mismatches": 0,
+      "maximum_absolute_error": 0.0,
+      "rms_error": 0.0,
+      "relative_l2_error": 0.0,
+      "correlation": 0.9999999999999999
+    },
+    "official_right_wheel": {
+      "numerically_equal": true,
+      "canonical_bitwise_equal": true,
+      "canonical_bit_mismatches": 0,
+      "maximum_absolute_error": 0.0,
+      "rms_error": 0.0,
+      "relative_l2_error": 0.0,
+      "correlation": 0.9999999999999999
+    }
+  },
+  "latency": {
+    "upkie_cpp": {
+      "mean_us": 1.42969897,
+      "std_us": 0.28651792078496435,
+      "mad_us": 0.020000000000000018,
+      "p50_us": 1.393,
+      "p90_us": 1.423,
+      "p95_us": 1.423,
+      "p99_us": 2.314,
+      "p99_9_us": 6.533020000000077,
+      "p99_99_us": 9.999020999997942,
+      "max_us": 20.058,
+      "jitter_p99_us": 0.371
+    },
+    "bonesaw_official": {
+      "mean_us": 0.02691847000000001,
+      "std_us": 0.04255312518322362,
+      "mad_us": 0.0,
+      "p50_us": 0.03,
+      "p90_us": 0.03,
+      "p95_us": 0.03,
+      "p99_us": 0.031,
+      "p99_9_us": 0.04,
+      "p99_99_us": 0.041,
+      "max_us": 10.44,
+      "jitter_p99_us": 0.011
+    },
+    "bonesaw_live": {
+      "mean_us": 0.026710020000000008,
+      "std_us": 0.018666294533184673,
+      "mad_us": 0.0,
+      "p50_us": 0.03,
+      "p90_us": 0.03,
+      "p95_us": 0.03,
+      "p99_us": 0.031,
+      "p99_9_us": 0.04,
+      "p99_99_us": 0.041,
+      "max_us": 5.721,
+      "jitter_p99_us": 0.011
+    }
+  },
+  "process": {
+    "upkie_cpp": {
+      "wall_seconds": 0.4028761859954102,
+      "user_cpu_seconds": 0.387208,
+      "system_cpu_seconds": 0.015007999999999999,
+      "cpu_to_wall": 0.9983613178977581,
+      "peak_rss_bytes": 9076736,
+      "minor_faults": 1832,
+      "major_faults": 0,
+      "voluntary_context_switches": 1,
+      "involuntary_context_switches": 3,
+      "stderr": ""
+    },
+    "bonesaw_official": {
+      "wall_seconds": 0.08093057600490283,
+      "user_cpu_seconds": 0.06859299999999996,
+      "system_cpu_seconds": 0.011929,
+      "cpu_to_wall": 0.994951524812104,
+      "peak_rss_bytes": 8880128,
+      "minor_faults": 1512,
+      "major_faults": 0,
+      "voluntary_context_switches": 1,
+      "involuntary_context_switches": 5,
+      "stderr": "{\"allocation_calls\":0,\"allocated_bytes\":0}"
+    },
+    "bonesaw_live": {
+      "wall_seconds": 0.08179869598825462,
+      "user_cpu_seconds": 0.067583,
+      "system_cpu_seconds": 0.013914,
+      "cpu_to_wall": 0.9963117261881785,
+      "peak_rss_bytes": 8314880,
+      "minor_faults": 1509,
+      "major_faults": 0,
+      "voluntary_context_switches": 1,
+      "involuntary_context_switches": 3,
+      "stderr": "{\"allocation_calls\":0,\"allocated_bytes\":0}"
+    }
+  },
+  "bonesaw_hot_loop_allocations": {
+    "official": {
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    "live": {
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    }
+  },
+  "region_counts": {
+    "bounded_steps": 25000,
+    "seeded_colored_noise": 25000,
+    "smooth_coupled": 25000,
+    "zero_hold": 25000
+  },
+  "regions": {
+    "bounded_steps": {
+      "samples": 25000,
+      "official_command": {
+        "numerically_equal": true,
+        "canonical_bitwise_equal": true,
+        "canonical_bit_mismatches": 0,
+        "maximum_absolute_error": 0.0,
+        "rms_error": 0.0,
+        "relative_l2_error": 0.0,
+        "correlation": 1.0
+      },
+      "live_ground_velocity": {
+        "numerically_equal": false,
+        "canonical_bitwise_equal": false,
+        "canonical_bit_mismatches": 16825,
+        "maximum_absolute_error": 0.3772297890862142,
+        "rms_error": 0.14194614331258013,
+        "relative_l2_error": 0.10026155530325695,
+        "correlation": 0.9902410326391093
+      },
+      "latency": {
+        "upkie_cpp": {
+          "mean_us": 1.4476224000000002,
+          "std_us": 0.3331119560421691,
+          "mad_us": 0.01100000000000012,
+          "p50_us": 1.412,
+          "p90_us": 1.423,
+          "p95_us": 1.523,
+          "p99_us": 2.344,
+          "p99_9_us": 6.553200000000769,
+          "p99_99_us": 13.481226299981651,
+          "max_us": 20.058,
+          "jitter_p99_us": 0.5021600000000035
+        },
+        "bonesaw_official": {
+          "mean_us": 0.026872920000000012,
+          "std_us": 0.04160715287872508,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.031,
+          "p99_99_us": 0.04050009999999748,
+          "max_us": 6.562,
+          "jitter_p99_us": 0.011
+        },
+        "bonesaw_live": {
+          "mean_us": 0.02662756000000001,
+          "std_us": 0.004921850104015765,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.04,
+          "p99_99_us": 0.041,
+          "max_us": 0.07,
+          "jitter_p99_us": 0.011
+        }
+      }
+    },
+    "seeded_colored_noise": {
+      "samples": 25000,
+      "official_command": {
+        "numerically_equal": true,
+        "canonical_bitwise_equal": true,
+        "canonical_bit_mismatches": 0,
+        "maximum_absolute_error": 0.0,
+        "rms_error": 0.0,
+        "relative_l2_error": 0.0,
+        "correlation": 0.9999999999999999
+      },
+      "live_ground_velocity": {
+        "numerically_equal": false,
+        "canonical_bitwise_equal": false,
+        "canonical_bit_mismatches": 25000,
+        "maximum_absolute_error": 0.33240122142477624,
+        "rms_error": 0.1656915692564875,
+        "relative_l2_error": 0.18784990467044668,
+        "correlation": 0.9995234308396093
+      },
+      "latency": {
+        "upkie_cpp": {
+          "mean_us": 1.3966232400000003,
+          "std_us": 0.24320129492233877,
+          "mad_us": 0.009000000000000119,
+          "p50_us": 1.363,
+          "p90_us": 1.403,
+          "p95_us": 1.413,
+          "p99_us": 2.225,
+          "p99_9_us": 5.2500200000000765,
+          "p99_99_us": 10.234046999998812,
+          "max_us": 11.011,
+          "jitter_p99_us": 0.28002000000000044
+        },
+        "bonesaw_official": {
+          "mean_us": 0.02739632000000001,
+          "std_us": 0.07386642789831928,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.04,
+          "p99_99_us": 0.041,
+          "max_us": 10.44,
+          "jitter_p99_us": 0.011
+        },
+        "bonesaw_live": {
+          "mean_us": 0.026999800000000008,
+          "std_us": 0.03634104291238764,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.04,
+          "p99_99_us": 0.041,
+          "max_us": 5.721,
+          "jitter_p99_us": 0.011
+        }
+      }
+    },
+    "smooth_coupled": {
+      "samples": 25000,
+      "official_command": {
+        "numerically_equal": true,
+        "canonical_bitwise_equal": true,
+        "canonical_bit_mismatches": 0,
+        "maximum_absolute_error": 0.0,
+        "rms_error": 0.0,
+        "relative_l2_error": 0.0,
+        "correlation": 0.9999999999999999
+      },
+      "live_ground_velocity": {
+        "numerically_equal": false,
+        "canonical_bitwise_equal": false,
+        "canonical_bit_mismatches": 25000,
+        "maximum_absolute_error": 0.20069915430623042,
+        "rms_error": 0.08843434777505069,
+        "relative_l2_error": 0.2128207861482296,
+        "correlation": 0.9998005020923642
+      },
+      "latency": {
+        "upkie_cpp": {
+          "mean_us": 1.4240347199999999,
+          "std_us": 0.2622737982996426,
+          "mad_us": 0.01100000000000012,
+          "p50_us": 1.393,
+          "p90_us": 1.413,
+          "p95_us": 1.423,
+          "p99_us": 2.304,
+          "p99_9_us": 6.092520000001997,
+          "p99_99_us": 8.130000999999975,
+          "max_us": 17.083,
+          "jitter_p99_us": 0.3599999999999999
+        },
+        "bonesaw_official": {
+          "mean_us": 0.026689240000000013,
+          "std_us": 0.004846659491072175,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.04,
+          "p99_99_us": 0.050501899999952,
+          "max_us": 0.081,
+          "jitter_p99_us": 0.011
+        },
+        "bonesaw_live": {
+          "mean_us": 0.026600760000000015,
+          "std_us": 0.0047820421811606804,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.031,
+          "p99_99_us": 0.03550089999997726,
+          "max_us": 0.07,
+          "jitter_p99_us": 0.011
+        }
+      }
+    },
+    "zero_hold": {
+      "samples": 25000,
+      "official_command": {
+        "numerically_equal": true,
+        "canonical_bitwise_equal": true,
+        "canonical_bit_mismatches": 0,
+        "maximum_absolute_error": 0.0,
+        "rms_error": 0.0,
+        "relative_l2_error": 0.0,
+        "correlation": 1.0
+      },
+      "live_ground_velocity": {
+        "numerically_equal": true,
+        "canonical_bitwise_equal": true,
+        "canonical_bit_mismatches": 0,
+        "maximum_absolute_error": 0.0,
+        "rms_error": 0.0,
+        "relative_l2_error": 0.0,
+        "correlation": 1.0
+      },
+      "latency": {
+        "upkie_cpp": {
+          "mean_us": 1.45051552,
+          "std_us": 0.2959584761400315,
+          "mad_us": 0.010000000000000009,
+          "p50_us": 1.412,
+          "p90_us": 1.423,
+          "p95_us": 1.744,
+          "p99_us": 2.325,
+          "p99_9_us": 7.3240100000000385,
+          "p99_99_us": 9.718598099997521,
+          "max_us": 11.682,
+          "jitter_p99_us": 0.46102000000000054
+        },
+        "bonesaw_official": {
+          "mean_us": 0.026715400000000014,
+          "std_us": 0.005644041357041956,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.04,
+          "p99_99_us": 0.041,
+          "max_us": 0.501,
+          "jitter_p99_us": 0.011
+        },
+        "bonesaw_live": {
+          "mean_us": 0.026611960000000007,
+          "std_us": 0.005083890730375703,
+          "mad_us": 0.0,
+          "p50_us": 0.03,
+          "p90_us": 0.03,
+          "p95_us": 0.03,
+          "p99_us": 0.031,
+          "p99_9_us": 0.031,
+          "p99_99_us": 0.050001999999949476,
+          "max_us": 0.3,
+          "jitter_p99_us": 0.011
+        }
+      }
+    }
+  },
+  "temporal_windows": [
+    {
+      "window": 0,
+      "start": 0,
+      "stop": 10000,
+      "upkie_p50_us": 1.412,
+      "upkie_p99_us": 2.314,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.0,
+      "live_delta_max_mps": 0.0
+    },
+    {
+      "window": 1,
+      "start": 10000,
+      "stop": 20000,
+      "upkie_p50_us": 1.412,
+      "upkie_p99_us": 2.33401,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.0,
+      "live_delta_max_mps": 0.0
+    },
+    {
+      "window": 2,
+      "start": 20000,
+      "stop": 30000,
+      "upkie_p50_us": 1.403,
+      "upkie_p99_us": 2.324,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.0643811343391983,
+      "live_delta_max_mps": 0.19491023905265303
+    },
+    {
+      "window": 3,
+      "start": 30000,
+      "stop": 40000,
+      "upkie_p50_us": 1.402,
+      "upkie_p99_us": 2.334,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031090000000001963,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.08788362758229752,
+      "live_delta_max_mps": 0.20069915430623042
+    },
+    {
+      "window": 4,
+      "start": 40000,
+      "stop": 50000,
+      "upkie_p50_us": 1.373,
+      "upkie_p99_us": 2.244,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.08765342098384218,
+      "live_delta_max_mps": 0.1949102390526526
+    },
+    {
+      "window": 5,
+      "start": 50000,
+      "stop": 60000,
+      "upkie_p50_us": 1.383,
+      "upkie_p99_us": 2.294,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.14194614331284264,
+      "live_delta_max_mps": 0.3772297890862142
+    },
+    {
+      "window": 6,
+      "start": 60000,
+      "stop": 70000,
+      "upkie_p50_us": 1.413,
+      "upkie_p99_us": 2.355090000000002,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.04,
+      "live_delta_rms_mps": 0.14194614331249264,
+      "live_delta_max_mps": 0.3772297890856058
+    },
+    {
+      "window": 7,
+      "start": 70000,
+      "stop": 80000,
+      "upkie_p50_us": 1.412,
+      "upkie_p99_us": 2.335,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.19457846446185595,
+      "live_delta_max_mps": 0.3772297890849974
+    },
+    {
+      "window": 8,
+      "start": 80000,
+      "stop": 90000,
+      "upkie_p50_us": 1.363,
+      "upkie_p99_us": 1.9132100000000045,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.031,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.04,
+      "live_delta_rms_mps": 0.17863580968320264,
+      "live_delta_max_mps": 0.33240122142477624
+    },
+    {
+      "window": 9,
+      "start": 90000,
+      "stop": 100000,
+      "upkie_p50_us": 1.372,
+      "upkie_p99_us": 2.224,
+      "rust_official_p50_us": 0.03,
+      "rust_official_p99_us": 0.04,
+      "rust_live_p50_us": 0.03,
+      "rust_live_p99_us": 0.031,
+      "live_delta_rms_mps": 0.09453603954997498,
+      "live_delta_max_mps": 0.2237972306890894
+    }
+  ]
+}

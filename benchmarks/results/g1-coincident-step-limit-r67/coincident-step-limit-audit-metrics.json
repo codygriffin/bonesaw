@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "generated_utc": "2026-08-01T05:07:05.145631+00:00",
+  "decision": "REJECT",
+  "checks": {
+    "control_passes_all_43_admission_gates": true,
+    "candidate_passes_all_43_admission_gates": true,
+    "all_physical_decision_and_authority_arrays_are_bit_exact": true,
+    "candidate_keeps_zero_measured_rust_allocations": true,
+    "candidate_reduces_task_pseudoinverse_calls": false,
+    "candidate_does_not_increase_jacobi_sweeps": false
+  },
+  "evaluation_boundary": {
+    "states": 2317,
+    "policy": false,
+    "state_integration": false,
+    "contact_simulation": false,
+    "physics_rollout": false,
+    "performance_counters": "not run: the candidate eliminates zero target pseudoinverses, which already falsifies its optimization claim"
+  },
+  "non_timing_field_count": 56,
+  "physical_field_count": 50,
+  "differences": {
+    "task_jacobi_sweeps": {
+      "changed_samples": 1,
+      "maximum_absolute_delta": 1.0
+    },
+    "task_jacobi_sweeps_by_priority": {
+      "changed_samples": 1,
+      "maximum_absolute_delta": 1.0
+    }
+  },
+  "work": {
+    "clipped_steps": {
+      "control_sum": 10604,
+      "candidate_sum": 10604
+    },
+    "clipped_steps_by_priority": {
+      "control_sum": 10604,
+      "candidate_sum": 10604
+    },
+    "task_jacobi_sweeps": {
+      "control_sum": 122031,
+      "candidate_sum": 122032
+    },
+    "task_jacobi_sweeps_by_priority": {
+      "control_sum": 122031,
+      "candidate_sum": 122032
+    },
+    "task_pseudoinverse_calls": {
+      "control_sum": 16809,
+      "candidate_sum": 16809
+    },
+    "task_pseudoinverse_calls_by_priority": {
+      "control_sum": 16809,
+      "candidate_sum": 16809
+    }
+  },
+  "artifact_sha256": {
+    "benchmarks/results/g1-coincident-step-limit-r67/control/oracle-wbc-admission-raw.npz": "357a585109fc9e184e6afc4b8ea7cf0f927334012389e61daef90afcb1cc9255",
+    "benchmarks/results/g1-coincident-step-limit-r67/candidate/oracle-wbc-admission-raw.npz": "7ddf304f846b8596676d3fc5d90886cc79b87f44037b0690fbaa3430c6bb5f41",
+    "benchmarks/results/g1-coincident-step-limit-r67/control/oracle-wbc-admission-metrics.json": "67f0226d9824453055d033537f616b66c0e220aa59b66e6b0f1a9b28d5a788c8",
+    "benchmarks/results/g1-coincident-step-limit-r67/candidate/oracle-wbc-admission-metrics.json": "2cb74bbd751fb01094ff3e5902ca52e968c129c56627ea816a8d3cbaae9aae9f"
+  }
+}

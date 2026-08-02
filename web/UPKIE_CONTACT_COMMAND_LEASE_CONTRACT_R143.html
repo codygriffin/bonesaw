@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw bounded contact-command lease · r143</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw bounded contact-command lease · r143</h1>
+<blockquote>Evaluation **PASS**. No WBC, policy, simulator, integration, or clock participates; Python supplies immutable rows and Rust owns command bytes, authoring support, tick age, and revocation.</blockquote>
+<h2>Outcome</h2>
+<p>An already admitted six-actuator command can cross an exact contact-mask edge for a fixed number of explicit ticks. The lease is mirrored for left-only and right-only support, covers zero support without claiming recovery, emits zero after expiry, and cannot resurrect after missing evidence or support return. This closes a command-lifetime contract only; it does not admit the command as physically safe.</p>
+<div class=table-wrap><table><thead><tr><th>case</th><th>final status</th><th>provenance</th><th>age ticks</th><th>executable</th><th>replay</th></tr></thead><tbody><tr><td>left_only</td><td>Expired</td><td>Unavailable</td><td>3</td><td>NO</td><td>YES</td></tr><tr><td>right_only</td><td>Expired</td><td>Unavailable</td><td>3</td><td>NO</td><td>YES</td></tr><tr><td>zero_support</td><td>Expired</td><td>Unavailable</td><td>3</td><td>NO</td><td>YES</td></tr><tr><td>support_return</td><td>Unavailable</td><td>Unavailable</td><td>0</td><td>NO</td><td>YES</td></tr><tr><td>missing_evidence</td><td>Unavailable</td><td>Unavailable</td><td>0</td><td>NO</td><td>YES</td></tr><tr><td>zero_hold</td><td>Expired</td><td>Unavailable</td><td>1</td><td>NO</td><td>YES</td></tr><tr><td>invalid_command</td><td>RejectedCommand</td><td>Unavailable</td><td>0</td><td>NO</td><td>YES</td></tr></tbody></table></div>
+<h2>Gates</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>fresh_command_exact</td><td>PASS</td></tr><tr><td>left_right_zero_transitions_mirrored</td><td>PASS</td></tr><tr><td>bounded_expiry_zeroes_command</td><td>PASS</td></tr><tr><td>support_return_requires_fresh_admission</td><td>PASS</td></tr><tr><td>nonexact_evidence_revokes_without_resurrection</td><td>PASS</td></tr><tr><td>zero_hold_never_replays</td><td>PASS</td></tr><tr><td>invalid_command_nonexecutable</td><td>PASS</td></tr><tr><td>duplicate_tick_atomic</td><td>PASS</td></tr><tr><td>exact_replay</td><td>PASS</td></tr><tr><td>finite_outputs</td><td>PASS</td></tr></tbody></table></div>
+<h2>Admission boundary</h2>
+<ul><li>Fresh commands must already be admitted by the caller against exact evidence; the lease never solves or approves one.</li><li>Non-exact evidence, invalid commands, returned authoring support, and age expiry produce no executable command.</li><li>A physical A/B must still choose the hold horizon and prove no earlier fall, no lost green recovery, and no unbounded stale execution.</li></ul></main></body></html>

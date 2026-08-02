@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw bounded viability-request supervisor · r148</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw bounded viability-request supervisor · r148</h1>
+<blockquote>Evaluation **PASS**. No policy, WBC, simulator, integration, or wall clock participates in the request decision. Python authors explicit rows; Rust owns hysteresis, freshness, slew, sequence, bounds, and revocation.</blockquote>
+<h2>Outcome</h2>
+<p>A planner candidate is not an executable command. The supervisor activates only above the declared pressure, slews all three coordinates, holds only inside a four-tick freshness window, releases hysteretically, and emits exact zero on stale age, failed refresh, inexact evidence, invalid bounds, or rejected sequence. Downstream WBC admission remains mandatory every tick.</p>
+<div class=table-wrap><table><thead><tr><th>scenario</th><th>final status</th><th>active</th><th>executable</th><th>age</th><th>request</th><th>replay</th></tr></thead><tbody><tr><td>hysteresis_release</td><td>Inactive</td><td>NO</td><td>NO</td><td>0</td><td>+0/+0/+0</td><td>YES</td></tr><tr><td>expiry</td><td>Expired</td><td>YES</td><td>NO</td><td>5</td><td>+0/+0/+0</td><td>YES</td></tr><tr><td>evidence_revocation</td><td>RevokedEvidence</td><td>NO</td><td>NO</td><td>0</td><td>+0/+0/+0</td><td>YES</td></tr><tr><td>failed_refresh</td><td>Expired</td><td>YES</td><td>NO</td><td>0</td><td>+0/+0/+0</td><td>YES</td></tr><tr><td>bounded_input</td><td>RejectedInput</td><td>NO</td><td>NO</td><td>0</td><td>+0/+0/+0</td><td>YES</td></tr><tr><td>duplicate_tick</td><td>Held</td><td>YES</td><td>YES</td><td>1</td><td>+80/+0/+0</td><td>YES</td></tr></tbody></table></div>
+<h2>Gates</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>fresh_request_is_bounded_and_slewed</td><td>PASS</td></tr><tr><td>held_request_reaches_bounded_target</td><td>PASS</td></tr><tr><td>release_is_slewed_then_inactive</td><td>PASS</td></tr><tr><td>age_expiry_has_no_tail</td><td>PASS</td></tr><tr><td>inexact_evidence_revokes_immediately</td><td>PASS</td></tr><tr><td>failed_active_refresh_revokes</td><td>PASS</td></tr><tr><td>out_of_bounds_candidate_rejected</td><td>PASS</td></tr><tr><td>duplicate_tick_is_atomic</td><td>PASS</td></tr><tr><td>exact_replay</td><td>PASS</td></tr><tr><td>finite_outputs</td><td>PASS</td></tr></tbody></table></div>
+<h2>Host call timing</h2>
+<div class=table-wrap><table><thead><tr><th>steps</th><th>p50 ns</th><th>p95 ns</th><th>p99 ns</th><th>p99.9 ns</th><th>max ns</th></tr></thead><tbody><tr><td>20000</td><td>571.0</td><td>591.0</td><td>611.0</td><td>751.0010000000038</td><td>15048</td></tr></tbody></table></div>
+<p>The Python-call timing includes binding overhead. The binding separately compares Rust allocation counters around every supervisor step and fails the call if the Rust hot path allocates.</p></main></body></html>

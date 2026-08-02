@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw joint viability envelope · r81</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw joint viability envelope · r81</h1>
+<h2>Outcome</h2>
+<p>**Admission: PASS.** Rust now derives fixed-shape next-tick joint acceleration envelopes from observed position/velocity, authored position/velocity limits, explicit acceleration authority, and control period. The envelope feeds `CpuExactF64` directly in Rust; Python independently reconstructs the algebra and orchestrates evaluation.</p>
+<p>This is kinematic safety evidence, not actuator-effort or contact-force feasibility. Those require the dynamic decision vector and are deliberately not inferred from this result.</p>
+<h2>Independent URDF/NumPy oracle</h2>
+<div class=table-wrap><table><thead><tr><th>model</th><th>states</th><th>max bound error</th><th>∞ masks exact</th><th>pass</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>32</td><td>0.000e+00</td><td>True</td><td>True</td></tr><tr><td>upkie</td><td>32</td><td>0.000e+00</td><td>True</td><td>True</td></tr></tbody></table></div>
+<h2>Example authority stack</h2>
+<div class=table-wrap><table><thead><tr><th>layer</th><th>concrete signal</th><th>meaning</th></tr></thead><tbody><tr><td>Invariant</td><td>contact locks 7951/7952</td><td>remain hard equalities in the downstream strict solve</td></tr><tr><td>Viability</td><td>joint stopping envelope</td><td>position, velocity, next-tick position, and braking distance intersect as hard qdd bounds</td></tr><tr><td>Intent</td><td>point target 7902</td><td>retains residual when the joint envelope consumes authority</td></tr><tr><td>Recovery</td><td>maximum inward qdd</td><td>an already-unsafe observation yields a deterministic recovery box, never an inverted interval</td></tr><tr><td>Resources</td><td>actuator acceleration only when explicitly authored</td><td>URDF effort is not reinterpreted as acceleration or torque feasibility</td></tr><tr><td>Dynamic feasibility</td><td>UNAVAILABLE in this batch slice</td><td>effort/friction/support require [qdd, tau, f] and remain the next admission</td></tr></tbody></table></div>
+<h2>Recovery and isolation</h2>
+<ul><li>Outside-limit coordinate 0 receives exactly -20.0 rad/s² inward acceleration authority.</li><li>Invalid-agent isolation exact: True; disabled payload ignored: True.</li></ul>
+<h2>Continuous approach sweep</h2>
+<div class=table-wrap><table><thead><tr><th>check</th><th>result</th></tr></thead><tbody><tr><td>coordinate</td><td>0</td></tr><tr><td>sample_count</td><td>64</td></tr><tr><td>farthest_upper_qdd</td><td>20.0</td></tr><tr><td>nearest_upper_qdd</td><td>-20.0</td></tr><tr><td>monotone_nonincreasing</td><td>True</td></tr><tr><td>requests_inward_before_limit</td><td>True</td></tr><tr><td>pass</td><td>True</td></tr></tbody></table></div>
+<h2>Strict-solve composition</h2>
+<div class=table-wrap><table><thead><tr><th>check</th><th>result</th></tr></thead><tbody><tr><td>all_commands_inside_envelope</td><td>True</td></tr><tr><td>status_all_solved_with_slack</td><td>True</td></tr><tr><td>minimum_solved_envelope_margin</td><td>0.0</td></tr><tr><td>clipped_steps</td><td>96</td></tr><tr><td>maximum_soft_residual</td><td>111.25113887052382</td></tr><tr><td>allocation_calls</td><td>0</td></tr><tr><td>pass</td><td>True</td></tr></tbody></table></div>
+<h2>Determinism</h2>
+<div class=table-wrap><table><thead><tr><th>check</th><th>result</th></tr></thead><tbody><tr><td>repeat_bitwise_exact</td><td>True</td></tr><tr><td>permutation_exact</td><td>True</td></tr><tr><td>padding_exact</td><td>True</td></tr><tr><td>allocation_calls</td><td>0</td></tr><tr><td>pass</td><td>True</td></tr></tbody></table></div>
+<h2>Release timing</h2>
+<div class=table-wrap><table><thead><tr><th>agents</th><th>p50 µs</th><th>p99 µs</th><th>p50 ns/agent</th><th>alloc calls</th></tr></thead><tbody><tr><td>1</td><td>0.361</td><td>0.371</td><td>361.0</td><td>0</td></tr><tr><td>32</td><td>3.968</td><td>4.970</td><td>124.0</td><td>0</td></tr><tr><td>256</td><td>30.939</td><td>37.087</td><td>120.9</td><td>0</td></tr></tbody></table></div>
+<p>Timers cover the preallocated Rust envelope executor only and exclude NumPy marshalling. All 200 calls per batch are retained.</p>
+<h2>Next physical gate</h2>
+<p>The next batch slice must extend the decision vector to `[q̈, τ, contact force]`, enforce `M q̈ + h = Sᵀτ + Jᶜᵀf`, and only then add exact actuator effort, unilateral force, friction, and finite-support inequalities. Keeping that boundary explicit prevents a kinematically reachable request from being mislabeled physically realizable.</p></main></body></html>

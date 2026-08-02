@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw automatic rigid-patch basis · r87</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw automatic rigid-patch basis · r87</h1>
+<h2>Outcome</h2>
+<p>**Admission: PASS.** Construction derives a deterministic six-row rigid-body basis from fixed same-frame contact geometry. The selected per-point modes enter the existing descriptor fingerprint; execution remains the zero-allocation R85 path. Python and Pinocchio independently rebuild rank, hard dynamics/contact, the implied full sole manifold, hull, weighted CoP, and support margin. No policy or physics rollout is used.</p>
+<h2>Compiler-selected basis</h2>
+<p>[&#x27;| signal | result |&#x27;, &#x27;|---|---|&#x27;, &#x27;| selected modes | [3, 0, 2, 1, 1] · Disabled=0 Locked=1 Normal=2 Rolling=3 |&#x27;, &#x27;| rows / independent rank | 6 / [6] |&#x27;, &#x27;| minimum singular value | 0.048081 |&#x27;, &#x27;| implied all-point acceleration L∞ | 4.665e-13 |&#x27;, &#x27;| explicit R85 modes / σmin | [1, 2, 0, 3, 0] / 0.048023 |&#x27;, &#x27;| repeat descriptor / differs from all locked | True / True |&#x27;]</p>
+<p>The compiler enumerates only prefix-compatible Disabled/Normal/Rolling/Locked declarations totaling six scalar rows, rejects deficient candidates, and selects the candidate with the largest minimum singular value. Point coordinates are centered before selection, so a body-frame origin translation cannot change the choice.</p>
+<h2>Independent physical oracle</h2>
+<p>[&#x27;| signal | result |&#x27;, &#x27;|---|---|&#x27;, &#x27;| Pinocchio dynamics L∞ | 1.358e-10 |&#x27;, &#x27;| Pinocchio selected contact L∞ | 2.691e-13 |&#x27;, &#x27;| independent minimum CoP margin | 0.020000000 m |&#x27;, &#x27;| reported-vs-independent margin delta | 2.429e-17 m |&#x27;, &#x27;| allocation calls / bytes | 0 / 0 |&#x27;]</p>
+<h2>Invalid geometry</h2>
+<p>[&#x27;| case | result |&#x27;, &#x27;|---|---|&#x27;, &#x27;| four collinear same-frame points | rigid patch 8401 point geometry is non-finite or rank deficient |&#x27;, &#x27;| typed rejection | True |&#x27;]</p>
+<h2>Solve timing (60 untrimmed calls/profile)</h2>
+<p>[&#x27;| agents | auto p50 µs | explicit R85 p50 µs | all locked p50 µs | auto vs explicit | auto vs locked |&#x27;, &#x27;|---|---|---|---|---|---|&#x27;, &#x27;| 1 | 1671.136 | 1251.549 | 1814.001 | +33.53% | -7.88% |&#x27;, &#x27;| 8 | 8903.712 | 9701.635 | 13075.555 | -8.22% | -31.91% |&#x27;, &#x27;| 32 | 36741.372 | 39108.467 | 54184.931 | -6.05% | -32.19% |&#x27;]</p>
+<p>Construction-time enumeration is excluded from solve timing. Automatic and explicit bases can choose different legal lower-layer qdd/force optima, so this gate claims the same independently checked rigid-foot hard manifold—not bitwise cross-basis solutions.</p>
+<h2>Deliberate boundary</h2>
+<p>R87 assumes one body frame and canonical frame X/Y/Z matching runtime tangent-X/tangent-Y/normal inputs. General authored contact frames, state-dependent switching, RollingWheel constants, CoM-in-polygon tasks, live finite-foot composition, and CUDA remain unavailable.</p></main></body></html>

@@ -1,0 +1,2036 @@
+{
+  "schema": 1,
+  "generated_utc": "2026-08-01T04:17:31.123787+00:00",
+  "passed": true,
+  "checks": {
+    "source_artifacts_remain_immutable": true,
+    "r54_full_contact_force_replay_is_byte_exact_on_31_non_timing_fields": true,
+    "ideal_fixed_effort_reconstructs_admitted_acceleration_within_1e-5": true,
+    "all_scenarios_repeat_128_tick_witness_bit_exactly_except_timing": true,
+    "all_admitted_fixed_effort_equalities_hold_within_1e-6_nm": true,
+    "all_scenarios_avoid_numerical_failure": true,
+    "all_admitted_ticks_keep_hard_constraint_violations_below_1e-7": true,
+    "all_rust_steps_are_allocation_free": true
+  },
+  "evaluation_boundary": {
+    "oracle_state_source": "immutable admitted r54 q, v, root pose/twist, and contact schedule",
+    "effort_source": "r62 realized actuator effort scenarios",
+    "robot_policy": false,
+    "robot_state_integration": false,
+    "rigid_body_rollout": false,
+    "contact_simulation": false,
+    "state_local_floating_dynamics_and_contact_solve": true,
+    "hard_equalities": "floating dynamics plus active locked-contact acceleration",
+    "scored_not_enforced_inequalities": "acceleration bounds, unilateral normal force, friction pyramid, 5 mm finite-patch support margin",
+    "persistent_state_inside_r63": false,
+    "stability_or_hardware_claim": false
+  },
+  "ticks": 2317,
+  "repeat_witness_ticks": 128,
+  "fixed_effort_solver_schema": 4,
+  "dt_seconds": 0.005,
+  "acceleration_bound": 200.0,
+  "contact_edges": [
+    300,
+    529,
+    879,
+    1108,
+    1458,
+    1687,
+    2037,
+    2266
+  ],
+  "coordinate_names": [
+    "root_angular_x",
+    "root_angular_y",
+    "root_angular_z",
+    "root_linear_x",
+    "root_linear_y",
+    "root_linear_z",
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint"
+  ],
+  "reference_replay_exact": true,
+  "reference_replay_non_timing_fields": [
+    "generalized_acceleration",
+    "actuator_torque",
+    "contact_normal_force",
+    "task_rms",
+    "task_clipped",
+    "dynamics_residual",
+    "contact_residual",
+    "minimum_friction_margin",
+    "minimum_support_margin",
+    "minimum_torque_margin",
+    "maximum_constraint_violation",
+    "minimum_bound_margin",
+    "minimum_joint_margin_rad",
+    "minimum_joint_headroom_fraction",
+    "limiting_joint",
+    "maximum_torque_utilization",
+    "minimum_torque_headroom",
+    "limiting_actuator",
+    "witness_acceleration_rms",
+    "status",
+    "task_pseudoinverse_calls",
+    "task_pseudoinverse_calls_by_priority",
+    "clipped_steps",
+    "clipped_steps_by_priority",
+    "task_jacobi_sweeps",
+    "task_jacobi_sweeps_by_priority",
+    "feasibility_projection_sweeps",
+    "feasibility_halfspace_projections",
+    "feasibility_polish_iterations",
+    "allocation_calls",
+    "allocated_bytes"
+  ],
+  "scenarios": [
+    {
+      "name": "ideal_control",
+      "profile": {
+        "bandwidth_hz": "infinite",
+        "effort_rate_nm_s": "infinite",
+        "availability_fraction": 1.0
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 1.403568493641895e-10,
+          "absolute": {
+            "minimum": 3.0954750527691854e-15,
+            "mean": 7.969560741182893e-11,
+            "stddev": 1.1553638094860606e-10,
+            "mad": 3.2715719022746725e-11,
+            "p50": 4.164962819075413e-11,
+            "p95": 2.790532138696729e-10,
+            "p99": 5.101087996450827e-10,
+            "p99_9": 1.2478303350604849e-09,
+            "maximum": 2.423869160939063e-09
+          }
+        },
+        "root_angular_rms": 1.1350537049830679e-10,
+        "root_linear_rms": 1.3347218439589237e-11,
+        "joint_rms": 1.521035770702085e-10,
+        "bound_normalized_pressure": {
+          "minimum": 1.6814716286006616e-13,
+          "mean": 1.6227899838452099e-12,
+          "stddev": 1.4854444864610464e-12,
+          "mad": 5.133495711850955e-13,
+          "p50": 1.1756606799195879e-12,
+          "p95": 4.949083032279577e-12,
+          "p99": 7.863947215636113e-12,
+          "p99_9": 9.869352566305239e-12,
+          "maximum": 1.2119345804695314e-11
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 8,
+            "name": "left_hip_yaw_joint",
+            "rms": 3.0420244753590314e-10,
+            "p99_absolute": 1.3901666928717307e-09,
+            "maximum_absolute": 2.423869160939063e-09
+          },
+          {
+            "coordinate": 14,
+            "name": "right_hip_yaw_joint",
+            "rms": 2.97071381570186e-10,
+            "p99_absolute": 1.2633663981631599e-09,
+            "maximum_absolute": 2.2609634164894032e-09
+          },
+          {
+            "coordinate": 11,
+            "name": "left_ankle_roll_joint",
+            "rms": 1.6494726033948977e-10,
+            "p99_absolute": 8.430695364047843e-10,
+            "maximum_absolute": 1.7957851317085272e-09
+          },
+          {
+            "coordinate": 17,
+            "name": "right_ankle_roll_joint",
+            "rms": 1.5222629592997253e-10,
+            "p99_absolute": 8.111070792793446e-10,
+            "maximum_absolute": 1.3472653964674564e-09
+          },
+          {
+            "coordinate": 7,
+            "name": "left_hip_roll_joint",
+            "rms": 1.4470964743581222e-10,
+            "p99_absolute": 6.66090755885307e-10,
+            "maximum_absolute": 1.3190055991874061e-09
+          },
+          {
+            "coordinate": 18,
+            "name": "waist_yaw_joint",
+            "rms": 2.0376795867941946e-10,
+            "p99_absolute": 6.358421167362856e-10,
+            "maximum_absolute": 9.598446482073086e-10
+          },
+          {
+            "coordinate": 2,
+            "name": "root_angular_z",
+            "rms": 1.8413846333213263e-10,
+            "p99_absolute": 5.868761162749483e-10,
+            "maximum_absolute": 1.0930626658525316e-09
+          },
+          {
+            "coordinate": 13,
+            "name": "right_hip_roll_joint",
+            "rms": 1.3570134331744846e-10,
+            "p99_absolute": 5.857158957844891e-10,
+            "maximum_absolute": 9.048179983039972e-10
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 0,
+          "longest_ticks": 0,
+          "longest_ms": 0.0
+        },
+        "0.005": {
+          "ticks": 0,
+          "longest_ticks": 0,
+          "longest_ms": 0.0
+        },
+        "0.01": {
+          "ticks": 0,
+          "longest_ticks": 0,
+          "longest_ms": 0.0
+        },
+        "0.05": {
+          "ticks": 0,
+          "longest_ticks": 0,
+          "longest_ms": 0.0
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "unrecovered_edges": 0,
+        "maximum_recovery_ms": 0.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 3.309388525051678e-11,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 2.0360037472640633e-11,
+          "stddev": 2.6089731985726518e-11,
+          "mad": 1.1896261753463477e-11,
+          "p50": 1.2191136988803919e-11,
+          "p95": 7.134470791925196e-11,
+          "p99": 1.2558096784687226e-10,
+          "p99_9": 1.8976362259337968e-10,
+          "maximum": 2.402349430496997e-10
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 2.8170764332369203e-11,
+          "mean": 3.358671993063565e-10,
+          "stddev": 1.9055607729526565e-10,
+          "mad": 1.187734811761501e-10,
+          "p50": 2.9742151103073766e-10,
+          "p95": 6.931914542374068e-10,
+          "p99": 9.280601587224893e-10,
+          "p99_9": 1.1482754989510726e-09,
+          "maximum": 1.4675773582495388e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 5.41254396432505e-13,
+          "mean": 1.184795477603474e-11,
+          "stddev": 8.431735494858349e-12,
+          "mad": 4.574880420308192e-12,
+          "p50": 9.409193910125957e-12,
+          "p95": 2.909549112056764e-11,
+          "p99": 3.921308005275194e-11,
+          "p99_9": 4.961770435018199e-11,
+          "maximum": 5.252284712839103e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 2.8170764332369203e-11,
+            "mean": 3.358671993063565e-10,
+            "stddev": 1.9055607729526565e-10,
+            "mad": 1.187734811761501e-10,
+            "p50": 2.9742151103073766e-10,
+            "p95": 6.931914542374068e-10,
+            "p99": 9.280601587224893e-10,
+            "p99_9": 1.1482754989510726e-09,
+            "maximum": 1.4675773582495388e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 2.8170764332369203e-11,
+          "mean": 3.358671993063565e-10,
+          "stddev": 1.9055607729526565e-10,
+          "mad": 1.187734811761501e-10,
+          "p50": 2.9742151103073766e-10,
+          "p95": 6.931914542374068e-10,
+          "p99": 9.280601587224893e-10,
+          "p99_9": 1.1482754989510726e-09,
+          "maximum": 1.4675773582495388e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 0.0,
+            "stddev": 0.0,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 0.0,
+            "maximum": 0.0
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -1.410971062210109e-10,
+            "mean": 5.319701531294422,
+            "stddev": 9.600306550078077,
+            "mad": 8.090471695365586e-11,
+            "p50": 4.617506377257996e-11,
+            "p95": 27.63233189876399,
+            "p99": 32.702600108946825,
+            "p99_9": 37.23304288885494,
+            "maximum": 38.48507503232962
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -2.1528023808059515e-10,
+            "mean": 6.046937734244095,
+            "stddev": 9.05601333827034,
+            "mad": 1.6617415776742916e-10,
+            "p50": 6.805442320789723e-11,
+            "p95": 25.41346925667369,
+            "p99": 32.24837387461919,
+            "p99_9": 36.639134373358424,
+            "maximum": 37.81033830153979
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": 0.004999999909819655,
+            "mean": 0.009242776465711207,
+            "stddev": 0.006241950044570248,
+            "mad": 0.00160721583908615,
+            "p50": 0.006607215839077075,
+            "p95": 0.02445256665369439,
+            "p99": 0.02706227077053494,
+            "p99_9": 0.027469544453695087,
+            "maximum": 0.027485210903188825
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 0,
+          "normal_force": 0,
+          "friction": 0,
+          "support_5mm": 0
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 1.0974798440834637,
+        "maximum_increase_from_r54": 1.0973792710740014
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1045.646,
+          "mean": 1289.4526223564953,
+          "stddev": 157.7304695338597,
+          "mad": 55.524999999999864,
+          "p50": 1358.277,
+          "p95": 1444.1491999999998,
+          "p99": 1776.8132800000003,
+          "p99_9": 1986.5863920000259,
+          "maximum": 2542.645
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    },
+    {
+      "name": "fast_synthetic",
+      "profile": {
+        "bandwidth_hz": 20.0,
+        "effort_rate_nm_s": 5000.0,
+        "availability_fraction": 1.0
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 4.578534718193935,
+          "absolute": {
+            "minimum": 3.2287704004570553e-12,
+            "mean": 0.40707604502362577,
+            "stddev": 4.560402313313501,
+            "mad": 0.05988479653369935,
+            "p50": 0.06402865226275381,
+            "p95": 1.3733687958102054,
+            "p99": 5.208042328887282,
+            "p99_9": 28.22328728369794,
+            "maximum": 763.1635289333759
+          }
+        },
+        "root_angular_rms": 0.11956149405808734,
+        "root_linear_rms": 0.03376004818763699,
+        "joint_rms": 5.140969798251841,
+        "bound_normalized_pressure": {
+          "minimum": 1.2316008618089595e-12,
+          "mean": 0.015537097558894764,
+          "stddev": 0.10027841356178795,
+          "mad": 0.0028025924403408346,
+          "p50": 0.004295929214466912,
+          "p95": 0.04399411810628184,
+          "p99": 0.15591138050555947,
+          "p99_9": 1.0477475900258229,
+          "maximum": 3.8158176446668794
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 25,
+            "name": "right_shoulder_roll_joint",
+            "rms": 3.572908797250734,
+            "p99_absolute": 15.230811371539241,
+            "maximum_absolute": 70.80756156236359
+          },
+          {
+            "coordinate": 20,
+            "name": "left_shoulder_roll_joint",
+            "rms": 3.6053546188123478,
+            "p99_absolute": 15.173968700560806,
+            "maximum_absolute": 66.10235145078121
+          },
+          {
+            "coordinate": 22,
+            "name": "left_elbow_joint",
+            "rms": 3.820324772971463,
+            "p99_absolute": 13.544605920746099,
+            "maximum_absolute": 55.90142493687311
+          },
+          {
+            "coordinate": 27,
+            "name": "right_elbow_joint",
+            "rms": 2.873651057399137,
+            "p99_absolute": 10.802480386464167,
+            "maximum_absolute": 43.027276771828916
+          },
+          {
+            "coordinate": 19,
+            "name": "left_shoulder_pitch_joint",
+            "rms": 2.7044995904117397,
+            "p99_absolute": 10.236047369058646,
+            "maximum_absolute": 58.55477881019715
+          },
+          {
+            "coordinate": 24,
+            "name": "right_shoulder_pitch_joint",
+            "rms": 2.708006682000676,
+            "p99_absolute": 10.074141380980999,
+            "maximum_absolute": 63.448145462596116
+          },
+          {
+            "coordinate": 21,
+            "name": "left_shoulder_yaw_joint",
+            "rms": 1.8344439018560545,
+            "p99_absolute": 5.629642219901065,
+            "maximum_absolute": 41.85310555311387
+          },
+          {
+            "coordinate": 18,
+            "name": "waist_yaw_joint",
+            "rms": 0.88804138030671,
+            "p99_absolute": 3.3013168888797635,
+            "maximum_absolute": 15.119522813534157
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 2101,
+          "longest_ticks": 433,
+          "longest_ms": 2165.0
+        },
+        "0.005": {
+          "ticks": 1022,
+          "longest_ticks": 114,
+          "longest_ms": 570.0000000000001
+        },
+        "0.01": {
+          "ticks": 611,
+          "longest_ticks": 33,
+          "longest_ms": 165.0
+        },
+        "0.05": {
+          "ticks": 88,
+          "longest_ticks": 7,
+          "longest_ms": 35.0
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          10,
+          0,
+          8,
+          0,
+          6,
+          0,
+          15,
+          null
+        ],
+        "unrecovered_edges": 1,
+        "maximum_recovery_ms": 75.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 2.8938677665186696,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.9869353608205266,
+          "stddev": 2.7203729971564212,
+          "mad": 0.2258294466508334,
+          "p50": 0.2258294466508334,
+          "p95": 3.7319719130060944,
+          "p99": 12.605168994750926,
+          "p99_9": 34.626322046229944,
+          "maximum": 46.92706704177594
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 2.916596825164319e-11,
+          "mean": 3.362260218511299e-10,
+          "stddev": 1.9223837727817165e-10,
+          "mad": 1.1784159664241824e-10,
+          "p50": 2.967576844795008e-10,
+          "p95": 6.906368212663822e-10,
+          "p99": 9.305290042671562e-10,
+          "p99_9": 1.3641272622044898e-09,
+          "maximum": 1.6716358784926404e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 5.411918105177326e-13,
+          "mean": 1.1810471712019038e-11,
+          "stddev": 8.304082968247874e-12,
+          "mad": 4.543713539782792e-12,
+          "p50": 9.424048357408524e-12,
+          "p95": 2.8798086583739724e-11,
+          "p99": 3.9101066904361495e-11,
+          "p99_9": 4.874617198527391e-11,
+          "maximum": 5.2549617381072306e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 2.916596825164319e-11,
+            "mean": 3.362260218511299e-10,
+            "stddev": 1.9223837727817165e-10,
+            "mad": 1.1784159664241824e-10,
+            "p50": 2.967576844795008e-10,
+            "p95": 6.906368212663822e-10,
+            "p99": 9.305290042671562e-10,
+            "p99_9": 1.3641272622044898e-09,
+            "maximum": 1.6716358784926404e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 2.916596825164319e-11,
+          "mean": 3.362260218511299e-10,
+          "stddev": 1.9223837727817165e-10,
+          "mad": 1.1784159664241824e-10,
+          "p50": 2.967576844795008e-10,
+          "p95": 6.906368212663822e-10,
+          "p99": 9.305290042671562e-10,
+          "p99_9": 1.3641272622044898e-09,
+          "maximum": 1.6716358784926404e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 0.3398639570162685,
+            "stddev": 12.466301995874236,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 11.747471521265767,
+            "maximum": 563.1635287686053
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -0.8743458436518939,
+            "mean": 5.408531194727585,
+            "stddev": 9.753953973559357,
+            "mad": 0.18674469573700492,
+            "p50": 0.11628026807070219,
+            "p95": 28.02638512559534,
+            "p99": 32.82860606415905,
+            "p99_9": 39.778094360843575,
+            "maximum": 56.230935739086995
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -3.450378869209281,
+            "mean": 5.993221997871265,
+            "stddev": 9.469345806011376,
+            "mad": 0.9400789785937012,
+            "p50": 0.032628158889951075,
+            "p95": 25.93739349659137,
+            "p99": 32.56440716163612,
+            "p99_9": 46.31517768766795,
+            "maximum": 55.81447401842869
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": -0.004694238300764025,
+            "mean": 0.008394464110795306,
+            "stddev": 0.005620541907332218,
+            "mad": 0.0012551594505421822,
+            "p50": 0.006146288941690194,
+            "p95": 0.024532291747033443,
+            "p99": 0.027150677995073418,
+            "p99_9": 0.02748180224661679,
+            "maximum": 0.027492248991992357
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 3,
+          "normal_force": 386,
+          "friction": 1085,
+          "support_5mm": 427
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 503.1440549319392,
+        "maximum_increase_from_r54": 503.1438366093055
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1050.796,
+          "mean": 1288.3710487699611,
+          "stddev": 144.7299098890206,
+          "mad": 56.878000000000156,
+          "p50": 1364.629,
+          "p95": 1435.8352,
+          "p99": 1520.8003200000005,
+          "p99_9": 1901.1324000000052,
+          "maximum": 1997.475
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    },
+    {
+      "name": "medium_synthetic",
+      "profile": {
+        "bandwidth_hz": 10.0,
+        "effort_rate_nm_s": 1000.0,
+        "availability_fraction": 1.0
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 7.304234157048199,
+          "absolute": {
+            "minimum": 3.2287704004570553e-12,
+            "mean": 0.7310245755829677,
+            "stddev": 7.267560779992373,
+            "mad": 0.13518153375621342,
+            "p50": 0.14540726650919866,
+            "p95": 2.5572682422945587,
+            "p99": 7.511255399824888,
+            "p99_9": 43.942207824045944,
+            "maximum": 983.0256879429626
+          }
+        },
+        "root_angular_rms": 0.2735946951181738,
+        "root_linear_rms": 0.05616578061425682,
+        "joint_rms": 8.201190889271938,
+        "bound_normalized_pressure": {
+          "minimum": 1.2316008618089595e-12,
+          "mean": 0.028194404547435714,
+          "stddev": 0.1592960225462293,
+          "mad": 0.0057131746925999545,
+          "p50": 0.009356167507818739,
+          "p95": 0.062071022874969156,
+          "p99": 0.30600315944140954,
+          "p99_9": 2.398926570208232,
+          "maximum": 4.915128439714813
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 22,
+            "name": "left_elbow_joint",
+            "rms": 5.023264265020615,
+            "p99_absolute": 17.182141411696964,
+            "maximum_absolute": 71.41080647815754
+          },
+          {
+            "coordinate": 20,
+            "name": "left_shoulder_roll_joint",
+            "rms": 4.655122419119963,
+            "p99_absolute": 16.098989280363018,
+            "maximum_absolute": 89.33797785624506
+          },
+          {
+            "coordinate": 25,
+            "name": "right_shoulder_roll_joint",
+            "rms": 4.653544776353032,
+            "p99_absolute": 15.639079016691085,
+            "maximum_absolute": 99.12339942118984
+          },
+          {
+            "coordinate": 27,
+            "name": "right_elbow_joint",
+            "rms": 3.9353518873598903,
+            "p99_absolute": 14.108694879655737,
+            "maximum_absolute": 59.995149239651056
+          },
+          {
+            "coordinate": 24,
+            "name": "right_shoulder_pitch_joint",
+            "rms": 3.593417843264034,
+            "p99_absolute": 12.018282703342484,
+            "maximum_absolute": 85.87102577109201
+          },
+          {
+            "coordinate": 19,
+            "name": "left_shoulder_pitch_joint",
+            "rms": 3.617551331760597,
+            "p99_absolute": 11.735259075283203,
+            "maximum_absolute": 79.26463342900911
+          },
+          {
+            "coordinate": 11,
+            "name": "left_ankle_roll_joint",
+            "rms": 30.00543168586924,
+            "p99_absolute": 8.531247258181928,
+            "maximum_absolute": 983.0256879429626
+          },
+          {
+            "coordinate": 21,
+            "name": "left_shoulder_yaw_joint",
+            "rms": 2.4657303449811896,
+            "p99_absolute": 7.476037896885,
+            "maximum_absolute": 57.417261224273744
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 2217,
+          "longest_ticks": 1158,
+          "longest_ms": 5790.0
+        },
+        "0.005": {
+          "ticks": 1775,
+          "longest_ticks": 229,
+          "longest_ms": 1145.0
+        },
+        "0.01": {
+          "ticks": 1114,
+          "longest_ticks": 154,
+          "longest_ms": 770.0
+        },
+        "0.05": {
+          "ticks": 154,
+          "longest_ticks": 15,
+          "longest_ms": 75.0
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          21,
+          0,
+          19,
+          0,
+          21,
+          0,
+          20,
+          null
+        ],
+        "unrecovered_edges": 1,
+        "maximum_recovery_ms": 105.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 4.402372340209464,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 1.6506999373335627,
+          "stddev": 4.081185114489212,
+          "mad": 0.4311073772193434,
+          "p50": 0.4311073772193434,
+          "p95": 6.614880870280766,
+          "p99": 20.367431125151285,
+          "p99_9": 47.88087481682455,
+          "maximum": 64.24835775788088
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 3.0459600119936425e-11,
+          "mean": 3.3830401412081605e-10,
+          "stddev": 2.1133177958423623e-10,
+          "mad": 1.1778281908819688e-10,
+          "p50": 2.964894363008397e-10,
+          "p95": 6.997453493349328e-10,
+          "p99": 9.562954783604038e-10,
+          "p99_9": 1.6502980783317758e-09,
+          "maximum": 4.1067745247766146e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 4.806393976703834e-13,
+          "mean": 1.1831301527813778e-11,
+          "stddev": 8.306330430044342e-12,
+          "mad": 4.6092299281685974e-12,
+          "p50": 9.485349966613235e-12,
+          "p95": 2.85830902889228e-11,
+          "p99": 3.873057879596363e-11,
+          "p99_9": 4.784259656245673e-11,
+          "maximum": 5.256748676759834e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 3.0459600119936425e-11,
+            "mean": 3.3830401412081605e-10,
+            "stddev": 2.1133177958423623e-10,
+            "mad": 1.1778281908819688e-10,
+            "p50": 2.964894363008397e-10,
+            "p95": 6.997453493349328e-10,
+            "p99": 9.562954783604038e-10,
+            "p99_9": 1.6502980783317758e-09,
+            "maximum": 4.1067745247766146e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 3.0459600119936425e-11,
+          "mean": 3.3830401412081605e-10,
+          "stddev": 2.1133177958423623e-10,
+          "mad": 1.1778281908819688e-10,
+          "p50": 2.964894363008397e-10,
+          "p95": 6.997453493349328e-10,
+          "p99": 9.562954783604038e-10,
+          "p99_9": 1.6502980783317758e-09,
+          "maximum": 4.1067745247766146e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 0.8646367112584269,
+            "stddev": 21.126546851357674,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 279.731663420768,
+            "maximum": 783.0256877781919
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -1.2404882653939906,
+            "mean": 5.548234217160481,
+            "stddev": 9.989579891217591,
+            "mad": 0.24063611123521897,
+            "p50": 0.16963607658445684,
+            "p95": 28.520344561532735,
+            "p99": 33.24824076590154,
+            "p99_9": 53.81505208736072,
+            "maximum": 67.34243334453332
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -4.361973386741745,
+            "mean": 6.151058214785642,
+            "stddev": 9.919048819649682,
+            "mad": 1.3136398023152878,
+            "p50": 0.07815470777232825,
+            "p95": 26.44830794814294,
+            "p99": 33.75917864601812,
+            "p99_9": 59.41269039365805,
+            "maximum": 66.04476568486565
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": -0.004716294544999441,
+            "mean": 0.008530807376424433,
+            "stddev": 0.005731206535797697,
+            "mad": 0.001516944325094697,
+            "p50": 0.006446265741746782,
+            "p95": 0.024730408869988715,
+            "p99": 0.02715557450457714,
+            "p99_9": 0.0274758207592135,
+            "maximum": 0.027497022170088335
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 8,
+          "normal_force": 377,
+          "friction": 1079,
+          "support_5mm": 413
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 655.4726857985718,
+        "maximum_increase_from_r54": 655.4724674759381
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1055.595,
+          "mean": 1322.4816141562367,
+          "stddev": 181.678750247382,
+          "mad": 59.63200000000006,
+          "p50": 1372.615,
+          "p95": 1540.4091999999998,
+          "p99": 1911.6595200000006,
+          "p99_9": 2067.2467760000004,
+          "maximum": 2087.766
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    },
+    {
+      "name": "slow_synthetic",
+      "profile": {
+        "bandwidth_hz": 5.0,
+        "effort_rate_nm_s": 250.0,
+        "availability_fraction": 1.0
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 10.727808704720744,
+          "absolute": {
+            "minimum": 3.2287704004570553e-12,
+            "mean": 1.3576303522144855,
+            "stddev": 10.641556250465817,
+            "mad": 0.31687127469243276,
+            "p50": 0.3422287511516693,
+            "p95": 4.635106783940377,
+            "p99": 11.051594685887542,
+            "p99_9": 69.73382347099326,
+            "maximum": 1097.4546618222987
+          }
+        },
+        "root_angular_rms": 0.9299398735353135,
+        "root_linear_rms": 0.10424638366593249,
+        "joint_rms": 12.041348223872257,
+        "bound_normalized_pressure": {
+          "minimum": 1.2316008618089595e-12,
+          "mean": 0.04985921392222995,
+          "stddev": 0.23045129273252307,
+          "mad": 0.010037729903661238,
+          "p50": 0.01937100534282351,
+          "p95": 0.0980129183598227,
+          "p99": 0.6309422888351822,
+          "p99_9": 3.7981379151448533,
+          "maximum": 5.487273309111494
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 11,
+            "name": "left_ankle_roll_joint",
+            "rms": 43.85265835566963,
+            "p99_absolute": 54.28928811008827,
+            "maximum_absolute": 1097.4546618222987
+          },
+          {
+            "coordinate": 10,
+            "name": "left_ankle_pitch_joint",
+            "rms": 30.24730984347543,
+            "p99_absolute": 34.01174693510474,
+            "maximum_absolute": 753.3551852564768
+          },
+          {
+            "coordinate": 17,
+            "name": "right_ankle_roll_joint",
+            "rms": 14.126949678097933,
+            "p99_absolute": 31.588725682198657,
+            "maximum_absolute": 338.78507023874994
+          },
+          {
+            "coordinate": 22,
+            "name": "left_elbow_joint",
+            "rms": 6.088838136387586,
+            "p99_absolute": 21.069148231800693,
+            "maximum_absolute": 78.7073604126667
+          },
+          {
+            "coordinate": 27,
+            "name": "right_elbow_joint",
+            "rms": 5.266865877405676,
+            "p99_absolute": 17.859603060468768,
+            "maximum_absolute": 72.05008135144578
+          },
+          {
+            "coordinate": 16,
+            "name": "right_ankle_pitch_joint",
+            "rms": 7.24017036987704,
+            "p99_absolute": 16.436123754297995,
+            "maximum_absolute": 171.4089677288513
+          },
+          {
+            "coordinate": 20,
+            "name": "left_shoulder_roll_joint",
+            "rms": 5.594532979129668,
+            "p99_absolute": 16.317071513700384,
+            "maximum_absolute": 117.47220654033298
+          },
+          {
+            "coordinate": 25,
+            "name": "right_shoulder_roll_joint",
+            "rms": 5.585920701927322,
+            "p99_absolute": 16.263875667855597,
+            "maximum_absolute": 124.12314856069791
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 2259,
+          "longest_ticks": 1158,
+          "longest_ms": 5790.0
+        },
+        "0.005": {
+          "ticks": 2122,
+          "longest_ticks": 432,
+          "longest_ms": 2160.0
+        },
+        "0.01": {
+          "ticks": 1800,
+          "longest_ticks": 234,
+          "longest_ms": 1170.0
+        },
+        "0.05": {
+          "ticks": 317,
+          "longest_ticks": 50,
+          "longest_ms": 250.0
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          88,
+          3,
+          102,
+          10,
+          99,
+          13,
+          102,
+          null
+        ],
+        "unrecovered_edges": 1,
+        "maximum_recovery_ms": 510.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 6.4146256551411955,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 2.664049799604456,
+          "stddev": 5.835260145085484,
+          "mad": 0.7529866020861462,
+          "p50": 0.7529866020861462,
+          "p95": 11.237826208695232,
+          "p99": 33.3635800237098,
+          "p99_9": 60.581652711299476,
+          "maximum": 75.21937080082151
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 3.270821288104244e-11,
+          "mean": 3.4160757044190284e-10,
+          "stddev": 2.4629005680142357e-10,
+          "mad": 1.2079225814032313e-10,
+          "p50": 2.9524316325080235e-10,
+          "p95": 7.041702887455869e-10,
+          "p99": 9.926001742766048e-10,
+          "p99_9": 2.242507881997031e-09,
+          "maximum": 6.292488134879949e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 6.846892370251959e-13,
+          "mean": 1.1884205498087707e-11,
+          "stddev": 8.377214919643705e-12,
+          "mad": 4.690485040011451e-12,
+          "p50": 9.561039460148635e-12,
+          "p95": 2.878483582133964e-11,
+          "p99": 3.86997698129319e-11,
+          "p99_9": 4.773971783955503e-11,
+          "maximum": 6.976013379231737e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 3.270821288104244e-11,
+            "mean": 3.4160757044190284e-10,
+            "stddev": 2.4629005680142357e-10,
+            "mad": 1.2079225814032313e-10,
+            "p50": 2.9524316325080235e-10,
+            "p95": 7.041702887455869e-10,
+            "p99": 9.926001742766048e-10,
+            "p99_9": 2.242507881997031e-09,
+            "maximum": 6.292488134879949e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 3.270821288104244e-11,
+          "mean": 3.4160757044190284e-10,
+          "stddev": 2.4629005680142357e-10,
+          "mad": 1.2079225814032313e-10,
+          "p50": 2.9524316325080235e-10,
+          "p95": 7.041702887455869e-10,
+          "p99": 9.926001742766048e-10,
+          "p99_9": 2.242507881997031e-09,
+          "maximum": 6.292488134879949e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 1.8364011768245052,
+            "stddev": 31.352477951316015,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 559.5739324080922,
+            "maximum": 897.454661657528
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -2.5518314925471306,
+            "mean": 5.903124785536873,
+            "stddev": 10.418430343078223,
+            "mad": 0.29815850060925564,
+            "p50": 0.24941925613833427,
+            "p95": 29.186027900169176,
+            "p99": 34.83745846831739,
+            "p99_9": 63.83052777249516,
+            "maximum": 70.04897736420367
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -4.3912732385573445,
+            "mean": 6.6346891333993145,
+            "stddev": 10.579154537075835,
+            "mad": 1.9139714985188696,
+            "p50": 0.2164320490536522,
+            "p95": 27.206021944773244,
+            "p99": 36.60101609525526,
+            "p99_9": 65.56087473342653,
+            "maximum": 71.20983815805093
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": -0.08273648545275038,
+            "mean": 0.008885707798074207,
+            "stddev": 0.006978951220434382,
+            "mad": 0.0020016136566874294,
+            "p50": 0.0070020685649951064,
+            "p95": 0.025132902164631037,
+            "p99": 0.027093258049765125,
+            "p99_9": 0.027483016027644865,
+            "maximum": 0.02749097093812084
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 15,
+          "normal_force": 373,
+          "friction": 1021,
+          "support_5mm": 347
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 738.94316954626,
+        "maximum_increase_from_r54": 738.9429512236263
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1047.25,
+          "mean": 1288.6541419939576,
+          "stddev": 160.18455648374726,
+          "mad": 56.24599999999987,
+          "p50": 1361.844,
+          "p95": 1434.3062,
+          "p99": 1896.8159200000007,
+          "p99_9": 2082.8845800000017,
+          "maximum": 2098.305
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    },
+    {
+      "name": "half_available",
+      "profile": {
+        "bandwidth_hz": 10.0,
+        "effort_rate_nm_s": 1000.0,
+        "availability_fraction": 0.5
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 7.304580647126415,
+          "absolute": {
+            "minimum": 3.2287704004570553e-12,
+            "mean": 0.7311553109569504,
+            "stddev": 7.267895867555699,
+            "mad": 0.1352271967419009,
+            "p50": 0.14548292102737403,
+            "p95": 2.5561436210910684,
+            "p99": 7.523120063699549,
+            "p99_9": 43.942207824045944,
+            "maximum": 983.0256879429626
+          }
+        },
+        "root_angular_rms": 0.2736336116923916,
+        "root_linear_rms": 0.056015723161726184,
+        "joint_rms": 8.201579951545845,
+        "bound_normalized_pressure": {
+          "minimum": 1.2316008618089595e-12,
+          "mean": 0.028173012222823184,
+          "stddev": 0.15928847296563178,
+          "mad": 0.0057131746925999545,
+          "p50": 0.009356167507818739,
+          "p95": 0.062071022874969156,
+          "p99": 0.3060031594414096,
+          "p99_9": 2.398926570208232,
+          "maximum": 4.915128439714813
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 22,
+            "name": "left_elbow_joint",
+            "rms": 5.00210767076388,
+            "p99_absolute": 17.18214141169762,
+            "maximum_absolute": 71.27092628163143
+          },
+          {
+            "coordinate": 20,
+            "name": "left_shoulder_roll_joint",
+            "rms": 4.6965411368935985,
+            "p99_absolute": 16.098989280363018,
+            "maximum_absolute": 96.06933623208977
+          },
+          {
+            "coordinate": 25,
+            "name": "right_shoulder_roll_joint",
+            "rms": 4.650687441793234,
+            "p99_absolute": 15.639078476862363,
+            "maximum_absolute": 98.63790068036566
+          },
+          {
+            "coordinate": 27,
+            "name": "right_elbow_joint",
+            "rms": 3.935043056376893,
+            "p99_absolute": 14.108694879655737,
+            "maximum_absolute": 59.995149239651056
+          },
+          {
+            "coordinate": 24,
+            "name": "right_shoulder_pitch_joint",
+            "rms": 3.598500496498176,
+            "p99_absolute": 12.018282703342484,
+            "maximum_absolute": 86.60977106698613
+          },
+          {
+            "coordinate": 19,
+            "name": "left_shoulder_pitch_joint",
+            "rms": 3.6370384843878427,
+            "p99_absolute": 11.735259075283203,
+            "maximum_absolute": 82.36099160194091
+          },
+          {
+            "coordinate": 11,
+            "name": "left_ankle_roll_joint",
+            "rms": 30.00542969606984,
+            "p99_absolute": 8.531247258181928,
+            "maximum_absolute": 983.0256879429626
+          },
+          {
+            "coordinate": 21,
+            "name": "left_shoulder_yaw_joint",
+            "rms": 2.4181812084835266,
+            "p99_absolute": 7.475695722856008,
+            "maximum_absolute": 48.75320388259111
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 2217,
+          "longest_ticks": 1158,
+          "longest_ms": 5790.0
+        },
+        "0.005": {
+          "ticks": 1775,
+          "longest_ticks": 229,
+          "longest_ms": 1145.0
+        },
+        "0.01": {
+          "ticks": 1114,
+          "longest_ticks": 154,
+          "longest_ms": 770.0
+        },
+        "0.05": {
+          "ticks": 154,
+          "longest_ticks": 15,
+          "longest_ms": 75.0
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          21,
+          0,
+          19,
+          0,
+          21,
+          0,
+          20,
+          null
+        ],
+        "unrecovered_edges": 1,
+        "maximum_recovery_ms": 105.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 4.402358148892314,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 1.6506939201206126,
+          "stddev": 4.081172240079486,
+          "mad": 0.4311073772193434,
+          "p50": 0.4311073772193434,
+          "p95": 6.614880870280766,
+          "p99": 20.367431125151285,
+          "p99_9": 47.880874816823784,
+          "maximum": 64.24835775788088
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 3.0459600119936425e-11,
+          "mean": 3.3829751579950734e-10,
+          "stddev": 2.1132559050962725e-10,
+          "mad": 1.1778281908819688e-10,
+          "p50": 2.964894363008397e-10,
+          "p95": 6.997453493349328e-10,
+          "p99": 9.562954783604038e-10,
+          "p99_9": 1.6502980783317758e-09,
+          "maximum": 4.1067745247766146e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 4.806393976703834e-13,
+          "mean": 1.183145380476491e-11,
+          "stddev": 8.306407655009699e-12,
+          "mad": 4.6092299281685974e-12,
+          "p50": 9.485349966613235e-12,
+          "p95": 2.85830902889228e-11,
+          "p99": 3.8730583514411486e-11,
+          "p99_9": 4.784259656245673e-11,
+          "maximum": 5.256748676759834e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 3.0459600119936425e-11,
+            "mean": 3.3829751579950734e-10,
+            "stddev": 2.1132559050962725e-10,
+            "mad": 1.1778281908819688e-10,
+            "p50": 2.964894363008397e-10,
+            "p95": 6.997453493349328e-10,
+            "p99": 9.562954783604038e-10,
+            "p99_9": 1.6502980783317758e-09,
+            "maximum": 4.1067745247766146e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 3.0459600119936425e-11,
+          "mean": 3.3829751579950734e-10,
+          "stddev": 2.1132559050962725e-10,
+          "mad": 1.1778281908819688e-10,
+          "p50": 2.964894363008397e-10,
+          "p95": 6.997453493349328e-10,
+          "p99": 9.562954783604038e-10,
+          "p99_9": 1.6502980783317758e-09,
+          "maximum": 4.1067745247766146e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 0.8646367112584269,
+            "stddev": 21.126546851357674,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 279.731663420768,
+            "maximum": 783.0256877781919
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -1.2404882653939906,
+            "mean": 5.5483199289574126,
+            "stddev": 9.989529619010758,
+            "mad": 0.24005312973301784,
+            "p50": 0.16963607658445684,
+            "p95": 28.520344561532735,
+            "p99": 33.24824076590154,
+            "p99_9": 53.815052087358886,
+            "maximum": 67.34243334453377
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -4.361973386741745,
+            "mean": 6.15117347678988,
+            "stddev": 9.91895702527547,
+            "mad": 1.315214149487415,
+            "p50": 0.07815470777232825,
+            "p95": 26.44830794814294,
+            "p99": 33.75917864601812,
+            "p99_9": 59.41269039365611,
+            "maximum": 66.04476568486609
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": -0.004716294544999441,
+            "mean": 0.008531197871613416,
+            "stddev": 0.0057308967551653305,
+            "mad": 0.001516944325094697,
+            "p50": 0.006446265741746782,
+            "p95": 0.024730408869988715,
+            "p99": 0.02715557450457714,
+            "p99_9": 0.0274758207592135,
+            "maximum": 0.027497022170088335
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 8,
+          "normal_force": 377,
+          "friction": 1079,
+          "support_5mm": 413
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 655.4726857985718,
+        "maximum_increase_from_r54": 655.4724674759381
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1051.797,
+          "mean": 1290.8992209753992,
+          "stddev": 159.52965393241948,
+          "mad": 60.153999999999996,
+          "p50": 1362.595,
+          "p95": 1436.521,
+          "p99": 1894.4260800000009,
+          "p99_9": 2103.302596000001,
+          "maximum": 2168.529
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    },
+    {
+      "name": "quarter_available_slow",
+      "profile": {
+        "bandwidth_hz": 5.0,
+        "effort_rate_nm_s": 250.0,
+        "availability_fraction": 0.25
+      },
+      "exact_repeat": true,
+      "status_counts": {
+        "solved": 2317,
+        "solved_with_slack": 0,
+        "primal_infeasible": 0,
+        "numerical_failure": 0
+      },
+      "acceleration_error": {
+        "all_coordinates": {
+          "rms": 11.055321928173791,
+          "absolute": {
+            "minimum": 3.2287704004570553e-12,
+            "mean": 2.240887740151992,
+            "stddev": 10.825828609007107,
+            "mad": 0.8423648978352681,
+            "p50": 0.9704576716495896,
+            "p95": 7.224350866538679,
+            "p99": 14.642693996640853,
+            "p99_9": 70.11091535093671,
+            "maximum": 1101.1750717131597
+          }
+        },
+        "root_angular_rms": 1.5045146850415139,
+        "root_linear_rms": 0.26399904638962934,
+        "joint_rms": 12.401585391864478,
+        "bound_normalized_pressure": {
+          "minimum": 1.2316008618089595e-12,
+          "mean": 0.06634454426709194,
+          "stddev": 0.23136013252171714,
+          "mad": 0.014718058761022456,
+          "p50": 0.03536267525614271,
+          "p95": 0.1138677709247695,
+          "p99": 0.656130014919363,
+          "p99_9": 3.81982396487654,
+          "maximum": 5.505875358565799
+        },
+        "worst_coordinates_by_p99": [
+          {
+            "coordinate": 11,
+            "name": "left_ankle_roll_joint",
+            "rms": 44.184068747788444,
+            "p99_absolute": 55.84452039212128,
+            "maximum_absolute": 1101.1750717131597
+          },
+          {
+            "coordinate": 10,
+            "name": "left_ankle_pitch_joint",
+            "rms": 30.139001313283806,
+            "p99_absolute": 31.728195970902124,
+            "maximum_absolute": 750.558346430248
+          },
+          {
+            "coordinate": 17,
+            "name": "right_ankle_roll_joint",
+            "rms": 14.110552371694439,
+            "p99_absolute": 30.902451384281044,
+            "maximum_absolute": 338.7850714965066
+          },
+          {
+            "coordinate": 22,
+            "name": "left_elbow_joint",
+            "rms": 6.677239893285783,
+            "p99_absolute": 23.742415367584197,
+            "maximum_absolute": 79.37623299792506
+          },
+          {
+            "coordinate": 21,
+            "name": "left_shoulder_yaw_joint",
+            "rms": 4.534597122260275,
+            "p99_absolute": 22.401275639484176,
+            "maximum_absolute": 55.00206363571655
+          },
+          {
+            "coordinate": 23,
+            "name": "left_wrist_roll_joint",
+            "rms": 4.576291041564391,
+            "p99_absolute": 22.005076837301804,
+            "maximum_absolute": 50.51046201049009
+          },
+          {
+            "coordinate": 15,
+            "name": "right_knee_joint",
+            "rms": 6.545807727866515,
+            "p99_absolute": 21.63378546642396,
+            "maximum_absolute": 31.532146239473963
+          },
+          {
+            "coordinate": 27,
+            "name": "right_elbow_joint",
+            "rms": 6.2322556162545775,
+            "p99_absolute": 20.672964935263366,
+            "maximum_absolute": 62.54245845215995
+          }
+        ]
+      },
+      "dwell": {
+        "0.001": {
+          "ticks": 2316,
+          "longest_ticks": 2316,
+          "longest_ms": 11580.0
+        },
+        "0.005": {
+          "ticks": 2294,
+          "longest_ticks": 1702,
+          "longest_ms": 8510.0
+        },
+        "0.01": {
+          "ticks": 2217,
+          "longest_ticks": 1131,
+          "longest_ms": 5655.0
+        },
+        "0.05": {
+          "ticks": 662,
+          "longest_ticks": 188,
+          "longest_ms": 940.0000000000001
+        }
+      },
+      "contact_edge_recovery_at_1pct_bound": {
+        "recoveries_ticks": [
+          null,
+          null,
+          null,
+          24,
+          null,
+          16,
+          null,
+          null
+        ],
+        "unrecovered_edges": 6,
+        "maximum_recovery_ms": 120.0
+      },
+      "fixed_effort_equality_error_nm": {
+        "rms": 0.0,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 0.0,
+          "stddev": 0.0,
+          "mad": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "p99_9": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "admitted_fixed_effort_equality_error_nm": {
+        "minimum": 0.0,
+        "mean": 0.0,
+        "stddev": 0.0,
+        "mad": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "p99_9": 0.0,
+        "maximum": 0.0
+      },
+      "contact_normal_force_shift_n": {
+        "rms": 7.982938867437192,
+        "absolute": {
+          "minimum": 0.0,
+          "mean": 4.291093558980263,
+          "stddev": 6.731554726013708,
+          "mad": 1.8665199012964742,
+          "p50": 1.8665199012964742,
+          "p95": 15.420838811453107,
+          "p99": 32.7780599630472,
+          "p99_9": 60.95850332386176,
+          "maximum": 76.67880652096541
+        }
+      },
+      "constraints": {
+        "dynamics_residual_linf": {
+          "minimum": 3.2689561134228735e-11,
+          "mean": 3.3797957394176765e-10,
+          "stddev": 2.443341780631612e-10,
+          "mad": 1.2088979056070405e-10,
+          "p50": 2.9461669954796787e-10,
+          "p95": 6.842287862781257e-10,
+          "p99": 9.95849951390682e-10,
+          "p99_9": 2.2356738890699257e-09,
+          "maximum": 6.243676291423885e-09
+        },
+        "contact_residual_linf": {
+          "minimum": 6.944313436682639e-13,
+          "mean": 1.1725401794941861e-11,
+          "stddev": 8.345907825547488e-12,
+          "mad": 4.666866122831651e-12,
+          "p50": 9.351235010177625e-12,
+          "p95": 2.882634283925165e-11,
+          "p99": 3.825399875340142e-11,
+          "p99_9": 4.8051107728255883e-11,
+          "maximum": 6.938059537773188e-11
+        },
+        "maximum_constraint_violation": {
+          "finite": {
+            "minimum": 3.2689561134228735e-11,
+            "mean": 3.3797957394176765e-10,
+            "stddev": 2.443341780631612e-10,
+            "mad": 1.2088979056070405e-10,
+            "p50": 2.9461669954796787e-10,
+            "p95": 6.842287862781257e-10,
+            "p99": 9.95849951390682e-10,
+            "p99_9": 2.2356738890699257e-09,
+            "maximum": 6.243676291423885e-09
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "admitted_maximum_constraint_violation": {
+          "minimum": 3.2689561134228735e-11,
+          "mean": 3.3797957394176765e-10,
+          "stddev": 2.443341780631612e-10,
+          "mad": 1.2088979056070405e-10,
+          "p50": 2.9461669954796787e-10,
+          "p95": 6.842287862781257e-10,
+          "p99": 9.95849951390682e-10,
+          "p99_9": 2.2356738890699257e-09,
+          "maximum": 6.243676291423885e-09
+        }
+      },
+      "scored_inequalities": {
+        "acceleration_bound_excess": {
+          "finite": {
+            "minimum": 0.0,
+            "mean": 1.8572900431132466,
+            "stddev": 31.58288077976197,
+            "mad": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "p99_9": 563.9111423544296,
+            "maximum": 901.175071548389
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_normal_force_n": {
+          "finite": {
+            "minimum": -2.4037605399108912,
+            "mean": 5.691403479812932,
+            "stddev": 9.874309944192802,
+            "mad": 0.5064155733891772,
+            "p50": 0.5064155733891772,
+            "p95": 26.64919412445227,
+            "p99": 34.48072404758084,
+            "p99_9": 62.16275566981435,
+            "maximum": 65.71416386623154
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_friction_margin_n": {
+          "finite": {
+            "minimum": -20.383445829024804,
+            "mean": 5.6978435280502895,
+            "stddev": 9.911605935777217,
+            "mad": 1.9031781805912085,
+            "p50": 0.355110953093978,
+            "p95": 22.92672028060332,
+            "p99": 36.09577956906226,
+            "p99_9": 63.62440389309954,
+            "maximum": 66.4158211278552
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 0
+        },
+        "minimum_support_margin_m": {
+          "finite": {
+            "minimum": -0.8080352268001318,
+            "mean": 0.009050809862661205,
+            "stddev": 0.020068937753474455,
+            "mad": 0.001755949546399127,
+            "p50": 0.0076431443149251425,
+            "p95": 0.025122765426424762,
+            "p99": 0.027093385554129094,
+            "p99_9": 0.027483016027644865,
+            "maximum": 0.02749097093812084
+          },
+          "positive_infinity": 0,
+          "negative_infinity": 0,
+          "nan": 458
+        },
+        "violation_ticks": {
+          "acceleration_bound": 15,
+          "normal_force": 222,
+          "friction": 960,
+          "support_5mm": 110
+        }
+      },
+      "task_residual": {
+        "maximum_rms": 739.7096470356438,
+        "maximum_increase_from_r54": 739.7094287130101
+      },
+      "runtime": {
+        "step_us": {
+          "minimum": 1052.981,
+          "mean": 1346.907332326284,
+          "stddev": 251.56674589912254,
+          "mad": 78.82899999999995,
+          "p50": 1366.212,
+          "p95": 2038.992,
+          "p99": 2119.36104,
+          "p99_9": 2212.2898440000013,
+          "maximum": 2473.575
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      }
+    }
+  ],
+  "source_sha256": {
+    "benchmarks/results/g1-multistep-oracle-r54/oracle-wbc-admission-raw.npz": "f1521acd7a0cc777f61407e49865f5953355d4382035421fb2582f2fa0164295",
+    "benchmarks/results/g1-multistep-oracle-r54/oracle-wbc-admission-metrics.json": "0706030dc9d2f116d4b291efff7c3a041576fa4fba030f99150d7518c9229e18",
+    "benchmarks/results/g1-actuator-realization-r62/actuator-realization-raw.npz": "e70d282de54145107da816d1e053d0a778d12f64085eacbad37cd0a374e3f494",
+    "benchmarks/results/g1-actuator-realization-r62/actuator-realization-metrics.json": "f15e57705f615218328205260a59f10608b1c0cc2d3bcbafc58c2d0643056fd5"
+  }
+}

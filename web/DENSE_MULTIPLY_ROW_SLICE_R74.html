@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw row-sliced dense matrix products · r74</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw row-sliced dense matrix products · r74</h1>
+<h2>Decision · PROMOTE</h2>
+<p>Production now addresses the left, right, and output rows of each dense matrix product through prevalidated contiguous slices. Output initialization, row/shared/column traversal, exact-zero skipping, and every scalar multiply-add remain in the established order. This changes address and bounds work, not solver arithmetic.</p>
+<p>Across five alternating complete-process A/B pairs pinned to one logical CPU, all 56 non-timing arrays remain bit-for-bit exact and every candidate retires fewer instructions. Median retired instructions fall 4.104%; process CPU/p50/p99 move -2.23%/-2.19%/-1.94%.</p>
+<p>The separate 58-variable native G1 sentinel is semantically exact and allocation-free. Marginal instructions fall from 15.807 M to 15.317 M per tick (-3.098%); native cycles/p50/p99 move -2.17%/-2.28%/-2.17%.</p>
+<blockquote>Hardware counters remain scoped honestly: the primary A/B covers the complete Python admission process; the native measurement subtracts an adjacent one-tick process and remains a marginal upper bound. Stable retired instructions plus exact semantics decide promotion.</blockquote>
+<h2>Post-r72 profile attribution</h2>
+<p>A 5,324-sample, zero-loss cycle profile of 2,000 CPU-pinned native G1 ticks attributed 81.09% self cycles to the pseudoinverse symbol, 16.34% to the Jacobi coupling line, and 8.21% to the general dense multiply. The narrow r73 paired-iterator candidate was exact but changed median instructions by only +0.0000014% with mixed signs, so it is rejected. Row slicing at the multiply boundary produces stable work reduction instead.</p>
+<h2>Pinned complete-process A/B</h2>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>production − flat-index control</th></tr></thead><tbody><tr><td>retired instructions</td><td>-4.104%</td></tr><tr><td>cycles</td><td>-2.13%</td></tr><tr><td>task clock</td><td>-2.11%</td></tr><tr><td>process CPU</td><td>-2.23%</td></tr><tr><td>p50 tick</td><td>-2.19%</td></tr><tr><td>p99 tick</td><td>-1.94%</td></tr><tr><td>maximum RSS</td><td>+0.0000%</td></tr></tbody></table></div>
+<h2>Native marginal WBC sentinel</h2>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>flat-index control</th><th>production</th><th>delta</th></tr></thead><tbody><tr><td>instructions / tick</td><td>15.807 M</td><td>15.317 M</td><td>-3.098%</td></tr><tr><td>cycles / tick</td><td>5.499 M</td><td>5.380 M</td><td>-2.17%</td></tr><tr><td>task clock / tick</td><td>1.316 ms</td><td>1.286 ms</td><td>-2.30%</td></tr><tr><td>p50 / p99</td><td>1311.4 / 1360.6 µs</td><td>1281.5 / 1331.1 µs</td><td>-2.28% / -2.17%</td></tr></tbody></table></div>
+<h2>Preservation and interpretation</h2>
+<ul><li>Default production, explicit experiment, and flat-index control all pass 123 core tests; the row-slice product witness covers dense and sparse shapes through 58 × 58.</li><li>Solver work is unchanged: 16,809 task pseudoinverses, 122,031 Jacobi sweeps, and 10,604 clipped steps. This is cheaper execution of identical work.</li><li>Exact r54 outputs inherit the established r63 8/8 fixed-effort consequence and r64 6/6 independent Pinocchio/NumPy oracle evidence without translating a changed trace.</li><li>The `dense-multiply-row-slice-control` feature preserves the pre-r74 flat-index implementation for future differential checks.</li><li>CUDA remains deferred; r74 further tightens and accelerates the CPU semantic reference.</li></ul>
+<h2>Gates</h2>
+<ul><li>PASS `production_passes_all_43_admission_gates`</li><li>PASS `all_56_non_timing_arrays_are_bit_exact`</li><li>PASS `all_five_pinned_process_pairs_are_bit_exact`</li><li>PASS `retired_instructions_fall_in_every_pinned_process_pair`</li><li>PASS `native_semantic_reports_are_exact`</li><li>PASS `native_marginal_instructions_fall`</li><li>PASS `production_keeps_zero_measured_rust_allocations`</li></ul></main></body></html>

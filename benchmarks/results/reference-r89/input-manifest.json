@@ -1,0 +1,138 @@
+{
+  "model": "models/toy_humanoid.urdf",
+  "ticks": 5000,
+  "dt_seconds": 0.02,
+  "frame_names": [
+    "pelvis",
+    "left_hip_roll_link",
+    "left_thigh",
+    "left_shin",
+    "left_foot",
+    "right_hip_roll_link",
+    "right_thigh",
+    "right_shin",
+    "right_foot",
+    "torso_yaw_link",
+    "chest",
+    "head_yaw_link",
+    "head",
+    "left_shoulder_pitch_link",
+    "left_upper_arm",
+    "left_forearm",
+    "left_hand",
+    "right_shoulder_pitch_link",
+    "right_upper_arm",
+    "right_forearm",
+    "right_hand"
+  ],
+  "joint_names": [
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee",
+    "left_ankle",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee",
+    "right_ankle",
+    "torso_yaw",
+    "torso_pitch",
+    "head_yaw",
+    "head_pitch",
+    "left_shoulder_pitch",
+    "left_shoulder_roll",
+    "left_elbow",
+    "right_shoulder_pitch",
+    "right_shoulder_roll",
+    "right_elbow"
+  ],
+  "scenarios": {
+    "end_effector_reach": {
+      "name": "end_effector_reach",
+      "frame_names": [
+        "left_hand",
+        "right_hand"
+      ],
+      "priorities": [
+        2,
+        2
+      ],
+      "weights": [
+        1.0,
+        1.0
+      ]
+    },
+    "bimanual_priority_conflict": {
+      "name": "bimanual_priority_conflict",
+      "frame_names": [
+        "left_hand",
+        "right_hand"
+      ],
+      "priorities": [
+        2,
+        2
+      ],
+      "weights": [
+        1.0,
+        1.0
+      ]
+    },
+    "walking_motion_retarget": {
+      "name": "walking_motion_retarget",
+      "frame_names": [
+        "left_foot",
+        "right_foot",
+        "left_hand",
+        "right_hand"
+      ],
+      "priorities": [
+        2,
+        2,
+        3,
+        3
+      ],
+      "weights": [
+        1.0,
+        1.0,
+        0.35,
+        0.35
+      ]
+    }
+  },
+  "walking_reference": {
+    "dataset": "CMU Graphics Lab Motion Capture Database",
+    "subject": 37,
+    "trial": 1,
+    "description": "slow walk",
+    "sample_rate_hz": 120,
+    "skeleton_url": "http://mocap.cs.cmu.edu/subjects/37/37.asf",
+    "motion_url": "http://mocap.cs.cmu.edu/subjects/37/37_01.amc",
+    "skeleton_sha256": "b1c80e8095954a86da9e2685a314d6fae258c905850044c03c4387757b2449a6",
+    "motion_sha256": "6864d7de5a09605769a30261b27387f42cf925a165c8b548cfdb798d275d0678",
+    "length_to_meters": 0.05644444444444444,
+    "license_summary": "The CMU Graphics Lab states that the motion-capture data may be copied, modified, or redistributed without permission. The data itself may not be resold directly.",
+    "license_url": "https://mocap.cs.cmu.edu/faqs.php",
+    "acknowledgement": "The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.",
+    "source_rate_hz": 120,
+    "source_frames": 511,
+    "cycle_start_frame_zero_based": 134,
+    "cycle_stop_frame_exclusive_zero_based": 291,
+    "cycle_duration_seconds": 1.3083333333333333,
+    "closure_position_rms_m": 0.011254453806389224,
+    "periodic_reconstruction_maximum_harmonic": 6,
+    "fixed_pelvis_grounding": "lower bilateral foot at zero height each phase",
+    "reference_flight_fraction": 0.0,
+    "reference_double_support_fraction": 0.2566,
+    "reference_contact_transition_count": 606,
+    "leg_morphology_scale": 1.0338304174385953,
+    "arm_morphology_scale": 0.6160755510492305,
+    "cadence_scale_pattern": [
+      0.75,
+      1.0,
+      1.25,
+      1.0
+    ],
+    "cadence_block_seconds": 8.0,
+    "maximum_target_speed_m_s": 3.0452722307505966,
+    "maximum_target_acceleration_m_s2": 56.7175490709443
+  }
+}

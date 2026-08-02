@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "revision": "rank-minimal-support-r85",
+  "generated_at": "2026-08-01T09:06:34.782191+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64"
+  },
+  "policy": null,
+  "physics_rollout": null,
+  "rank_oracle": {
+    "samples": 16,
+    "contact_modes": [
+      1,
+      2,
+      0,
+      3,
+      0
+    ],
+    "kernel_abi_version": 2,
+    "sole_force_points": 4,
+    "sole_force_variables": 12,
+    "sole_kinematic_rows": 6,
+    "rank_values": [
+      6
+    ],
+    "minimum_singular_value": 0.04802330575828496,
+    "maximum_implied_all_point_acceleration_linf": 2.786881836414068e-12,
+    "minimum_oracle_support_margin_m": 0.020000000000000004,
+    "pinocchio_dynamics_linf": 5.659686053149926e-10,
+    "pinocchio_contact_acceleration_linf": 2.786881836414068e-12,
+    "reported_margin_max_abs_delta_m": 2.7755575615628914e-17,
+    "descriptor_fingerprint_changes_with_modes": true,
+    "status_counts": {
+      "SolvedWithSlack": 16
+    },
+    "allocation_calls": 0,
+    "allocated_bytes": 0,
+    "pass": true
+  },
+  "force_preference_conflict": {
+    "without_patch_oracle_margin_m": 0.008017784888060167,
+    "with_patch_oracle_margin_m": 0.020000000000000004,
+    "requested_margin_m": 0.02,
+    "without_patch_force_style_l2_n": 71.7473486205275,
+    "with_patch_force_style_l2_n": 142.89219415041657,
+    "unconstrained_normal_force_n": [
+      330.8409052303913,
+      19.661772629676435,
+      18.821120731806545,
+      19.285555859335858
+    ],
+    "constrained_normal_force_n": [
+      274.0805437359266,
+      50.870352689649856,
+      29.0664761086347,
+      50.17865693669907
+    ],
+    "pass": true
+  },
+  "zero_load": {
+    "status": "SolvedWithSlack",
+    "patch_total_normal_force_n": 0.0,
+    "outside_patch_normal_force_n": 363.85446139797966,
+    "reported_margin": "Infinity",
+    "limiting_patch": null,
+    "pass": true
+  },
+  "failure_and_isolation": {
+    "invalid_margin_agent": 8,
+    "invalid_margin_isolated": true,
+    "missing_patch_point_agent": 9,
+    "missing_point_isolated": true,
+    "disabled_poisoned_margin_ignored_bitwise": true,
+    "pass": true
+  },
+  "invariance": {
+    "repeat_bitwise_exact": true,
+    "permutation_exact": true,
+    "padding_exact": true,
+    "allocation_calls": 0,
+    "pass": true
+  },
+  "timing_comparison": [
+    {
+      "batch_size": 1,
+      "repeats_per_profile": 60,
+      "all_locked": {
+        "batch_size": 1,
+        "solve_execute_ns": {
+          "minimum": 1792846.0,
+          "mean": 1816893.7166666666,
+          "stddev": 13558.854184740521,
+          "mad": 5315.5,
+          "p50": 1815488.0,
+          "p95": 1829966.85,
+          "p99": 1865593.9399999997,
+          "p99_9": 1894763.8940000006,
+          "maximum": 1898005.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 2033961.0,
+          "mean": 2061323.6833333333,
+          "stddev": 13357.141224193729,
+          "mad": 5461.0,
+          "p50": 2061228.0,
+          "p95": 2074385.65,
+          "p99": 2106337.0999999996,
+          "p99_9": 2134273.0100000007,
+          "maximum": 2137377.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "rank_minimal": {
+        "batch_size": 1,
+        "solve_execute_ns": {
+          "minimum": 1237797.0,
+          "mean": 1258603.2,
+          "stddev": 9352.80867048325,
+          "mad": 4198.0,
+          "p50": 1258221.0,
+          "p95": 1279811.35,
+          "p99": 1285111.8,
+          "p99_9": 1285260.48,
+          "maximum": 1285277.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 1477941.0,
+          "mean": 1501773.3333333333,
+          "stddev": 11146.980840369088,
+          "mad": 5771.0,
+          "p50": 1500804.5,
+          "p95": 1523447.2,
+          "p99": 1534198.21,
+          "p99_9": 1534666.021,
+          "maximum": 1534718.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "solve_p50_delta_percent": -30.695162953431808,
+      "solve_p99_delta_percent": -31.115138592270497
+    },
+    {
+      "batch_size": 8,
+      "repeats_per_profile": 60,
+      "all_locked": {
+        "batch_size": 8,
+        "solve_execute_ns": {
+          "minimum": 13244131.0,
+          "mean": 14562433.233333332,
+          "stddev": 1424006.4384603435,
+          "mad": 509216.0,
+          "p50": 13848863.5,
+          "p95": 16845277.65,
+          "p99": 16893749.94,
+          "p99_9": 16926105.894,
+          "maximum": 16929701.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 15080499.0,
+          "mean": 16618526.7,
+          "stddev": 1616033.823773534,
+          "mad": 552106.5,
+          "p50": 15791196.0,
+          "p95": 19195455.8,
+          "p99": 19262686.64,
+          "p99_9": 19298212.664,
+          "maximum": 19302160.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "rank_minimal": {
+        "batch_size": 8,
+        "solve_execute_ns": {
+          "minimum": 9597916.0,
+          "mean": 9730702.933333334,
+          "stddev": 89469.49788184177,
+          "mad": 39899.5,
+          "p50": 9717377.0,
+          "p95": 9878402.8,
+          "p99": 9986224.99,
+          "p99_9": 10067382.499000002,
+          "maximum": 10076400.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 11423464.0,
+          "mean": 11589033.466666667,
+          "stddev": 110659.89972124298,
+          "mad": 50206.0,
+          "p50": 11574133.0,
+          "p95": 11781913.75,
+          "p99": 11890561.84,
+          "p99_9": 11970383.884000001,
+          "maximum": 11979253.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "solve_p50_delta_percent": -29.832675439396162,
+      "solve_p99_delta_percent": -40.88805016371635
+    },
+    {
+      "batch_size": 32,
+      "repeats_per_profile": 60,
+      "all_locked": {
+        "batch_size": 32,
+        "solve_execute_ns": {
+          "minimum": 53922844.0,
+          "mean": 54221591.31666667,
+          "stddev": 237986.68292536115,
+          "mad": 103435.0,
+          "p50": 54133707.5,
+          "p95": 54706612.05,
+          "p99": 54847753.19,
+          "p99_9": 54889680.419,
+          "maximum": 54894339.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 61203605.0,
+          "mean": 61567109.81666667,
+          "stddev": 254453.76068639607,
+          "mad": 147433.0,
+          "p50": 61507227.5,
+          "p95": 62100799.6,
+          "p99": 62192869.11,
+          "p99_9": 62229598.911,
+          "maximum": 62233680.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "rank_minimal": {
+        "batch_size": 32,
+        "solve_execute_ns": {
+          "minimum": 38768585.0,
+          "mean": 39013181.46666667,
+          "stddev": 133639.64690620653,
+          "mad": 105304.0,
+          "p50": 38986256.0,
+          "p95": 39248052.8,
+          "p99": 39300946.67,
+          "p99_9": 39302745.167,
+          "maximum": 39302945.0
+        },
+        "full_pipeline_ns": {
+          "minimum": 46094400.0,
+          "mean": 46341645.56666667,
+          "stddev": 143854.00532951995,
+          "mad": 100660.5,
+          "p50": 46317616.5,
+          "p95": 46590249.1,
+          "p99": 46599133.68,
+          "p99_9": 46601442.468,
+          "maximum": 46601699.0
+        },
+        "allocation_calls": 0,
+        "allocated_bytes": 0
+      },
+      "solve_p50_delta_percent": -27.981551974802386,
+      "solve_p99_delta_percent": -28.345384479367397
+    }
+  ],
+  "admission": true
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw adaptive pair/interval clearance · r106</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw adaptive pair/interval clearance · r106</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R106 retains the exact 1 ms command grid, then recursively samples only pair/interval leaves whose local Lipschitz reserve is still below the required clearance. Maximum depth is an explicit construction-time bound. Joint-velocity extrema are analytic on each subinterval; midpoint FK and primitive distance use caller-owned Rust scratch.</p>
+<p>The four cases below are the same observed state, WBC result, command polynomial, and 20 mm requirement. Selection codes are `0=Primary`, `1=Contingency`, `2=Rejected`.</p>
+<div class=table-wrap><table><thead><tr><th>case</th><th>selection</th><th>sampled min mm</th><th>continuous lower mm</th><th>midpoint pair queries</th><th>leaf intervals</th><th>unresolved</th><th>depth reached</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th></tr></thead><tbody><tr><td>depth_0</td><td>1</td><td>20.231879529286623</td><td>19.008473505750956</td><td>0</td><td>0</td><td>0</td><td>0</td><td>20.619 / 34.092 / 53.741</td><td>0 / 0</td></tr><tr><td>depth_1</td><td>1</td><td>20.231879529286623</td><td>19.62017651751879</td><td>1</td><td>21</td><td>1</td><td>1</td><td>32.185 / 40.011 / 51.467</td><td>0 / 0</td></tr><tr><td>depth_2</td><td>1</td><td>20.231879529286623</td><td>19.926028023402704</td><td>2</td><td>22</td><td>1</td><td>2</td><td>33.257 / 40.012 / 41.599</td><td>0 / 0</td></tr><tr><td>depth_3</td><td>0</td><td>20.231879529286623</td><td>20.078953776344665</td><td>3</td><td>23</td><td>0</td><td>3</td><td>24.476 / 30.923 / 35.267</td><td>0 / 0</td></tr></tbody></table></div>
+<p>The base 21-point trace remains bit-identical at **20.232 mm** with no sampled violation. Depths one and two improve the bound but keep one leaf explicitly unresolved. Depth three performs exactly three midpoint pair queries and proves **20.079 mm**, so Primary is admitted without weakening the 20 mm requirement.</p>
+<p>All depths replay semantic bytes exactly across 100 command-state resets, allocate zero calls/bytes inside the timed Rust transaction, and satisfy hard dynamics/contact residuals below `1e-7`. A separate Rust regression uses safe base endpoints with a penetrating midpoint and proves refinement records a real sampled collision pair/time rather than allowing a continuous certificate to conceal it.</p>
+<h2>Authority boundary</h2>
+<p>Refinement work, unresolved leaves, sampled violations, and final selection are independent witnesses. A deeper certificate may reduce false contingency selection, but it is not a policy, plant rollout, collision response, or guarantee about future command-state evolution. The R105 live path already demonstrates why that distinction matters.</p>
+<h2>Remaining work</h2>
+<p>The bound still uses conservative primitive-point reach coefficients rather than closest-feature velocity, and box-box clearance remains a separating-axis lower bound. Pair-specific stopping criteria, shared primitive avoidance Jacobians, world collision, mesh CCD, and calibrated plant response remain outside this claim.</p></main></body></html>

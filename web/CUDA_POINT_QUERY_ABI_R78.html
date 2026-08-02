@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw point-query mirror · r78</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw fixed point-query mirror · r78</h1>
+<blockquote>PROMOTE COMPILER-RESOLVED CPU POINT QUERIES ONLY. CUDA remains unavailable; no device correctness or performance claim is made.</blockquote>
+<p>This policy-free, simulator-free gate adds stable-ID point slots after the admitted FK/Jacobian/dynamics stages. Every slot has a frozen body frame and local offset hashed into the kernel descriptor and emits world position, floating point Jacobian, and kinematic bias acceleration Jdot-v.</p>
+<h2>Admission decision</h2>
+<div class=table-wrap><table><thead><tr><th>Gate</th><th>Evidence</th><th>Decision</th></tr></thead><tbody><tr><td>Point position/J ↔ Pinocchio</td><td>2 / 2 models</td><td>PASS</td></tr><tr><td>Jv ↔ central-difference velocity</td><td>root SO(3)/translation + every joint</td><td>PASS</td></tr><tr><td>Jdot-v ↔ central-difference acceleration</td><td>zero world generalized acceleration</td><td>PASS</td></tr><tr><td>Stable IDs and offsets</td><td>descriptor-hashed fixed slot plan</td><td>PASS</td></tr><tr><td>Repeat/reindex/isolation</td><td>bitwise exact</td><td>PASS</td></tr><tr><td>Measured Rust allocations</td><td>0 calls · 0 B</td><td>PASS</td></tr><tr><td>CUDA point-query D1/D2/D3</td><td>executor unavailable</td><td>NOT RUN</td></tr></tbody></table></div>
+<h2>Independent point oracle</h2>
+<div class=table-wrap><table><thead><tr><th>Model</th><th>States×slots</th><th>position max/gate</th><th>J max/gate</th><th>Jv max/gate</th><th>Jdot-v max/gate</th><th>D3</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>16×4</td><td>1.712e-07/0.001×</td><td>1.514e-07/0.003×</td><td>4.970e-08/0.001×</td><td>2.648e-08/0.000×</td><td>PASS</td></tr><tr><td>upkie</td><td>16×4</td><td>8.570e-08/0.002×</td><td>1.136e-07/0.002×</td><td>5.740e-08/0.001×</td><td>2.495e-08/0.000×</td><td>PASS</td></tr></tbody></table></div>
+<p>Pinocchio independently supplies BODY placements and LOCAL_WORLD_ALIGNED spatial Jacobians. The evaluator rotates each nonzero local offset, converts Pinocchio&#x27;s local linear-first free-flyer tangent to Bonesaw&#x27;s world angular-first tangent, and constructs the point Jacobian. A separate central difference left-multiplies root Exp(±dt·omega), translates the root, and advances every joint at constant generalized velocity. Its first derivative checks Jv; its second derivative checks Jdot-v without a policy or physics rollout.</p>
+<h2>Exact layout and isolation</h2>
+<div class=table-wrap><table><thead><tr><th>Invariant</th><th>Evidence</th><th>Result</th></tr></thead><tbody><tr><td>Layout</td><td>point[slot][3][agent], J[slot][3][g][agent], bias[slot][3][agent]</td><td>FROZEN</td></tr><tr><td>Repeat</td><td>True</td><td>EXACT</td></tr><tr><td>Permutation/padding/chunking</td><td>True / True / True</td><td>EXACT</td></tr><tr><td>Malformed velocity</td><td>agent 8 zeroed; neighbors unchanged</td><td>ISOLATED</td></tr></tbody></table></div>
+<h2>Host timing · Upkie four point slots</h2>
+<div class=table-wrap><table><thead><tr><th>Agents</th><th>Point p50/p99</th><th>Full pipeline p50/p99</th><th>Full/agent p50</th><th>Alloc</th></tr></thead><tbody><tr><td>1</td><td>1.182/1.224 µs</td><td>52.539/60.353 µs</td><td>52539.0 ns</td><td>0 / 0 B</td></tr><tr><td>32</td><td>25.098/30.250 µs</td><td>1415.780/1470.447 µs</td><td>44243.1 ns</td><td>0 / 0 B</td></tr><tr><td>256</td><td>213.178/251.488 µs</td><td>11719.689/11951.683 µs</td><td>45780.0 ns</td><td>0 / 0 B</td></tr></tbody></table></div>
+<p>Stage timers exclude NumPy↔SoA copies and retain every timing sample, including the p99 tail. This admits query products, not task residual/target emission or a solver.</p>
+<h2>Deferred boundary</h2>
+<p>The next CPU slice may lower fixed point targets and contact locks into stable-ID task/constraint rows using these exact J and Jdot-v products. CudaMirrorF32 must later reproduce the point plan and pass device D1/D2/D3 on real hardware; no CPU fallback may masquerade as device execution.</p></main></body></html>

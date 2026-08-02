@@ -1,0 +1,295 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw command reconstruction uncertainty · r121</title><style>
+:root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}body{margin:0;background:#0b0d10;color:#dce6e1}main{max-width:1120px;margin:auto;padding:28px 18px 60px}h1{font:600 24px system-ui;color:#eff8f3}h2{color:#8fe6c0}.pass{padding:13px;border-left:3px solid #8fe6c0;background:#14231d;color:#bdebd7}.table{overflow-x:auto}table{width:100%;min-width:930px;border-collapse:collapse;font-size:12px}th,td{padding:9px;border:1px solid #2a3039;text-align:right}th:first-child,td:first-child{text-align:left}th{color:#8fe6c0;background:#151a1d}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;border:1px solid #2a3039;background:#11151a;line-height:1.5}@media(max-width:600px){main{padding:18px 10px 40px}}
+</style></head><body><main><h1>Bonesaw command reconstruction uncertainty · r121</h1><p class="pass">PASS · Primary and brake command geometry consume typed reconstruction radii without folding them into tracking mismatch.</p><div class="table"><table><thead><tr><th>mode</th><th>exposure ms</th><th>point radius mm</th><th>self sampled loss mm</th><th>self continuous loss mm</th><th>world sampled loss mm</th><th>world continuous loss mm</th><th>selection</th></tr></thead><tbody><tr><td>exact</td><td>0.000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>{&quot;contingency&quot;: 0, &quot;primary&quot;: 20, &quot;rejected&quot;: 0}</td></tr><tr><td>interpolated</td><td>2.500</td><td>0.128125</td><td>0.256250</td><td>0.256250</td><td>0.128125</td><td>0.128125</td><td>{&quot;contingency&quot;: 5, &quot;primary&quot;: 15, &quot;rejected&quot;: 0}</td></tr><tr><td>predicted</td><td>5.000</td><td>0.262500</td><td>0.525000</td><td>0.525000</td><td>0.262500</td><td>0.262500</td><td>{&quot;contingency&quot;: 8, &quot;primary&quot;: 12, &quot;rejected&quot;: 0}</td></tr></tbody></table></div><h2>Method</h2><pre># Bonesaw command reconstruction-uncertainty authority · r121
+
+**PASS.** Canonical reconstruction uncertainty now reaches the independently
+validated Primary and braking command trajectories. This live Python eval uses
+the production Rust WebSocket boundary with guided state-local queries and no
+policy, rigid-body physics, or plant integration.
+
+| mode | exposure ms | point radius mm | self sampled / continuous loss mm | world sampled / continuous loss mm | root translation / rotation radius (mm / mrad) | selection |
+|---|---:|---:|---:|---:|---:|---|
+| exact | 0.000 | 0.000000 | 0.000000 / 0.000000 | 0.000000 / 0.000000 | 0.900000 / 0.680000 | `{&quot;contingency&quot;: 0, &quot;primary&quot;: 20, &quot;rejected&quot;: 0}` |
+| interpolated | 2.500 | 0.128125 | 0.256250 / 0.256250 | 0.128125 / 0.128125 | 0.977500 / 0.783125 | `{&quot;contingency&quot;: 5, &quot;primary&quot;: 15, &quot;rejected&quot;: 0}` |
+| predicted | 5.000 | 0.262500 | 0.525000 / 0.525000 | 0.262500 / 0.262500 | 1.060000 / 0.892500 | `{&quot;contingency&quot;: 8, &quot;primary&quot;: 12, &quot;rejected&quot;: 0}` |
+
+## Admission contract
+
+- Self-collision consumes two body-local represented-point radii for both the
+  sampled grid and bounded between-sample certificate.
+- World collision carries root translation/rotation reconstruction error in the
+  root-prediction initial radius, then consumes one body-local point radius
+  through the immutable field Lipschitz bound.
+- Raw command geometry, robust command geometry, tracking mismatch, scene
+  validity, solver status, and final Primary/brake/reject selection remain
+  distinct witnesses in the example authority stack.
+- Exact reconstruction is the zero-error compatibility case. Held, stale, or
+  horizon-invalid reconstruction is withheld before command admission.
+
+</pre><h2>Complete retained audit</h2><pre>{
+  &quot;contract_source&quot;: &quot;bonesaw-tools/flat-foot-editor-r121&quot;,
+  &quot;execution&quot;: &quot;guided_state_local_queries_without_policy_physics_or_plant_integration&quot;,
+  &quot;modes&quot;: {
+    &quot;exact&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 2359.037,
+        &quot;p50_us&quot;: 1762.7655,
+        &quot;p99_us&quot;: 2359.037
+      },
+      &quot;command_margin_erosion&quot;: {
+        &quot;brake_self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;brake_self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;brake_world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;brake_world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        }
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 0.0,
+        &quot;joint_position_rad&quot;: 0.0,
+        &quot;joint_velocity_rad_s&quot;: 0.0,
+        &quot;point_position_m&quot;: 0.0,
+        &quot;root_rotation_rad&quot;: 0.0,
+        &quot;root_translation_m&quot;: 0.0
+      },
+      &quot;exposure_ns&quot;: 0,
+      &quot;frames&quot;: 20,
+      &quot;minimum_robust_command_margin&quot;: {
+        &quot;brake_self_continuous_m&quot;: 0.04981292249813626,
+        &quot;brake_self_sampled_m&quot;: 0.049999999999986805,
+        &quot;brake_world_continuous_m&quot;: 0.06460156978179495,
+        &quot;brake_world_sampled_m&quot;: 0.06466091801905668,
+        &quot;self_continuous_m&quot;: 0.049796829666802135,
+        &quot;self_sampled_m&quot;: 0.04999999999998564,
+        &quot;world_continuous_m&quot;: 0.0646015694333295,
+        &quot;world_sampled_m&quot;: 0.06466091786485131
+      },
+      &quot;provenance&quot;: &quot;exact&quot;,
+      &quot;raw_wbc&quot;: {
+        &quot;maximum_us&quot;: 3159.7810000000004,
+        &quot;p50_us&quot;: 2280.5935000000004,
+        &quot;p99_us&quot;: 3159.7810000000004
+      },
+      &quot;root_prediction_error&quot;: {
+        &quot;maximum_world_clearance_erosion_m&quot;: 0.0017484129840778632,
+        &quot;rotation_radius_rad&quot;: 0.0006799999999999999,
+        &quot;translation_radius_m&quot;: 0.0009000000000000001
+      },
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 0,
+        &quot;primary&quot;: 20,
+        &quot;rejected&quot;: 0
+      },
+      &quot;tracking_action_counts&quot;: {
+        &quot;contingency&quot;: 0,
+        &quot;nominal&quot;: 20,
+        &quot;rejected&quot;: 0
+      }
+    },
+    &quot;interpolated&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 2138.029,
+        &quot;p50_us&quot;: 1648.6605,
+        &quot;p99_us&quot;: 2138.029
+      },
+      &quot;command_margin_erosion&quot;: {
+        &quot;brake_self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.00025624999999999953,
+          &quot;minimum&quot;: 0.00025624999999999953
+        },
+        &quot;brake_self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.00025624999999999953,
+          &quot;minimum&quot;: 0.00025624999999999953
+        },
+        &quot;brake_world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0001281250000000067,
+          &quot;minimum&quot;: 0.0001281250000000067
+        },
+        &quot;brake_world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0001281250000000067,
+          &quot;minimum&quot;: 0.0001281250000000067
+        },
+        &quot;self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.00025624999999999953,
+          &quot;minimum&quot;: 0.00025624999999999953
+        },
+        &quot;self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.00025624999999999953,
+          &quot;minimum&quot;: 0.00025624999999999953
+        },
+        &quot;world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0001281250000000067,
+          &quot;minimum&quot;: 0.0001281250000000067
+        },
+        &quot;world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0001281250000000067,
+          &quot;minimum&quot;: 0.0001281250000000067
+        }
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 7.65625e-05,
+        &quot;joint_position_rad&quot;: 0.00021875,
+        &quot;joint_velocity_rad_s&quot;: 0.015,
+        &quot;point_position_m&quot;: 0.000128125,
+        &quot;root_rotation_rad&quot;: 0.000103125,
+        &quot;root_translation_m&quot;: 7.75e-05
+      },
+      &quot;exposure_ns&quot;: 2500000,
+      &quot;frames&quot;: 20,
+      &quot;minimum_robust_command_margin&quot;: {
+        &quot;brake_self_continuous_m&quot;: 0.04587108806772232,
+        &quot;brake_self_sampled_m&quot;: 0.04587282894707226,
+        &quot;brake_world_continuous_m&quot;: 0.06907451484456399,
+        &quot;brake_world_sampled_m&quot;: 0.06916125017553813,
+        &quot;self_continuous_m&quot;: 0.04570786318726367,
+        &quot;self_sampled_m&quot;: 0.04580643909791171,
+        &quot;world_continuous_m&quot;: 0.06940864577464159,
+        &quot;world_sampled_m&quot;: 0.06949651247089468
+      },
+      &quot;provenance&quot;: &quot;interpolated&quot;,
+      &quot;raw_wbc&quot;: {
+        &quot;maximum_us&quot;: 2609.08,
+        &quot;p50_us&quot;: 2067.932,
+        &quot;p99_us&quot;: 2609.08
+      },
+      &quot;root_prediction_error&quot;: {
+        &quot;maximum_world_clearance_erosion_m&quot;: 0.0019545785561117302,
+        &quot;rotation_radius_rad&quot;: 0.000783125,
+        &quot;translation_radius_m&quot;: 0.0009775
+      },
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 5,
+        &quot;primary&quot;: 15,
+        &quot;rejected&quot;: 0
+      },
+      &quot;tracking_action_counts&quot;: {
+        &quot;contingency&quot;: 5,
+        &quot;nominal&quot;: 15,
+        &quot;rejected&quot;: 0
+      }
+    },
+    &quot;predicted&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 1733.7150000000001,
+        &quot;p50_us&quot;: 1460.0785,
+        &quot;p99_us&quot;: 1733.7150000000001
+      },
+      &quot;command_margin_erosion&quot;: {
+        &quot;brake_self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0005249999999999977,
+          &quot;minimum&quot;: 0.0005249999999999977
+        },
+        &quot;brake_self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0005249999999999977,
+          &quot;minimum&quot;: 0.0005249999999999977
+        },
+        &quot;brake_world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.00026249999999999885,
+          &quot;minimum&quot;: 0.00026249999999999885
+        },
+        &quot;brake_world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.00026249999999999885,
+          &quot;minimum&quot;: 0.00026249999999999885
+        },
+        &quot;self_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.0005249999999999977,
+          &quot;minimum&quot;: 0.0005249999999999977
+        },
+        &quot;self_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.0005249999999999977,
+          &quot;minimum&quot;: 0.0005249999999999977
+        },
+        &quot;world_continuous_m&quot;: {
+          &quot;maximum&quot;: 0.00026249999999999885,
+          &quot;minimum&quot;: 0.00026249999999999885
+        },
+        &quot;world_sampled_m&quot;: {
+          &quot;maximum&quot;: 0.00026249999999999885,
+          &quot;minimum&quot;: 0.00026249999999999885
+        }
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 0.00015624999999999998,
+        &quot;joint_position_rad&quot;: 0.000475,
+        &quot;joint_velocity_rad_s&quot;: 0.03,
+        &quot;point_position_m&quot;: 0.0002625,
+        &quot;root_rotation_rad&quot;: 0.00021250000000000002,
+        &quot;root_translation_m&quot;: 0.00015999999999999999
+      },
+      &quot;exposure_ns&quot;: 5000000,
+      &quot;frames&quot;: 20,
+      &quot;minimum_robust_command_margin&quot;: {
+        &quot;brake_self_continuous_m&quot;: 0.04481900970508152,
+        &quot;brake_self_sampled_m&quot;: 0.044819031189443956,
+        &quot;brake_world_continuous_m&quot;: 0.08755461661191667,
+        &quot;brake_world_sampled_m&quot;: 0.08759398500852708,
+        &quot;self_continuous_m&quot;: 0.044815293445471936,
+        &quot;self_sampled_m&quot;: 0.044818927819610554,
+        &quot;world_continuous_m&quot;: 0.08756897204678675,
+        &quot;world_sampled_m&quot;: 0.08761023982807414
+      },
+      &quot;provenance&quot;: &quot;predicted&quot;,
+      &quot;raw_wbc&quot;: {
+        &quot;maximum_us&quot;: 2552.112,
+        &quot;p50_us&quot;: 2018.042,
+        &quot;p99_us&quot;: 2552.112
+      },
+      &quot;root_prediction_error&quot;: {
+        &quot;maximum_world_clearance_erosion_m&quot;: 0.002173542041602195,
+        &quot;rotation_radius_rad&quot;: 0.0008924999999999998,
+        &quot;translation_radius_m&quot;: 0.00106
+      },
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 8,
+        &quot;primary&quot;: 12,
+        &quot;rejected&quot;: 0
+      },
+      &quot;tracking_action_counts&quot;: {
+        &quot;contingency&quot;: 8,
+        &quot;nominal&quot;: 12,
+        &quot;rejected&quot;: 0
+      }
+    }
+  },
+  &quot;program_fingerprint&quot;: &quot;04780b6be2bc0784fff0d24badd805fa8da4ffd226f1ed7f382c392ea8192b54&quot;,
+  &quot;recovery_tick&quot;: 65,
+  &quot;revision&quot;: &quot;live-command-observation-uncertainty-r121&quot;,
+  &quot;schema&quot;: 1,
+  &quot;stale_withheld&quot;: {
+    &quot;newest_sample_time_ns&quot;: 1250000000,
+    &quot;query_time_ns&quot;: 1260000000,
+    &quot;reason&quot;: &quot;robot observation reconstruction withheld WBC input: robot observation prediction is disabled or exceeds its horizon&quot;,
+    &quot;tick&quot;: 63,
+    &quot;transport_mode&quot;: &quot;stale&quot;,
+    &quot;type&quot;: &quot;observation_withheld&quot;
+  },
+  &quot;status&quot;: &quot;pass&quot;,
+  &quot;url&quot;: &quot;ws://127.0.0.1:8819/ws&quot;
+}</pre></main></body></html>

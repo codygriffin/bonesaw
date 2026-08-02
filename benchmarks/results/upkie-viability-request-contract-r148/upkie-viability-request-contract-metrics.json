@@ -1,0 +1,350 @@
+{
+  "contract": {
+    "activation_pressure": 0.1,
+    "coordinates": [
+      "root_roll_acceleration",
+      "root_lateral_acceleration",
+      "root_yaw_acceleration"
+    ],
+    "maximum_abs_request": [
+      250.0,
+      250.0,
+      80.0
+    ],
+    "maximum_candidate_age_ticks": 4,
+    "maximum_slew_per_tick": [
+      40.0,
+      40.0,
+      20.0
+    ],
+    "physics_steps": 0,
+    "policy_steps": 0,
+    "release_pressure": 0.05
+  },
+  "gates": {
+    "age_expiry_has_no_tail": true,
+    "duplicate_tick_is_atomic": true,
+    "exact_replay": true,
+    "failed_active_refresh_revokes": true,
+    "finite_outputs": true,
+    "fresh_request_is_bounded_and_slewed": true,
+    "held_request_reaches_bounded_target": true,
+    "inexact_evidence_revokes_immediately": true,
+    "out_of_bounds_candidate_rejected": true,
+    "release_is_slewed_then_inactive": true
+  },
+  "generated_at": "2026-08-02T03:18:43.946727+00:00",
+  "model": "/home/codygriffin/Documents/bonepilot/models/upkie/upkie.urdf",
+  "passed": true,
+  "revision": "upkie-viability-request-contract-r148",
+  "scenarios": {
+    "bounded_input": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": false,
+          "age_ticks": 0,
+          "executable": false,
+          "flags": 640,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "RejectedInput",
+          "transition_count": 1
+        }
+      ]
+    },
+    "duplicate_tick": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 771,
+          "remaining_ticks": 4,
+          "request": [
+            40.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": true,
+          "status": "Fresh",
+          "transition_count": 1
+        },
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": false,
+          "flags": 65,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "RejectedSequence",
+          "transition_count": 1
+        },
+        {
+          "active": true,
+          "age_ticks": 1,
+          "executable": true,
+          "flags": 517,
+          "remaining_ticks": 3,
+          "request": [
+            80.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Held",
+          "transition_count": 2
+        }
+      ]
+    },
+    "evidence_revocation": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 771,
+          "remaining_ticks": 4,
+          "request": [
+            40.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": true,
+          "status": "Fresh",
+          "transition_count": 1
+        },
+        {
+          "active": false,
+          "age_ticks": 0,
+          "executable": false,
+          "flags": 544,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "RevokedEvidence",
+          "transition_count": 2
+        }
+      ]
+    },
+    "expiry": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 771,
+          "remaining_ticks": 4,
+          "request": [
+            40.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": true,
+          "status": "Fresh",
+          "transition_count": 1
+        },
+        {
+          "active": true,
+          "age_ticks": 1,
+          "executable": true,
+          "flags": 517,
+          "remaining_ticks": 3,
+          "request": [
+            80.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Held",
+          "transition_count": 2
+        },
+        {
+          "active": true,
+          "age_ticks": 2,
+          "executable": true,
+          "flags": 5,
+          "remaining_ticks": 2,
+          "request": [
+            80.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Held",
+          "transition_count": 2
+        },
+        {
+          "active": true,
+          "age_ticks": 3,
+          "executable": true,
+          "flags": 5,
+          "remaining_ticks": 1,
+          "request": [
+            80.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Held",
+          "transition_count": 2
+        },
+        {
+          "active": true,
+          "age_ticks": 4,
+          "executable": true,
+          "flags": 5,
+          "remaining_ticks": 0,
+          "request": [
+            80.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Held",
+          "transition_count": 2
+        },
+        {
+          "active": true,
+          "age_ticks": 5,
+          "executable": false,
+          "flags": 529,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Expired",
+          "transition_count": 3
+        }
+      ]
+    },
+    "failed_refresh": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 771,
+          "remaining_ticks": 4,
+          "request": [
+            40.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": true,
+          "status": "Fresh",
+          "transition_count": 1
+        },
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": false,
+          "flags": 529,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Expired",
+          "transition_count": 2
+        }
+      ]
+    },
+    "hysteresis_release": {
+      "exact_replay": true,
+      "rows": [
+        {
+          "active": true,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 771,
+          "remaining_ticks": 4,
+          "request": [
+            40.0,
+            -40.0,
+            20.0
+          ],
+          "slew_limited": true,
+          "status": "Fresh",
+          "transition_count": 1
+        },
+        {
+          "active": true,
+          "age_ticks": 1,
+          "executable": true,
+          "flags": 773,
+          "remaining_ticks": 3,
+          "request": [
+            80.0,
+            -60.0,
+            30.0
+          ],
+          "slew_limited": true,
+          "status": "Held",
+          "transition_count": 2
+        },
+        {
+          "active": false,
+          "age_ticks": 0,
+          "executable": true,
+          "flags": 776,
+          "remaining_ticks": 0,
+          "request": [
+            40.0,
+            -20.0,
+            10.0
+          ],
+          "slew_limited": true,
+          "status": "Releasing",
+          "transition_count": 3
+        },
+        {
+          "active": false,
+          "age_ticks": 0,
+          "executable": false,
+          "flags": 512,
+          "remaining_ticks": 0,
+          "request": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "slew_limited": false,
+          "status": "Inactive",
+          "transition_count": 4
+        }
+      ]
+    }
+  },
+  "timing": {
+    "maximum_ns": 15048,
+    "p50_ns": 571.0,
+    "p95_ns": 591.0,
+    "p99_9_ns": 751.0010000000038,
+    "p99_ns": 611.0,
+    "steps": 20000
+  }
+}

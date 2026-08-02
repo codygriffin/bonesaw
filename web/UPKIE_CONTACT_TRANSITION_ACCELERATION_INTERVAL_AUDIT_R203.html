@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw continuous-acceleration interval audit · r203</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw continuous-acceleration interval audit · r203</h1>
+<blockquote>Rust mechanism **PASS** · retained strict coverage **FAIL** · fresh μ=0.02 holdout **PASS** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<ul><li>R203 holds R202&#x27;s tighter model-exact contact-impulse profile and model-owned `M⁻¹Jᵀ` fixed. It adds a distinct componentwise continuous generalized-acceleration interval around every support-hypothesis candidate, then considers all acceleration/time endpoint products before contact impulse is projected.</li><li>The primary ±5 m/s² root-linear reserve was frozen from the R202 retained maximum miss (0.01665 m/s over 5 ms, rounded above 3.33 m/s²) before introducing the new μ=0.02 row. It adds exactly 0.05 m/s root-linear width over a complete 5 ms interval and adds no angular/joint width.</li><li>Coverage and width stay separate. The fresh friction row tests construction transfer only; it is still the same Upkie morphology, MuJoCo contact law, controller, and observation-loss family.</li></ul>
+<h2>Reserve sweep</h2>
+<div class=table-wrap><table><thead><tr><th>acceleration profile</th><th>n</th><th>retained samples</th><th>fresh samples</th><th>component coverage</th><th>max miss /s</th><th>root ω width p95</th><th>root v width p95</th><th>joint width p95</th><th>bound p99 µs</th></tr></thead><tbody><tr><td>zero_reserve</td><td>274</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>0.01861</td><td>29.729</td><td>2.205</td><td>1153.919</td><td>1.075</td></tr><tr><td>root_linear_2mps2</td><td>274</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>0.01254</td><td>29.729</td><td>2.225</td><td>1153.919</td><td>0.953</td></tr><tr><td>root_linear_5mps2</td><td>274</td><td>99.624%</td><td>100.000%</td><td>99.970%</td><td>0.01254</td><td>29.729</td><td>2.255</td><td>1153.919</td><td>1.052</td></tr><tr><td>root_linear_10mps2</td><td>274</td><td>99.624%</td><td>100.000%</td><td>99.970%</td><td>0.01254</td><td>29.729</td><td>2.305</td><td>1153.919</td><td>1.007</td></tr><tr><td>structured_5_5_50</td><td>274</td><td>100.000%</td><td>100.000%</td><td>100.000%</td><td>0.00000</td><td>29.779</td><td>2.255</td><td>1154.415</td><td>0.920</td></tr></tbody></table></div>
+<p>Primary worst sample: **backward_4n/drop10/tick 201**, maximum miss **0.012536/s**.</p>
+<h2>Decision</h2>
+<p>A passing reserve admits only the acceleration-interval mechanism. Authority remains off because the independent friction box still produces very large wheel/joint widths, the fresh row is not a morphology/contact-law holdout, external-wrench provenance is not yet typed into the online command, and terminal consequence plus the 5 ms end-to-end gate remain separate.</p></main></body></html>

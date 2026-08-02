@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 coupled contact-law replay · r217</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 coupled contact-law replay · r217</h1>
+<blockquote>Mechanism **PASS** · construction profile **REJECTED** · authority **NOT ADMITTED** · replay physics/policy/controller steps **0 / 0 / 0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>Rust solves all eight prospective G1 foot points together through the full Delassus operator. The normal input is `v_n + max(gap,0)/dt`, so only end-of-step penetration pressure enters; tangential velocity stays physical. Projection keeps normal impulse nonnegative and enforces a circular Coulomb section.</li><li>Declared contact relaxation maps continuously to restitution `exp(-τ/dt)` and diagonal regularization `τ/(6dt)`. The divisor 6 was selected after inspecting R215/R216 construction labels; it is calibration, not hardware physics and not an untouched holdout.</li><li>Completed R215 impulses remain scoring-only. The all-label split kinetic envelope is again construction diagnosis. Any centered component interval covering the predictor has width at least twice its absolute residual.</li></ul>
+<h2>Replay result</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>restitution / reg</th><th>CoP p95 mm</th><th>predictor residual p95 ω/v/joint</th><th>unavoidable joint width p95</th><th>fitted coverage</th><th>fitted width p95 ω/v/joint</th><th>false + / −</th></tr></thead><tbody><tr><td>compliant_elliptic_rk4</td><td>0.002 / 1.000</td><td>12.6</td><td>0.013 / 0.005 / 1.521</td><td>3.043</td><td>100.0%</td><td>2.845 / 0.167 / 41.084</td><td>0 / 0</td></tr><tr><td>rigid_elliptic_implicit</td><td>0.741 / 0.050</td><td>88.6</td><td>0.194 / 0.034 / 11.277</td><td>22.554</td><td>100.0%</td><td>12.707 / 0.753 / 168.399</td><td>2 / 0</td></tr></tbody></table></div>
+<p>The fitted envelope covers 96/96 construction samples at overall p95 width 6.854/0.404/92.886. The Rust coupled solve is 22.997 µs p99 with zero timed allocation.</p>
+<h2>Decision</h2>
+<p>The coupled time-step/CoP mechanism is retained for a fresh-law holdout, but its R215-fitted predictor/profile is not authority. It materially improves compliant-law joint residual over R216, yet the rigid-law lower-bound width remains above the useful gate. Freeze the mapping before new laws; do not tune from that holdout. If the fresh rigid result remains wide, contact estimator uncertainty or a higher-order compliant law is required.</p></main></body></html>

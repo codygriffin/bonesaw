@@ -1,0 +1,319 @@
+from __future__ import annotations
+
+import pathlib
+import unittest
+
+import numpy as np
+
+from bonesaw import ContactTransitionModelSession, UpkieBalanceSession
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+UPKIE_URDF = ROOT / "models" / "upkie" / "upkie.urdf"
+
+
+class ContactTransitionModelSessionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.generic = ContactTransitionModelSession(
+            str(UPKIE_URDF), ["left_wheel_center", "right_wheel_center"]
+        )
+        self.upkie = UpkieBalanceSession(str(UPKIE_URDF))
+        self.root = np.asarray([0.1, -0.2, 0.55], np.float64)
+        self.quaternion = np.asarray([1.0, 0.0, 0.0, 0.0], np.float64)
+        self.q = np.zeros(self.generic.joint_dof(), np.float64)
+        self.points = np.asarray(
+            [[0.1, 0.08, 0.05], [0.1, -0.08, 0.05]], np.float64
+        )
+        self.bases = np.repeat(np.eye(3, dtype=np.float64)[None, :, :], 2, axis=0)
+
+    def test_metadata_and_unknown_frame_validation(self) -> None:
+        self.assertEqual(self.generic.contact_count(), 2)
+        self.assertEqual(self.generic.generalized_dof(), self.generic.joint_dof() + 6)
+        with self.assertRaisesRegex(ValueError, "missing_frame"):
+            ContactTransitionModelSession(str(UPKIE_URDF), ["missing_frame"])
+
+    def test_point_and_spatial_queries_match_upkie_boundary(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        generic_point = np.empty((generalized_dof, 2, 3), np.float64)
+        upkie_point = np.empty_like(generic_point)
+        generic_mass = np.empty((2, 3), np.float64)
+        upkie_mass = np.empty_like(generic_mass)
+        generic_delassus = np.empty((6, 6), np.float64)
+        upkie_delassus = np.empty_like(generic_delassus)
+
+        point_timing = self.generic.point_impulse_velocity_response(
+            self.root,
+            self.quaternion,
+            self.q,
+            self.points,
+            self.bases,
+            generic_point,
+            generic_mass,
+            generic_delassus,
+        )
+        upkie_timing = self.upkie.model_contact_impulse_velocity_response_with_delassus(
+            self.root,
+            self.quaternion,
+            self.q,
+            self.points,
+            self.bases,
+            upkie_point,
+            upkie_mass,
+            upkie_delassus,
+        )
+        np.testing.assert_array_equal(generic_point, upkie_point)
+        np.testing.assert_array_equal(generic_mass, upkie_mass)
+        np.testing.assert_array_equal(generic_delassus, upkie_delassus)
+        self.assertEqual(point_timing[1:], (0, 0))
+        self.assertEqual(upkie_timing[1:], (0, 0))
+
+        generic_spatial = np.empty((generalized_dof, 2, 6), np.float64)
+        upkie_spatial = np.empty_like(generic_spatial)
+        generic_spatial_delassus = np.empty((12, 12), np.float64)
+        upkie_spatial_delassus = np.empty_like(generic_spatial_delassus)
+        spatial_timing = self.generic.spatial_impulse_velocity_response(
+            self.root,
+            self.quaternion,
+            self.q,
+            self.points,
+            self.bases,
+            generic_spatial,
+            generic_spatial_delassus,
+        )
+        self.upkie.model_contact_spatial_impulse_velocity_response(
+            self.root,
+            self.quaternion,
+            self.q,
+            self.points,
+            self.bases,
+            upkie_spatial,
+            upkie_spatial_delassus,
+        )
+        np.testing.assert_array_equal(generic_spatial, upkie_spatial)
+        np.testing.assert_array_equal(generic_spatial_delassus, upkie_spatial_delassus)
+        self.assertEqual(spatial_timing[1:], (0, 0))
+
+    def test_momentum_queries_match_upkie_boundary(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        observed = np.linspace(-0.2, 0.3, generalized_dof, dtype=np.float64)
+        predicted = np.stack((observed * 0.25, observed * -0.5))
+        generic_residual = np.empty_like(predicted)
+        upkie_residual = np.empty_like(predicted)
+        timing = self.generic.generalized_momentum_impulse_residuals(
+            self.root,
+            self.quaternion,
+            self.q,
+            observed,
+            predicted,
+            generic_residual,
+        )
+        self.upkie.model_generalized_momentum_impulse_residuals(
+            self.root,
+            self.quaternion,
+            self.q,
+            observed,
+            predicted,
+            upkie_residual,
+        )
+        np.testing.assert_array_equal(generic_residual, upkie_residual)
+        self.assertEqual(timing[1:], (0, 0))
+
+        lower = -np.linspace(0.01, 0.03, generalized_dof, dtype=np.float64)
+        upper = np.linspace(0.02, 0.04, generalized_dof, dtype=np.float64)
+        generic_lower = np.empty(generalized_dof, np.float64)
+        generic_upper = np.empty(generalized_dof, np.float64)
+        upkie_lower = np.empty(generalized_dof, np.float64)
+        upkie_upper = np.empty(generalized_dof, np.float64)
+        box_timing = self.generic.generalized_velocity_interval_from_momentum_box(
+            self.root,
+            self.quaternion,
+            self.q,
+            lower,
+            upper,
+            generic_lower,
+            generic_upper,
+        )
+        self.upkie.model_generalized_velocity_interval_from_momentum_box(
+            self.root,
+            self.quaternion,
+            self.q,
+            lower,
+            upper,
+            upkie_lower,
+            upkie_upper,
+        )
+        np.testing.assert_array_equal(generic_lower, upkie_lower)
+        np.testing.assert_array_equal(generic_upper, upkie_upper)
+        self.assertEqual(box_timing[1:], (0, 0))
+
+    def test_split_kinetic_bounds_add_partition_support_without_allocation(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        root_lower = np.empty(generalized_dof, np.float64)
+        root_upper = np.empty(generalized_dof, np.float64)
+        joint_lower = np.empty(generalized_dof, np.float64)
+        joint_upper = np.empty(generalized_dof, np.float64)
+        combined_lower = np.empty(generalized_dof, np.float64)
+        combined_upper = np.empty(generalized_dof, np.float64)
+        for root_energy, joint_energy, lower, upper in (
+            (0.04, 0.0, root_lower, root_upper),
+            (0.0, 0.01, joint_lower, joint_upper),
+            (0.04, 0.01, combined_lower, combined_upper),
+        ):
+            timing = self.generic.generalized_velocity_bounds_from_split_kinetic_impulse_ellipsoids(
+                self.root,
+                self.quaternion,
+                self.q,
+                root_energy,
+                joint_energy,
+                lower,
+                upper,
+            )
+            self.assertEqual(timing[1:], (0, 0))
+            np.testing.assert_array_equal(lower, -upper)
+        np.testing.assert_allclose(
+            combined_upper,
+            root_upper + joint_upper,
+            atol=1.0e-12,
+            rtol=0.0,
+        )
+        unchanged_lower = np.full(generalized_dof, 7.0, np.float64)
+        unchanged_upper = np.full(generalized_dof, 8.0, np.float64)
+        with self.assertRaisesRegex(ValueError, "split kinetic"):
+            self.generic.generalized_velocity_bounds_from_split_kinetic_impulse_ellipsoids(
+                self.root,
+                self.quaternion,
+                self.q,
+                0.04,
+                -0.01,
+                unchanged_lower,
+                unchanged_upper,
+            )
+        np.testing.assert_array_equal(unchanged_lower, 7.0)
+        np.testing.assert_array_equal(unchanged_upper, 8.0)
+
+    def test_directional_bound_matches_upkie_boundary(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        response = np.empty((generalized_dof, 2, 3), np.float64)
+        effective_mass = np.empty((2, 3), np.float64)
+        delassus = np.empty((6, 6), np.float64)
+        self.generic.point_impulse_velocity_response(
+            self.root,
+            self.quaternion,
+            self.q,
+            self.points,
+            self.bases,
+            response,
+            effective_mass,
+            delassus,
+        )
+        witnesses = np.empty((2, 10), np.float64)
+        witnesses[:, :3] = [[0.2, 0.1, 0.4], [0.3, 0.2, 0.5]]
+        witnesses[:, 3:6] = effective_mass
+        witnesses[:, 6:9] = [8.0, 8.0, 100.0]
+        witnesses[:, 9] = 0.6
+        acceleration = np.linspace(-2.0, 3.0, generalized_dof)
+        reserve = np.linspace(5.0, 50.0, generalized_dof)
+        generic_impulse = np.empty((2, 3), np.float64)
+        generic_lower = np.empty(generalized_dof, np.float64)
+        generic_upper = np.empty(generalized_dof, np.float64)
+        upkie_impulse = np.empty((2, 3), np.float64)
+        upkie_lower = np.empty(generalized_dof, np.float64)
+        upkie_upper = np.empty(generalized_dof, np.float64)
+        timing = self.generic.bound_directional_contact_transition_velocity_jump(
+            np.asarray([0.0, 0.005], np.float64),
+            1.0,
+            witnesses,
+            acceleration - reserve,
+            acceleration + reserve,
+            response,
+            generic_impulse,
+            generic_lower,
+            generic_upper,
+        )
+        self.upkie.bound_directional_contact_transition_velocity_jump(
+            np.asarray([0.0, 0.005], np.float64),
+            1.0,
+            witnesses,
+            acceleration - reserve,
+            acceleration + reserve,
+            response,
+            upkie_impulse,
+            upkie_lower,
+            upkie_upper,
+        )
+        np.testing.assert_array_equal(generic_impulse, upkie_impulse)
+        np.testing.assert_array_equal(generic_lower, upkie_lower)
+        np.testing.assert_array_equal(generic_upper, upkie_upper)
+        self.assertEqual(timing[1:], (0, 0))
+
+    def test_generic_coupled_impulse_uses_all_configured_contacts(self) -> None:
+        velocity = np.asarray(
+            [[0.2, 0.0, -1.0], [-0.1, 0.0, -0.5]], np.float64
+        )
+        delassus = np.eye(6, dtype=np.float64)
+        delassus[2, 5] = delassus[5, 2] = 0.2
+        upper = np.full((2, 3), 10.0, np.float64)
+        friction = np.full(2, 0.5, np.float64)
+        impulse = np.empty((2, 3), np.float64)
+        after = np.empty((2, 3), np.float64)
+        timing = self.generic.solve_coupled_contact_impulse(
+            velocity,
+            delassus,
+            upper,
+            friction,
+            0.0,
+            0.0,
+            16,
+            impulse,
+            after,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(impulse[:, 2] >= 0.0))
+        self.assertGreater(impulse[0, 2], impulse[1, 2])
+        self.assertTrue(np.all(np.linalg.norm(impulse[:, :2], axis=1) <= 0.5 * impulse[:, 2] + 1e-12))
+
+    def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
+        generalized_dof = self.generic.generalized_dof()
+        response = np.zeros((generalized_dof, 2, 6), np.float64)
+        response[0, 0] = [1.0, -2.0, 0.5, 3.0, -4.0, 0.25]
+        witnesses = np.asarray(
+            [
+                [
+                    10.0, 10.0, 1.0,
+                    1.0, 1.0, 2.0,
+                    0.0, 0.0, 10.0,
+                    0.4, 0.2, 0.1, 0.05,
+                ],
+                [
+                    0.0, 0.0, 0.0,
+                    1.0, 1.0, 1.0,
+                    0.0, 0.0, 0.0,
+                    0.4, 0.2, 0.1, 0.05,
+                ],
+            ],
+            np.float64,
+        )
+        normal = np.empty(2, np.float64)
+        lower = np.empty(generalized_dof, np.float64)
+        upper = np.empty(generalized_dof, np.float64)
+        timing = self.generic.bound_spatial_patch_contact_transition_velocity_jump(
+            np.asarray([0.005, 0.010], np.float64),
+            0.5,
+            witnesses,
+            np.zeros(generalized_dof, np.float64),
+            np.zeros(generalized_dof, np.float64),
+            response,
+            normal,
+            lower,
+            upper,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        np.testing.assert_allclose(normal, [3.1, 0.0], atol=1e-12, rtol=0.0)
+        self.assertAlmostEqual(lower[0], -9.5325)
+        self.assertAlmostEqual(upper[0], 11.0825)
+        np.testing.assert_array_equal(lower[1:], 0.0)
+        np.testing.assert_array_equal(upper[1:], 0.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

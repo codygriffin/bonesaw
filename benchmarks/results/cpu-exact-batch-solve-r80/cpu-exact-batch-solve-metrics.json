@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "revision": "cpu-exact-batch-solve-r80",
+  "generated_at": "2026-08-01T07:56:11.292544+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64"
+  },
+  "semantics": "StrictLexicographic",
+  "scalar_format": "f64",
+  "oracle_cases": [
+    {
+      "model": "models/toy_humanoid.urdf",
+      "model_sha256": "db25c1ee56e6cf5041ad3cfb42259d838f431928a49aa1d0e0472307ec3038e6",
+      "samples": 16,
+      "numpy_qdd_max_abs_error": 4.362163963378407e-10,
+      "numpy_level_l2_max_abs_error": 1.804253107967197e-10,
+      "hard_contact_linf": 3.126388037344441e-13,
+      "status_counts": {
+        "1": 16
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    },
+    {
+      "model": "models/upkie/upkie.urdf",
+      "model_sha256": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+      "samples": 16,
+      "numpy_qdd_max_abs_error": 9.580617188476026e-09,
+      "numpy_level_l2_max_abs_error": 1.1930739813830239e-10,
+      "hard_contact_linf": 3.979039320256561e-13,
+      "status_counts": {
+        "1": 16
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    }
+  ],
+  "bounded": {
+    "status_all_solved_with_slack": true,
+    "maximum_abs_qdd": 0.01,
+    "maximum_soft_level_l2": 103.05326664388932,
+    "clipped_steps": 48,
+    "pass": true
+  },
+  "invalid_isolation": {
+    "invalid_agent": 8,
+    "invalid_status": 6,
+    "neighbors_bitwise_exact": true,
+    "pass": true
+  },
+  "invariance": {
+    "repeat_bitwise_exact": true,
+    "permutation_exact": true,
+    "padding_exact": true,
+    "allocation_calls": 0,
+    "pass": true
+  },
+  "timing": [
+    {
+      "batch_size": 1,
+      "repeats": 100,
+      "solve_execute_ns": {
+        "minimum": 9477.0,
+        "mean": 9617.05,
+        "stddev": 596.4082221934908,
+        "mad": 20.0,
+        "p50": 9548.0,
+        "p95": 9628.05,
+        "p99": 9787.10000000003,
+        "p99_9": 14963.810000000061,
+        "maximum": 15539.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 62088.0,
+        "mean": 63021.44,
+        "stddev": 1669.4693307755012,
+        "mad": 190.0,
+        "p50": 62462.5,
+        "p95": 68203.05,
+        "p99": 69251.14000000001,
+        "p99_9": 71045.61400000002,
+        "maximum": 71245.0
+      },
+      "per_agent_full_pipeline_ns": {
+        "minimum": 62088.0,
+        "mean": 63021.44,
+        "stddev": 1669.4693307755012,
+        "mad": 190.0,
+        "p50": 62462.5,
+        "p95": 68203.05,
+        "p99": 69251.14000000001,
+        "p99_9": 71045.61400000002,
+        "maximum": 71245.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 32,
+      "repeats": 100,
+      "solve_execute_ns": {
+        "minimum": 193756.0,
+        "mean": 203162.81,
+        "stddev": 29719.449136111187,
+        "mad": 972.0,
+        "p50": 196286.0,
+        "p95": 213000.39999999997,
+        "p99": 364665.53000000014,
+        "p99_9": 384938.4530000002,
+        "maximum": 387191.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 1619860.0,
+        "mean": 1652769.98,
+        "stddev": 101678.64411507266,
+        "mad": 5634.5,
+        "p50": 1632873.5,
+        "p95": 1656057.3,
+        "p99": 2220954.4800000004,
+        "p99_9": 2286129.3480000007,
+        "maximum": 2293371.0
+      },
+      "per_agent_full_pipeline_ns": {
+        "minimum": 50620.625,
+        "mean": 51649.061875,
+        "stddev": 3177.4576285960206,
+        "mad": 176.078125,
+        "p50": 51027.296875,
+        "p95": 51751.790625,
+        "p99": 69404.82750000001,
+        "p99_9": 71441.54212500002,
+        "maximum": 71667.84375
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 256,
+      "repeats": 100,
+      "solve_execute_ns": {
+        "minimum": 1543886.0,
+        "mean": 1627869.77,
+        "stddev": 157960.8317100068,
+        "mad": 13039.5,
+        "p50": 1579082.5,
+        "p95": 1882978.85,
+        "p99": 1968185.050000005,
+        "p99_9": 2824886.00500001,
+        "maximum": 2920075.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 13189012.0,
+        "mean": 13494100.55,
+        "stddev": 433139.85865524714,
+        "mad": 57799.5,
+        "p50": 13408090.0,
+        "p95": 13832566.5,
+        "p99": 16046288.870000003,
+        "p99_9": 16581946.487000007,
+        "maximum": 16641464.0
+      },
+      "per_agent_full_pipeline_ns": {
+        "minimum": 51519.578125,
+        "mean": 52711.3302734375,
+        "stddev": 1691.9525728720591,
+        "mad": 225.779296875,
+        "p50": 52375.3515625,
+        "p95": 54033.462890625,
+        "p99": 62680.81589843751,
+        "p99_9": 64773.22846484378,
+        "maximum": 65005.71875
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    }
+  ],
+  "cuda_hierarchical_solver": {
+    "available": false,
+    "claimed": false
+  },
+  "admission": true
+}

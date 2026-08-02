@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "revision": "floating-collision-barrier-r108",
+  "generated_utc": "2026-08-01T16:02:53.827443+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/tight_avoidance_toy.urdf": "d4519d835457fce1d1b0b7001e8dfb6c3062dc60d1b4b1449cd614657945c018",
+    "crates/bonesaw-core/src/collision.rs": "72935f58f876a57b4eef7cdbf48b71aa45d4a37a365fd1fb42530ea7b2a0602f",
+    "crates/bonesaw-core/src/dynamic_wbc.rs": "959d13704d5c2e3e072fd980c393760cfb5b954dfba99d5a73917ef7ff956193",
+    "crates/bonesaw-py/src/lib.rs": "2a302f0817fc796d5002fedfd6d5e1256bc5fd44dfbd4a8777339e1022315653",
+    "python/bonesaw/__init__.py": "9964896bc2a7e415917a0161350bf4d8e201fd7d0824b55a5af4ed82e80afc31",
+    "/home/codygriffin/Documents/bonepilot/python/evals/floating_collision_barrier_report.py": "89079fbd475f345c43394c0aff5f75ba8bf0960d0354215cdf812f9bc9e695d7"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free floating WBC acceleration-barrier queries",
+    "model": "models/tight_avoidance_toy.urdf",
+    "coordinate_samples": 321,
+    "active_samples": 70,
+    "represented_pair_count": 1,
+    "hard_margin_m": 0.02,
+    "influence_margin_m": 0.1,
+    "natural_frequency_hz": 2.0,
+    "damping_ratio": 1.0,
+    "maximum_distance_oracle_error_m": 2.7755575615628914e-17,
+    "maximum_relative_velocity_oracle_error_mps": 0.0,
+    "maximum_required_acceleration_oracle_error_mps2": 5.329070518200751e-15,
+    "maximum_active_count_error": 0,
+    "minimum_barrier_residual_mps2": -2.220446049250313e-16,
+    "maximum_barrier_residual_mps2": 2.220446049250313e-16,
+    "minimum_achieved_minus_required_mps2": -2.220446049250313e-16,
+    "maximum_enabled_minus_disabled_joint_acceleration_mps2": 62.170809209840165,
+    "status_codes": [
+      0,
+      1
+    ],
+    "benchmark": {
+      "timing_us": {
+        "minimum": 12.644,
+        "mean": 13.3179175,
+        "stddev": 1.896236850368052,
+        "mad": 0.030999999999998806,
+        "p50": 12.815,
+        "p95": 17.78445,
+        "p99": 18.9565,
+        "p99_9": 30.731756000002804,
+        "maximum": 49.533
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "f8d9f78579d4a11ebfbb4a5d6ef9267befd205fae704a4b18342169c26042b75"
+    }
+  }
+}

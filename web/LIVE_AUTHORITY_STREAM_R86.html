@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw typed live authority · r86</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1050px,calc(100% - 32px));margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}p{max-width:88ch;color:#bcc6c2;overflow-wrap:anywhere}
+.table-wrap{max-width:100%;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+.pass{color:var(--accent)}code{color:#a9cdbd}@media(max-width:600px){main{width:calc(100% - 20px);padding-top:24px}h2{font-size:20px}th,td{min-width:125px;padding:9px;font-size:11px}}
+</style></head><body><main>
+<h1>Bonesaw typed live-authority transport · r86</h1>
+<h2>Outcome</h2>
+<p class="pass"><strong>Admission: PASS.</strong> Rust owns a versioned capability contract for the live editor. Each authority signal is independently declared <code>measured</code>, <code>unavailable</code>, or <code>unmodeled</code>, with a stable ID and a reason. The browser consumes those declarations rather than guessing from missing numeric values.</p>
+<h2>Example authority stack retained in the review</h2>
+<p>The architecture drawer still contains the full measured R85 example: Invariant floating dynamics and six-row rigid-sole kinematics, Viability patch 8401 and the R83 joint stopping envelope, Intent/Preference/Style residuals, point-force and effort resources, solver work, and backend availability. It remains explicitly separate from the live Upkie adapter.</p>
+<h2>Live Upkie capability declaration</h2>
+<div class="table-wrap"><table><thead><tr><th>stable ID</th><th>layer</th><th>availability</th><th>live semantics</th></tr></thead><tbody>
+<tr><td>hard_rows</td><td>Invariant</td><td>measured</td><td>dynamics, rolling-contact, and inequality residuals</td></tr>
+<tr><td>finite_support</td><td>Viability</td><td>unavailable</td><td>two wheel contacts do not define a finite-area polygon</td></tr>
+<tr><td>joint_position</td><td>Resource</td><td>measured</td><td>nearest observed URDF position-limit headroom</td></tr>
+<tr><td>joint_stopping</td><td>Viability</td><td>unavailable</td><td>R83 is measured in the review fixture but not composed into this adapter</td></tr>
+<tr><td>actuator_effort</td><td>Resource</td><td>measured</td><td>absolute solved effort divided by authored effort limit</td></tr>
+<tr><td>actuator_realization</td><td>Resource</td><td>unmodeled</td><td>no calibrated bandwidth or slew profile</td></tr>
+<tr><td>acceleration_realization</td><td>Resource</td><td>unavailable</td><td>requires realized effort and measured plant state</td></tr>
+<tr><td>solver_budget</td><td>Compute</td><td>measured</td><td>wall time against the fixed 5 ms editor budget</td></tr>
+<tr><td>thermal_reliability</td><td>Resource</td><td>unmodeled</td><td>no calibrated Upkie electrical/thermal model</td></tr>
+<tr><td>task_residuals</td><td>Lexicographic</td><td>measured</td><td>per-task stable ID, priority, RMS, rank, and clipping</td></tr>
+</tbody></table></div>
+<h2>Protocol and implementation gates</h2>
+<div class="table-wrap"><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody>
+<tr><td>stable capability IDs</td><td>10 unique</td></tr>
+<tr><td>aggregate health field</td><td>absent</td></tr>
+<tr><td>finite-support truthfulness</td><td>Upkie unavailable; toy patch stays in measured review example</td></tr>
+<tr><td>joint-stopping truthfulness</td><td>live unavailable; R83 evidence remains linked and visible</td></tr>
+<tr><td>finite-patch provenance</td><td>state schema carries optional limiting stable patch ID</td></tr>
+<tr><td>task-layer data</td><td>existing fixed-capacity Rust diagnostics retained</td></tr>
+<tr><td>idle → raw-dynamic transition</td><td>kinematic_controller → floating_dynamic_wbc</td></tr>
+<tr><td>engaged raw-WBC sample</td><td>1.508 ms · dynamics 1.78e−12 · contact 2.66e−13</td></tr>
+<tr><td>engaged task / effort sample</td><td>6 active tasks · 6.42% maximum authored-effort utilization</td></tr>
+<tr><td>Rust unit test</td><td>2 / 2 server tests pass</td></tr>
+<tr><td>workspace type check</td><td>pass</td></tr>
+<tr><td>browser syntax and rendered contract check</td><td>pass · idle hard/effort/task rows visibly IDLE</td></tr>
+<tr><td>mobile architecture layout</td><td>390 × 844 viewport: authority section present and readable</td></tr>
+</tbody></table></div>
+<h2>Scope boundary</h2>
+<p>This is a transport and review admission, not a new physical-controller claim. The live Upkie loop still does not compose the R83 stopping envelope or the R85 finite patch. Calibrated realization, thermal state, hardware reliability, live finite-foot support, CpuMirrorF32 hierarchical solve, and CUDA remain unavailable.</p>
+</main></body></html>

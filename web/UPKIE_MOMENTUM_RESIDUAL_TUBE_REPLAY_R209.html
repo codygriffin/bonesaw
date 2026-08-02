@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw generalized-momentum residual tube replay · r209</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw generalized-momentum residual tube replay · r209</h1>
+<blockquote>Rust covector/tangent mechanism **PASS** · physics steps **0** · policy steps **0** · strict retained/fresh coverage **FAIL** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<ul><li>The immutable R206 replay supplies state, support-hypothesis accelerations and completed velocity labels. This run performs no MuJoCo integration and no policy/controller step.</li><li>Rust first computes generalized-momentum residual covectors `M(q)(Δv_observed−Δv_predicted)`. Python fits signed leave-one-named-case-out boxes; Rust maps each box back through the exact full inverse mass to a velocity interval.</li><li>Nearest-candidate fitting is an optimistic support-oracle diagnostic. All-candidate fitting encloses every declared support hypothesis. Both are empirical construction bounds, not calibrated online authority.</li></ul>
+<h2>Momentum-space LOCO sweep</h2>
+<div class=table-wrap><table><thead><tr><th>fit mode</th><th>scale</th><th>retained coverage</th><th>fresh coverage</th><th>component coverage</th><th>max miss</th><th>root ω p95</th><th>root v p95</th><th>joint p95</th><th>projection p99 µs</th></tr></thead><tbody><tr><td>nearest_candidate</td><td>1.00×</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>60.17962</td><td>49.056</td><td>5.691</td><td>179.104</td><td>8.423</td></tr><tr><td>nearest_candidate</td><td>1.25×</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>56.84255</td><td>61.317</td><td>7.113</td><td>223.738</td><td>9.289</td></tr><tr><td>all_candidates</td><td>1.00×</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>59.21494</td><td>51.503</td><td>5.946</td><td>183.099</td><td>9.768</td></tr><tr><td>all_candidates</td><td>1.25×</td><td>98.872%</td><td>100.000%</td><td>99.909%</td><td>55.63671</td><td>64.376</td><td>7.431</td><td>228.732</td><td>9.065</td></tr></tbody></table></div>
+<p>Highest complete-sample coverage is **nearest_candidate_scale_1.00** at **98.905%**. Narrowest joint tube is **nearest_candidate_scale_1.00** at **179.104 rad/s p95**.</p>
+<p>Rust residual p99 is **5.228 µs**; inverse-mass box projection remains allocation-free. R204&#x27;s causal directional comparison is 98.120% retained / 100% fresh at 9.687 / 0.991 / 58.020 p95 width.</p>
+<h2>Decision</h2>
+<p>The covector→tangent mechanism is admitted as deterministic model machinery. These empirical boxes are rejected for command authority unless strict retained/fresh and second-morphology/contact-law holdouts close at useful width, with causal feature provenance, consequence non-regression, deadline evidence and hardware calibration kept separate.</p></main></body></html>

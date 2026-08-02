@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw three-way terminal chooser A/B · r191</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw three-way terminal chooser A/B · r191</h1>
+<blockquote>Mechanism **PASS** · plant consequence **REJECTED** · synchronous profile **REJECTED**.</blockquote>
+<h2>Plant consequence</h2>
+<ul><li>Stored first-run work: **62,817 control ticks** across **77 profiles**, each with exact replay.</li></ul>
+<div class=table-wrap><table><thead><tr><th>case</th><th>dropout</th><th>exact</th><th>terminal chooser</th><th>fall Δ s</th></tr></thead><tbody><tr><td>nominal</td><td>drop5</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>nominal</td><td>drop10</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>forward_4n_reference</td><td>drop5</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>forward_4n_reference</td><td>drop10</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>backward_4n</td><td>drop5</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>backward_4n</td><td>drop10</td><td>RECOVERED</td><td>RECOVERED</td><td>—</td></tr><tr><td>left_1n</td><td>drop5</td><td>FALL 2.470s</td><td>FALL 1.790s</td><td>-0.680</td></tr><tr><td>left_1n</td><td>drop10</td><td>FALL 2.470s</td><td>FALL 2.735s</td><td>+0.265</td></tr><tr><td>right_1n_mirror</td><td>drop5</td><td>FALL 2.520s</td><td>FALL 2.170s</td><td>-0.350</td></tr><tr><td>right_1n_mirror</td><td>drop10</td><td>FALL 2.520s</td><td>FALL 2.365s</td><td>-0.155</td></tr><tr><td>handle_forward_4n</td><td>drop5</td><td>FALL 4.630s</td><td>FALL 5.970s</td><td>+1.340</td></tr><tr><td>handle_forward_4n</td><td>drop10</td><td>FALL 4.630s</td><td>FALL 4.230s</td><td>-0.400</td></tr><tr><td>forward_4n_friction_0p03</td><td>drop5</td><td>FALL 1.610s</td><td>FALL 1.635s</td><td>+0.025</td></tr><tr><td>forward_4n_friction_0p03</td><td>drop10</td><td>FALL 1.610s</td><td>FALL 1.595s</td><td>-0.015</td></tr></tbody></table></div>
+<h2>Independent physical impact audit</h2>
+<ul><li>Independently re-audited **481** online terminal queries at a declared root-impact plane of **0.225 m**; full candidate diagnostics and selections disagree on **0** ticks.</li><li>Ballistic time, vertical impact velocity, and vertical specific energy are candidate-invariant by construction. Candidate commands affect only terminal tilt/rate, joint headroom/speed, effort, and admission diagnostics.</li><li>The J/kg field is only `0.5 vz²`; no horizontal or rotational energy is invented without mass/inertia evidence, and the audit is not a collision-impulse or injury certificate.</li></ul>
+<h2>Runtime</h2>
+<ul><li>Online selector / independent re-audit maxima: **8.106 / 0.972 µs**.</li><li>Full loop: **115** 5 ms overruns; loop/controller maxima **7.056 / 6.730 ms**.</li><li>Rust hot-path allocation and Python GC inside measured controller execution: **zero**.</li></ul></main></body></html>

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw conservative continuous-clearance admission · r102</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw conservative continuous-clearance admission · r102</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R102 keeps the deterministic 1 ms collision grid as direct evidence, then optionally requires a conservative continuous certificate. For each compiled sphere, Rust precomputes joint-coordinate center-speed coefficients. Analytic maximum joint velocity over the quintic bounds every pair&#x27;s relative center speed, and admission subtracts half an interval of possible travel from the sampled minimum.</p>
+<p>This is a conservative Lipschitz certificate over the represented sphere proxies. It is policy-free and physics-free, and it does not claim exact mesh continuous collision detection.</p>
+<h2>Retained adversarial cases</h2>
+<p>Selection codes are `0=Primary`, `1=Contingency`, `2=Rejected`.</p>
+<div class=table-wrap><table><thead><tr><th>case</th><th>selection</th><th>flags</th><th>sampled primary min m</th><th>continuous lower m</th><th>relative speed m/s</th><th>braking lower m</th><th>raw violation pair / ns</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th></tr></thead><tbody><tr><td>safe_certified</td><td>0</td><td>0x000</td><td>0.19999999999999996</td><td>0.19999999999999996</td><td>0.0</td><td>0.19999999999999996</td><td>-1 / -1</td><td>19.627 / 25.536 / 50.055</td><td>0 / 0</td></tr><tr><td>near_grid_only</td><td>0</td><td>0x000</td><td>0.020231879529286623</td><td>0.019008473505750956</td><td>2.446812047071335</td><td>0.04444999999999996</td><td>-1 / -1</td><td>23.610 / 32.403 / 35.558</td><td>0 / 0</td></tr><tr><td>near_rate_certified</td><td>1</td><td>0x200</td><td>0.020231879529286623</td><td>0.019008473505750956</td><td>2.446812047071335</td><td>0.04444999999999996</td><td>-1 / -1</td><td>23.504 / 29.907 / 30.968</td><td>0 / 0</td></tr></tbody></table></div>
+<p>The near case is clear at every grid point: its sampled primary minimum is **20.232 mm** against a 20 mm requirement, and no raw violation pair or time exists. Its continuous lower bound is only **19.008 mm**, so flag `0x200` activates only when continuous certification is requested. The exact same command is selected under explicit grid-only policy and withheld under conservative-rate policy; the independently certified braking segment is selected with zero admitted feed-forward effort.</p>
+<p>All cases replay semantic bytes exactly across 100 resets, allocate zero bytes inside the Rust transaction, satisfy hard dynamics/contact residuals below `1e-7`, and remain far inside the 20 ms horizon.</p>
+<h2>Authority interpretation</h2>
+<p>The example authority stack now has two collision rows: **sampled geometry** records the measured proxy minimum and exact first failing sample, while **continuous clearance** records the lower-bound certificate and speed budget. A red continuous row with a green sampled row means “no collision was observed, but clearance was not proved”; it is not reported as an observed collision.</p>
+<h2>Boundary and remaining work</h2>
+<p>The certificate is intentionally conservative and fixed-root over each 20 ms command segment. Unsupported authored geometry is still rejected by default; world SDF/obstacles, synthesized floating-root trajectories, tighter pair-specific interval bounds, and exact mesh CCD remain explicit future work.</p></main></body></html>

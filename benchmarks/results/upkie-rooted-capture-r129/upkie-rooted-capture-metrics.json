@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "revision": "upkie-rooted-capture-r129",
+  "generated_at": "2026-08-02T00:16:54.404931+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "machine": "x86_64"
+  },
+  "model": "/home/codygriffin/Documents/bonepilot/models/upkie/upkie.urdf",
+  "model_sha256": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+  "ticks": 10000,
+  "dt_s": 0.005,
+  "capture_velocity_fraction": 0.2,
+  "policy_component": true,
+  "physics": false,
+  "integration": false,
+  "wbc_solve": false,
+  "diagnostic_names": [
+    "virtual_pitch_rad",
+    "capture_position_control_world_m",
+    "capture_error_m",
+    "capture_pressure",
+    "station_error_m",
+    "station_authority",
+    "ground_position_control_world_m",
+    "ground_velocity_control_world_mps",
+    "station_position_control_world_m",
+    "commanded_ground_velocity_mps",
+    "ground_position_odom_m",
+    "ground_position_map_m",
+    "center_of_mass_control_world_m",
+    "center_of_mass_velocity_control_world_mps",
+    "natural_frequency_rad_s",
+    "used_center_of_mass_height_m"
+  ],
+  "timing_ns": {
+    "minimum": 4379.0,
+    "mean": 4971.1125,
+    "stddev": 904.0615594326251,
+    "mad": 51.0,
+    "p50": 4519.0,
+    "p95": 6112.0,
+    "p99": 6312.0,
+    "p99_9": 12343.261000000053,
+    "maximum": 29275.0
+  },
+  "exact_replay": true,
+  "map_jump_max_command_delta": 0.0,
+  "map_jump_reporting_delta_m": 10.0,
+  "python_gc_collections": 0,
+  "rss_delta_bytes": 7831552,
+  "rust_hot_path_allocation_check": "PASS",
+  "velocity_sweep": {
+    "minimum_mps": -0.8,
+    "maximum_mps": 0.8,
+    "samples": 161,
+    "minimum_command_step_mps": -0.0003501321071291627,
+    "minimum_full_pressure_command_step_mps": 0.0026835759723139174,
+    "maximum_absolute_command_step_mps": 0.00576261053674864
+  },
+  "gates": {
+    "finite corpus": {
+      "observed": true,
+      "pass": true
+    },
+    "exact D1 replay": {
+      "observed": true,
+      "pass": true
+    },
+    "map jump cannot change command/control diagnostics": {
+      "observed": "maximum delta 0.000e+00",
+      "pass": true
+    },
+    "map jump remains visible in reporting": {
+      "observed": "10.000000 m",
+      "pass": true
+    },
+    "full-pressure capture command is monotone in CoM velocity": {
+      "observed": "minimum adjacent full-pressure delta 2.684e-03",
+      "pass": true
+    },
+    "authority blend is continuous at corpus resolution": {
+      "observed": "maximum adjacent command delta 5.763e-03",
+      "pass": true
+    },
+    "station authority fades monotonically with capture pressure": {
+      "observed": "center 1.000000; edges 0.000000/0.000000",
+      "pass": true
+    },
+    "station target cannot oppose full-pressure capture": {
+      "observed": "wheel delta 0.000e+00",
+      "pass": true
+    },
+    "smooth odom transform moves station preference": {
+      "observed": "target delta 1.000000 m",
+      "pass": true
+    },
+    "invalid rooted quaternion rejects atomically": {
+      "observed": true,
+      "pass": true
+    },
+    "boundary p99 below 1 ms": {
+      "observed": "6.31 \u00b5s",
+      "pass": true
+    }
+  },
+  "admission": true
+}

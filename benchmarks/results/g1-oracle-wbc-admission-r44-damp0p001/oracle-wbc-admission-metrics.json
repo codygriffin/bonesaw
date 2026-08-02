@@ -1,0 +1,172 @@
+{
+  "checks": {
+    "all_kinematic_witness_ticks_converge": true,
+    "kinematic_angular_acceleration_residual_le_1e_2rad_s2": true,
+    "kinematic_angular_velocity_residual_le_1mrad_s": true,
+    "kinematic_com_error_le_3cm": true,
+    "kinematic_hot_loop_has_zero_allocations": true,
+    "kinematic_jet_hot_loop_has_zero_allocations": true,
+    "kinematic_joint_acceleration_le_200rad_s2": true,
+    "kinematic_joint_velocity_le_8rad_s": true,
+    "kinematic_orientation_error_le_1deg": true,
+    "kinematic_point_acceleration_residual_le_1cm_s2": false,
+    "kinematic_point_error_le_1cm": true,
+    "kinematic_point_velocity_residual_le_1mm_s": false,
+    "no_wbc_infeasible_or_failed_ticks": true,
+    "physical_outputs_are_bitwise_repeatable": true,
+    "reference_inputs_remain_bitwise_immutable": true,
+    "wbc_contact_residual_le_1e_8": true,
+    "wbc_dynamics_residual_le_1e_8": true,
+    "wbc_friction_margin_nonnegative": true,
+    "wbc_hot_loop_has_zero_allocations": true,
+    "wbc_p99_latency_le_20ms": true,
+    "wbc_torque_margin_nonnegative": true,
+    "wbc_viability_task_rms_le_0_1": false
+  },
+  "dt_seconds": 0.005,
+  "evaluation_boundary": {
+    "feedback_policy": false,
+    "oracle_state_per_tick": true,
+    "physics_simulator": false,
+    "reference_inputs_immutable": true,
+    "rigid_body_model_equations": true,
+    "state_integration": false
+  },
+  "exact_repeat": true,
+  "input_fingerprint": "8759be6c0444f8b6b794b5a9de260b3bd78b5d253032152196bc87f6dc14c2e0",
+  "kinematic_witness": {
+    "allocated_bytes": 0,
+    "allocation_calls": 0,
+    "center_of_mass_error_p99_m": 0.02728117178522367,
+    "converged_ticks": 600,
+    "iterations": {
+      "maximum": 4,
+      "p50": 0.0,
+      "p99": 2.0
+    },
+    "jet_allocated_bytes": 0,
+    "jet_allocation_calls": 0,
+    "jet_latency_us": {
+      "maximum": 46.858,
+      "mean": 30.271558333333335,
+      "minimum": 28.334,
+      "p50": 28.775,
+      "p95": 37.762,
+      "p99": 42.891799999999996
+    },
+    "jet_residuals": {
+      "maximum_angular_acceleration_rad_s2": 0.0005295397850073939,
+      "maximum_angular_velocity_rad_s": 1.9442990509087007e-05,
+      "maximum_center_of_mass_acceleration_mps2": 1.5285924503730697,
+      "maximum_center_of_mass_velocity_mps": 0.1070398721998984,
+      "maximum_point_acceleration_mps2": 0.09694544243472956,
+      "maximum_point_velocity_mps": 0.003719565060653817
+    },
+    "latency_us": {
+      "maximum": 36.76,
+      "mean": 2.4122133333333333,
+      "minimum": 1.252,
+      "p50": 1.352,
+      "p95": 11.071,
+      "p99": 19.61711
+    },
+    "maximum_center_of_mass_error_m": 0.02728117178522367,
+    "maximum_joint_acceleration_rad_s2": 111.00638378294498,
+    "maximum_joint_velocity_rad_s": 4.247989633239053,
+    "maximum_orientation_error_rad": 0.013899655593820276,
+    "maximum_point_error_m": 0.004987836908089622,
+    "point_error_p99_m": 0.004843734167923059
+  },
+  "model": "/home/codygriffin/Documents/bonepilot/benchmarks/cache/unitree-g1/g1_23dof_mode_10.urdf",
+  "passed": false,
+  "reference_inputs": "/home/codygriffin/Documents/bonepilot/benchmarks/results/g1-bonesaw-lipm-r44/reference-inputs.npz",
+  "runtime": {
+    "maximum_rss_after_bytes": 42782720,
+    "maximum_rss_before_bytes": 42389504,
+    "maximum_rss_growth_bytes": 393216,
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "process_cpu_seconds": 1.713853825,
+    "python": "3.12.3",
+    "python_gc_count_after": [
+      3,
+      0,
+      0
+    ],
+    "python_gc_count_before": [
+      0,
+      0,
+      0
+    ],
+    "python_tracemalloc_peak_bytes": 578,
+    "wall_seconds": 1.716334277
+  },
+  "schema": 1,
+  "ticks": 600,
+  "wbc_admission": {
+    "allocated_bytes": 0,
+    "allocation_calls": 0,
+    "clipped_steps": {
+      "maximum": 14,
+      "ticks": 417
+    },
+    "deadline_misses_20ms": 0,
+    "feasibility_halfspace_projections": {
+      "maximum": 234,
+      "mean": 229.42
+    },
+    "jitter_abs_delta_us": {
+      "maximum": 4352.213,
+      "mean": 227.86773288814692,
+      "minimum": 0.08,
+      "p50": 41.589,
+      "p95": 1211.3828,
+      "p99": 2015.7782399999978
+    },
+    "latency_us": {
+      "maximum": 8822.267,
+      "mean": 2860.2313916666667,
+      "minimum": 1471.45,
+      "p50": 2536.9325,
+      "p95": 4714.654299999992,
+      "p99": 6360.53848
+    },
+    "maximum_actuator_torque": 32.57519442330929,
+    "maximum_contact_acceleration_residual": 4.6473068449071064e-11,
+    "maximum_contact_normal_force": 209.92143629863725,
+    "maximum_dynamics_residual": 1.2123098172281413e-09,
+    "maximum_viability_task_rms": 9.736088856340487,
+    "maximum_witness_acceleration_rms": 29.873912583135965,
+    "minimum_friction_margin": -1.9300279913683506e-14,
+    "minimum_torque_margin": 1967.4248055766907,
+    "status_counts": {
+      "failed": 0,
+      "primal_infeasible": 0,
+      "solved": 183,
+      "solved_with_slack": 417
+    },
+    "task_jacobi_sweeps": {
+      "maximum": 93,
+      "mean": 43.67666666666667
+    },
+    "task_maximum_rms": {
+      "actuator_torque_style": 9.322754916779193,
+      "center_of_mass": 1.4970767042773303,
+      "centroidal_angular_momentum_rate": 0.0,
+      "contact_force_style": 40.59410041727734,
+      "frame_angular_0": 1.9628868718185086,
+      "joint_posture": 33.54495292674323,
+      "point_0": 2.598570802232568,
+      "point_1": 0.0,
+      "point_2": 0.0,
+      "point_3": 0.0,
+      "protected_joint_acceleration": 0.0,
+      "root_angular": 9.736088856340487,
+      "root_height": 2.7877231707759775,
+      "root_horizontal": 1.5061139029791621
+    },
+    "task_pseudoinverse_calls": {
+      "maximum": 15,
+      "mean": 5.83
+    }
+  }
+}

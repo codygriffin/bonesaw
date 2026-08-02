@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "revision": "joint-viability-envelope-r81",
+  "generated_at": "2026-08-01T08:08:43.843053+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64"
+  },
+  "oracle_cases": [
+    {
+      "model": "models/toy_humanoid.urdf",
+      "model_sha256": "db25c1ee56e6cf5041ad3cfb42259d838f431928a49aa1d0e0472307ec3038e6",
+      "samples": 32,
+      "maximum_bound_error": 0.0,
+      "infinity_masks_exact": true,
+      "minimum_position_headroom": -0.22006142139434814,
+      "minimum_velocity_headroom": 1.650087717963202,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    },
+    {
+      "model": "models/upkie/upkie.urdf",
+      "model_sha256": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+      "samples": 32,
+      "maximum_bound_error": 0.0,
+      "infinity_masks_exact": true,
+      "minimum_position_headroom": 1.0350626057386398,
+      "minimum_velocity_headroom": 28.450054274499298,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    }
+  ],
+  "recovery": {
+    "coordinate": 0,
+    "recovery_acceleration": -20.0,
+    "recovery_exact": true,
+    "invalid_agent_isolation_exact": true,
+    "disabled_agent_ignores_payload": true,
+    "pass": true
+  },
+  "approach_sweep": {
+    "coordinate": 0,
+    "sample_count": 64,
+    "farthest_upper_qdd": 20.0,
+    "nearest_upper_qdd": -20.0,
+    "monotone_nonincreasing": true,
+    "requests_inward_before_limit": true,
+    "pass": true
+  },
+  "composition": {
+    "all_commands_inside_envelope": true,
+    "status_all_solved_with_slack": true,
+    "minimum_solved_envelope_margin": 0.0,
+    "clipped_steps": 96,
+    "maximum_soft_residual": 111.25113887052382,
+    "allocation_calls": 0,
+    "pass": true
+  },
+  "invariance": {
+    "repeat_bitwise_exact": true,
+    "permutation_exact": true,
+    "padding_exact": true,
+    "allocation_calls": 0,
+    "pass": true
+  },
+  "timing": [
+    {
+      "batch_size": 1,
+      "repeats": 200,
+      "execute_ns": {
+        "minimum": 341.0,
+        "mean": 413.83,
+        "stddev": 760.4657856208917,
+        "mad": 1.0,
+        "p50": 361.0,
+        "p95": 371.0,
+        "p99": 371.38999999999965,
+        "p99_9": 9005.531000000174,
+        "maximum": 11141.0
+      },
+      "per_agent_execute_ns": {
+        "minimum": 341.0,
+        "mean": 413.83,
+        "stddev": 760.4657856208917,
+        "mad": 1.0,
+        "p50": 361.0,
+        "p95": 371.0,
+        "p99": 371.38999999999965,
+        "p99_9": 9005.531000000174,
+        "maximum": 11141.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 32,
+      "repeats": 200,
+      "execute_ns": {
+        "minimum": 3957.0,
+        "mean": 3996.1,
+        "stddev": 142.25617737026394,
+        "mad": 1.0,
+        "p50": 3968.0,
+        "p95": 3988.5,
+        "p99": 4970.19,
+        "p99_9": 4989.0,
+        "maximum": 4989.0
+      },
+      "per_agent_execute_ns": {
+        "minimum": 123.65625,
+        "mean": 124.878125,
+        "stddev": 4.445505542820748,
+        "mad": 0.03125,
+        "p50": 124.0,
+        "p95": 124.640625,
+        "p99": 155.3184375,
+        "p99_9": 155.90625,
+        "maximum": 155.90625
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 256,
+      "repeats": 200,
+      "execute_ns": {
+        "minimum": 30738.0,
+        "mean": 31193.51,
+        "stddev": 1312.0359560240718,
+        "mad": 20.5,
+        "p50": 30939.0,
+        "p95": 31354.099999999973,
+        "p99": 37087.02,
+        "p99_9": 42998.1120000001,
+        "maximum": 44294.0
+      },
+      "per_agent_execute_ns": {
+        "minimum": 120.0703125,
+        "mean": 121.8496484375,
+        "stddev": 5.12514045321903,
+        "mad": 0.080078125,
+        "p50": 120.85546875,
+        "p95": 122.4769531249999,
+        "p99": 144.871171875,
+        "p99_9": 167.9613750000004,
+        "maximum": 173.0234375
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    }
+  ],
+  "dynamic_effort_force_feasibility": {
+    "available": false,
+    "claimed": false
+  },
+  "admission": true
+}

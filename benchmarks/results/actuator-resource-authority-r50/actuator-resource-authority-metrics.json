@@ -1,0 +1,271 @@
+{
+  "authority_evidence": {
+    "effort_scale_threshold_curve": [
+      {
+        "adverse_fraction": 0.6381666666666667,
+        "adverse_ticks": 15316,
+        "threshold": 1.0
+      },
+      {
+        "adverse_fraction": 0.559,
+        "adverse_ticks": 13416,
+        "threshold": 0.8
+      },
+      {
+        "adverse_fraction": 0.42833333333333334,
+        "adverse_ticks": 10280,
+        "threshold": 0.5
+      },
+      {
+        "adverse_fraction": 0.2708333333333333,
+        "adverse_ticks": 6500,
+        "threshold": 0.2
+      }
+    ],
+    "hot_vs_cool_same_demand": {
+      "cool_effort_scale": 1.0,
+      "cool_temperature_c": 41.32896790291926,
+      "cool_tick": 1000,
+      "effort_nm": 15.0,
+      "hot_effort_scale": 0.1,
+      "hot_temperature_c": 100.1260751425254,
+      "hot_tick": 9000,
+      "velocity_rad_s": 1.5
+    },
+    "longest_derating_run_ticks": 9273,
+    "maximum_effort_utilization": {
+      "maximum": 5.0,
+      "mean": 0.6777780544368498,
+      "minimum": 0.0,
+      "p01": 0.0,
+      "p50": 0.22289923710515328,
+      "p95": 5.0,
+      "p99": 5.0
+    },
+    "maximum_temperature_c": {
+      "maximum": 102.81982450870348,
+      "mean": 50.79720741924819,
+      "minimum": 25.00077137347201,
+      "p01": 25.65364105252794,
+      "p50": 48.64841943094783,
+      "p95": 97.32210364389066,
+      "p99": 101.3790536621829
+    },
+    "minimum_effort_scale": {
+      "maximum": 1.0,
+      "mean": 0.867275933794492,
+      "minimum": 0.1,
+      "p01": 0.1,
+      "p50": 1.0,
+      "p95": 1.0,
+      "p99": 1.0
+    },
+    "per_actuator": [
+      {
+        "maximum_copper_loss_w": 18.75,
+        "maximum_current_a": 12.5,
+        "maximum_effort_utilization": 0.25,
+        "maximum_temperature_c": 30.452369447966824,
+        "mechanical_power_w": {
+          "maximum": 19.639575365353878,
+          "mean": -0.04234149364640541,
+          "minimum": -20.0,
+          "p01": -19.61018528004811,
+          "p50": -1.1839444380305256e-17,
+          "p95": 17.08190484710598,
+          "p99": 19.514574819233495
+        },
+        "minimum_effort_scale": 1.0,
+        "name": "cool_continuous"
+      },
+      {
+        "maximum_copper_loss_w": 112.5,
+        "maximum_current_a": 25.0,
+        "maximum_effort_utilization": 5.0,
+        "maximum_temperature_c": 102.81982450870348,
+        "mechanical_power_w": {
+          "maximum": 22.5,
+          "mean": 16.875,
+          "minimum": 0.0,
+          "p01": 0.0,
+          "p50": 22.5,
+          "p95": 22.5,
+          "p99": 22.5
+        },
+        "minimum_effort_scale": 0.1,
+        "name": "sustained_derating"
+      },
+      {
+        "maximum_copper_loss_w": 99.18367346938776,
+        "maximum_current_a": 25.714285714285715,
+        "maximum_effort_utilization": 0.72,
+        "maximum_temperature_c": 52.666761911984864,
+        "mechanical_power_w": {
+          "maximum": 45.0,
+          "mean": 0.0,
+          "minimum": -45.0,
+          "p01": -45.0,
+          "p50": -0.0,
+          "p95": 45.0,
+          "p99": 45.0
+        },
+        "minimum_effort_scale": 1.0,
+        "name": "intermittent_pulse"
+      }
+    ],
+    "temperature_threshold_curve": [
+      {
+        "adverse_fraction": 0.9620416666666667,
+        "adverse_ticks": 23089,
+        "threshold": 40.0
+      },
+      {
+        "adverse_fraction": 0.8425,
+        "adverse_ticks": 20220,
+        "threshold": 55.0
+      },
+      {
+        "adverse_fraction": 0.6381666666666667,
+        "adverse_ticks": 15316,
+        "threshold": 70.0
+      },
+      {
+        "adverse_fraction": 0.40929166666666666,
+        "adverse_ticks": 9823,
+        "threshold": 85.0
+      },
+      {
+        "adverse_fraction": 0.20825,
+        "adverse_ticks": 4998,
+        "threshold": 95.0
+      }
+    ]
+  },
+  "checks": {
+    "all_physical_outputs_are_finite": true,
+    "constant_load_matches_exact_closed_form_le_1e_9c": true,
+    "cool_fixture_never_derates": true,
+    "derating_is_continuous_per_5ms_tick": true,
+    "ideal_electrical_power_identity_le_1e_12w": true,
+    "physical_outputs_are_bitwise_repeatable": true,
+    "resource_maximum_latency_le_1ms": true,
+    "resource_p99_latency_le_50us": true,
+    "rust_resource_loop_has_zero_allocations": true,
+    "same_demand_has_less_authority_when_hot": true,
+    "sustained_fixture_reaches_declared_minimum_scale": true,
+    "zero_effort_cooling_is_strictly_monotonic": true
+  },
+  "configuration": {
+    "actuator_names": [
+      "cool_continuous",
+      "sustained_derating",
+      "intermittent_pulse"
+    ],
+    "dt_seconds": 0.005,
+    "duration_seconds": 120.0,
+    "profile_columns": [
+      "torque_constant_nm_per_amp",
+      "winding_resistance_ohm",
+      "thermal_resistance_c_per_w",
+      "thermal_time_constant_s",
+      "ambient_temperature_c",
+      "derating_start_temperature_c",
+      "shutdown_temperature_c",
+      "minimum_effort_fraction",
+      "base_effort_limit_nm"
+    ],
+    "profiles": [
+      [
+        0.8,
+        0.12,
+        0.45,
+        35.0,
+        25.0,
+        70.0,
+        90.0,
+        0.2,
+        40.0
+      ],
+      [
+        0.6,
+        0.18,
+        0.8,
+        25.0,
+        25.0,
+        70.0,
+        95.0,
+        0.1,
+        30.0
+      ],
+      [
+        0.7,
+        0.15,
+        0.65,
+        20.0,
+        25.0,
+        70.0,
+        90.0,
+        0.2,
+        25.0
+      ]
+    ],
+    "ticks": 24000
+  },
+  "evaluation_boundary": {
+    "contact_simulator": false,
+    "rigid_body_physics": false,
+    "robot_policy": false,
+    "rust_owns_persistent_state": true,
+    "state_integration": false,
+    "synthetic_parameter_fixture": true,
+    "upkie_or_g1_calibration_claim": false
+  },
+  "exact_repeat_fields": {
+    "copper_loss_w": true,
+    "current_a": true,
+    "derated_effort_limit_nm": true,
+    "effort_headroom_nm": true,
+    "effort_scale": true,
+    "effort_utilization": true,
+    "ideal_electrical_power_w": true,
+    "mechanical_power_w": true,
+    "winding_temperature_c": true
+  },
+  "numerics": {
+    "constant_load_absolute_error_c": 1.3784529073745944e-12,
+    "constant_load_analytic_temperature_c": 102.81982450870485,
+    "constant_load_rust_temperature_c": 102.81982450870348,
+    "maximum_effort_scale_delta_per_tick": 0.0005038996999093825,
+    "maximum_power_identity_error_w": 1.4210854715202004e-14
+  },
+  "passed": true,
+  "runtime": {
+    "allocated_bytes": 0,
+    "allocation_calls": 0,
+    "latency_us": {
+      "maximum": 131.418,
+      "mean": 0.22119520833333334,
+      "minimum": 0.11,
+      "p01": 0.11,
+      "p50": 0.12,
+      "p95": 0.16,
+      "p99": 0.1810899999999856
+    },
+    "maximum_rss_growth_bytes": 5861376,
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "process_cpu_seconds": 0.006477799,
+    "python": "3.12.3",
+    "python_gc_count_after": [
+      33,
+      0,
+      0
+    ],
+    "python_gc_count_before": [
+      0,
+      0,
+      0
+    ],
+    "wall_seconds": 0.006482969
+  },
+  "schema": 1
+}

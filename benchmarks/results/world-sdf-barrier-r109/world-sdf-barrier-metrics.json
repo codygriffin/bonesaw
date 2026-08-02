@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "revision": "world-sdf-barrier-r109",
+  "generated_utc": "2026-08-01T16:50:06.610781+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/tight_avoidance_toy.urdf": "d4519d835457fce1d1b0b7001e8dfb6c3062dc60d1b4b1449cd614657945c018",
+    "crates/bonesaw-core/src/world_collision.rs": "5bcaddfaba68424426c134469792083f3b2b1cf800643da211f8f165daddf504",
+    "crates/bonesaw-core/src/dynamic_wbc.rs": "ca088d959f9b763e9d43ad140ce96a10f15a5de531dd1f5e855d26e1fd034f91",
+    "crates/bonesaw-py/src/lib.rs": "cb7b3381a23c775f9ea6e24a6f84cb2a48133fe02ccbe07dae51d5c06e1aff9b",
+    "python/bonesaw/__init__.py": "49993658b85fee1d146097c965b0865aaee28669a5e971eacb1eb9ceec5a85d1",
+    "/home/codygriffin/Documents/bonepilot/python/evals/world_sdf_barrier_report.py": "f0e9fdb0d3beff71195b6bd0ee13db97deaabe9cbf830821ecaffa8831bc7e0e"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free floating WBC queries against an immutable dense world SDF",
+    "model": "models/tight_avoidance_toy.urdf",
+    "grid_dimensions_xyz": [
+      21,
+      21,
+      21
+    ],
+    "grid_spacing_m": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "wall_y_m": 0.55,
+    "coordinate_samples": 321,
+    "active_samples": 193,
+    "represented_probe_count": 4,
+    "closest_probe_ids": [
+      3
+    ],
+    "closest_body_ids": [
+      2
+    ],
+    "hard_margin_m": 0.02,
+    "influence_margin_m": 0.1,
+    "natural_frequency_hz": 2.0,
+    "damping_ratio": 1.0,
+    "maximum_distance_oracle_error_m": 2.220446049250313e-16,
+    "maximum_relative_velocity_oracle_error_mps": 5.551115123125783e-16,
+    "maximum_gradient_norm_error": 1.3322676295501878e-15,
+    "maximum_required_acceleration_oracle_error_mps2": 4.973799150320701e-14,
+    "maximum_active_count_error": 0,
+    "minimum_barrier_residual_mps2": -3.552713678800501e-15,
+    "minimum_achieved_minus_required_mps2": -3.552713678800501e-15,
+    "maximum_enabled_minus_disabled_joint_acceleration_mps2": 82.28057737373497,
+    "status_codes": [
+      0,
+      1
+    ],
+    "boundary_policy": {
+      "reject_policy_withheld_outside_query": true,
+      "occupied_boundary_source_code": 1,
+      "occupied_boundary_minimum_distance_m": -0.814379674853337,
+      "occupied_boundary_active_probe_count": 4,
+      "occupied_boundary_status_code": 4,
+      "deep_outside_query_not_admitted": true,
+      "nonfinite_grid_rejected": true
+    },
+    "benchmark": {
+      "timing_us": {
+        "minimum": 22.192,
+        "mean": 23.6125505,
+        "stddev": 2.515316536631076,
+        "mad": 0.10099999999999909,
+        "p50": 22.933,
+        "p95": 30.808,
+        "p99": 34.3755,
+        "p99_9": 38.4749730000004,
+        "maximum": 43.302
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "15a50fc6c4f90a006d4a3707dee46571fc078e8fc178d920dd5137da656e224c"
+    }
+  }
+}

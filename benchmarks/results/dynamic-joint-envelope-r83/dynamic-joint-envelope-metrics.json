@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "revision": "dynamic-joint-envelope-r83",
+  "generated_at": "2026-08-01T08:37:25.951307+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64"
+  },
+  "policy": null,
+  "physics_rollout": null,
+  "oracle_cases": [
+    {
+      "model": "models/toy_humanoid.urdf",
+      "model_sha256": "db25c1ee56e6cf5041ad3cfb42259d838f431928a49aa1d0e0472307ec3038e6",
+      "samples": 16,
+      "status_counts": {
+        "SolvedWithSlack": 16
+      },
+      "maximum_numpy_bound_error": 0.0,
+      "infinity_masks_exact": true,
+      "all_solved_commands_inside_envelope": true,
+      "minimum_margin_diagnostic_error": 0.0,
+      "pinocchio_dynamics_linf": 4.4402099774742965e-09,
+      "pinocchio_contact_linf": 1.1008462891259896e-10,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    },
+    {
+      "model": "models/upkie/upkie.urdf",
+      "model_sha256": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+      "samples": 16,
+      "status_counts": {
+        "SolvedWithSlack": 16
+      },
+      "maximum_numpy_bound_error": 0.0,
+      "infinity_masks_exact": true,
+      "all_solved_commands_inside_envelope": true,
+      "minimum_margin_diagnostic_error": 0.0,
+      "pinocchio_dynamics_linf": 1.2710388297421105e-11,
+      "pinocchio_contact_linf": 1.7916224059888464e-12,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    }
+  ],
+  "conflict_and_recovery": {
+    "coordinate": 3,
+    "joint_name": "right_hip",
+    "near_limit_envelope_upper_qdd": 0.050115585327192846,
+    "unconstrained_max_qdd": 75.95171655038797,
+    "constrained_max_qdd": 0.05011558532719211,
+    "minimum_envelope_margin": 0.0,
+    "maximum_intent_residual": 21.772022772423167,
+    "constrained_status_counts": {
+      "SolvedWithSlack": 8
+    },
+    "recovery_status_counts": {
+      "SolvedWithSlack": 8
+    },
+    "outside_limit_recovery_qdd_exact": true,
+    "pass": true
+  },
+  "approach_sweep": {
+    "coordinate": 3,
+    "samples": 64,
+    "farthest_upper_qdd": 20.0,
+    "nearest_upper_qdd": 0.050115585327192846,
+    "upper_bound_monotone_nonincreasing": true,
+    "solved_commands_inside_envelope": true,
+    "status_counts": {
+      "SolvedWithSlack": 64
+    },
+    "minimum_envelope_margin": 0.0,
+    "maximum_intent_residual": 18.239248657994327,
+    "pass": true
+  },
+  "failure_typing": {
+    "invalid_agent": 8,
+    "invalid_agent_isolated_bitwise": true,
+    "disabled_poisoned_payload_ignored_exactly": true,
+    "empty_intersection_status_counts": {
+      "InvalidProblem": 17
+    },
+    "empty_intersection_zero_commands": true,
+    "pass": true
+  },
+  "invariance": {
+    "repeat_bitwise_exact": true,
+    "permutation_exact": true,
+    "padding_exact": true,
+    "allocation_calls": 0,
+    "pass": true
+  },
+  "timing": [
+    {
+      "batch_size": 1,
+      "repeats": 60,
+      "joint_envelope_execute_ns": {
+        "minimum": 321.0,
+        "mean": 357.3333333333333,
+        "stddev": 24.191366687771534,
+        "mad": 10.0,
+        "p50": 351.0,
+        "p95": 380.05,
+        "p99": 453.2099999999997,
+        "p99_9": 496.2210000000008,
+        "maximum": 501.0
+      },
+      "dynamic_solve_execute_ns": {
+        "minimum": 116781.0,
+        "mean": 118727.88333333333,
+        "stddev": 2880.8194614939375,
+        "mad": 621.0,
+        "p50": 117602.0,
+        "p95": 124153.55,
+        "p99": 128074.04999999997,
+        "p99_9": 132112.30500000008,
+        "maximum": 132561.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 169420.0,
+        "mean": 172072.96666666667,
+        "stddev": 3090.9164820306755,
+        "mad": 962.5,
+        "p50": 170667.0,
+        "p95": 177240.5,
+        "p99": 181027.25999999998,
+        "p99_9": 185161.62600000008,
+        "maximum": 185621.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 8,
+      "repeats": 60,
+      "joint_envelope_execute_ns": {
+        "minimum": 1182.0,
+        "mean": 1283.3,
+        "stddev": 152.36407056783435,
+        "mad": 29.5,
+        "p50": 1232.0,
+        "p95": 1535.9999999999998,
+        "p99": 1909.5099999999993,
+        "p99_9": 2021.551000000002,
+        "maximum": 2034.0
+      },
+      "dynamic_solve_execute_ns": {
+        "minimum": 928462.0,
+        "mean": 939564.5666666667,
+        "stddev": 8026.013128917468,
+        "mad": 4143.0,
+        "p50": 938255.5,
+        "p95": 950316.35,
+        "p99": 967164.07,
+        "p99_9": 980294.1070000002,
+        "maximum": 981753.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 1296597.0,
+        "mean": 1311870.7333333334,
+        "stddev": 10543.923483641604,
+        "mad": 4608.5,
+        "p50": 1309090.5,
+        "p95": 1330669.95,
+        "p99": 1345902.03,
+        "p99_9": 1351680.9030000002,
+        "maximum": 1352323.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 32,
+      "repeats": 60,
+      "joint_envelope_execute_ns": {
+        "minimum": 4008.0,
+        "mean": 4259.716666666666,
+        "stddev": 731.1593554455524,
+        "mad": 40.0,
+        "p50": 4078.0,
+        "p95": 4658.549999999999,
+        "p99": 7499.5599999999895,
+        "p99_9": 9154.15600000003,
+        "maximum": 9338.0
+      },
+      "dynamic_solve_execute_ns": {
+        "minimum": 3742162.0,
+        "mean": 3794624.1166666667,
+        "stddev": 71067.10806134618,
+        "mad": 8596.5,
+        "p50": 3774207.0,
+        "p95": 3996231.6,
+        "p99": 4052599.55,
+        "p99_9": 4068133.955,
+        "maximum": 4069860.0
+      },
+      "full_pipeline_ns": {
+        "minimum": 5175146.0,
+        "mean": 5243876.2,
+        "stddev": 80891.72990934653,
+        "mad": 13390.0,
+        "p50": 5222945.5,
+        "p95": 5438657.3,
+        "p99": 5555683.91,
+        "p99_9": 5567180.591,
+        "maximum": 5568458.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    }
+  ],
+  "finite_support": {
+    "available": false,
+    "claimed": false
+  },
+  "cuda_hierarchical_solver": {
+    "available": false,
+    "claimed": false
+  },
+  "admission": true
+}

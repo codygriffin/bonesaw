@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "revision": "cuda-dynamics-r94",
+  "generated_utc": "2026-08-01T11:16:49.731622+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "target/release/bonesaw-cuda-dynamics-audit": "01007aac2b29b26188924be8088aa04f5e5cf2a40e3b78fe7e758f60421b7626",
+    "models/toy_humanoid.urdf": "db25c1ee56e6cf5041ad3cfb42259d838f431928a49aa1d0e0472307ec3038e6",
+    "crates/bonesaw-cuda/src/kernels/fk_com_v1.cu": "35df5864625436d33350cbd382daa5215a550c979e74cd417b2cab6ab4e72532",
+    "crates/bonesaw-cuda/src/kernels/jacobians_v1.cu": "04bd26e8e11cec2444adf3b6d9618b4fb41958183261f871b26a461bb5c0792b",
+    "crates/bonesaw-cuda/src/kernels/dynamics_v1.cu": "03ca7c24e31c9fe34e91e1b64f2bd41def6437288656a61a418156571bbe6c77",
+    "crates/bonesaw-cuda/src/cuda_fk_com.rs": "7a046d2a76787a567ab39dd5ac84d072bd0ead785017595963273746dceeec35"
+  },
+  "source_validation": {
+    "status": "pass",
+    "checks": {
+      "fk_entry": true,
+      "jacobian_entry": true,
+      "dynamics_entry": true,
+      "one_thread_per_agent": true,
+      "no_device_allocation": true,
+      "no_atomics": true,
+      "no_block_barrier": true,
+      "one_stream_one_final_sync": true,
+      "fixed_dynamics_buffers": true,
+      "explicit_no_fallback_contract": true
+    }
+  },
+  "audit": {
+    "capabilities": {
+      "cpu_mirror_f32": true,
+      "cuda_graph_executor": false,
+      "cuda_mirror_dynamics_f32": true,
+      "cuda_mirror_f32": false,
+      "cuda_mirror_fk_com_f32": true,
+      "cuda_mirror_jacobians_f32": true,
+      "cuda_mirror_state_input_f32": true,
+      "cuda_throughput_f32": false
+    },
+    "claim": "StateInput+FK/CoM+Jacobians+floating M/h/Ag CUDA pipeline implemented; absent compiler/device gates are not inferred",
+    "compiler_probes": {
+      "dynamics": {
+        "compiler_log": null,
+        "detail": "NVRTC library is unavailable",
+        "ptx_bytes": null,
+        "ptx_sha256": null,
+        "status": "library_unavailable",
+        "target_compute_capability": [
+          7,
+          5
+        ],
+        "toolkit_version": null
+      },
+      "fk_com": {
+        "compiler_log": null,
+        "detail": "NVRTC library is unavailable",
+        "ptx_bytes": null,
+        "ptx_sha256": null,
+        "status": "library_unavailable",
+        "target_compute_capability": [
+          7,
+          5
+        ],
+        "toolkit_version": null
+      },
+      "jacobians": {
+        "compiler_log": null,
+        "detail": "NVRTC library is unavailable",
+        "ptx_bytes": null,
+        "ptx_sha256": null,
+        "status": "library_unavailable",
+        "target_compute_capability": [
+          7,
+          5
+        ],
+        "toolkit_version": null
+      }
+    },
+    "cpu_mirror_checks": {
+      "active_agents_ok": true,
+      "allocation_free_hot_path_unit_gate": true,
+      "d1_repeat_bytes_exact": true,
+      "f64_pinocchio_and_physical_identity_gate": true,
+      "invalid_dynamics_input_typed": true,
+      "neighbor_isolation_exact": true,
+      "padding_inactive_and_zero": true,
+      "pass": true,
+      "repeats": 200
+    },
+    "cuda_graph": "not_implemented",
+    "device_checks": null,
+    "full_cuda_mirror": "not_implemented",
+    "hidden_cpu_fallback": false,
+    "kernel_manifest_bits": 2071,
+    "layout": {
+      "agent_capacity": 17,
+      "agent_stride": 32,
+      "body_count": 21,
+      "contact_lock_count": 0,
+      "coordinate_count": 18,
+      "generalized_coordinate_count": 24,
+      "joint_count": 20,
+      "point_query_count": 0,
+      "point_task_count": 0,
+      "pose_components": 12,
+      "program_fingerprint": [
+        140,
+        235,
+        43,
+        227,
+        55,
+        190,
+        210,
+        79,
+        2,
+        169,
+        85,
+        84,
+        18,
+        134,
+        111,
+        56,
+        107,
+        133,
+        187,
+        162,
+        131,
+        61,
+        236,
+        31,
+        14,
+        248,
+        148,
+        147,
+        212,
+        223,
+        204,
+        116
+      ],
+      "spatial_components": 6
+    },
+    "model": "models/toy_humanoid.urdf",
+    "model_pack_sha256": "e229d591beb0d4494b60ad721f66d83e0ac3fb0e0fce54bbc57a71980dfd0286",
+    "revision": "cuda-dynamics-r94",
+    "runtime_probe": {
+      "devices": [],
+      "driver_version": null,
+      "status": {
+        "kind": "no_device"
+      }
+    },
+    "schema": 1,
+    "source_sha256": {
+      "dynamics": "03ca7c24e31c9fe34e91e1b64f2bd41def6437288656a61a418156571bbe6c77",
+      "fk_com": "35df5864625436d33350cbd382daa5215a550c979e74cd417b2cab6ab4e72532",
+      "jacobians": "04bd26e8e11cec2444adf3b6d9618b4fb41958183261f871b26a461bb5c0792b"
+    },
+    "status": "unavailable",
+    "process_exit_code": 0,
+    "process_stderr": ""
+  }
+}

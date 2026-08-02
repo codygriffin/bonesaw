@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw grouped acceleration reachable-set replay · r212</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw grouped acceleration reachable-set replay · r212</h1>
+<blockquote>Rust replay **PASS** · frozen grouped profile strict retained/fresh coverage **PASS** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<p>R212 executes **0 physics, 0 policy, and 0 controller steps**. It replays 274 immutable R207 contact transitions and reruns only the allocation-free Rust directional bound. The completed velocity label is scoring-only.</p>
+<p>The reserve is a continuous 5 ms generalized-acceleration reachable set around each recorded causal terminal hypothesis. It is not an impact impulse, measured external wrench, learned residual, candidate selector, or completed-contact oracle.</p>
+<p>The primary **50/10/50** profile combines round group magnitudes already represented independently in R203. It was selected with knowledge of Upkie calibration results, so this run is construction evidence—not a held-out authority certificate. It is now frozen before the next morphology/contact-law evaluation.</p>
+<h2>Replay sweep</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>reserve ω/v/q̈</th><th>retained</th><th>fresh</th><th>max miss /s</th><th>root ω p95</th><th>root v p95</th><th>joint p95</th><th>Rust p99 µs</th></tr></thead><tbody><tr><td>r204_structured_5_5_50</td><td>5/5/50</td><td>98.120%</td><td>100.000%</td><td>0.132260</td><td>9.687</td><td>0.991</td><td>58.020</td><td>0.591</td></tr><tr><td>root_angular_50</td><td>50/5/50</td><td>99.624%</td><td>100.000%</td><td>0.004526</td><td>10.137</td><td>0.991</td><td>58.020</td><td>0.511</td></tr><tr><td>frozen_grouped_50_10_50</td><td>50/10/50</td><td>100.000%</td><td>100.000%</td><td>0.000000</td><td>10.137</td><td>1.041</td><td>58.020</td><td>0.491</td></tr><tr><td>quarter_hard_limit_50_25_50</td><td>50/25/50</td><td>100.000%</td><td>100.000%</td><td>0.000000</td><td>10.137</td><td>1.191</td><td>58.020</td><td>0.501</td></tr><tr><td>hard_limit_sensitivity_200_25_200</td><td>200/25/200</td><td>100.000%</td><td>100.000%</td><td>0.000000</td><td>11.637</td><td>1.191</td><td>59.520</td><td>0.511</td></tr></tbody></table></div>
+<p>The original R204/R207 envelope replays **bitwise-identically** (maximum absolute error `0.000e+00`). All timed Rust calls made **0 allocations**.</p>
+<h2>Decision</h2>
+<p>The frozen grouped set closes the current Upkie corpus without the extreme root/joint widths of the momentum residual boxes. It remains diagnostic until the exact same 50/10/50 construction passes a genuinely new morphology and contact law, retains useful normalized width, and demonstrates non-regressing plant consequence under the independent 5 ms deadline gate.</p></main></body></html>

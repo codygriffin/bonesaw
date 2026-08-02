@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "revision": "dynamic-advance-r99",
+  "generated_utc": "2026-08-01T13:17:44.533657+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/upkie/upkie.urdf": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+    "crates/bonesaw-core/src/dynamic_controller.rs": "3e40fa9e794d4b2d6e5fe550bb7be58252d8928ee65f892d66ea61a21942ddf2",
+    "crates/bonesaw-core/src/dynamic_wbc.rs": "00bd5aee0aef4a59146d86b92990f413120ed314f3ddc36720609448cb8f0136",
+    "crates/bonesaw-core/src/trajectory.rs": "c468d6756641693f7ce44ee6cb4fd4f0485a1c3ce68ed052af800d609860cccf",
+    "crates/bonesaw-py/src/lib.rs": "1572785e0751086572f8fdba21a400e2252a86464515afe6bc135d86f79f7b96",
+    "/home/codygriffin/Documents/bonepilot/python/evals/dynamic_advance_report.py": "762c3e002abdc42a7862362f755536fbc247a7baeedc858074701727e4e38fb7"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free observed-state queries and actuator command synthesis",
+    "model": "models/upkie/upkie.urdf",
+    "ticks": 500,
+    "control_horizon_ms": 20.0,
+    "sample_period_ms": 1.0,
+    "layout": {
+      "dof": 6,
+      "generalized_dof": 12,
+      "actuators": 6,
+      "samples_per_tick": 20,
+      "array_bytes": 1781000,
+      "thread_cpu_ms": 84.01799,
+      "wall_ms": 84.111918,
+      "thread_cpu_to_wall": 0.9988832973705344,
+      "maximum_rss_before_kib": 35640,
+      "maximum_rss_after_kib": 37176,
+      "maximum_rss_growth_kib": 1536
+    },
+    "second_replay_layout": {
+      "dof": 6,
+      "generalized_dof": 12,
+      "actuators": 6,
+      "samples_per_tick": 20,
+      "array_bytes": 1781000,
+      "thread_cpu_ms": 76.24404,
+      "wall_ms": 76.239402,
+      "thread_cpu_to_wall": 1.0000608346849311,
+      "maximum_rss_before_kib": 37432,
+      "maximum_rss_after_kib": 38968,
+      "maximum_rss_growth_kib": 1536
+    },
+    "selection_counts": {
+      "primary": 500,
+      "contingency": 0,
+      "rejected": 0
+    },
+    "status_counts": {
+      "0": 500
+    },
+    "solve_status_counts": {
+      "0": 500
+    },
+    "d1_complete_semantic_output_bytes_exact": true,
+    "splice": {
+      "maximum_position_error": 0.0,
+      "maximum_velocity_error": 0.0,
+      "maximum_acceleration_error": 0.0
+    },
+    "validation": {
+      "all_primary_valid": true,
+      "all_contingency_valid": true,
+      "expired_plan_count": 0,
+      "all_numeric_outputs_finite": true,
+      "maximum_analytic_velocity": 0.09084178790106837,
+      "maximum_analytic_acceleration": 0.27120690948977744,
+      "maximum_analytic_jerk": 88.82718212204296,
+      "minimum_joint_position_headroom": 1.1023498690982552,
+      "nonzero_admission_flag_count": 0
+    },
+    "wbc": {
+      "joint_acceleration_tracking_rms": 0.0018204825878276848,
+      "joint_acceleration_tracking_max_abs": 0.0031926019705009745,
+      "maximum_dynamics_residual": 5.145550652230213e-12,
+      "maximum_contact_acceleration_residual": 2.048692321560373e-14,
+      "maximum_hard_residual": 5.145550652230213e-12,
+      "maximum_admitted_effort_abs": 0.1468719881622101
+    },
+    "command_consequence": {
+      "maximum_position_abs": 0.15765013090174493,
+      "maximum_velocity_abs": 0.09084140699810127,
+      "maximum_acceleration_abs": 0.2711696476447925,
+      "maximum_observed_command_position_divergence": 0.1570201847543566,
+      "final_observed_command_position_divergence": 0.1570201847543566,
+      "interpretation": "command-space consequence only; no plant state was integrated"
+    },
+    "execution": {
+      "step_us": {
+        "minimum": 144.493,
+        "mean": 165.899554,
+        "stddev": 23.89656645895146,
+        "mad": 4.292999999999992,
+        "p50": 151.9925,
+        "p95": 206.70799999999997,
+        "p99": 215.84625,
+        "p99_9": 245.49556100000092,
+        "maximum": 258.999,
+        "jitter_p99_minus_p50": 63.85374999999999
+      },
+      "deadline_us": 20000.0,
+      "deadline_overrun_count": 0,
+      "maximum_over_execution_us": -19741.001,
+      "allocation_call_maximum": 0,
+      "allocated_byte_maximum": 0
+    }
+  }
+}

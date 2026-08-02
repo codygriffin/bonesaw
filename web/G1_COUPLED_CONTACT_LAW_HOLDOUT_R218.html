@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 coupled contact-law fresh holdout · r218</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 coupled contact-law fresh holdout · r218</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED** · controller/policy steps **0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>R217&#x27;s coupled eight-point time-step law, 16 sweeps, relaxation mapping, and split root/articulated energy coefficients were frozen before these labels. The new soft/pyramidal/Euler and stiff/elliptic/RK4 laws begin at untouched state offsets 50,000 and 60,000; every sample resets.</li><li>MuJoCo supplies only the completed five-substep scoring label. No controller, policy, successful-rollout selection, or prior state enters either predictor. Rust owns full Delassus coupling, Coulomb projection, split kinetic support, bitwise repeat, and zero-allocation witnesses.</li><li>Strict sample coverage and 2.0/0.5/10.0 p95 root-angular/root-linear/joint widths are conjunctive. A predictor-centered interval cannot be narrower than twice its absolute residual.</li></ul>
+<h2>Fresh result</h2>
+<div class=table-wrap><table><thead><tr><th>law</th><th>restitution / reg</th><th>sample coverage</th><th>component coverage</th><th>CoP p95 mm</th><th>unavoidable joint width p95</th><th>frozen width p95 ω/v/joint</th><th>solve p99 µs</th><th>zero alloc</th><th>profile</th></tr></thead><tbody><tr><td>soft_pyramidal_euler</td><td>0.000 / 1.500</td><td>100.000%</td><td>100.0000%</td><td>15.2</td><td>2.940</td><td>2.420 / 0.142 / 35.754</td><td>27.077</td><td>yes</td><td>REJECT</td></tr><tr><td>stiff_elliptic_rk4</td><td>0.835 / 0.030</td><td>100.000%</td><td>100.0000%</td><td>16.0</td><td>17.498</td><td>13.170 / 0.785 / 175.201</td><td>21.728</td><td>yes</td><td>REJECT</td></tr></tbody></table></div>
+<h2>Decision</h2>
+<p>The allocation-free mechanism crosses the untouched laws, but the frozen construction does not satisfy strict coverage and useful width together. No holdout miss is tuned back into the profile. Retain the generic coupled solver and split support; reject this calibration and require typed contact-estimator uncertainty or a higher-order compliant law before authority.</p></main></body></html>

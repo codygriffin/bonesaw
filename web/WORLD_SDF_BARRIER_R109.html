@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw CPU world-SDF collision authority · r109</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw CPU world-SDF collision authority · r109</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R109 adds an immutable dense signed-distance grid to the CPU core and samples deterministic body-attached sphere probes against it inside the floating WBC. The independent NumPy plane oracle evaluates 321 caller-authored states without a policy, integration, contact response, or external physics; 193 states activate the world barrier.</p>
+<p>Distance, relative-velocity, gradient-norm, and required-acceleration oracle errors are `2.220e-16` m, `5.551e-16` m/s, `1.332e-15`, and `4.974e-14` m/s². The minimum post-solve barrier residual is `-3.553e-15` m/s².</p>
+<div class=table-wrap><table><thead><tr><th>query</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th><th>exact replay</th></tr></thead><tbody><tr><td>floating world-SDF barrier</td><td>22.933 / 34.376 / 43.302</td><td>0 / 0</td><td>True</td></tr></tbody></table></div>
+<p>The barrier changes joint acceleration by as much as **82.281 m/s²** relative to the world-disabled query. This is state-local authority, not simulated obstacle response.</p>
+<h2>Unknown-space contract</h2>
+<p>Every grid node must be finite at construction. The Reject policy withheld the out-of-volume query: **True**. The OccupiedBoundary policy instead produced source code `1`, minimum clearance `-0.814` m, and 4 active probes. The deliberately deep outside fault returned bounded-solve status `4` and was not admitted: **True**. A non-finite grid was rejected: **True**. Unknown space never silently becomes free.</p>
+<h2>Barrier semantics</h2>
+<p>Trilinear interpolation returns both the scalar SDF and its analytic, unnormalized gradient, so the emitted Jacobian is the derivative of the reported scalar rather than a cosmetically normalized normal. For `h = sdf(center) - sphere_radius - hard_margin`, Rust emits `J qdd + bias + 2 ζ ω hdot + ω² h &gt;= 0`. `bias` includes the current gradient projection of rigid-point `Jdot·v`; SDF Hessian curvature and voxel-feature switching remain excluded and explicitly named.</p>
+<h2>Authority boundary</h2>
+<p>World collision is separately typed from self-collision, support, joint stopping, effort, solver budget, sampled/adaptive commanded-segment admission, unknown-space policy, and realized plant response. Sphere covers are conservative robot probes, not mesh CCD. No aggregate health score is produced.</p>
+<h2>Remaining work</h2>
+<p>The world barrier must next be streamed as its own live authority row and paired with commanded-segment world validation. Dynamic SDF updates, external obstacle slots, mesh validation, SDF Hessian/rate bounds, and calibrated plant response remain separate milestones.</p></main></body></html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw directional contact-transition audit · r204</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw directional contact-transition audit · r204</h1>
+<blockquote>Rust mechanism **PASS** · primary retained/fresh strict coverage **FAIL** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<ul><li>R204 keeps R203&#x27;s structured acceleration reserve and model-exact normal impulse. Each tangential axis is bounded by the smaller of Coulomb capacity and a passive slip-arrest witness `m_eff v_slip + F_t Δt`.</li><li>The world-frame impulse label is the signed sum across the complete 5 ms plant interval. It is used only for scoring. Exact prospective velocity and MuJoCo contact impulse remain simulator-oracle fields without online sensor authority.</li><li>This is a directional outer box, not a coupled multi-contact Delassus polytope. Coverage and width are reported separately; width reduction alone cannot admit authority.</li></ul>
+<h2>Directional reserve sweep</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>n</th><th>retained velocity</th><th>fresh velocity</th><th>impulse coverage</th><th>impulse util p95</th><th>root ω p95</th><th>root v p95</th><th>joint p95</th><th>joint/base</th><th>bound p99 µs</th></tr></thead><tbody><tr><td>coulomb_box_r203_structured</td><td>274</td><td>100.000%</td><td>100.000%</td><td>100.000%</td><td>4.1%</td><td>29.779</td><td>2.255</td><td>1154.415</td><td>1.000×</td><td>0.865</td></tr><tr><td>exact_slip_zero_tangent_load</td><td>274</td><td>97.368%</td><td>100.000%</td><td>9.854%</td><td>— (fails)</td><td>5.082</td><td>0.655</td><td>28.423</td><td>0.025×</td><td>1.213</td></tr><tr><td>passive_100mps2_8n</td><td>274</td><td>98.120%</td><td>100.000%</td><td>100.000%</td><td>5.9%</td><td>9.687</td><td>0.991</td><td>58.020</td><td>0.050×</td><td>1.224</td></tr><tr><td>passive_250mps2_8n</td><td>274</td><td>98.120%</td><td>100.000%</td><td>100.000%</td><td>4.5%</td><td>17.306</td><td>1.892</td><td>84.796</td><td>0.073×</td><td>1.108</td></tr><tr><td>passive_100mps2_16n</td><td>274</td><td>98.120%</td><td>100.000%</td><td>100.000%</td><td>5.0%</td><td>10.198</td><td>1.031</td><td>78.421</td><td>0.068×</td><td>1.225</td></tr></tbody></table></div>
+<p>Primary signed world-impulse utilization is **5.9% p95 / 69.2% max** with **100.000%** component coverage and **0.000000 N·s** maximum exceedance.</p>
+<p>Primary uncovered retained samples: **backward_4n/drop5/tick 200** (root_wy, 0.098644/s); **backward_4n/drop10/tick 200** (root_wy, 0.099587/s); **backward_4n/drop10/tick 201** (root_wy, 0.132260/s); **backward_4n/drop5_matched/tick 200** (root_wy, 0.100133/s); **handle_forward_4n/drop10/tick 201** (root_vx, 0.004526/s).</p>
+<h2>Decision</h2>
+<p>The directional mechanism may be retained only if it covers the world-impulse and generalized-velocity labels with materially smaller widths. It cannot establish online authority until the witnesses have typed sensor/load provenance, another morphology/contact-law holdout passes, terminal consequence is non-regressing, and the independent 5 ms gate passes.</p></main></body></html>

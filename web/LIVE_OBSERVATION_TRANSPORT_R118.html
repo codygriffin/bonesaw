@@ -1,0 +1,166 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw live observation transport · r118</title>
+<style>
+:root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+body{margin:0;background:#0b0d10;color:#dce6e1}main{max-width:1000px;margin:auto;padding:28px 18px 60px}
+h1{font:600 24px system-ui;color:#eff8f3}h2{margin-top:30px;color:#8fe6c0;font-size:15px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;border:1px solid #2a3039;background:#11151a;line-height:1.55}
+.pass{padding:13px;border-left:3px solid #8fe6c0;background:#14231d;color:#bdebd7}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;border:1px solid #2a3039;text-align:left}
+th{color:#8fe6c0;background:#151a1d}code{color:#f3c879}
+@media(max-width:600px){main{padding:18px 10px 40px}.table{overflow-x:auto}table{min-width:780px}}
+</style></head><body><main><h1>Bonesaw live observation transport authority · r118</h1>
+<p class="pass">PASS · exact, interpolation, prediction, stale fail-closed, and in-session recovery all verified.</p>
+<div class="table"><table><thead><tr><th>mode</th><th>frames</th><th>boundary provenance</th><th>source ages (ms)</th><th>solve p50 / p99 (µs)</th><th>admission p50 / p99 (µs)</th></tr></thead><tbody>
+<tr><td>exact</td><td>12</td><td>{&quot;exact&quot;: 12}</td><td>[0.0]</td><td>1663.759 / 2273.830</td><td>1224.435 / 2190.974</td></tr><tr><td>interpolated</td><td>12</td><td>{&quot;interpolated&quot;: 12}</td><td>[2.5]</td><td>2031.483 / 2984.401</td><td>1427.327 / 1624.155</td></tr><tr><td>predicted</td><td>12</td><td>{&quot;predicted&quot;: 12}</td><td>[5.0]</td><td>2086.743 / 3069.441</td><td>1421.226 / 1541.127</td></tr>
+</tbody></table></div><h2>Typed stale witness</h2><pre>{
+  &quot;newest_sample_time_ns&quot;: 735000000,
+  &quot;query_time_ns&quot;: 745000000,
+  &quot;reason&quot;: &quot;robot observation reconstruction withheld WBC input: robot observation prediction is disabled or exceeds its horizon&quot;,
+  &quot;tick&quot;: 37,
+  &quot;transport_mode&quot;: &quot;stale&quot;,
+  &quot;type&quot;: &quot;observation_withheld&quot;
+}</pre>
+<h2>Complete retained audit</h2><pre>{
+  &quot;contract_source&quot;: &quot;bonesaw-tools/flat-foot-editor-r118&quot;,
+  &quot;execution&quot;: &quot;guided_preview_without_policy_or_physics_rollout&quot;,
+  &quot;modes&quot;: {
+    &quot;exact&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 2190.974,
+        &quot;p50_us&quot;: 1224.435,
+        &quot;p99_us&quot;: 2190.974
+      },
+      &quot;frames&quot;: 12,
+      &quot;hard_eligible&quot;: true,
+      &quot;observation_admission_age_ns&quot;: [
+        0
+      ],
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 0,
+        &quot;primary&quot;: 12,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 2273.83,
+        &quot;p50_us&quot;: 1663.7585000000004,
+        &quot;p99_us&quot;: 2273.83
+      },
+      &quot;source_age_ns&quot;: [
+        0
+      ],
+      &quot;stream_boundary_provenance&quot;: {
+        &quot;exact&quot;: 12
+      },
+      &quot;wbc_plus_stream_query_counts&quot;: {
+        &quot;exact&quot;: 60,
+        &quot;held&quot;: 0,
+        &quot;interpolated&quot;: 0,
+        &quot;predicted&quot;: 0
+      }
+    },
+    &quot;interpolated&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 1624.155,
+        &quot;p50_us&quot;: 1427.3274999999999,
+        &quot;p99_us&quot;: 1624.155
+      },
+      &quot;frames&quot;: 12,
+      &quot;hard_eligible&quot;: true,
+      &quot;observation_admission_age_ns&quot;: [
+        2500000
+      ],
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 0,
+        &quot;primary&quot;: 12,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 2984.401,
+        &quot;p50_us&quot;: 2031.4834999999998,
+        &quot;p99_us&quot;: 2984.401
+      },
+      &quot;source_age_ns&quot;: [
+        2500000
+      ],
+      &quot;stream_boundary_provenance&quot;: {
+        &quot;interpolated&quot;: 12
+      },
+      &quot;wbc_plus_stream_query_counts&quot;: {
+        &quot;exact&quot;: 0,
+        &quot;held&quot;: 0,
+        &quot;interpolated&quot;: 60,
+        &quot;predicted&quot;: 0
+      }
+    },
+    &quot;predicted&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 1541.127,
+        &quot;p50_us&quot;: 1421.2265,
+        &quot;p99_us&quot;: 1541.127
+      },
+      &quot;frames&quot;: 12,
+      &quot;hard_eligible&quot;: true,
+      &quot;observation_admission_age_ns&quot;: [
+        0
+      ],
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 3,
+        &quot;primary&quot;: 9,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 3069.441,
+        &quot;p50_us&quot;: 2086.743,
+        &quot;p99_us&quot;: 3069.441
+      },
+      &quot;source_age_ns&quot;: [
+        5000000
+      ],
+      &quot;stream_boundary_provenance&quot;: {
+        &quot;predicted&quot;: 12
+      },
+      &quot;wbc_plus_stream_query_counts&quot;: {
+        &quot;exact&quot;: 25,
+        &quot;held&quot;: 0,
+        &quot;interpolated&quot;: 0,
+        &quot;predicted&quot;: 35
+      }
+    }
+  },
+  &quot;program_fingerprint&quot;: &quot;04780b6be2bc0784fff0d24badd805fa8da4ffd226f1ed7f382c392ea8192b54&quot;,
+  &quot;recovery&quot;: {
+    &quot;provenance&quot;: &quot;exact&quot;,
+    &quot;tick&quot;: 38,
+    &quot;transport_mode&quot;: &quot;exact&quot;
+  },
+  &quot;revision&quot;: &quot;live-observation-transport-r118&quot;,
+  &quot;schema&quot;: 1,
+  &quot;stale_withheld&quot;: {
+    &quot;newest_sample_time_ns&quot;: 735000000,
+    &quot;query_time_ns&quot;: 745000000,
+    &quot;reason&quot;: &quot;robot observation reconstruction withheld WBC input: robot observation prediction is disabled or exceeds its horizon&quot;,
+    &quot;tick&quot;: 37,
+    &quot;transport_mode&quot;: &quot;stale&quot;,
+    &quot;type&quot;: &quot;observation_withheld&quot;
+  },
+  &quot;status&quot;: &quot;pass&quot;,
+  &quot;url&quot;: &quot;ws://127.0.0.1:8818/ws&quot;
+}</pre>
+<h2>Method note</h2><pre># Bonesaw live observation transport authority · r118
+
+**PASS.** The real WebSocket/Rust WBC boundary exercised exact, local cubic
+interpolation, bounded constant-velocity prediction, and a deliberately stale
+producer without a policy or physics rollout. Every admitted reconstructed
+state remained hard-eligible. Stale evidence was withheld before WBC at query
+`745000000` ns with newest sample `735000000` ns,
+then exact delivery recovered at tick `38` without restarting the session.
+
+| transport | frames | stream provenance | WBC + stream E/I/P/H | solve p50 / p99 µs | admission p50 / p99 µs |
+|---|---:|---|---|---:|---:|
+| exact | 12 | `{&quot;exact&quot;: 12}` | `{&quot;exact&quot;: 60, &quot;held&quot;: 0, &quot;interpolated&quot;: 0, &quot;predicted&quot;: 0}` | 1663.759 / 2273.830 | 1224.435 / 2190.974 |
+| interpolated | 12 | `{&quot;interpolated&quot;: 12}` | `{&quot;exact&quot;: 0, &quot;held&quot;: 0, &quot;interpolated&quot;: 60, &quot;predicted&quot;: 0}` | 2031.483 / 2984.401 | 1427.327 / 1624.155 |
+| predicted | 12 | `{&quot;predicted&quot;: 12}` | `{&quot;exact&quot;: 25, &quot;held&quot;: 0, &quot;interpolated&quot;: 0, &quot;predicted&quot;: 35}` | 2086.743 / 3069.441 | 1421.226 / 1541.127 |
+
+</pre></main></body></html>

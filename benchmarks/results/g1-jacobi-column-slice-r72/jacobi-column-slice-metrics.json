@@ -1,0 +1,583 @@
+{
+  "schema": 1,
+  "generated_utc": "2026-08-01T05:55:29.239013+00:00",
+  "decision": "PROMOTE",
+  "optimization": {
+    "name": "slice-addressed one-sided Jacobi column pairs",
+    "production_default": true,
+    "control_feature": "bonesaw-core/jacobi-column-slice-control",
+    "preserved_order": [
+      "column-pair traversal",
+      "coupling accumulation",
+      "rotation arithmetic",
+      "right-vector rotation",
+      "sweep-boundary energy re-anchoring",
+      "singular truncation",
+      "hard-limit comparisons"
+    ]
+  },
+  "evaluation_boundary": {
+    "corpus_states": 2317,
+    "policy": false,
+    "state_integration": false,
+    "contact_simulation": false,
+    "physics_rollout": false,
+    "pinned_process_pairs": 5,
+    "process_counter_scope": "complete Python admission process including morphology, two Rust WBC corpus passes, reporting, and artifact serialization",
+    "native_ticks_per_long_process": 2000,
+    "native_repeats": 5,
+    "native_counter_scope": "long-process minus adjacent one-tick process, divided by additional ticks; native marginal upper bound including per-loop timing and semantic aggregation around each Rust WBC solve"
+  },
+  "checks": {
+    "production_passes_all_43_admission_gates": true,
+    "all_56_non_timing_arrays_are_bit_exact": true,
+    "all_five_pinned_process_pairs_are_bit_exact": true,
+    "retired_instructions_fall_in_every_pinned_process_pair": true,
+    "median_pinned_process_instructions_fall": true,
+    "native_semantic_reports_are_exact": true,
+    "native_marginal_instructions_fall": true,
+    "production_keeps_zero_measured_rust_allocations": true
+  },
+  "semantic_field_count": 56,
+  "semantic_differences": {},
+  "work": {
+    "clipped_steps": {
+      "control_sum": 10604,
+      "production_sum": 10604
+    },
+    "clipped_steps_by_priority": {
+      "control_sum": 10604,
+      "production_sum": 10604
+    },
+    "task_jacobi_sweeps": {
+      "control_sum": 122031,
+      "production_sum": 122031
+    },
+    "task_jacobi_sweeps_by_priority": {
+      "control_sum": 122031,
+      "production_sum": 122031
+    },
+    "task_pseudoinverse_calls": {
+      "control_sum": 16809,
+      "production_sum": 16809
+    },
+    "task_pseudoinverse_calls_by_priority": {
+      "control_sum": 16809,
+      "production_sum": 16809
+    }
+  },
+  "pinned_process": {
+    "paired_instruction_relative_deltas": [
+      -0.30492019420856664,
+      -0.30491716007547653,
+      -0.3049215491479158,
+      -0.30491954875559835,
+      -0.3049166013326303
+    ],
+    "candidate_relative_deltas": {
+      "instructions": -0.3049202517142501,
+      "cycles": -0.05517344374069699,
+      "task_clock": -0.05812010853751992,
+      "branches": -0.6020007798434426,
+      "branch_misses": -0.16207878588416114,
+      "cache_misses": -0.0343296668845704,
+      "instructions_per_wbc_solve_process_share": -0.3049202517142501,
+      "cycles_per_wbc_solve_process_share": -0.05517344374069699,
+      "task_clock_ns_per_wbc_solve_process_share": -0.05812010853751992,
+      "process_cpu_seconds": -0.0628082112973386,
+      "wall_seconds": -0.06284728176918974,
+      "maximum_rss_bytes": 8.122816992939264e-05,
+      "p50_tick_us": -0.06281673662931786,
+      "p99_tick_us": -0.0698192737570813,
+      "maximum_tick_us": -0.07159377295639402
+    },
+    "summaries": {
+      "control": {
+        "instructions": {
+          "minimum": 228153760988.0,
+          "median": 228154775791.0,
+          "maximum": 228154999971.0,
+          "mean": 228154574590.6,
+          "p95": 228154962459.8,
+          "relative_span": 5.430449552083731e-06
+        },
+        "cycles": {
+          "minimum": 59453327572.0,
+          "median": 59630713962.0,
+          "maximum": 60117524700.0,
+          "mean": 59688391288.2,
+          "p95": 60042409095.6,
+          "relative_span": 0.01113850705230971
+        },
+        "task_clock": {
+          "minimum": 14275032081.0,
+          "median": 14330548565.0,
+          "maximum": 14460206417.0,
+          "mean": 14336756337.8,
+          "p95": 14435943219.8,
+          "relative_span": 0.012921650218768161
+        },
+        "branches": {
+          "minimum": 39359823991.0,
+          "median": 39360041165.0,
+          "maximum": 39360064539.0,
+          "mean": 39359999415.2,
+          "p95": 39360061724.6,
+          "relative_span": 6.111477348095401e-06
+        },
+        "branch_misses": {
+          "minimum": 82486356.0,
+          "median": 82618937.0,
+          "maximum": 83115965.0,
+          "mean": 82745206.8,
+          "p95": 83088050.4,
+          "relative_span": 0.0076206378690154295
+        },
+        "cache_misses": {
+          "minimum": 38051162.0,
+          "median": 39246696.0,
+          "maximum": 40267602.0,
+          "mean": 39195496.4,
+          "p95": 40238954.6,
+          "relative_span": 0.05647456285237361
+        },
+        "instructions_per_wbc_solve_process_share": {
+          "minimum": 49234734.78377212,
+          "median": 49234953.77449288,
+          "maximum": 49235002.15170479,
+          "mean": 49234910.356193356,
+          "p95": 49234994.05692706,
+          "relative_span": 5.430449552048397e-06
+        },
+        "cycles_per_wbc_solve_process_share": {
+          "minimum": 12829807.417350022,
+          "median": 12868086.74190764,
+          "maximum": 12973138.692274492,
+          "mean": 12880533.29482089,
+          "p95": 12956929.023651272,
+          "relative_span": 0.011138507052309616
+        },
+        "task_clock_ns_per_wbc_solve_process_share": {
+          "minimum": 3080498938498.0576,
+          "median": 3092479189684.9375,
+          "maximum": 3120458872895.9863,
+          "mean": 3093818804013.811,
+          "p95": 3115222964997.8423,
+          "relative_span": 0.012921650218768276
+        },
+        "process_cpu_seconds": {
+          "minimum": 6.956274595,
+          "median": 6.97260538,
+          "maximum": 6.986619299,
+          "mean": 6.9717608248000005,
+          "p95": 6.9848397766,
+          "relative_span": 0.004351989299012932
+        },
+        "wall_seconds": {
+          "minimum": 6.958923392,
+          "median": 6.975685243,
+          "maximum": 6.989497571,
+          "mean": 6.9745949408,
+          "p95": 6.987666443,
+          "relative_span": 0.00438296424436309
+        },
+        "maximum_rss_bytes": {
+          "minimum": 50376704.0,
+          "median": 50425856.0,
+          "maximum": 50532352.0,
+          "mean": 50457804.8,
+          "p95": 50532352.0,
+          "relative_span": 0.003086670457314597
+        },
+        "p50_tick_us": {
+          "minimum": 3292.321,
+          "median": 3301.047,
+          "maximum": 3307.109,
+          "mean": 3299.9372000000003,
+          "p95": 3305.9788,
+          "relative_span": 0.004479790805765568
+        },
+        "p99_tick_us": {
+          "minimum": 5570.492040000001,
+          "median": 5573.725120000002,
+          "maximum": 5591.303400000001,
+          "mean": 5578.122520000002,
+          "p95": 5589.436912000001,
+          "relative_span": 0.0037338332178102978
+        },
+        "maximum_tick_us": {
+          "minimum": 7469.663,
+          "median": 7522.414,
+          "maximum": 7627.802,
+          "mean": 7535.4,
+          "p95": 7618.7872,
+          "relative_span": 0.02102237393475022
+        }
+      },
+      "candidate": {
+        "instructions": {
+          "minimum": 158585602085.0,
+          "median": 158585764127.0,
+          "maximum": 158586596979.0,
+          "mean": 158585907418.4,
+          "p95": 158586467576.6,
+          "relative_span": 6.273539150735248e-06
+        },
+        "cycles": {
+          "minimum": 55964309960.0,
+          "median": 56340682120.0,
+          "maximum": 56629230013.0,
+          "mean": 56261827232.2,
+          "p95": 56582686042.2,
+          "relative_span": 0.011801774987100564
+        },
+        "task_clock": {
+          "minimum": 13379547702.0,
+          "median": 13497655527.0,
+          "maximum": 13557254254.0,
+          "mean": 13469162966.8,
+          "p95": 13548155025.8,
+          "relative_span": 0.013165734719227733
+        },
+        "branches": {
+          "minimum": 15665227498.0,
+          "median": 15665265689.0,
+          "maximum": 15665377212.0,
+          "mean": 15665282186.0,
+          "p95": 15665360139.0,
+          "relative_span": 9.55706739816917e-06
+        },
+        "branch_misses": {
+          "minimum": 69064841.0,
+          "median": 69228160.0,
+          "maximum": 69771092.0,
+          "mean": 69356536.0,
+          "p95": 69737668.4,
+          "relative_span": 0.010201787827381228
+        },
+        "cache_misses": {
+          "minimum": 36908068.0,
+          "median": 37899370.0,
+          "maximum": 40340619.0,
+          "mean": 38464882.4,
+          "p95": 40251540.0,
+          "relative_span": 0.09057013348770705
+        },
+        "instructions_per_wbc_solve_process_share": {
+          "minimum": 34222184.30837289,
+          "median": 34222219.27643505,
+          "maximum": 34222399.00280535,
+          "mean": 34222250.19818731,
+          "p95": 34222371.07824773,
+          "relative_span": 6.273539150852419e-06
+        },
+        "cycles_per_wbc_solve_process_share": {
+          "minimum": 12076890.36685369,
+          "median": 12158110.08200259,
+          "maximum": 12220377.646309884,
+          "mean": 12141093.489900734,
+          "p95": 12210333.630168322,
+          "relative_span": 0.011801774987100657
+        },
+        "task_clock_ns_per_wbc_solve_process_share": {
+          "minimum": 2887256733275.7876,
+          "median": 2912743963530.4272,
+          "maximum": 2925605147604.661,
+          "mean": 2906595374794.993,
+          "p95": 2923641567932.6714,
+          "relative_span": 0.01316573471922773
+        },
+        "process_cpu_seconds": {
+          "minimum": 6.518778119,
+          "median": 6.534668508,
+          "maximum": 6.646583553,
+          "mean": 6.573930840599999,
+          "p95": 6.6462505652,
+          "relative_span": 0.019558059271642534
+        },
+        "wall_seconds": {
+          "minimum": 6.521567514,
+          "median": 6.537282387,
+          "maximum": 6.651003992,
+          "mean": 6.5772445748,
+          "p95": 6.650621403,
+          "relative_span": 0.019799737924339367
+        },
+        "maximum_rss_bytes": {
+          "minimum": 50307072.0,
+          "median": 50429952.0,
+          "maximum": 50528256.0,
+          "mean": 50400460.8,
+          "p95": 50508595.2,
+          "relative_span": 0.0043859649122807015
+        },
+        "p50_tick_us": {
+          "minimum": 3079.368,
+          "median": 3093.686,
+          "maximum": 3099.106,
+          "mean": 3091.1528000000003,
+          "p95": 3098.9356000000002,
+          "relative_span": 0.006380091580076415
+        },
+        "p99_tick_us": {
+          "minimum": 5150.094640000001,
+          "median": 5184.571680000001,
+          "maximum": 5321.034200000003,
+          "mean": 5206.508136000002,
+          "p95": 5298.399336000003,
+          "relative_span": 0.03297081621215074
+        },
+        "maximum_tick_us": {
+          "minimum": 6903.064,
+          "median": 6983.856,
+          "maximum": 7819.215,
+          "mean": 7173.372200000001,
+          "p95": 7704.5962,
+          "relative_span": 0.13118125574181366
+        }
+      }
+    }
+  },
+  "native": {
+    "semantic_reports_exact": true,
+    "relative_deltas": {
+      "instructions_per_tick": -0.28222887144432474,
+      "cycles_per_tick": -0.05180943615458378,
+      "task_clock_per_tick": -0.05370746225955203,
+      "p50_tick_us": -0.05386220601174985,
+      "p99_tick_us": -0.0561520440083183
+    },
+    "control_summary": {
+      "task_clock_per_tick": {
+        "minimum": 1385689.8574287144,
+        "median": 1387341.0630315158,
+        "maximum": 1395173.563781891,
+        "p95": 1393888.504152076,
+        "relative_span": 0.006835886723091379,
+        "coefficient_of_variation": 0.00247238166835731
+      },
+      "cycles_per_tick": {
+        "minimum": 5780791.789394697,
+        "median": 5787282.813406703,
+        "maximum": 5793392.469234617,
+        "p95": 5792725.5198599305,
+        "relative_span": 0.002177305005853485,
+        "coefficient_of_variation": 0.0007167049039037796
+      },
+      "instructions_per_tick": {
+        "minimum": 22022125.27563782,
+        "median": 22022127.71435718,
+        "maximum": 22022129.658329163,
+        "p95": 22022129.32506253,
+        "relative_span": 1.9901307445085593e-07,
+        "coefficient_of_variation": 6.559724836287803e-08
+      },
+      "branches_per_tick": {
+        "minimum": 3532963.2541270633,
+        "median": 3532963.5302651324,
+        "maximum": 3532963.743871936,
+        "p95": 3532963.7130565285,
+        "relative_span": 1.386215477716385e-07,
+        "coefficient_of_variation": 4.482932179570443e-08
+      },
+      "branch_misses_per_tick": {
+        "minimum": 6315.827913956979,
+        "median": 6327.7863931965985,
+        "maximum": 6378.915457728865,
+        "p95": 6375.390595297649,
+        "relative_span": 0.00996992310608262,
+        "coefficient_of_variation": 0.003930191178326645
+      },
+      "cache_misses_per_tick": {
+        "minimum": 1300.9054527263631,
+        "median": 1479.0185092546274,
+        "maximum": 1692.7273636818409,
+        "p95": 1652.0462231115557,
+        "relative_span": 0.2649202214196373,
+        "coefficient_of_variation": 0.08833801266381684
+      },
+      "instructions_per_cycle": {
+        "minimum": 3.801248902232814,
+        "median": 3.805262394869167,
+        "maximum": 3.8095348862758334,
+        "p95": 3.808682759464828,
+        "relative_span": 0.002177506616676898,
+        "coefficient_of_variation": 0.0007169327434072866
+      },
+      "p50_tick_us": {
+        "minimum": 1385.077,
+        "median": 1385.3870000000002,
+        "maximum": 1388.834,
+        "p95": 1388.343,
+        "relative_span": 0.002711877619755391,
+        "coefficient_of_variation": 0.0010032356768360248
+      },
+      "p99_tick_us": {
+        "minimum": 1420.9750000000001,
+        "median": 1428.639,
+        "maximum": 1472.392,
+        "p95": 1465.7154,
+        "relative_span": 0.035990197663650456,
+        "coefficient_of_variation": 0.012774083988480319
+      },
+      "max_tick_us": {
+        "minimum": 1746.31,
+        "median": 2795.592,
+        "maximum": 3031.087,
+        "p95": 2999.0443999999998,
+        "relative_span": 0.4595724268777418,
+        "coefficient_of_variation": 0.22511376325114116
+      },
+      "allocations_per_tick": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0,
+        "p95": 0.0,
+        "relative_span": 0.0,
+        "coefficient_of_variation": 0.0
+      },
+      "allocated_bytes_per_tick": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0,
+        "p95": 0.0,
+        "relative_span": 0.0,
+        "coefficient_of_variation": 0.0
+      }
+    },
+    "production_summary": {
+      "task_clock_per_tick": {
+        "minimum": 1309702.368184092,
+        "median": 1312830.4952476239,
+        "maximum": 1320288.0030015009,
+        "p95": 1319349.6410205103,
+        "relative_span": 0.008063215209982016,
+        "coefficient_of_variation": 0.002774567970696364
+      },
+      "cycles_per_tick": {
+        "minimum": 5481516.353676839,
+        "median": 5487446.953976989,
+        "maximum": 5488489.43671836,
+        "p95": 5488302.131365683,
+        "relative_span": 0.0012707335669945924,
+        "coefficient_of_variation": 0.00045249084973153486
+      },
+      "instructions_per_tick": {
+        "minimum": 15806846.938969485,
+        "median": 15806847.462731365,
+        "maximum": 15806848.47673837,
+        "p95": 15806848.339469735,
+        "relative_span": 9.728498280611058e-08,
+        "coefficient_of_variation": 3.2192191352784146e-08
+      },
+      "branches_per_tick": {
+        "minimum": 1476787.156078039,
+        "median": 1476787.3661830917,
+        "maximum": 1476787.9704852425,
+        "p95": 1476787.9133566783,
+        "relative_span": 5.514722174826295e-07,
+        "coefficient_of_variation": 1.9575289991220914e-07
+      },
+      "branch_misses_per_tick": {
+        "minimum": 6523.787893946974,
+        "median": 6591.891945972987,
+        "maximum": 6634.650825412707,
+        "p95": 6630.033416708355,
+        "relative_span": 0.016818074746121923,
+        "coefficient_of_variation": 0.005651672772644716
+      },
+      "cache_misses_per_tick": {
+        "minimum": 1309.2971485742871,
+        "median": 1673.6378189094548,
+        "maximum": 1843.5352676338168,
+        "p95": 1810.6384192096048,
+        "relative_span": 0.31920772405085834,
+        "coefficient_of_variation": 0.10729884564690781
+      },
+      "instructions_per_cycle": {
+        "minimum": 2.8799997993964426,
+        "median": 2.8805467451991427,
+        "maximum": 2.8836631908188544,
+        "p95": 2.8831053515166385,
+        "relative_span": 0.0012717694751933368,
+        "coefficient_of_variation": 0.00045273817330024026
+      },
+      "p50_tick_us": {
+        "minimum": 1308.712,
+        "median": 1310.767,
+        "maximum": 1311.559,
+        "p95": 1311.4446,
+        "relative_span": 0.002172010738750655,
+        "coefficient_of_variation": 0.0007374109029102915
+      },
+      "p99_tick_us": {
+        "minimum": 1342.717,
+        "median": 1348.4180000000001,
+        "maximum": 1487.902,
+        "p95": 1461.9046,
+        "relative_span": 0.10767061845807452,
+        "coefficient_of_variation": 0.04069117363794085
+      },
+      "max_tick_us": {
+        "minimum": 1598.751,
+        "median": 2365.159,
+        "maximum": 2685.464,
+        "p95": 2654.1748,
+        "relative_span": 0.4594672070672627,
+        "coefficient_of_variation": 0.1721797805485648
+      },
+      "allocations_per_tick": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0,
+        "p95": 0.0,
+        "relative_span": 0.0,
+        "coefficient_of_variation": 0.0
+      },
+      "allocated_bytes_per_tick": {
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0,
+        "p95": 0.0,
+        "relative_span": 0.0,
+        "coefficient_of_variation": 0.0
+      }
+    },
+    "semantic_report": {
+      "model": "g1_23dof_mode_10",
+      "program_fingerprint": "9e1ba655204c01f52fa2493582affc237b2343da6fb9743d0fa4723d69660a03",
+      "scope": "native process with one fixed-shape floating WBC solve per measured tick; model loading, setup, timing collection, semantic aggregation, and serialization remain outside or around the solve loop",
+      "floating_dynamic_wbc": {
+        "ticks": 2000,
+        "contacts": 2,
+        "decision_variables": 58,
+        "maximum_dynamics_residual": 8.851489402279377e-10,
+        "maximum_contact_acceleration_residual": 1.6441865704759466e-11,
+        "minimum_friction_margin": 122.76588675153114,
+        "minimum_torque_margin": 9998.625972139273,
+        "acceleration_tracking_rms": 0.06145744931951253,
+        "maximum_acceleration_abs": 0.22254791396537402,
+        "maximum_torque_abs": 1.3740278607279064,
+        "maximum_contact_force_abs": 157.52688500038576,
+        "friction_active_ticks": 0,
+        "infeasible_ticks": 0,
+        "bitwise_repeat": true,
+        "allocations_per_tick": 0.0,
+        "allocated_bytes_per_tick": 0.0
+      }
+    }
+  },
+  "inherited_exact_evidence": {
+    "r63_consequence_gates": "8/8 inherited because every r54 non-timing source field is bit-exact",
+    "r64_independent_oracle_gates": "6/6 inherited because r63 inputs and established solve arithmetic are bit-exact"
+  },
+  "artifact_sha256": {
+    "benchmarks/results/g1-task-nullspace-repair-r69/control/oracle-wbc-admission-raw.npz": "357a585109fc9e184e6afc4b8ea7cf0f927334012389e61daef90afcb1cc9255",
+    "benchmarks/results/g1-jacobi-column-slice-r72/production/oracle-wbc-admission-raw.npz": "e40e236f84c695bb6ce973ba6097c1e59faaf3acda124542055391be6031397c",
+    "benchmarks/results/g1-task-nullspace-repair-r69/control/oracle-wbc-admission-metrics.json": "67f0226d9824453055d033537f616b66c0e220aa59b66e6b0f1a9b28d5a788c8",
+    "benchmarks/results/g1-jacobi-column-slice-r72/production/oracle-wbc-admission-metrics.json": "bb471d368f716792bf10c9de0be37e6e2ed12d568ce959229ba3d072857bc20e",
+    "benchmarks/results/g1-jacobi-column-slice-r72/counter-ab/zero-task-row-compaction-ab-metrics.json": "3a75c448f1a20fbabe014df7d56cd7ab4ea857a0bef6e2bfe8b022bae69abf7e",
+    "benchmarks/results/g1-jacobi-column-slice-r72/native-control/native-wbc-counter-metrics.json": "c913267e49e4cc647f01fa303737e2aa91df7b1e2322688af35a873ff066b4f9",
+    "benchmarks/results/g1-jacobi-column-slice-r72/native-production/native-wbc-counter-metrics.json": "660edf3b77614a2c2b2a65688fcb594da82dbb05bfdb8b7179bfcb30464bf0a0"
+  }
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot name="bonesaw_tight_avoidance_toy">
+  <link name="base">
+    <collision><geometry><box size="1.0 0.1 0.1"/></geometry></collision>
+    <inertial><mass value="1"/><inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/></inertial>
+  </link>
+  <link name="spacer">
+    <inertial><mass value="0.01"/><inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/></inertial>
+  </link>
+  <joint name="spacer_fix" type="fixed">
+    <parent link="base"/><child link="spacer"/>
+  </joint>
+  <link name="slider">
+    <collision><geometry><sphere radius="0.1"/></geometry></collision>
+    <inertial><mass value="0.2"/><inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/></inertial>
+  </link>
+  <joint name="slide" type="prismatic">
+    <parent link="spacer"/><child link="slider"/>
+    <origin xyz="0 0.3 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.24" upper="0.4" velocity="2" effort="100"/>
+  </joint>
+</robot>

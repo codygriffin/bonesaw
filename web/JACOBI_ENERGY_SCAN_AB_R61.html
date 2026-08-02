@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw fused Jacobi energy-scan A/B · r61</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw fused Jacobi energy-scan A/B · r61</h1>
+<h2>Decision · REJECT</h2>
+<p>Fusing the initial Frobenius reduction into the per-column energy scan preserves both results bit-for-bit, but adds 58,916 retired instructions per native tick (+0.268%). Production keeps the original two scans; the fusion remains disabled.</p>
+<blockquote>Removing a source-level matrix pass is not automatically less machine work. The original independent Frobenius reduction is compiler-friendly; the fused loop carries two dependent accumulators and loses enough reduction efficiency to outweigh one fewer scalar square.</blockquote>
+<h2>Native five-run A/B</h2>
+<div class=table-wrap><table><thead><tr><th>variant</th><th>instructions/tick M</th><th>cycles/tick M</th><th>task-clock/tick ms</th><th>p50 / p99 / max µs</th></tr></thead><tbody><tr><td>production control</td><td>21.991006</td><td>5.855</td><td>1.422</td><td>1413.100 / 1539.089 / 2105.269</td></tr><tr><td>fused experiment</td><td>22.049923</td><td>5.861</td><td>1.419</td><td>1405.977 / 1724.429 / 1984.300</td></tr></tbody></table></div>
+<h2>Preservation and scope</h2>
+<ul><li>A direct Rust witness confirms bit-exact Frobenius squared norm and every initial column energy between separate and fused scans.</li><li>Native control and experiment semantic reports are exactly equal, including status, residuals, margins, tracking, extrema, repeatability, and allocations.</li><li>The unchanged production default passes r54 43/43 and keeps all 56 non-timing arrays byte-exact.</li><li>The experimental fusion is available only through `bonesaw-core/jacobi-energy-scan-experiment` and is disabled by default.</li><li>Stable instruction work decides this A/B; sequential-block latency and cycle medians remain observational host signals.</li></ul>
+<h2>Artifact integrity</h2>
+<div class=table-wrap><table><thead><tr><th>artifact</th><th>SHA-256</th></tr></thead><tbody><tr><td>benchmarks/results/g1-jacobi-energy-scan-r61/control/native-wbc-counter-metrics.json</td><td>81d65ddf56ce3d30cff9a33849fabfc710877951e3ee5203dd06d8b5cd3977ce</td></tr><tr><td>benchmarks/results/g1-jacobi-energy-scan-r61/experiment/native-wbc-counter-metrics.json</td><td>2494ecef033896ee2d14b2c087cd343c7f077b8c077522820b51157072412b58</td></tr><tr><td>benchmarks/results/g1-multistep-oracle-r54/oracle-wbc-admission-raw.npz</td><td>f1521acd7a0cc777f61407e49865f5953355d4382035421fb2582f2fa0164295</td></tr><tr><td>benchmarks/results/g1-jacobi-energy-scan-r61/r54-default/oracle-wbc-admission-raw.npz</td><td>e311ba3ad1a682fd67d666a097d0aa2876c294ff4d541cd8c38fb0f6e49a3152</td></tr></tbody></table></div></main></body></html>

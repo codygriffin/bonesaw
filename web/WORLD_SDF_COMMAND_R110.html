@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw swept world-SDF command authority · r110</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw swept world-SDF command authority · r110</h1>
+<h2>Outcome</h2>
+<p>**PASS.** The CPU command controller now certifies the WBC primary trajectory and the independently generated brake trajectory against an immutable world SDF before either can gain command authority. The audit supplies states and desired accelerations directly; there is no policy, plant integration, contact response, or physics engine.</p>
+<p>The independent NumPy oracle reconstructed every emitted quintic boundary condition for 321 transactions. Maximum sampled-distance, first-violation-time, continuity-lower-bound, and distance-rate-bound errors were `2.776e-16` m, `0` ns, `2.776e-16` m, and `3.109e-15` m/s. The least dense-truth-minus-certificate gap was `5.551e-17` m; a negative value would invalidate the certificate.</p>
+<div class=table-wrap><table><thead><tr><th>plan</th><th>sampled collision</th><th>continuous-only failure</th><th>certified</th></tr></thead><tbody><tr><td>primary</td><td>3</td><td>1</td><td>317</td></tr><tr><td>contingency</td><td>1</td><td>0</td><td>320</td></tr></tbody></table></div>
+<p>Selections were `{&#x27;primary&#x27;: 317, &#x27;contingency&#x27;: 3, &#x27;rejected&#x27;: 1}`. Sampled geometry, between-sample continuity, and unknown-space faults have separate bits and witnesses; they are not collapsed into one health score.</p>
+<h2>Bounded adaptive refinement</h2>
+<p>The deterministic fixture `q=-0.5500`, `v=-0.9000` m/s, requested acceleration `-60.0` m/s² demonstrates useful refinement. The global 1 ms certificate was `0.019285` m and withheld the primary. Depth-bounded midpoint refinement raised the proven lower bound to `0.020061` m against dense truth `0.020319` m, using 22 leaves, 2 added probe samples, depth 2, and no unresolved leaves.</p>
+<p>This is continuous-time command admission with a fixed work budget. A certificate that remains below the 0.020 m threshold is withheld; the controller does not wait extra servo steps hoping the pose becomes feasible.</p>
+<h2>Unknown-space authority</h2>
+<p>With Reject semantics, the primary left the known volume at `15000000` ns, set the dedicated unknown bit, and transferred authority to the known-clear brake (`selection=1`). With OccupiedBoundary semantics, the field boundary itself is occupied: the 0.2 m sphere already overlaps it, so both primary and brake are measured collisions (`source=1`) and the selector rejects (`selection=2`). Unknown and occupied space therefore remain distinguishable while both fail closed.</p>
+<h2>Timing and allocation</h2>
+<div class=table-wrap><table><thead><tr><th>transaction</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th><th>replay</th></tr></thead><tbody><tr><td>WBC + primary/brake + two swept-world certificates</td><td>15.854 / 22.003 / 30.287</td><td>0 / 0</td><td>True</td></tr></tbody></table></div>
+<p>Timing covers Rust WBC solve, actuator mapping, exact primary/brake construction, 21-knot scans for both plans, bounded continuous certification, and selection. Python reset/statistics/report work is outside the timed region.</p>
+<h2>Example authority stack</h2>
+<p>1. **Intent/task rows** — desired generalized and end-effector accelerations; may be relaxed by their authored priority. 2. **Local world viability (HOCBF)** — state-local acceleration authority near the SDF wall; separately reports margin and residual. 3. **Primary sampled world geometry** — exact 1 ms command-knot evidence with probe, body, source, and first-violation time. 4. **Primary continuous world clearance** — Lipschitz/rate certificate plus bounded refinement work; can withhold an otherwise sampled-clear primary. 5. **Contingency sampled + continuous world clearance** — independently witnesses the brake; never inherits primary validity. 6. **Joint, actuator, support, effort, thermal, and solver-budget authority** — orthogonal typed limits remain visible alongside world geometry. 7. **Command selector** — primary, contingency, or reject. Only a valid plan is emitted; later plant tracking and reliability remain separate evidence.</p>
+<h2>Contract and remaining boundary</h2>
+<p>The field epoch and probe set are immutable for the controller instance. Sphere covers conservatively represent authored robot collision geometry; this is not arbitrary mesh CCD. The rate proof covers fixed-root actuator segments in the current command architecture and the trilinear field&#x27;s measured global Lipschitz bound. Moving fields, root-trajectory sweeps, external-obstacle epochs, calibrated actuator/thermal response, and mesh validation remain explicit later milestones.</p></main></body></html>

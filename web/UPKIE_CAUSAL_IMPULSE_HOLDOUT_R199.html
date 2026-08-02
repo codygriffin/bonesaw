@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw causal impulse holdout audit · r199</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw causal impulse holdout audit · r199</h1>
+<blockquote>Deployable strict holdout **FAIL** · authority **NOT ADMITTED**.</blockquote>
+<h2>Boundary</h2>
+<ul><li>Targets are completed-interval wheel impulses plus velocity-jump residuals. They are labels only. Features stop at the selection tick: root twist, joint state, selected action, and the center/spread of the four support-mode acceleration predictions.</li><li>Exact physical support, post-step state/impulse, case identity, and future dropout duration are forbidden from deployable features. The physical-support/action row remains a labelled oracle diagnostic.</li><li>Every bound is trained on six named cases and evaluated on the seventh. A sample passes only if all four targets are componentwise covered.</li></ul>
+<h2>Result</h2>
+<div class=table-wrap><table><thead><tr><th>method</th><th>n</th><th>sample coverage</th><th>component coverage</th><th>max tangential miss (N·s)</th><th>max Δv-error miss</th><th>strict</th></tr></thead><tbody><tr><td>global_max</td><td>266</td><td>99.624%</td><td>99.624%</td><td>0.010504</td><td>1.489</td><td>NO</td></tr><tr><td>global_max_1p25</td><td>266</td><td>99.624%</td><td>99.906%</td><td>0.000000</td><td>0.000</td><td>NO</td></tr><tr><td>action_max</td><td>266</td><td>97.744%</td><td>98.778%</td><td>0.048077</td><td>6.884</td><td>NO</td></tr><tr><td>causal_knn32_action_max</td><td>266</td><td>75.564%</td><td>90.602%</td><td>0.222550</td><td>70.550</td><td>NO</td></tr><tr><td>causal_lipschitz_action</td><td>266</td><td>90.602%</td><td>93.327%</td><td>0.000318</td><td>0.180</td><td>NO</td></tr><tr><td>oracle_support_action_max</td><td>266</td><td>93.609%</td><td>95.959%</td><td>0.173232</td><td>52.811</td><td>NO</td></tr></tbody></table></div>
+<p>The strongest deployable row is **global_max** at **99.624%** complete-sample coverage. Its worst miss is **left_1n/drop5_matched/tick 700**, target **qdd_box_delta_velocity_exceedance**, value/bound/exceedance **73.527879/71.991978/1.535901**.</p>
+<h2>Decision</h2>
+<p>No empirical pre-step bound becomes authority unless it covers every named holdout without hidden future or simulator-only inputs and remains useful rather than unbounded. This audit either rejects the tested current-state feature family or records only a diagnostic success; plant consequence, online Rust ownership, and the independent 5 ms timing gate remain separate.</p></main></body></html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw strict CPU batch solve · r80</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw strict CPU batch solve · r80</h1>
+<h2>Outcome</h2>
+<p>**Admission: PASS.** Fixed r79 task/contact rows now feed the established allocation-free `f64` strict hierarchy. This is the CPU semantic implementation requested before GPU batching; `CpuMirrorF32` still stops at row emission and no CUDA hierarchical solver is claimed.</p>
+<p>The independent oracle is NumPy SVD over the same emitted physical rows, with per-row normalization, hard contact equalities, and a sequential null-space projector. It is independent of the Rust pseudoinverse implementation. Evals use no policy, physics rollout, or learned component.</p>
+<h2>Independent numerical oracle</h2>
+<div class=table-wrap><table><thead><tr><th>model</th><th>max</th><th>qdd−NumPy</th><th></th><th>max</th><th>level l2−NumPy</th><th></th><th>hard contact L∞</th><th>pass</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>4.362e-10</td><td>1.804e-10</td><td>3.126e-13</td><td>True</td></tr><tr><td>upkie</td><td>9.581e-09</td><td>1.193e-10</td><td>3.979e-13</td><td>True</td></tr></tbody></table></div>
+<h2>Example authority stack</h2>
+<p>This concrete stack is also published in the live architecture review. Values never collapse into one health score.</p>
+<div class=table-wrap><table><thead><tr><th>layer</th><th>example authority</th><th>interpretation</th></tr></thead><tbody><tr><td>Invariant</td><td>contact-lock blocks 7951 / 7952</td><td>hard 3-axis equalities; violation is reported separately</td></tr><tr><td>Viability</td><td>torso attractor 7901 · priority 1</td><td>its normalized residual is frozen before lower layers</td></tr><tr><td>Intent</td><td>handle attractor 7902 · priority 2</td><td>may retain residual when it conflicts with viability</td></tr><tr><td>Preference</td><td>no row in this example</td><td>undeclared is not displayed as a zero residual</td></tr><tr><td>Style</td><td>no row in this example</td><td>reserved terminal refinement</td></tr><tr><td>Feasibility</td><td>bound margin + hard violation + clipping</td><td>continuous compromise evidence, not a binary pose promise</td></tr><tr><td>Solver budget</td><td>MaxIterations</td><td>bounded search exhausted; explicitly not an infeasibility certificate</td></tr><tr><td>Resources</td><td>effort / power / thermal remain separate</td><td>this kinematic row bridge cannot promise physical realization</td></tr><tr><td>Backend</td><td>CpuExactF64</td><td>strict CPU reference path; no CUDA solve claim</td></tr></tbody></table></div>
+<h2>Bounded compromise and failure typing</h2>
+<p>* Narrow ±0.01 acceleration bounds: status is `SolvedWithSlack` for every agent; max |qdd| 0.010000; soft residual 1.031e+02; 48 clipped steps. * Invalid bounds isolate agent 8 with `InvalidProblem`; neighboring commands remain bitwise exact: True. * Contradictory nonzero hard rows are covered by Rust tests as `MaxIterations`, with continuous maximum violation and projection-work counters. Structural zero-row contradiction remains `PrimalInfeasible`. Commands are zeroed for non-solved statuses.</p>
+<h2>Determinism and allocation</h2>
+<div class=table-wrap><table><thead><tr><th>check</th><th>result</th></tr></thead><tbody><tr><td>repeat_bitwise_exact</td><td>True</td></tr><tr><td>permutation_exact</td><td>True</td></tr><tr><td>padding_exact</td><td>True</td></tr><tr><td>allocation_calls</td><td>0</td></tr><tr><td>pass</td><td>True</td></tr></tbody></table></div>
+<h2>Release timing (untrimmed)</h2>
+<div class=table-wrap><table><thead><tr><th>agents</th><th>solve p50 µs</th><th>solve p99 µs</th><th>pipeline p50 µs</th><th>alloc calls</th></tr></thead><tbody><tr><td>1</td><td>9.548</td><td>9.787</td><td>62.462</td><td>0</td></tr><tr><td>32</td><td>196.286</td><td>364.666</td><td>1632.873</td><td>0</td></tr><tr><td>256</td><td>1579.082</td><td>1968.185</td><td>13408.090</td><td>0</td></tr></tbody></table></div>
+<p>Timers exclude Python/NumPy marshalling and include only preallocated Rust execution. The full-pipeline timer is the sum of separately sampled FK, Jacobian, dynamics, point-query, emission, and exact-solve stages.</p>
+<h2>Scope boundary</h2>
+<p>This checkpoint proves a stable CPU-exact consumer for point-attractor and contact-lock rows, strict priority, bound compromise, typed bounded-work failure, fixed diagnostics, determinism, and zero measured hot-path allocation. It does not yet add friction cones, torque/power/thermal inequalities to this batch ABI, physics realization, walking retargeting, or a CUDA solver. Those remain explicit subsequent admission gates.</p></main></body></html>

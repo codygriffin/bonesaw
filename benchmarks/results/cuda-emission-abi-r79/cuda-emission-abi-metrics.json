@@ -1,0 +1,366 @@
+{
+  "schema_version": 1,
+  "revision": "cuda-emission-abi-r79",
+  "generated_at": "2026-08-01T07:42:35.562966+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64"
+  },
+  "profile": "CpuMirrorF32",
+  "manifest": [
+    "StateInput",
+    "ForwardKinematics",
+    "CenterOfMass",
+    "Jacobians",
+    "RigidBodyDynamics",
+    "PointQueries",
+    "TaskEmission",
+    "ConstraintEmission"
+  ],
+  "oracle_cases": [
+    {
+      "model": "models/toy_humanoid.urdf",
+      "model_sha256": "db25c1ee56e6cf5041ad3cfb42259d838f431928a49aa1d0e0472307ec3038e6",
+      "samples": 16,
+      "task_slots": 2,
+      "contact_slots": 2,
+      "metadata_exact": true,
+      "inactive_rows_exact_zero": true,
+      "maximum_errors": {
+        "position_error": 0.0,
+        "velocity_error": 2.9802322387695312e-08,
+        "desired_acceleration": 1.52587890625e-05,
+        "task_jacobian": 0.0,
+        "task_rhs": 1.52587890625e-05,
+        "contact_jacobian": 0.0,
+        "contact_rhs": 0.0
+      },
+      "least_squares_shared_qdd_residual": {
+        "minimum": 6.572520305780927e-14,
+        "mean": 7.440714711037799e-13,
+        "stddev": 6.244478196281074e-13,
+        "mad": 4.956035581926699e-13,
+        "p50": 6.163958232718869e-13,
+        "p95": 1.872280108727864e-12,
+        "p99": 1.9319656985317122e-12,
+        "p99_9": 1.9453949562375784e-12,
+        "maximum": 1.9468870959826745e-12
+      },
+      "statuses_ok": true,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    },
+    {
+      "model": "models/upkie/upkie.urdf",
+      "model_sha256": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+      "samples": 16,
+      "task_slots": 2,
+      "contact_slots": 2,
+      "metadata_exact": true,
+      "inactive_rows_exact_zero": true,
+      "maximum_errors": {
+        "position_error": 0.0,
+        "velocity_error": 2.9802322387695312e-08,
+        "desired_acceleration": 7.62939453125e-06,
+        "task_jacobian": 0.0,
+        "task_rhs": 7.62939453125e-06,
+        "contact_jacobian": 0.0,
+        "contact_rhs": 0.0
+      },
+      "least_squares_shared_qdd_residual": {
+        "minimum": 4.973799150320701e-14,
+        "mean": 1.3163219805130135,
+        "stddev": 1.7845979383595922,
+        "mad": 0.32989637126176463,
+        "p50": 0.32989637126184945,
+        "p95": 4.198931684896952,
+        "p99": 5.479105006303973,
+        "p99_9": 5.767144003620556,
+        "maximum": 5.79914833665573
+      },
+      "statuses_ok": true,
+      "allocation_calls": 0,
+      "allocated_bytes": 0,
+      "pass": true
+    }
+  ],
+  "invariance": {
+    "agents": 17,
+    "d1_repeat_bitwise_exact": true,
+    "permutation_exact": true,
+    "padding_exact": true,
+    "chunking_exact": true,
+    "invalid_agent_isolation_exact": true,
+    "allocation_calls": 0,
+    "allocated_bytes": 0,
+    "pass": true
+  },
+  "timing": [
+    {
+      "batch_size": 1,
+      "agent_stride": 32,
+      "repeats": 200,
+      "fk_execute_ns": {
+        "minimum": 6553.0,
+        "mean": 7250.84,
+        "stddev": 1377.640992566641,
+        "mad": 40.0,
+        "p50": 6643.0,
+        "p95": 8749.999999999998,
+        "p99": 10307.939999999982,
+        "p99_9": 19822.938000000155,
+        "maximum": 21721.0
+      },
+      "jacobian_execute_ns": {
+        "minimum": 13596.0,
+        "mean": 14746.145,
+        "stddev": 1543.9904157652663,
+        "mad": 90.0,
+        "p50": 13796.0,
+        "p95": 17356.5,
+        "p99": 18155.19,
+        "p99_9": 20517.726000000046,
+        "maximum": 21100.0
+      },
+      "dynamics_execute_ns": {
+        "minimum": 28844.0,
+        "mean": 31319.96,
+        "stddev": 3685.2161399841934,
+        "mad": 140.0,
+        "p50": 29125.0,
+        "p95": 36954.0,
+        "p99": 45505.62999999998,
+        "p99_9": 47730.151000000005,
+        "maximum": 47800.0
+      },
+      "point_execute_ns": {
+        "minimum": 1183.0,
+        "mean": 1376.5,
+        "stddev": 252.589429707579,
+        "mad": 20.0,
+        "p50": 1232.0,
+        "p95": 1833.05,
+        "p99": 2033.2099999999998,
+        "p99_9": 2070.0200000000004,
+        "maximum": 2074.0
+      },
+      "emission_execute_ns": {
+        "minimum": 791.0,
+        "mean": 921.325,
+        "stddev": 156.40364246078158,
+        "mad": 20.0,
+        "p50": 832.0,
+        "p95": 1192.0,
+        "p99": 1353.3899999999996,
+        "p99_9": 1424.8410000000006,
+        "maximum": 1433.0
+      },
+      "combined_execute_ns": {
+        "minimum": 51107.0,
+        "mean": 55614.77,
+        "stddev": 6346.409505153288,
+        "mad": 330.0,
+        "p50": 51627.5,
+        "p95": 66036.05,
+        "p99": 75025.93,
+        "p99_9": 78558.56500000005,
+        "maximum": 79069.0
+      },
+      "per_agent_combined_ns": {
+        "minimum": 51107.0,
+        "mean": 55614.77,
+        "stddev": 6346.409505153288,
+        "mad": 330.0,
+        "p50": 51627.5,
+        "p95": 66036.05,
+        "p99": 75025.93,
+        "p99_9": 78558.56500000005,
+        "maximum": 79069.0
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 32,
+      "agent_stride": 32,
+      "repeats": 200,
+      "fk_execute_ns": {
+        "minimum": 178537.0,
+        "mean": 186052.28,
+        "stddev": 12421.49971628225,
+        "mad": 1167.5,
+        "p50": 185055.0,
+        "p95": 190301.0,
+        "p99": 193510.1,
+        "p99_9": 325263.98000000266,
+        "maximum": 357896.0
+      },
+      "jacobian_execute_ns": {
+        "minimum": 294136.0,
+        "mean": 304632.125,
+        "stddev": 5370.2658583514285,
+        "mad": 2093.5,
+        "p50": 303678.5,
+        "p95": 309620.05,
+        "p99": 318105.41999999975,
+        "p99_9": 345444.891,
+        "maximum": 345463.0
+      },
+      "dynamics_execute_ns": {
+        "minimum": 880423.0,
+        "mean": 901561.065,
+        "stddev": 33630.06923812044,
+        "mad": 4649.0,
+        "p50": 898437.0,
+        "p95": 910934.55,
+        "p99": 920453.2999999996,
+        "p99_9": 1282794.5960000064,
+        "maximum": 1362354.0
+      },
+      "point_execute_ns": {
+        "minimum": 24847.0,
+        "mean": 25792.155,
+        "stddev": 3131.5202332054314,
+        "mad": 90.0,
+        "p50": 25378.0,
+        "p95": 27305.59999999999,
+        "p99": 31251.799999999996,
+        "p99_9": 60925.700000000594,
+        "maximum": 68229.0
+      },
+      "emission_execute_ns": {
+        "minimum": 8737.0,
+        "mean": 9115.375,
+        "stddev": 1247.0816149615068,
+        "mad": 40.0,
+        "p50": 8897.0,
+        "p95": 9391.999999999998,
+        "p99": 13747.679999999962,
+        "p99_9": 21516.948000000073,
+        "maximum": 22422.0
+      },
+      "combined_execute_ns": {
+        "minimum": 1393842.0,
+        "mean": 1427153.0,
+        "stddev": 40503.84296569895,
+        "mad": 6678.0,
+        "p50": 1423492.5,
+        "p95": 1436956.5999999999,
+        "p99": 1485551.6399999987,
+        "p99_9": 1879013.6760000049,
+        "maximum": 1939684.0
+      },
+      "per_agent_combined_ns": {
+        "minimum": 43557.5625,
+        "mean": 44598.53125,
+        "stddev": 1265.745092678092,
+        "mad": 208.6875,
+        "p50": 44484.140625,
+        "p95": 44904.893749999996,
+        "p99": 46423.48874999996,
+        "p99_9": 58719.17737500015,
+        "maximum": 60615.125
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    {
+      "batch_size": 256,
+      "agent_stride": 256,
+      "repeats": 200,
+      "fk_execute_ns": {
+        "minimum": 1521213.0,
+        "mean": 1556950.61,
+        "stddev": 42165.391235442126,
+        "mad": 8215.0,
+        "p50": 1553379.0,
+        "p95": 1575463.65,
+        "p99": 1616814.1199999999,
+        "p99_9": 2019121.806000008,
+        "maximum": 2118822.0
+      },
+      "jacobian_execute_ns": {
+        "minimum": 2511885.0,
+        "mean": 2572879.6,
+        "stddev": 64968.932308681215,
+        "mad": 9788.5,
+        "p50": 2570560.5,
+        "p95": 2600420.0,
+        "p99": 2617074.0199999996,
+        "p99_9": 3295057.2500000126,
+        "maximum": 3448934.0
+      },
+      "dynamics_execute_ns": {
+        "minimum": 7167037.0,
+        "mean": 7260545.445,
+        "stddev": 41378.86805661768,
+        "mad": 25407.5,
+        "p50": 7255695.0,
+        "p95": 7323995.55,
+        "p99": 7398732.29,
+        "p99_9": 7473616.268000001,
+        "maximum": 7487122.0
+      },
+      "point_execute_ns": {
+        "minimum": 208584.0,
+        "mean": 215594.535,
+        "stddev": 6958.059021650723,
+        "mad": 1728.5,
+        "p50": 213698.5,
+        "p95": 222114.5,
+        "p99": 247113.83999999988,
+        "p99_9": 272831.4300000003,
+        "maximum": 276101.0
+      },
+      "emission_execute_ns": {
+        "minimum": 75383.0,
+        "mean": 77857.02,
+        "stddev": 3039.320320334795,
+        "mad": 466.0,
+        "p50": 77056.0,
+        "p95": 82691.0,
+        "p99": 86544.22999999994,
+        "p99_9": 105489.24800000024,
+        "maximum": 108444.0
+      },
+      "combined_execute_ns": {
+        "minimum": 11544887.0,
+        "mean": 11683827.21,
+        "stddev": 129249.04026040541,
+        "mad": 33002.5,
+        "p50": 11665608.5,
+        "p95": 11773103.15,
+        "p99": 11874984.28,
+        "p99_9": 13049841.769000022,
+        "maximum": 13306864.0
+      },
+      "per_agent_combined_ns": {
+        "minimum": 45097.21484375,
+        "mean": 45639.9500390625,
+        "stddev": 504.87906351720864,
+        "mad": 128.916015625,
+        "p50": 45568.783203125,
+        "p95": 45988.6841796875,
+        "p99": 46386.65734375,
+        "p99_9": 50975.944410156335,
+        "maximum": 51979.9375
+      },
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    }
+  ],
+  "total_allocation_calls": 0,
+  "total_allocated_bytes": 0,
+  "cuda_device_executor": {
+    "available": false,
+    "d1": "not_run",
+    "d2": "not_run",
+    "d3": "not_run"
+  },
+  "admission": {
+    "cpu_mirror_emission": true,
+    "hierarchical_solve": false,
+    "cuda_mirror_emission": false
+  }
+}

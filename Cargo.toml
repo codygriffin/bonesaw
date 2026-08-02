@@ -1,0 +1,37 @@
+[workspace]
+members = [
+    "crates/bonesaw-core",
+    "crates/bonesaw-cuda",
+    "crates/bonesaw-py",
+    "crates/bonesaw-tools",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["Bonesaw contributors"]
+repository = "https://github.com/example/bonesaw"
+
+[workspace.dependencies]
+anyhow = "1.0"
+axum = { version = "0.8", features = ["ws"] }
+futures-util = "0.3"
+nalgebra = { version = "0.34", features = ["serde-serialize"] }
+numpy = "0.28"
+parking_lot = "0.12"
+pyo3 = { version = "0.28", features = ["extension-module"] }
+quick-xml = { version = "0.38", features = ["serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+sha2 = "0.10"
+thiserror = "2.0"
+tokio = { version = "1.47", features = ["macros", "rt-multi-thread", "net", "time", "sync", "process", "io-util"] }
+tower-http = { version = "0.6", features = ["fs", "set-header", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

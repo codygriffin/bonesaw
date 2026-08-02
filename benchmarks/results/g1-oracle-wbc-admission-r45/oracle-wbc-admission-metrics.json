@@ -1,0 +1,193 @@
+{
+  "checks": {
+    "all_kinematic_witness_ticks_converge": true,
+    "kinematic_angular_acceleration_residual_le_1e_2rad_s2": true,
+    "kinematic_angular_velocity_residual_le_1mrad_s": true,
+    "kinematic_com_acceleration_residual_le_40pct": true,
+    "kinematic_com_error_le_3cm": true,
+    "kinematic_com_velocity_residual_le_40pct": true,
+    "kinematic_hot_loop_has_zero_allocations": true,
+    "kinematic_jet_hot_loop_has_zero_allocations": true,
+    "kinematic_joint_acceleration_le_200rad_s2": true,
+    "kinematic_joint_velocity_le_8rad_s": true,
+    "kinematic_orientation_error_le_1deg": true,
+    "kinematic_point_acceleration_residual_le_25pct": true,
+    "kinematic_point_error_le_1cm": true,
+    "kinematic_point_velocity_residual_le_10pct": true,
+    "no_wbc_infeasible_or_failed_ticks": true,
+    "physical_outputs_are_bitwise_repeatable": true,
+    "reference_inputs_remain_bitwise_immutable": true,
+    "wbc_contact_residual_le_1e_8": true,
+    "wbc_cop_respects_declared_eroded_support": true,
+    "wbc_dynamics_residual_le_1e_8": true,
+    "wbc_effector_task_rms_le_0_1": true,
+    "wbc_friction_margin_nonnegative": true,
+    "wbc_hot_loop_has_zero_allocations": true,
+    "wbc_p99_latency_le_20ms": true,
+    "wbc_root_angular_task_rms_le_1rad_s2": true,
+    "wbc_root_linear_and_com_task_rms_le_1m_s2": true,
+    "wbc_torque_margin_nonnegative": true
+  },
+  "configuration": {
+    "jet_acceleration_damping": 0.001,
+    "jet_center_of_mass_weight": 5.0,
+    "jet_velocity_damping": 0.0001,
+    "minimum_contact_cop_margin_m": 0.005,
+    "position_ik_center_of_mass_weight": 0.25,
+    "position_ik_damping": 1e-05
+  },
+  "dt_seconds": 0.005,
+  "evaluation_boundary": {
+    "feedback_policy": false,
+    "finite_support_cop_constraints": true,
+    "morphology_projection": true,
+    "oracle_state_per_tick": true,
+    "physics_simulator": false,
+    "reference_inputs_immutable": true,
+    "rigid_body_model_equations": true,
+    "state_integration": false,
+    "wbc_targets_derived_from_projected_generalized_jet": true
+  },
+  "exact_repeat": true,
+  "input_fingerprint": "8759be6c0444f8b6b794b5a9de260b3bd78b5d253032152196bc87f6dc14c2e0",
+  "kinematic_witness": {
+    "allocated_bytes": 0,
+    "allocation_calls": 0,
+    "center_of_mass_error_p99_m": 0.02728117178522367,
+    "converged_ticks": 600,
+    "iterations": {
+      "maximum": 4,
+      "p50": 0.0,
+      "p99": 2.0
+    },
+    "jet_allocated_bytes": 0,
+    "jet_allocation_calls": 0,
+    "jet_latency_us": {
+      "maximum": 43.693,
+      "mean": 28.02831666666666,
+      "minimum": 27.632,
+      "p50": 27.803,
+      "p95": 28.1235,
+      "p99": 33.54720999999999
+    },
+    "jet_residuals": {
+      "center_of_mass_acceleration_fraction_of_authored_maximum": 0.25535715215834875,
+      "center_of_mass_velocity_fraction_of_authored_maximum": 0.076939556161236,
+      "maximum_angular_acceleration_rad_s2": 0.000559926535017219,
+      "maximum_angular_velocity_rad_s": 8.558876658219518e-06,
+      "maximum_center_of_mass_acceleration_mps2": 0.5075532109030838,
+      "maximum_center_of_mass_velocity_mps": 0.022479755308638803,
+      "maximum_point_acceleration_mps2": 0.12434426893071905,
+      "maximum_point_velocity_mps": 0.0004808942056976542,
+      "point_acceleration_fraction_of_authored_maximum": 0.12955507607789685,
+      "point_velocity_fraction_of_authored_maximum": 0.0017072079471237562
+    },
+    "latency_us": {
+      "maximum": 36.128,
+      "mean": 2.348745,
+      "minimum": 1.212,
+      "p50": 1.303,
+      "p95": 10.831449999999998,
+      "p99": 19.16769
+    },
+    "maximum_center_of_mass_error_m": 0.02728117178522367,
+    "maximum_joint_acceleration_rad_s2": 123.30540247935248,
+    "maximum_joint_velocity_rad_s": 4.428516886605757,
+    "maximum_orientation_error_rad": 0.013899655593820276,
+    "maximum_point_error_m": 0.004987836908089622,
+    "point_error_p99_m": 0.004843734167923059
+  },
+  "model": "/home/codygriffin/Documents/bonepilot/benchmarks/cache/unitree-g1/g1_23dof_mode_10.urdf",
+  "passed": true,
+  "reference_inputs": "/home/codygriffin/Documents/bonepilot/benchmarks/results/g1-bonesaw-lipm-r44/reference-inputs.npz",
+  "runtime": {
+    "maximum_rss_after_bytes": 42856448,
+    "maximum_rss_before_bytes": 42463232,
+    "maximum_rss_growth_bytes": 393216,
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "process_cpu_seconds": 1.403480495,
+    "python": "3.12.3",
+    "python_gc_count_after": [
+      3,
+      0,
+      0
+    ],
+    "python_gc_count_before": [
+      0,
+      0,
+      0
+    ],
+    "python_tracemalloc_peak_bytes": 578,
+    "wall_seconds": 1.403785562
+  },
+  "schema": 1,
+  "ticks": 600,
+  "wbc_admission": {
+    "allocated_bytes": 0,
+    "allocation_calls": 0,
+    "clipped_steps": {
+      "maximum": 14,
+      "ticks": 387
+    },
+    "deadline_misses_20ms": 0,
+    "feasibility_halfspace_projections": {
+      "maximum": 242,
+      "mean": 235.89333333333335
+    },
+    "jitter_abs_delta_us": {
+      "maximum": 2092.123,
+      "mean": 109.61336727879801,
+      "minimum": 0.011,
+      "p50": 13.366,
+      "p95": 783.0553000000004,
+      "p99": 1184.646679999998
+    },
+    "latency_us": {
+      "maximum": 4461.429,
+      "mean": 2339.3999549999994,
+      "minimum": 1442.556,
+      "p50": 2429.775,
+      "p95": 3642.55925,
+      "p99": 4086.91653
+    },
+    "maximum_actuator_torque": 32.689476973088375,
+    "maximum_contact_acceleration_residual": 4.882799373162605e-11,
+    "maximum_contact_normal_force": 164.97341060670036,
+    "maximum_dynamics_residual": 1.2223680956324756e-09,
+    "maximum_viability_task_rms": 0.5712307642933594,
+    "maximum_witness_acceleration_rms": 37.236565856828314,
+    "minimum_friction_margin": -2.1316282072803006e-14,
+    "minimum_support_margin_m": 0.004999999999999997,
+    "minimum_torque_margin": 1967.3105230269116,
+    "status_counts": {
+      "failed": 0,
+      "primal_infeasible": 0,
+      "solved": 213,
+      "solved_with_slack": 387
+    },
+    "task_jacobi_sweeps": {
+      "maximum": 88,
+      "mean": 38.498333333333335
+    },
+    "task_maximum_rms": {
+      "actuator_torque_style": 11.951515728920855,
+      "center_of_mass": 0.39230917428183326,
+      "centroidal_angular_momentum_rate": 0.0,
+      "contact_force_style": 36.33671291204899,
+      "frame_angular_0": 7.876248300655418e-11,
+      "joint_posture": 41.81236205149791,
+      "point_0": 2.7830579117524323e-11,
+      "point_1": 0.0,
+      "point_2": 0.0,
+      "point_3": 0.0,
+      "protected_joint_acceleration": 0.0,
+      "root_angular": 0.5712307642933594,
+      "root_height": 0.2823433460859792,
+      "root_horizontal": 0.398698855430798
+    },
+    "task_pseudoinverse_calls": {
+      "maximum": 15,
+      "mean": 5.166666666666667
+    }
+  }
+}

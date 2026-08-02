@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw batch mirror · r75</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw fixed-layout batch mirror · r75</h1>
+<blockquote>PROMOTE THE ABI AND CPU MIRROR ONLY. The CUDA device executor is unavailable; no GPU correctness, latency, throughput, or determinism claim is made.</blockquote>
+<p>This policy-free, simulator-free gate freezes the first state/FK/CoM batch contract before device work. Python owns experiment orchestration and Pinocchio comparison; the measured transition is fixed-layout, preallocated Rust.</p>
+<h2>Admission decision</h2>
+<div class=table-wrap><table><thead><tr><th>Gate</th><th>Result</th><th>Decision</th></tr></thead><tbody><tr><td>CpuMirrorF32 ↔ Pinocchio f64 (D3)</td><td>2 / 2</td><td>PASS</td></tr><tr><td>D1 repeat bytes</td><td>True</td><td>PASS</td></tr><tr><td>Permutation / padding / chunking</td><td>True / True / True</td><td>PASS</td></tr><tr><td>Typed invalid-agent isolation</td><td>True</td><td>PASS</td></tr><tr><td>Rust execute allocations</td><td>0 calls · 0 B</td><td>PASS</td></tr><tr><td>CUDA device D1 / D2 / D3</td><td>executor unavailable</td><td>NOT RUN</td></tr></tbody></table></div>
+<h2>Independent f64 oracle</h2>
+<div class=table-wrap><table><thead><tr><th>Model</th><th>States × bodies</th><th>Translation max</th><th>Rotation max</th><th>CoM max</th><th>Orthogonality</th><th>D3</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>16 × 21</td><td>1.539e-07 m</td><td>5.905e-08 rad</td><td>1.557e-07 m</td><td>2.384e-07</td><td>PASS</td></tr><tr><td>upkie</td><td>16 × 41</td><td>7.943e-08 m</td><td>2.623e-08 rad</td><td>7.145e-08 m</td><td>2.980e-07</td><td>PASS</td></tr></tbody></table></div>
+<p>D3 thresholds are 5e-05 m translation, 5e-05 rad rotation, and 5e-05 m CoM. Rotation uses atan2(skew, trace), with orthogonality checked separately, so f32 drift cannot masquerade as a trace/acos angle.</p>
+<h2>Exact layout and isolation gates</h2>
+<div class=table-wrap><table><thead><tr><th>Invariant</th><th>Evidence</th><th>Result</th></tr></thead><tbody><tr><td>Agent SoA stride</td><td>17 agents: aligned 32, compact 17</td><td>EXACT</td></tr><tr><td>Repeat</td><td>body pose + CoM + mass + status bytes</td><td>EXACT</td></tr><tr><td>Permutation</td><td>reverse-interleave then inverse index</td><td>EXACT</td></tr><tr><td>Chunking</td><td>7 + 10 agents reassembled</td><td>EXACT</td></tr><tr><td>Malformed state</td><td>agent 8 status=2; every neighbor compared</td><td>ISOLATED</td></tr></tbody></table></div>
+<h2>Host timing · CPU mirror only</h2>
+<div class=table-wrap><table><thead><tr><th>Agents</th><th>Stride</th><th>p50 batch</th><th>p99 batch</th><th>p50 / agent</th><th>p99 / agent</th><th>Allocations</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>6.732 µs</td><td>8.577 µs</td><td>6732.0 ns</td><td>8577.4 ns</td><td>0 / 0 B</td></tr><tr><td>32</td><td>32</td><td>191.101 µs</td><td>211.130 µs</td><td>5971.9 ns</td><td>6597.8 ns</td><td>0 / 0 B</td></tr><tr><td>256</td><td>256</td><td>1984.523 µs</td><td>2648.127 µs</td><td>7752.0 ns</td><td>10344.2 ns</td><td>0 / 0 B</td></tr></tbody></table></div>
+<p>The timer surrounds only Rust execute_into. NumPy-to-SoA input copy and SoA-to-NumPy output copy are intentionally outside it; end-to-end transport belongs to a later websocket/device report.</p>
+<h2>Frozen contract</h2>
+<p>Kernel ABI version 1 exposes StateInput + ForwardKinematics + CenterOfMass. State is state[coordinate][agent]; root and frame poses are pose[frame][12 components][agent], with row-major rotation followed by translation. MirrorF32 fixes explicit FMA, disables fast math and FTZ, and fingerprints program, build, ISA, layout, manifest, and math flags.</p>
+<h2>Deferred device admission</h2>
+<p>CudaMirrorF32 must reproduce these stage outputs under D1, satisfy CpuMirrorF32↔CudaMirrorF32 D2 tolerances, rerun D3 against Pinocchio, and pass permutation, padded-stride, chunking, malformed-agent, memory-scaling, warmup, jitter, and fingerprint gates on a working NVIDIA driver/toolkit. CudaThroughputF32 remains a separate relaxed profile and cannot inherit mirror certification.</p></main></body></html>

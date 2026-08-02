@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 spatial-patch transition holdout · r215</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 spatial-patch transition holdout · r215</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED** · controller/policy steps **0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>Rust replaces four independent point boxes per foot with one resultant spatial wrench. Tangential impulse is passive-slip/Coulomb limited; CoP moments and force share the same nonnegative normal impulse. The exact support of this finite-patch box-pyramid is evaluated per generalized coordinate without vertex allocation.</li><li>Before either fresh law ran, the profile was frozen at the r212 50/10/50 generalized acceleration reserve, 100 m/s² and 8 N tangential witnesses, a 10 m/s² normal speed reserve, one whole-body weight of sustained normal load, authored 85×30 mm sole half-extents, restitution upper 1, and zero unmodeled torsional friction.</li><li>Fresh state sequences begin at offsets 30,000 and 40,000. Compliant/elliptic/RK4 and rigid/elliptic/implicit laws differ from r213 and r214. Every sample resets; completed state is scoring-only.</li></ul>
+<h2>Fresh result</h2>
+<div class=table-wrap><table><thead><tr><th>contact law</th><th>samples</th><th>sample coverage</th><th>component coverage</th><th>root ω width p95</th><th>root v width p95</th><th>joint width p95</th><th>normal upper p95 N·s</th><th>bound p99 µs</th><th>zero alloc</th><th>profile</th></tr></thead><tbody><tr><td>compliant_elliptic_rk4</td><td>48</td><td>100.000%</td><td>100.0000%</td><td>3.529</td><td>0.655</td><td>878.035</td><td>4.192</td><td>3.410</td><td>yes</td><td>REJECT</td></tr><tr><td>rigid_elliptic_implicit</td><td>48</td><td>83.333%</td><td>98.9943%</td><td>3.180</td><td>0.634</td><td>923.910</td><td>4.329</td><td>2.874</td><td>yes</td><td>REJECT</td></tr></tbody></table></div>
+<h2>Decision</h2>
+<p>Finite-patch coupling is retained as model machinery but the frozen profile is rejected. It removes the eight-point Cartesian product yet full corner-of-patch moment uncertainty still amplifies through small ankle inertias. No holdout quantile is fed back. A useful construction needs a causal center contact prediction plus a state-conditioned kinetic residual, rather than the full patch reachable set as one tick-wide command authority.</p></main></body></html>

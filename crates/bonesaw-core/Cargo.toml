@@ -1,0 +1,66 @@
+[package]
+name = "bonesaw-core"
+description = "Deterministic CPU whole-body-control primitives for Bonesaw"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+
+[features]
+# Rejected r60 measurement variant. Production keeps the original coupling
+# dot: the extra skip branch costs more instructions on admitted workloads.
+jacobi-discarded-pair-experiment = []
+# Candidate r61 fusion of the initial Frobenius and column-energy scans.
+jacobi-energy-scan-experiment = []
+# Retained names for the r65/r66 candidate builds.
+resolved-task-row-compaction-experiment = []
+# Separately measurable halves of the r65 candidate. Keeping them independent
+# distinguishes bit-exact zero-row removal from terminal fixed-row SVD changes.
+zero-task-row-compaction-experiment = []
+fixed-style-task-row-compaction-experiment = []
+# Explicit r66 A/B control. Production compacts exact-zero rows and
+# fixed-bound terminal Style rows by default; this feature disables both unless
+# one of the experiment features above selectively opts a half back in.
+resolved-task-row-compaction-control = []
+# Candidate r67 optimization: when one task correction reaches several hard
+# limits at the same feasible step, freeze every exact co-hit before rebuilding
+# the projected task pseudoinverse.
+coincident-step-limit-freeze-experiment = []
+# Candidate r69 optimization: carry a clipped correction through the exact
+# current-task nullspace when the new hard limit can be satisfied without
+# changing that task optimum; otherwise fall back to the established SVD path.
+clipped-task-nullspace-repair-experiment = []
+# Candidate r70 optimization: solve well-conditioned full-row-rank wide task
+# projections through their small row Gram matrix. Numerically marginal and
+# rank-deficient projections retain the established one-sided Jacobi SVD.
+row-gram-task-pseudoinverse-experiment = []
+# Candidate r71 optimization: preserve the established arithmetic result for a
+# one-row task projection while skipping transpose storage, an unused
+# Frobenius scan, identity construction, and the vacuous Jacobi driver.
+rank-one-task-pseudoinverse-experiment = []
+# Promoted r72 optimization: retain the exact Jacobi operation order while
+# addressing each active column pair through prevalidated contiguous slices.
+jacobi-column-slice-experiment = []
+# Explicit r72 A/B control. Production uses column slices by default; this
+# feature restores repeated flat indexing unless the experiment is also set.
+jacobi-column-slice-control = []
+# Candidate r73 optimization: traverse each prevalidated Jacobi column pair
+# through paired slice iterators, retaining the exact scalar arithmetic and
+# store order while avoiding two indexed slice accesses per row.
+jacobi-column-iterator-experiment = []
+# Promoted r74 optimization: retain the row/shared/column accumulation order of
+# dense products while addressing each matrix row through validated slices.
+dense-multiply-row-slice-experiment = []
+# Explicit r74 A/B control. Production uses validated row slices by default;
+# this feature restores repeated flat indexing unless the experiment is set.
+dense-multiply-row-slice-control = []
+
+[dependencies]
+nalgebra.workspace = true
+quick-xml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

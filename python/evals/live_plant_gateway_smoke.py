@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+"""End-to-end smoke and timing probe for the live physical plant gateway."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import pathlib
+import statistics
+import time
+from typing import Any
+
+from live_editor_smoke import RawWebSocket, http_probe, percentile, receive_kind
+
+
+def receive_plant(
+    websocket: RawWebSocket,
+    kind: str,
+    *,
+    attempts: int = 120,
+    states: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    for _ in range(attempts):
+        message = websocket.receive_json()
+        if message.get("type") == "plant_state" and states is not None:
+            states.append(message)
+        if message.get("type") == kind:
+            return message
+        if message.get("type") == "plant_unavailable":
+            raise RuntimeError(message.get("reason", "plant unavailable"))
+    raise AssertionError(f"did not receive {kind!r} within {attempts} messages")
+
+
+def body_position(state: dict[str, Any], name: str) -> list[float]:
+    return next(frame["translation"] for frame in state["frames"] if frame["name"] == name)
+
+
+def distance(left: list[float], right: list[float]) -> float:
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(left, right)))
+
+
+def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
+    http_probe(base_url, connect_address)
+
+    control = RawWebSocket.connect(base_url, connect_address, "/ws")
+    try:
+        control_hello = receive_kind(control, "hello")
+    finally:
+        control.close()
+    gateway = control_hello["plant_gateway"]
+    assert gateway["available"], gateway
+    assert gateway["websocket_path"] == "/plant-ws", gateway
+    assert gateway["maximum_force_n"] == 8.0, gateway
+    assert gateway["maximum_application_offset_m"] == 0.75, gateway
+    assert gateway["command_ttl_ms"] == 140, gateway
+    assert gateway["worker_timeout_ms"] >= 100, gateway
+
+    websocket_started = time.perf_counter()
+    websocket = RawWebSocket.connect(base_url, connect_address, gateway["websocket_path"])
+    try:
+        hello = receive_plant(websocket, "plant_hello")
+        worker_startup_ms = (time.perf_counter() - websocket_started) * 1.0e3
+        assert hello["physics_hz"] == 250, hello
+        assert hello["control_hz"] == 50, hello
+        assert hello["stream_hz"] == 50, hello
+        assert hello["physics_substeps_per_control"] == 5, hello
+        assert hello["simulator"]["backend"] == "MuJoCo", hello
+        assert hello["maximum_force_n"] == gateway["maximum_force_n"], hello
+        assert (
+            hello["maximum_application_offset_m"]
+            == gateway["maximum_application_offset_m"]
+        ), hello
+        assert "base" in hello["body_names"], hello["body_names"]
+
+        initial = receive_plant(websocket, "plant_state")
+        assert initial["simulator"]["physics_dt_s"] == 0.004, initial["simulator"]
+        assert initial["simulator"]["control_dt_s"] == 0.020, initial["simulator"]
+        assert initial["simulator"]["physics_substeps"] == 5, initial["simulator"]
+        assert initial["metrics"]["ground_contact_count"] >= 1, initial["metrics"]
+        assert initial["contacts"], "MuJoCo contacts were not streamed"
+        initial_epoch = initial["reset_epoch"]
+        initial_base = body_position(initial, "base")
+        initial_root = initial["root_position"]
+
+        # A rejected overload must not poison the session or stop the stream.
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [8.01, 0.0, 0.0],
+                "application_point_world": initial_base,
+                "request_id": 100,
+            }
+        )
+        overload = receive_plant(websocket, "plant_error")
+        assert "force limit" in overload["message"], overload
+        after_overload = receive_plant(websocket, "plant_state")
+        assert after_overload["tick"] > initial["tick"]
+
+        # A bounded wrench is correlated and then expires without a release.
+        ttl_request = 101
+        sent_at = time.perf_counter()
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [2.0, 0.0, 0.0],
+                "application_point_world": body_position(after_overload, "base"),
+                "request_id": ttl_request,
+            }
+        )
+        active = None
+        expired = None
+        intervals_ms: list[float] = []
+        previous_arrival = time.perf_counter()
+        for _ in range(30):
+            state = receive_plant(websocket, "plant_state")
+            arrived = time.perf_counter()
+            intervals_ms.append((arrived - previous_arrival) * 1.0e3)
+            previous_arrival = arrived
+            if state["push"]["active"] and state["push"]["request_id"] == ttl_request:
+                active = active or (state, (arrived - sent_at) * 1.0e3)
+            if state["command_expired"]:
+                expired = (state, (arrived - sent_at) * 1.0e3)
+                break
+        assert active is not None, "bounded plant_push was never acknowledged"
+        assert expired is not None, "plant_push did not expire at its fail-safe TTL"
+        assert not expired[0]["push"]["active"], expired[0]["push"]
+        assert gateway["command_ttl_ms"] <= expired[1] <= gateway["command_ttl_ms"] + 120
+
+        # Refresh one request ID while the pointer is held, release it, then
+        # observe the model settle without a policy layer or browser-side physics.
+        recovery_request = 200
+        baseline = receive_plant(websocket, "plant_state")
+        baseline_root = baseline["root_position"]
+        push_states: list[dict[str, Any]] = []
+        push_started = time.perf_counter()
+        recovery_command_acknowledged = False
+        for _ in range(10):
+            websocket.send_json(
+                {
+                    "type": "plant_push",
+                    "body": "base",
+                    "force_world": [5.0, 0.0, 0.0],
+                    "application_point_world": body_position(baseline, "base"),
+                    "request_id": recovery_request,
+                }
+            )
+            # A public tunnel can already have snapshots in flight when the
+            # command arrives. Correlate explicitly instead of assuming the
+            # very next frame reflects the most recent client message.
+            for _ in range(5):
+                state = receive_plant(websocket, "plant_state")
+                push_states.append(state)
+                if (
+                    state["command_id"] == recovery_request
+                    and state["push"]["active"]
+                ):
+                    recovery_command_acknowledged = True
+                    break
+        assert recovery_command_acknowledged, "refreshed push was never correlated"
+        websocket.send_json({"type": "plant_release", "request_id": 201})
+
+        released = None
+        settled = None
+        fallen_observed = False
+        automatic_fall_reset_observed = False
+        recovery_states: list[dict[str, Any]] = []
+        consecutive_settled = 0
+        for _ in range(150):
+            state = receive_plant(websocket, "plant_state")
+            recovery_states.append(state)
+            fallen_observed = fallen_observed or bool(state["metrics"]["fallen"])
+            automatic_fall_reset_observed = automatic_fall_reset_observed or (
+                state.get("automatic_reset_reason") == "fall"
+            )
+            if not state["push"]["active"] and state["command_id"] == 201:
+                released = released or state
+            metrics = state["metrics"]
+            is_settled = (
+                not metrics["fallen"]
+                and abs(metrics["root_tilt_rad"]) < 0.08
+                and abs(metrics["station_error_m"]) < 0.05
+            )
+            consecutive_settled = consecutive_settled + 1 if is_settled else 0
+            if released is not None and consecutive_settled >= 8:
+                settled = state
+                break
+        assert released is not None, "plant_release was never reflected"
+        assert settled is not None, "plant failed to reach the recovery envelope"
+        assert fallen_observed, "sustained push did not expose the fall state"
+        assert automatic_fall_reset_observed, "fall did not expose its automatic reset"
+        assert settled["reset_epoch"] > initial_epoch, "automatic reset did not advance epoch"
+
+        all_motion_states = push_states + recovery_states
+        maximum_root_displacement = max(
+            distance(state["root_position"], baseline_root) for state in all_motion_states
+        )
+        maximum_tilt = max(abs(state["metrics"]["root_tilt_rad"]) for state in all_motion_states)
+        maximum_capture_pressure = max(
+            state["metrics"]["capture_pressure"] for state in all_motion_states
+        )
+        assert maximum_root_displacement > 1.0e-4, maximum_root_displacement
+        assert any(state["push"]["active"] for state in push_states)
+
+        # Explicit reset is correlated and advances the worker epoch.
+        websocket.send_json({"type": "plant_reset", "request_id": 300})
+        reset = None
+        for _ in range(20):
+            state = receive_plant(websocket, "plant_state")
+            if state["command_id"] == 300 and state["reset_epoch"] > initial_epoch:
+                reset = state
+                break
+        assert reset is not None, "plant_reset did not advance reset_epoch"
+
+        result = {
+            "url": base_url,
+            "gateway": gateway,
+            "worker": {
+                "model": hello["model"],
+                "physics_hz": hello["physics_hz"],
+                "control_hz": hello["control_hz"],
+                "stream_hz": hello["stream_hz"],
+                "startup_ms": worker_startup_ms,
+            },
+            "stream_interval_ms": {
+                "p50": statistics.median(intervals_ms),
+                "p95": percentile(intervals_ms, 0.95),
+                "max": max(intervals_ms),
+            },
+            "command": {
+                "ack_ms": active[1],
+                "expiry_ms": expired[1],
+                "overload_rejected_without_disconnect": True,
+                "release_acknowledged": True,
+                "reset_acknowledged": True,
+            },
+            "response": {
+                "push_duration_ms": (time.perf_counter() - push_started) * 1.0e3,
+                "maximum_root_displacement_m": maximum_root_displacement,
+                "maximum_root_tilt_rad": maximum_tilt,
+                "maximum_capture_pressure": maximum_capture_pressure,
+                "settled_station_error_m": settled["metrics"]["station_error_m"],
+                "settled_root_tilt_rad": settled["metrics"]["root_tilt_rad"],
+                "fall_resets": settled["metrics"]["fall_resets"],
+                "fall_observed": fallen_observed,
+                "automatic_fall_reset_observed": automatic_fall_reset_observed,
+                "numeric_resets": settled["metrics"]["numeric_resets"],
+            },
+            "initial": {
+                "root_position": initial_root,
+                "base_position": initial_base,
+            },
+        }
+    finally:
+        websocket.close()
+
+    # A second connection gets a fresh isolated worker after the first child
+    # is dropped; this is the deploy-facing reconnect gate.
+    reconnect_started = time.perf_counter()
+    reconnect = RawWebSocket.connect(base_url, connect_address, gateway["websocket_path"])
+    try:
+        reconnect_hello = receive_plant(reconnect, "plant_hello")
+        reconnect_state = receive_plant(reconnect, "plant_state")
+        assert reconnect_state["tick"] >= 1
+        assert reconnect_hello["model"] == result["worker"]["model"]
+        result["reconnect"] = {
+            "status": "ok",
+            "fresh_worker_tick": reconnect_state["tick"],
+            "startup_ms": (time.perf_counter() - reconnect_started) * 1.0e3,
+        }
+    finally:
+        reconnect.close()
+    return result
+
+
+def run_retained(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
+    """Reproduce the five-trial r131 admission probe consumed by the report."""
+    http_probe(base_url, connect_address)
+    control = RawWebSocket.connect(base_url, connect_address, "/ws")
+    try:
+        control_hello = receive_kind(control, "hello")
+    finally:
+        control.close()
+    gateway = control_hello["plant_gateway"]
+    assert gateway["available"]
+
+    websocket = RawWebSocket.connect(
+        base_url, connect_address, gateway["websocket_path"]
+    )
+    states: list[dict[str, Any]] = []
+    intervals_ms: list[float] = []
+    previous_arrival: float | None = None
+
+    def next_message() -> dict[str, Any]:
+        nonlocal previous_arrival
+        message = websocket.receive_json()
+        if message.get("type") == "plant_unavailable":
+            raise RuntimeError(message.get("reason", "plant unavailable"))
+        if message.get("type") == "plant_state":
+            arrived = time.perf_counter()
+            if previous_arrival is not None:
+                intervals_ms.append((arrived - previous_arrival) * 1.0e3)
+            previous_arrival = arrived
+            states.append(message)
+        return message
+
+    def next_kind(kind: str, attempts: int = 160) -> dict[str, Any]:
+        for _ in range(attempts):
+            message = next_message()
+            if message.get("type") == kind:
+                return message
+        raise AssertionError(f"did not receive {kind!r}")
+
+    def next_correlated(
+        request_id: int, *, active: bool | None = None, attempts: int = 80
+    ) -> dict[str, Any]:
+        for _ in range(attempts):
+            state = next_kind("plant_state")
+            if state.get("command_id") != request_id:
+                continue
+            if active is not None and bool(state["push"]["active"]) != active:
+                continue
+            return state
+        raise AssertionError(f"request {request_id} was not correlated")
+
+    try:
+        hello = next_kind("plant_hello")
+        initial = next_kind("plant_state")
+        initial_epoch = initial["reset_epoch"]
+        initial_root = initial["root_position"]
+        initial_tilt = initial["metrics"]["root_tilt_rad"]
+        application_point = body_position(initial, "base")
+
+        push_started = time.perf_counter()
+        for _ in range(5):
+            websocket.send_json(
+                {
+                    "type": "plant_push",
+                    "body": "base",
+                    "force_world": [4.0, 0.0, 0.0],
+                    "application_point_world": application_point,
+                    "request_id": 101,
+                }
+            )
+            next_correlated(101, active=True)
+        push_window_ack_ms = (time.perf_counter() - push_started) * 1.0e3
+
+        release_started = time.perf_counter()
+        websocket.send_json({"type": "plant_release", "request_id": 102})
+        next_correlated(102, active=False)
+        release_ack_ms = (time.perf_counter() - release_started) * 1.0e3
+        recovery_states = [next_kind("plant_state") for _ in range(105)]
+
+        expiry_started = time.perf_counter()
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [1.0, 0.0, 0.0],
+                "application_point_world": body_position(recovery_states[-1], "base"),
+                "request_id": 103,
+            }
+        )
+        next_correlated(103, active=True)
+        expired = None
+        for _ in range(30):
+            candidate = next_kind("plant_state")
+            if candidate["command_expired"]:
+                expired = candidate
+                break
+        assert expired is not None
+        expiry_observed_ms = (time.perf_counter() - expiry_started) * 1.0e3
+
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [8.01, 0.0, 0.0],
+                "application_point_world": application_point,
+                "request_id": 104,
+            }
+        )
+        invalid = next_kind("plant_error")
+        assert "force limit" in invalid["message"]
+        survived = next_kind("plant_state")
+
+        reset_started = time.perf_counter()
+        websocket.send_json({"type": "plant_reset", "request_id": 105})
+        reset = next_correlated(105, active=False)
+        while reset["reset_epoch"] <= initial_epoch:
+            reset = next_correlated(105, active=False)
+        reset_ack_ms = (time.perf_counter() - reset_started) * 1.0e3
+
+        response_states = states[: states.index(recovery_states[-1]) + 1]
+        controller_us = [state["metrics"]["controller_step_us"] for state in states]
+        worker_us = [state["metrics"]["worker_step_us"] for state in states]
+
+        def distribution(values: list[float]) -> dict[str, float]:
+            return {
+                "p50": statistics.median(values),
+                "p99": percentile(values, 0.99),
+                "maximum": max(values),
+            }
+
+        return {
+            "url": base_url,
+            "http": "ok",
+            "primary_websocket": "ok",
+            "plant_websocket": "ok",
+            "plant_boundary": hello["boundary"],
+            "stream_hz": hello["stream_hz"],
+            "control_hz": hello["control_hz"],
+            "physics_hz": hello["physics_hz"],
+            "maximum_force_n": hello["maximum_force_n"],
+            "command_ttl_ms": gateway["command_ttl_ms"],
+            "push_ack": 101,
+            "push_window_ack_ms": push_window_ack_ms,
+            "maximum_root_x_delta_m": max(
+                abs(state["root_position"][0] - initial_root[0])
+                for state in response_states
+            ),
+            "maximum_tilt_delta_deg": math.degrees(
+                max(
+                    abs(state["metrics"]["root_tilt_rad"] - initial_tilt)
+                    for state in response_states
+                )
+            ),
+            "maximum_capture_pressure": max(
+                state["metrics"]["capture_pressure"] for state in response_states
+            ),
+            "release_ack": 102,
+            "release_ack_ms": release_ack_ms,
+            "expiry": "ok",
+            "expiry_observed_ms": expiry_observed_ms,
+            "invalid_force_rejected_stream_survived": survived["tick"] > initial["tick"],
+            "reset_ack": 105,
+            "reset_ack_ms": reset_ack_ms,
+            "reset_root_error_m": distance(reset["root_position"], initial_root),
+            "numeric_resets": max(state["metrics"]["numeric_resets"] for state in states),
+            "controller_step_us": distribution(controller_us),
+            "worker_step_us": distribution(worker_us),
+            "stream_interval_ms": distribution(intervals_ms),
+            "final_recovery": {
+                "tilt_deg": math.degrees(
+                    abs(recovery_states[-1]["metrics"]["root_tilt_rad"])
+                ),
+                "station_error_m": recovery_states[-1]["metrics"]["station_error_m"],
+                "station_authority": recovery_states[-1]["metrics"]["station_authority"],
+            },
+        }
+    finally:
+        websocket.close()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--connect-address")
+    parser.add_argument("--output", type=pathlib.Path)
+    args = parser.parse_args()
+    result = run(args.url.rstrip("/"), args.connect_address)
+    encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(encoded)
+    print(encoded, end="")
+
+
+if __name__ == "__main__":
+    main()

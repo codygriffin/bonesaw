@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw observed-support contingency admission · r175</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw observed-support contingency admission · r175</h1>
+<blockquote>Evaluation **PASS**. This is a policy- and physics-free corpus: Rust authors a support-conditioned low-energy action, then an independent floating WBC either admits or rejects it under the same exact observed support mask.</blockquote>
+<h2>Result</h2>
+<p>Double support brakes motion while pulling the CoM toward the midpoint; single support pulls toward the one observed wheel; zero support requests exact ballistic gravity and never invents a ground impulse. Angular and joint damping remain requests until the second WBC satisfies dynamics, contact, friction, joint, acceleration, and effort bounds.</p>
+<div class=table-wrap><table><thead><tr><th>support</th><th>rows</th><th>admitted</th><th>root RMS</th><th>root max</th><th>max torque util</th><th>p99 µs</th></tr></thead><tbody><tr><td>flight</td><td>64</td><td>64</td><td>1.488e-01</td><td>5.417e-01</td><td>0.005</td><td>106.7</td></tr><tr><td>left</td><td>64</td><td>64</td><td>4.679e+00</td><td>1.337e+01</td><td>0.439</td><td>114.3</td></tr><tr><td>right</td><td>64</td><td>64</td><td>4.663e+00</td><td>1.337e+01</td><td>0.514</td><td>123.6</td></tr><tr><td>double</td><td>64</td><td>64</td><td>1.315e-01</td><td>7.644e-01</td><td>0.134</td><td>134.6</td></tr></tbody></table></div>
+<h2>Integrity gates</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>all_support_modes_authored</td><td>PASS</td></tr><tr><td>authoring_order_independent</td><td>PASS</td></tr><tr><td>mirrored_single_support_action</td><td>PASS</td></tr><tr><td>flight_linear_request_exactly_ballistic</td><td>PASS</td></tr><tr><td>supported_horizontal_pd_is_dissipative</td><td>PASS</td></tr><tr><td>every_independent_wbc_action_admitted</td><td>PASS</td></tr><tr><td>hard_constraints_feasible</td><td>PASS</td></tr><tr><td>author_replay_exact</td><td>PASS</td></tr><tr><td>candidate_replay_exact</td><td>PASS</td></tr><tr><td>zero_rust_allocation</td><td>PASS</td></tr><tr><td>zero_python_gc</td><td>PASS</td></tr><tr><td>finite_outputs</td><td>PASS</td></tr></tbody></table></div>
+<h2>Architectural boundary</h2>
+<ul><li>No policy, plant integration, contact estimator, command lease, hidden clock, or reset participates.</li><li>Reordering every query produces bit-identical authored requests, so prior support history and cache lifetime cannot select the action.</li><li>The WBC session is separate from request authoring; a target is executable only when its typed solve status is `Solved` or `SolvedWithSlack`.</li><li>Delay, noisy contact transitions, causal recovery, actuator bandwidth/thermal effects, and hardware calibration remain external gates.</li></ul></main></body></html>

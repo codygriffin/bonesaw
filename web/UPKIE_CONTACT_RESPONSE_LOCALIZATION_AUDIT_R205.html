@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw contact-response localization audit · r205</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw contact-response localization audit · r205</h1>
+<blockquote>Mechanism **PASS** · prospective-point strict retained coverage **FAIL** · oracle-centroid strict retained coverage **FAIL** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<ul><li>This is a label-only decomposition, not a reachable tube. Every row receives the completed signed world impulse; the oracle row additionally receives its impulse-weighted contact centroid. Neither field is available to online authority.</li><li>All variants retain the same four support-hypothesis accelerations and R203 structured acceleration reserve. The comparison isolates whether R204&#x27;s remaining velocity misses arise from omitting impulse, evaluating `M⁻¹Jᵀ` at the causal prospective point, or residual generalized momentum beyond both.</li><li>The contact centroid is weighted by normal impulse across all MuJoCo substeps in the 5 ms interval. A no-contact wheel falls back to its prospective point and contributes zero impulse.</li></ul>
+<h2>Exact-impulse response localization</h2>
+<div class=table-wrap><table><thead><tr><th>variant</th><th>n</th><th>retained</th><th>fresh</th><th>max miss /s</th><th>root ω p95</th><th>root v p95</th><th>joint p95</th><th>response p99 µs</th></tr></thead><tbody><tr><td>support_acceleration_only</td><td>274</td><td>10.526%</td><td>62.500%</td><td>73.277879</td><td>0.227</td><td>0.069</td><td>1.383</td><td>0.000</td></tr><tr><td>prospective_point_exact_impulse</td><td>274</td><td>83.835%</td><td>62.500%</td><td>2.598222</td><td>0.227</td><td>0.069</td><td>1.383</td><td>8.178</td></tr><tr><td>oracle_contact_centroid_exact_impulse</td><td>274</td><td>81.579%</td><td>62.500%</td><td>5.317296</td><td>0.227</td><td>0.069</td><td>1.383</td><td>7.766</td></tr></tbody></table></div>
+<p>Impulse-weighted centroid availability is **90.9%** of wheel/sample pairs; prospective-to-centroid error is **20.001 mm p95 / 21.702 mm max** when available.</p>
+<p>Exact impulse at the prospective point improves retained coverage from **10.526%** to **83.835%**. Replacing that point with the completed normal-impulse centroid lowers coverage to **81.579%** and raises maximum miss from **2.598222/s** to **5.317296/s**.</p>
+<h2>Decision</h2>
+<p>The oracle normal-impulse centroid does not close the misses and is worse than the causal prospective point. A single relocated force point therefore cannot represent the distributed wheel contact. The next contact layer must retain spatial impulse moment/contact distribution, while root/generalized-momentum residual remains a separate calibrated layer. A tighter force-only polytope cannot establish authority by itself, and label-only fields cannot enter command authority.</p></main></body></html>

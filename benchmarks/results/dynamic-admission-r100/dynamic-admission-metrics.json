@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "revision": "dynamic-admission-r100",
+  "generated_utc": "2026-08-01T13:17:44.747999+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/upkie/upkie.urdf": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+    "crates/bonesaw-core/src/dynamic_controller.rs": "3e40fa9e794d4b2d6e5fe550bb7be58252d8928ee65f892d66ea61a21942ddf2",
+    "crates/bonesaw-core/src/trajectory.rs": "c468d6756641693f7ce44ee6cb4fd4f0485a1c3ce68ed052af800d609860cccf",
+    "crates/bonesaw-py/src/lib.rs": "1572785e0751086572f8fdba21a400e2252a86464515afe6bc135d86f79f7b96",
+    "/home/codygriffin/Documents/bonepilot/python/evals/dynamic_admission_fault_report.py": "4ab6ab4c1c9881a6983838bad4df2ec7e0295feff6efea2f9380663473ee1530"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free analytic dynamic command admission faults",
+    "model": "models/upkie/upkie.urdf",
+    "cases": {
+      "nominal": {
+        "repeats": 100,
+        "selection": 0,
+        "status": 0,
+        "solve_status": 0,
+        "admission_flags": 0,
+        "primary_valid": true,
+        "contingency_valid": true,
+        "previous_expired": false,
+        "selected_minimum_position_headroom": 1.259999369415348,
+        "maximum_admitted_effort_abs": 0.14303953134343775,
+        "maximum_hard_residual": 5.145106563020363e-12,
+        "semantic_replay_exact": true,
+        "maximum_allocation_calls": 0,
+        "maximum_allocated_bytes": 0,
+        "step_us": {
+          "minimum": 124.926,
+          "mean": 144.08796,
+          "stddev": 18.578913224900965,
+          "mad": 8.961499999999987,
+          "p50": 134.66899999999998,
+          "p95": 175.30169999999998,
+          "p99": 179.66609000000003,
+          "p99_9": 183.86180900000005,
+          "maximum": 184.328
+        }
+      },
+      "primary_position_limit": {
+        "repeats": 100,
+        "selection": 1,
+        "status": 2,
+        "solve_status": 1,
+        "admission_flags": 17,
+        "primary_valid": false,
+        "contingency_valid": true,
+        "previous_expired": false,
+        "selected_minimum_position_headroom": 0.0,
+        "maximum_admitted_effort_abs": 0.0,
+        "maximum_hard_residual": 4.77719860197956e-13,
+        "semantic_replay_exact": true,
+        "maximum_allocation_calls": 0,
+        "maximum_allocated_bytes": 0,
+        "step_us": {
+          "minimum": 172.856,
+          "mean": 176.19404999999998,
+          "stddev": 5.5655187186371045,
+          "mad": 0.26600000000001955,
+          "p50": 173.818,
+          "p95": 184.34429999999998,
+          "p99": 198.06422,
+          "p99_9": 198.97482200000002,
+          "maximum": 199.076
+        }
+      },
+      "expired_plan": {
+        "repeats": 100,
+        "selection": 1,
+        "status": 2,
+        "solve_status": 0,
+        "admission_flags": 4,
+        "primary_valid": true,
+        "contingency_valid": true,
+        "previous_expired": true,
+        "selected_minimum_position_headroom": 1.2599987388306957,
+        "maximum_admitted_effort_abs": 0.0,
+        "maximum_hard_residual": 5.145106563020363e-12,
+        "semantic_replay_exact": true,
+        "maximum_allocation_calls": 0,
+        "maximum_allocated_bytes": 0,
+        "step_us": {
+          "minimum": 126.609,
+          "mean": 129.63410000000002,
+          "stddev": 5.111350362673253,
+          "mad": 0.6415000000000077,
+          "p50": 127.561,
+          "p95": 144.13254999999998,
+          "p99": 147.11976,
+          "p99_9": 149.94957600000004,
+          "maximum": 150.264
+        }
+      }
+    },
+    "flag_contract": {
+      "previous_plan_expired": 4,
+      "primary_actuator_limit": 8,
+      "primary_joint_position_limit": 16
+    }
+  }
+}

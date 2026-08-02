@@ -1,0 +1,20 @@
+[package]
+name = "bonesaw-py"
+description = "Python adapter boundary for Bonesaw"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bonesaw-core = { path = "../bonesaw-core" }
+bonesaw-cuda = { path = "../bonesaw-cuda" }
+bonesaw-tools = { path = "../bonesaw-tools" }
+nalgebra.workspace = true
+numpy.workspace = true
+pyo3.workspace = true
+serde_json.workspace = true
+
+[lib]
+name = "_bonesaw"
+crate-type = ["cdylib", "rlib"]
+doctest = false

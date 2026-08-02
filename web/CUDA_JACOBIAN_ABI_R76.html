@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw Jacobian mirror · r76</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw fixed-layout Jacobian mirror · r76</h1>
+<blockquote>PROMOTE THE CPU JACOBIAN STAGE ONLY. CUDA remains unavailable; no device correctness or performance claim is made.</blockquote>
+<p>This policy-free, simulator-free gate extends kernel ABI v1 through world-expressed floating frame-origin and center-of-mass Jacobians. Tangent order is root angular, root linear, then joints. Python owns evaluation; both timed stages execute in preallocated Rust.</p>
+<h2>Admission decision</h2>
+<div class=table-wrap><table><thead><tr><th>Gate</th><th>Result</th><th>Decision</th></tr></thead><tbody><tr><td>CpuMirrorF32 ↔ Pinocchio f64 Jacobians</td><td>2 / 2</td><td>PASS</td></tr><tr><td>J·v ↔ finite-difference point/CoM velocity</td><td>2 / 2</td><td>PASS</td></tr><tr><td>D1 repeat bytes</td><td>True</td><td>PASS</td></tr><tr><td>Permutation / padding / chunking</td><td>True / True / True</td><td>PASS</td></tr><tr><td>Typed invalid-agent isolation</td><td>True</td><td>PASS</td></tr><tr><td>Measured Rust allocations</td><td>0 calls · 0 B</td><td>PASS</td></tr><tr><td>CUDA Jacobian D1 / D2 / D3</td><td>executor unavailable</td><td>NOT RUN</td></tr></tbody></table></div>
+<h2>Independent Pinocchio oracle</h2>
+<div class=table-wrap><table><thead><tr><th>Model</th><th>States × bodies</th><th>Frame max abs</th><th>Frame gate</th><th>CoM max abs</th><th>CoM gate</th><th>D3</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>16 × 21</td><td>1.533e-07</td><td>0.003×</td><td>1.788e-07</td><td>0.001×</td><td>PASS</td></tr><tr><td>upkie</td><td>16 × 41</td><td>9.301e-08</td><td>0.002×</td><td>5.166e-08</td><td>0.001×</td><td>PASS</td></tr></tbody></table></div>
+<p>Each element must satisfy abs(error) ≤ 2e-05 + 2e-04·max(abs(values)). Root columns are independently reconstructed in world coordinates; joint columns come from Pinocchio LOCAL_WORLD_ALIGNED frame and CoM Jacobians.</p>
+<h2>Finite-difference velocity property</h2>
+<div class=table-wrap><table><thead><tr><th>Model</th><th>Frame-origin max</th><th>Frame gate</th><th>CoM max</th><th>CoM gate</th><th>Result</th></tr></thead><tbody><tr><td>toy_humanoid</td><td>1.034e-04</td><td>0.256×</td><td>9.042e-05</td><td>0.162×</td><td>PASS</td></tr><tr><td>upkie</td><td>7.238e-05</td><td>0.134×</td><td>6.039e-05</td><td>0.111×</td><td>PASS</td></tr></tbody></table></div>
+<p>A central difference perturbs root orientation by left-multiplying Exp(±εω), root translation by ±εv, and every joint by ±εqdot. It checks the linear frame-origin rows and CoM Jacobian against observed velocity without a policy or physics rollout.</p>
+<h2>Exact layout and isolation gates</h2>
+<div class=table-wrap><table><thead><tr><th>Invariant</th><th>Evidence</th><th>Result</th></tr></thead><tbody><tr><td>Layout</td><td>frame[body][6][6+dof][agent] + com[3][6+dof][agent]</td><td>FROZEN</td></tr><tr><td>Repeat</td><td>poses + CoM + mass + frame/CoM Jacobians + status</td><td>EXACT</td></tr><tr><td>Permutation</td><td>reverse-interleave then inverse index</td><td>EXACT</td></tr><tr><td>Padded stride</td><td>17 active: stride 32 vs 17</td><td>EXACT</td></tr><tr><td>Chunking</td><td>7 + 10 agents reassembled</td><td>EXACT</td></tr><tr><td>Malformed state</td><td>agent 8 status=2; zero Jacobians; neighbors exact</td><td>ISOLATED</td></tr></tbody></table></div>
+<h2>Host timing · Upkie CPU mirror only</h2>
+<div class=table-wrap><table><thead><tr><th>Agents</th><th>FK p50/p99</th><th>Jacobian p50/p99</th><th>Combined p50/p99</th><th>Combined / agent p50</th><th>Allocations</th></tr></thead><tbody><tr><td>1</td><td>6.703/12.408 µs</td><td>13.535/18.888 µs</td><td>20.238/26.782 µs</td><td>20238.0 ns</td><td>0 / 0 B</td></tr><tr><td>32</td><td>189.017/264.327 µs</td><td>302.426/408.297 µs</td><td>492.825/662.543 µs</td><td>15400.8 ns</td><td>0 / 0 B</td></tr><tr><td>256</td><td>1597.843/2125.445 µs</td><td>2588.099/3831.132 µs</td><td>4185.700/5949.008 µs</td><td>16350.4 ns</td><td>0 / 0 B</td></tr></tbody></table></div>
+<p>Timers surround Rust FK/CoM and Jacobian stages separately. NumPy↔SoA copies are excluded. The current Jacobian implementation deliberately favors auditable fixed traversal over tuning; this is an admission baseline, not a throughput result.</p>
+<h2>Deferred device admission</h2>
+<p>CudaMirrorF32 must reproduce every frame and CoM Jacobian stage output under D1, satisfy CpuMirrorF32↔device D2/D3 tolerances, and repeat the exact agent-reindexing, padding, chunking, canary/isolation, warmup, memory-scaling, and jitter gates. CudaThroughputF32 remains separately fingerprinted and uncertified.</p></main></body></html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw live command-authority stream · r103</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw live command-authority stream · r103</h1>
+<h2>Outcome</h2>
+<p>**PASS.** The WebSocket capability contract now carries 13 unique typed signals, including sampled command geometry, conservative continuous clearance, and final command selection. The browser renders these as three independent authority rows and does not aggregate them with WBC feasibility, actuator realization, thermal state, or plant response.</p>
+<p>The retained 60-frame torso-pull trace uses the guided browser pose while running a parallel policy-/physics-free command-admission query. That separation is deliberate: a visually reachable pose is not relabeled as an executable or realized command.</p>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>retained minimum/max</th><th>interpretation</th></tr></thead><tbody><tr><td>primary sampled proxy clearance</td><td>-247.1220959879042</td><td>direct 21-point evidence</td></tr><tr><td>primary continuous lower bound</td><td>-247.19565287752906</td><td>conservative half-interval guard</td></tr><tr><td>contingency continuous lower bound</td><td>-247.12209363602713</td><td>independent brake certificate</td></tr><tr><td>raw WBC max query</td><td>2246.3630000000003</td><td>µs; separate 5 ms clock</td></tr><tr><td>command-admission max query</td><td>2190.807</td><td>µs; separate 5 ms clock</td></tr><tr><td>four command-query batch</td><td>8601.173</td><td>µs; separate 20 ms clock</td></tr></tbody></table></div>
+<p>Selections: `{&#x27;rejected&#x27;: 60}`. Flags: `{&#x27;0x180&#x27;: 41, &#x27;0x181&#x27;: 19}`. First sampled collision pairs: `{0: 60}`; first times: `{0: 60}`. Maximum dynamics/contact residuals remain `1.322e-09` / `4.411e-11`.</p>
+<h2>Architectural finding</h2>
+<p>The current toy collision shapes use exact spheres but conservative bounding spheres for boxes and cylinders. The live standing/squat trace is therefore rejected at the geometry layer even while the raw floating WBC hard rows pass. This is useful honest evidence—the browser shows the command cannot be certified—but the roughly 247.1 mm proxy penetration is dominated by coarse proxy geometry, not an exact mesh/capsule collision claim.</p>
+<p>The next geometry milestone should replace one-sphere box/cylinder bounds with tighter conservative primitive coverage or exact capsule/box distance plus an authored exclusion matrix. Until then, the red command rows are correctly labelled represented-proxy admission, and the guided pose remains visible without pretending that rejected authority was executed.</p></main></body></html>

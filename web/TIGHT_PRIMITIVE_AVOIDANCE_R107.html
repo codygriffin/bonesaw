@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw shared tight-primitive avoidance · r107</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw shared tight-primitive avoidance · r107</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R107 derives the differential avoidance row from the same tight primitive pair and signed-distance routine used by command admission. The witness carries a deterministic normal, closest surface points, locally selected rigid-body feature points, stable pair ID, distance quality, relative normal velocity, and analytic Jacobian. The previous sphere-cover evaluator remains a separately named fallback API.</p>
+<p>The fixed box–sphere fixture sweeps 321 states without a policy or physics rollout. Tight geometry has 1 pair; the cover needs 3. Maximum cover overreach is **131.046 mm**. It creates 132 false influence samples and 122 false hard-collision samples that the shared primitive witness does not report.</p>
+<div class=table-wrap><table><thead><tr><th>representation</th><th>pairs</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th><th>exact replay</th></tr></thead><tbody><tr><td>tight</td><td>1</td><td>0.311 / 0.391 / 6.181</td><td>0 / 0</td><td>True</td></tr><tr><td>sphere_cover_fallback</td><td>3</td><td>0.501 / 0.571 / 0.751</td><td>0 / 0</td><td>True</td></tr></tbody></table></div>
+<p>The analytic distance matches the fixture oracle within `2.776e-17` m. Its Jacobian matches a finite-difference distance derivative within `5.839e-10`; normal and surface-witness errors are `0.000e+00` and `5.551e-17` m. Both representations replay exactly and allocate zero calls/bytes inside the timed Rust query.</p>
+<h2>Authority boundary</h2>
+<p>This removes representation disagreement between avoidance and command admission for supported spheres, capsules, cylinders-as-capsules, and boxes. It does not make the browser pose a realized plant, and it does not aggregate avoidance pressure with support, effort, thermal, solver, or command-selection authority. Box–box still reports the conservative separating-axis lower bound and labels that quality explicitly.</p>
+<h2>Remaining work</h2>
+<p>The fixed-root kinematic controller now consumes shared primitive rows; the floating dynamic WBC still needs the corresponding acceleration-level barrier and typed active-pair telemetry. World geometry, authored exclusion matrices, mesh CCD, closest-feature continuous-rate bounds, contact response, and calibrated plant behavior remain separate milestones.</p></main></body></html>

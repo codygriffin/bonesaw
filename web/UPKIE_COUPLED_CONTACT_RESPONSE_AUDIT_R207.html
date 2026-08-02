@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw coupled contact-response audit · r207</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw coupled contact-response audit · r207</h1>
+<blockquote>Coupled Rust mechanism **PASS** · strict raw coverage **FAIL** · authority **NOT ADMITTED**.</blockquote>
+<h2>Contract</h2>
+<ul><li>Rust now emits the complete symmetric two-wheel Delassus operator `W = J M⁻¹ Jᵀ`, not only six independent effective masses. A deterministic forward/reverse projected solve retains wheel-to-wheel coupling, nonnegative bounded normal impulse, directional passive caps, restitution, and a circular Coulomb section.</li><li>The coupled output is a point prediction and convergence witness, not an outer bound. The leave-one-named-case-out residual below is label-calibrated diagnostic evidence and is never fed into command authority.</li><li>MuJoCo is used once to freeze labels and all causal/model inputs. The saved NPZ supports later policy/physics-free sweep analysis through the Rust kernel.</li></ul>
+<h2>Fixed-work sweep</h2>
+<div class=table-wrap><table><thead><tr><th>sweeps</th><th>raw coverage</th><th>LOCO residual coverage</th><th>impulse RMSE N·s</th><th>raw max miss</th><th>LOCO root ω p95</th><th>LOCO root v p95</th><th>LOCO joint p95</th><th>post-contact speed p95</th><th>solve p99 µs</th></tr></thead><tbody><tr><td>1</td><td>10.219%</td><td>94.891%</td><td>0.05087</td><td>62.11826</td><td>1.136</td><td>0.221</td><td>119.614</td><td>5.8487</td><td>0.444</td></tr><tr><td>2</td><td>10.219%</td><td>95.620%</td><td>0.05169</td><td>81.75126</td><td>1.185</td><td>0.227</td><td>108.523</td><td>5.8487</td><td>0.584</td></tr><tr><td>4</td><td>10.219%</td><td>95.620%</td><td>0.05293</td><td>120.92432</td><td>1.187</td><td>0.228</td><td>130.335</td><td>5.8487</td><td>0.965</td></tr><tr><td>8</td><td>10.219%</td><td>95.985%</td><td>0.05399</td><td>148.67299</td><td>1.187</td><td>0.228</td><td>158.084</td><td>5.8487</td><td>1.796</td></tr><tr><td>16</td><td>10.219%</td><td>95.985%</td><td>0.05445</td><td>156.49888</td><td>1.191</td><td>0.228</td><td>165.909</td><td>5.8487</td><td>3.478</td></tr></tbody></table></div>
+<p>The R204 directional outer tube covers **98.175%** of these complete samples at p95 width **9.687 / 0.991 / 58.020**. It remains the conservative comparison, not the coupled point solve.</p>
+<p>Cross-wheel Delassus coupling ratio is **0.0323 p50 / 0.0325 p95**. Minimum eigenvalue is **1.96561e-12** and condition number is **4729253413.564 p95**.</p>
+<h2>Decision</h2>
+<p>The full coupled response and fixed-work solve are admitted as model machinery only. Promotion requires a conservative coupled reachable set or independently calibrated root-momentum residual, strict fresh/second-morphology holdout, non-regressing terminal consequence, typed online contact/load witnesses, and the separate deadline/hardware gates.</p></main></body></html>

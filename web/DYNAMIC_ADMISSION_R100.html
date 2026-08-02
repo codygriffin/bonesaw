@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw analytic dynamic admission faults · r100</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw analytic dynamic admission faults · r100</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R100 adds analytic position extrema to every quintic and validates the actuator polynomial after exact transmission mapping in generalized joint coordinates. Endpoint-safe but interior-unsafe motion is rejected. Admission emits composable fixed flags, so solver, expiry, actuator derivative, and joint-position causes do not collapse into one health score.</p>
+<p>This corpus remains policy- and physics-free. It evaluates command safety and fallback selection; it does not claim the robot realized the command.</p>
+<h2>Retained cases</h2>
+<p>Selection codes are `0=Primary`, `1=Contingency`, `2=Rejected`; status `2` is contingency.</p>
+<div class=table-wrap><table><thead><tr><th>case</th><th>selection</th><th>status</th><th>flags</th><th>primary / contingency valid</th><th>selected position headroom</th><th>p50 / p99 / max µs</th><th>alloc calls / bytes</th></tr></thead><tbody><tr><td>nominal</td><td>0</td><td>0</td><td>0x00</td><td>True / True</td><td>1.259999369415348</td><td>134.669 / 179.666 / 184.328</td><td>0 / 0</td></tr><tr><td>primary_position_limit</td><td>1</td><td>2</td><td>0x11</td><td>False / True</td><td>0.0</td><td>173.818 / 198.064 / 199.076</td><td>0 / 0</td></tr><tr><td>expired_plan</td><td>1</td><td>2</td><td>0x04</td><td>True / True</td><td>1.2599987388306957</td><td>127.561 / 147.120 / 150.264</td><td>0 / 0</td></tr></tbody></table></div>
+<p>The near-limit case starts Upkie&#x27;s left hip at `1.2595 rad` with `+0.05 rad/s` and asks for `+100 rad/s²`. Its strict dynamics/contact solve remains finite, but the primary quintic crosses the `1.26 rad` joint limit at an analytic interior extremum. Flag `0x10` activates, primary is withheld, the braking contingency retains nonnegative position headroom, and admitted feed-forward effort is exactly zero.</p>
+<p>The expiry case deliberately waits beyond the previous 20 ms plan. Flag `0x4` activates and independently valid braking is selected. All three cases replay semantic output bytes exactly across 100 resets, allocate zero bytes inside the Rust transaction, satisfy hard dynamics/contact residuals below `1e-7`, and remain inside the 20 ms budget.</p>
+<h2>Boundary and remaining work</h2>
+<p>This closes analytic joint-position admission for fixed-horizon segments, including coupled square transmissions. It does not yet provide continuous collision sweeps, effort/impedance samples, observation history/scene ingest, root-pose arrays in this eval adapter, calibrated plant realization, or a dynamically re-solved contingency. A command state already outside the viable set may still require rejection; this report does not disguise that as safe braking.</p></main></body></html>

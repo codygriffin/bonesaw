@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Bonesaw CPU whole-body control interactive robot geometry lab"
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%2318251f'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-size='13' font-weight='700' fill='%238fe6c0'%3EBS%3C/text%3E%3C/svg%3E" />
+    <title>Bonesaw · Motion Rig Lab</title>
+    <link rel="stylesheet" href="/styles.css?v=13" />
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div class="brand">
+          <div class="mark">BS</div>
+          <div>
+            <h1>Bonesaw</h1>
+            <p>Motion Rig Lab <span>CPU exact</span></p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button
+            id="architecture-button"
+            class="architecture-button"
+            type="button"
+            aria-controls="architecture-review"
+            aria-expanded="false"
+          >
+            Architecture review
+            <span id="architecture-revision">loading</span>
+          </button>
+          <div class="connection">
+            <i id="connection-dot"></i>
+            <span id="connection-label">Connecting</span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <aside class="rail" aria-label="Rig tools">
+          <button id="target-tool" class="tool active" data-interaction-mode="target" aria-label="Move green target" title="Move green target">↗</button>
+          <button id="push-tool" class="tool push-tool" data-interaction-mode="push" aria-label="Apply physical push" title="Apply physical push through MuJoCo" disabled>☄</button>
+          <button class="tool" aria-label="Orbit view on empty-canvas drag" title="Drag empty canvas to orbit" disabled>◒</button>
+          <button class="tool" aria-label="Measure" title="Measure" disabled>⌁</button>
+          <div class="rail-spacer"></div>
+          <button id="reset-button" class="tool" aria-label="Reset pose" title="Reset pose">↺</button>
+        </aside>
+
+        <section class="viewport">
+          <canvas id="rig-canvas" aria-label="Interactive orbit view of robot geometry and skeletal rig"></canvas>
+          <div class="view-label">
+            <strong id="view-mode-label">PERSPECTIVE ORBIT</strong>
+            <span id="view-axes-label">42° FOV · YAW −30° · PITCH −13°</span>
+          </div>
+          <div class="view-options" aria-label="Viewport layers">
+            <button id="geometry-toggle" type="button" aria-pressed="true">BODY</button>
+            <button id="rig-toggle" type="button" aria-pressed="false">RIG</button>
+          </div>
+          <div id="target-guide" class="target-guide" aria-live="polite">
+            <i></i>
+            <span><strong>GREEN CONTROLS</strong> · drag torso, knees, or wheels</span>
+          </div>
+          <div id="viewport-instruction" class="instruction">
+            <span class="mouse-icon"></span>
+            TARGET: drag green controls · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms
+          </div>
+          <div id="toast" role="status"></div>
+          <output id="viewport-performance" class="viewport-performance" hidden></output>
+          <div id="disconnect-overlay" class="disconnect-overlay" role="status" hidden>
+            <strong>CONNECTION LOST</strong>
+            <span>Robot controls disabled · reconnecting</span>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <section>
+            <div class="section-heading">
+              <h2>Controller</h2>
+              <span class="badge">LIVE</span>
+            </div>
+            <dl class="properties">
+              <div><dt>Model</dt><dd id="model-name">—</dd></div>
+              <div><dt>Coordinates</dt><dd id="dof-count">—</dd></div>
+              <div><dt>Bodies</dt><dd id="body-count">—</dd></div>
+              <div><dt>Root frames</dt><dd id="root-frames">—</dd></div>
+              <div><dt>Support model</dt><dd id="support-model">—</dd></div>
+              <div><dt>Base target</dt><dd id="base-execution">—</dd></div>
+              <div><dt>Physical plant</dt><dd id="plant-status">connecting</dd></div>
+              <div><dt>Simulator state</dt><dd id="simulator-state">awaiting MuJoCo</dd></div>
+              <div><dt>Ground contacts</dt><dd id="ground-contact-state">awaiting contact state</dd></div>
+              <div><dt>External wrench</dt><dd id="plant-wrench">released</dd></div>
+              <div><dt>Wrench lease</dt><dd id="plant-wrench-limit">awaiting contract</dd></div>
+              <div><dt>WBC / physics</dt><dd id="runtime-rates">50 / 250 Hz</dd></div>
+              <div><dt>Query block</dt><dd id="sample-count">1 × 20 ms · 5 physics substeps</dd></div>
+            </dl>
+            <div class="observation-transport" aria-label="Robot observation transport mode">
+              <span>Observation transport</span>
+              <div role="group" aria-label="Deterministic observation transport mode">
+                <button type="button" data-observation-mode="exact" aria-pressed="true">Exact</button>
+                <button type="button" data-observation-mode="interpolated" aria-pressed="false">Interp</button>
+                <button type="button" data-observation-mode="predicted" aria-pressed="false">Predict</button>
+                <button type="button" data-observation-mode="stale" aria-pressed="false">Stale</button>
+              </div>
+              <small id="observation-transport-detail">Every 20 ms · zero lookback</small>
+            </div>
+          </section>
+
+          <section>
+            <div class="section-heading">
+              <h2>Selected frame</h2>
+            </div>
+            <div id="selection-empty" class="empty-state">Click and pull a joint in the viewport.</div>
+            <div id="selection-detail" class="selection-detail hidden">
+              <strong id="selected-name">—</strong>
+              <div class="vector">
+                <label>X <output id="selected-x">0.000</output></label>
+                <label>Y <output id="selected-y">0.000</output></label>
+                <label>Z <output id="selected-z">0.000</output></label>
+              </div>
+              <div class="priority-row"><span>Mode</span><b id="selection-mode">2 · Intent</b></div>
+            </div>
+          </section>
+
+          <section class="live-authority">
+            <div class="section-heading">
+              <h2>Authority stack</h2>
+              <span class="badge">MEASURED</span>
+            </div>
+            <p class="authority-live-note">
+              Pressure is independent per signal. No aggregate health score.
+              <span id="authority-source">Awaiting Rust capability contract.</span>
+            </p>
+            <div class="live-authority-list">
+              <article id="authority-hard" class="live-authority-row unavailable">
+                <div><strong>Invariant · hard rows</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting WBC evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-support" class="live-authority-row unavailable">
+                <div><strong>Viability · support</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting support evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-capture" class="live-authority-row unavailable">
+                <div><strong>Viability · capture pressure</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting live MuJoCo state</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-fall-safe" class="live-authority-row unavailable">
+                <div><strong>Execution · command freshness</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting prior-command lease evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-station" class="live-authority-row unavailable">
+                <div><strong>Preference · odom station</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting live MuJoCo state</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-self-collision" class="live-authority-row unavailable">
+                <div><strong>Viability · self collision</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting closest-feature barrier evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-world-collision" class="live-authority-row unavailable">
+                <div><strong>Viability · world SDF</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting body-probe / signed-distance evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-world-scene" class="live-authority-row unavailable">
+                <div><strong>World scene snapshot</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting scene epoch and horizon-validity evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-joint" class="live-authority-row unavailable">
+                <div><strong>Joint-limit headroom</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting model limits</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-joint-stopping" class="live-authority-row unavailable">
+                <div><strong>Viability · joint stopping</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting composed envelope evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-actuator" class="live-authority-row unavailable">
+                <div><strong>Actuator effort</strong><output>—</output></div>
+                <span class="live-authority-detail">awaiting solved torque</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-robot-history" class="live-authority-row unavailable">
+                <div><strong>State reconstruction</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting canonical history provenance and hard eligibility</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-robot-observation" class="live-authority-row unavailable">
+                <div><strong>Observation timing authority</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting source, mapped-time, age, and synchronization evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-tracking" class="live-authority-row unavailable">
+                <div><strong>Observed ↔ commanded tracking</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting splice-divergence evidence</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-sampled" class="live-authority-row unavailable">
+                <div><strong>Command geometry · sampled</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting a dynamic command query</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-continuous" class="live-authority-row unavailable">
+                <div><strong>Command geometry · continuous</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting a between-sample certificate</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-world-sampled" class="live-authority-row unavailable">
+                <div><strong>Command world geometry · sampled</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting primary and brake SDF sweeps</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-root-prediction" class="live-authority-row unavailable">
+                <div><strong>Floating-root prediction</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting primary and brake root witnesses</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-root-prediction-error" class="live-authority-row unavailable">
+                <div><strong>Root prediction error</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting deterministic forecast-error erosion</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-world-continuous" class="live-authority-row unavailable">
+                <div><strong>Command world geometry · continuous</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting bounded world-clearance certificates</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-command-selection" class="live-authority-row unavailable">
+                <div><strong>Command admission</strong><output>IDLE</output></div>
+                <span class="live-authority-detail">awaiting typed selection and flags</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-realization" class="live-authority-row unavailable">
+                <div><strong>Actuator realization</strong><output>UNMODELED</output></div>
+                <span class="live-authority-detail">requires calibrated effort bandwidth and slew profile</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-acceleration-realization" class="live-authority-row unavailable">
+                <div><strong>Acceleration consequence</strong><output>UNAVAILABLE</output></div>
+                <span class="live-authority-detail">requires calibrated effort realization and measured robot state</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-solver" class="live-authority-row unavailable">
+                <div><strong>Per-query solver budget</strong><output>—</output></div>
+                <span class="live-authority-detail">20 ms WBC deadline</span>
+                <i><b></b></i>
+              </article>
+              <article id="authority-thermal" class="live-authority-row unavailable">
+                <div><strong>Thermal / reliability</strong><output>UNMODELED</output></div>
+                <span class="live-authority-detail">requires calibrated persistent plant state</span>
+                <i><b></b></i>
+              </article>
+            </div>
+            <div class="authority-history-heading">
+              <h3>Command authority over time</h3>
+              <output id="authority-history-summary">awaiting command query</output>
+            </div>
+            <canvas
+              id="authority-history"
+              width="260"
+              height="96"
+              aria-label="Recent robust sampled and continuous command clearance with admission selection"
+            ></canvas>
+            <div class="authority-history-legend" aria-hidden="true">
+              <span class="sampled">robust sampled</span>
+              <span class="continuous">robust continuous</span>
+              <span class="required">required</span>
+              <span class="fallback">contingency</span>
+            </div>
+            <h3 class="task-stack-title">Nullspace task layers</h3>
+            <div id="live-task-levels" class="live-task-levels"></div>
+          </section>
+
+          <section class="telemetry">
+            <div class="section-heading">
+              <h2>Tick telemetry</h2>
+              <span id="status-pill" class="status-pill">WAIT</span>
+            </div>
+            <div class="hero-metric">
+              <output id="solve-time">—</output><span>µs max query</span>
+              <small>end-to-end tick</small>
+            </div>
+            <canvas id="sparkline" width="260" height="58" aria-label="Recent tick duration chart"></canvas>
+            <dl class="properties compact">
+              <div><dt>Intent residual</dt><dd id="intent-residual">—</dd></div>
+              <div><dt>Clipped levels</dt><dd id="clipped-levels">—</dd></div>
+              <div><dt>Dominant residual</dt><dd id="dominant-task">—</dd></div>
+              <div><dt>Bound margin</dt><dd id="bound-margin">—</dd></div>
+              <div><dt>Tick</dt><dd id="tick-count">—</dd></div>
+            </dl>
+          </section>
+        </aside>
+      </main>
+
+      <footer>
+        <span><kbd>TARGET</kbd> move green control</span>
+        <span><kbd>CTRL+DRAG</kbd> wrench any body</span>
+        <span><kbd>EMPTY</kbd> orbit camera</span>
+        <span><kbd>SHIFT</kbd> pan camera</span>
+        <span><kbd>R</kbd> reset pose</span>
+        <button id="architecture-footer-button" type="button">Architecture review</button>
+        <span class="footer-right">command → WebSocket → WBC → state</span>
+      </footer>
+    </div>
+    <div id="architecture-scrim" class="architecture-scrim" hidden></div>
+    <aside
+      id="architecture-review"
+      class="architecture-review"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="architecture-title"
+      hidden
+    >
+      <header class="architecture-review-header">
+        <div>
+          <span class="eyebrow">Engineering review surface</span>
+          <h2 id="architecture-title">Bonesaw architecture</h2>
+          <p id="architecture-summary">Loading the current architecture manifest…</p>
+          <div class="architecture-report-links">
+            <a class="architecture-report-link" href="/G1_COUPLED_CONTACT_LAW_HOLDOUT_R218.html" target="_blank" rel="noopener">Coupled contact-law fresh holdout · r218</a>
+            <a class="architecture-report-link" href="/G1_COUPLED_CONTACT_LAW_REPLAY_R217.html" target="_blank" rel="noopener">Coupled contact-law construction replay · r217</a>
+            <a class="architecture-report-link" href="/G1_CAUSAL_CENTER_SPLIT_KINETIC_REPLAY_R216.html" target="_blank" rel="noopener">Causal-center split-kinetic replay · r216</a>
+            <a class="architecture-report-link" href="/G1_KINETIC_IMPULSE_ELLIPSOID_HOLDOUT_R214.html" target="_blank" rel="noopener">Kinetic impulse ellipsoid holdout · r214</a>
+            <a class="architecture-report-link" href="/G1_SPATIAL_PATCH_TRANSITION_HOLDOUT_R215.html" target="_blank" rel="noopener">Spatial-patch transition holdout · r215</a>
+            <a class="architecture-report-link" href="/G1_CONTACT_LAW_TRANSITION_HOLDOUT_R213.html" target="_blank" rel="noopener">G1 grouped transition holdout · r213</a>
+            <a class="architecture-report-link" href="/G1_CONTACT_LAW_MOMENTUM_HOLDOUT_R212.html" target="_blank" rel="noopener">G1 contact-law momentum holdout · r212</a>
+            <a class="architecture-report-link" href="/FLOATING_MOMENTUM_CROSS_MORPHOLOGY_ORACLE_R211.html" target="_blank" rel="noopener">Cross-morphology momentum oracle · r211</a>
+            <a class="architecture-report-link" href="/UPKIE_SPATIAL_CONDITIONED_MOMENTUM_RESIDUAL_AUDIT_R210.html" target="_blank" rel="noopener">Spatial-conditioned momentum residual · r210</a>
+            <a class="architecture-report-link" href="/UPKIE_MOMENTUM_RESIDUAL_TUBE_REPLAY_R209.html" target="_blank" rel="noopener">Generalized-momentum residual tube · r209</a>
+            <a class="architecture-report-link" href="/UPKIE_COUPLED_CONTACT_REGULARIZATION_REPLAY_R208.html" target="_blank" rel="noopener">Physics-free contact regularization · r208</a>
+            <a class="architecture-report-link" href="/UPKIE_COUPLED_CONTACT_RESPONSE_AUDIT_R207.html" target="_blank" rel="noopener">Coupled Delassus contact response · r207</a>
+            <a class="architecture-report-link" href="/UPKIE_SPATIAL_CONTACT_WRENCH_AUDIT_R206.html" target="_blank" rel="noopener">Spatial contact-wrench localization · r206</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_RESPONSE_LOCALIZATION_AUDIT_R205.html" target="_blank" rel="noopener">Contact-response localization · r205</a>
+            <a class="architecture-report-link" href="/UPKIE_DIRECTIONAL_CONTACT_TRANSITION_AUDIT_R204.html" target="_blank" rel="noopener">Passive directional contact tube · r204</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_TRANSITION_ACCELERATION_INTERVAL_AUDIT_R203.html" target="_blank" rel="noopener">Continuous acceleration interval · r203</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_TRANSITION_RESPONSE_AUDIT_R202.html" target="_blank" rel="noopener">Model-owned contact response · r202</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_TRANSITION_INTERVAL_AUDIT_R201.html" target="_blank" rel="noopener">Physical contact-transition interval · r201</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_PRESTATE_CONDITIONING_R200.html" target="_blank" rel="noopener">Exact contact-prestate conditioning · r200</a>
+            <a class="architecture-report-link" href="/UPKIE_CAUSAL_IMPULSE_HOLDOUT_R199.html" target="_blank" rel="noopener">Causal impulse/velocity-jump holdout · r199</a>
+            <a class="architecture-report-link" href="/UPKIE_LAGGED_IMPULSE_CONDITIONING_R198.html" target="_blank" rel="noopener">Lagged-impulse conditioning · r198</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_IMPULSE_RESIDUAL_AUDIT_R197.html" target="_blank" rel="noopener">Contact-impulse residual source audit · r197</a>
+            <a class="architecture-report-link" href="/UPKIE_TERMINAL_RESIDUAL_CONDITIONING_R196.html" target="_blank" rel="noopener">Terminal residual conditioning · r196</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_SUPPORT_HYPOTHESIS_ENVELOPE_AB_R195.html" target="_blank" rel="noopener">Explicit support-hypothesis terminal envelope · r195</a>
+            <a class="architecture-report-link" href="/UPKIE_ZERO_EFFORT_REALIZATION_CALIBRATION_R194.html" target="_blank" rel="noopener">Zero-effort support-realization calibration · r194</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_ZERO_EFFORT_BASELINE_AB_R193.html" target="_blank" rel="noopener">Exact zero-effort terminal baseline A/B · r193</a>
+            <a class="architecture-report-link" href="/UPKIE_TERMINAL_REALIZATION_CALIBRATION_R192.html" target="_blank" rel="noopener">Terminal-candidate realization calibration · r192</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_TERMINAL_CHOOSER_AB_R191.html" target="_blank" rel="noopener">Terminal-impact three-way chooser A/B · r191</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_SUPPORT_FREE_BRAKE_AB_R190.html" target="_blank" rel="noopener">Support-free observation-loss brake A/B · r190</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_HOLD_IMPROVEMENT_GATE_AB_R189.html" target="_blank" rel="noopener">Forecast-improvement gate sweep · r189</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_HOLD_FORECAST_SELECTOR_AB_R188.html" target="_blank" rel="noopener">Causal support-free forecast selector A/B · r188</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_OBSERVATION_DURATION_ORACLE_AB_R187.html" target="_blank" rel="noopener">Future-duration oracle negative control · r187</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_HOLD_AUTHORITY_SWEEP_R186.html" target="_blank" rel="noopener">Continuous unavailable-evidence authority sweep · r186</a>
+            <a class="architecture-report-link" href="/UPKIE_INEXACT_OBSERVATION_HOLD_AB_R185.html" target="_blank" rel="noopener">Bounded unavailable-evidence hold A/B · r185</a>
+            <a class="architecture-report-link" href="/UPKIE_OBSERVATION_DROPOUT_PHASE_AB_R184.html" target="_blank" rel="noopener">Startup vs established dropout A/B · r184</a>
+            <a class="architecture-report-link" href="/UPKIE_OBSERVATION_DELAY_STARTUP_AB_R183.html" target="_blank" rel="noopener">Steady delay vs latency onset A/B · r183</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_PROGRAM_ROBUSTNESS_AB_R182.html" target="_blank" rel="noopener">Delay/dropout/mirrored robustness A/B · r182</a>
+            <a class="architecture-report-link" href="/UPKIE_CURRENT_SUPPORT_REALIZATION_ABLATION_R181.html" target="_blank" rel="noopener">Current-support realization causal ablation · r181</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_PROGRAM_AUTHORITY_PLANT_AB_R180.html" target="_blank" rel="noopener">Measured-contact program authority A/B · r180</a>
+            <a class="architecture-report-link" href="/UPKIE_GUARDED_FLIGHT_CONTINGENCY_PLANT_AB_R179.html" target="_blank" rel="noopener">Guarded first-flight action A/B · r179</a>
+            <a class="architecture-report-link" href="/UPKIE_SUPPORT_CONTINGENCY_PRIMARY_PRESERVATION_AB_R177.html" target="_blank" rel="noopener">Primary-support preservation diagnostic · r177</a>
+            <a class="architecture-report-link" href="/UPKIE_SUPPORT_CONTINGENCY_PLANT_AB_R176.html" target="_blank" rel="noopener">Causal support-contingency plant A/B · r176</a>
+            <a class="architecture-report-link" href="/UPKIE_SUPPORT_CONTINGENCY_ADMISSION_R175.html" target="_blank" rel="noopener">Observed-support contingency admission · r175</a>
+            <a class="architecture-report-link" href="/UPKIE_CROSS_PROFILE_FEASIBILITY_WITNESS_AB_R174.html" target="_blank" rel="noopener">Bounded-planner witness continuation · r174</a>
+            <a class="architecture-report-link" href="/UPKIE_CROSS_PROFILE_FEASIBILITY_WITNESS_AB_R173.html" target="_blank" rel="noopener">Exact-only cross-profile negative A/B · r173</a>
+            <a class="architecture-report-link" href="/UPKIE_CROSS_SESSION_FEASIBILITY_WITNESS_AB_R172.html" target="_blank" rel="noopener">Matched-profile witness isolation · r172</a>
+            <a class="architecture-report-link" href="/UPKIE_CROSS_TICK_PLANNER_CADENCE_AB_R171.html" target="_blank" rel="noopener">Cross-tick cadence negative A/B · r171</a>
+            <a class="architecture-report-link" href="/UPKIE_HARD_FEASIBILITY_REUSE_TIMING_AB_R169.html" target="_blank" rel="noopener">Bit-identical feasibility reuse · r169</a>
+            <a class="architecture-report-link" href="/UPKIE_SIGNED_ZERO_SPARSE_FEASIBILITY_AB_R170.html" target="_blank" rel="noopener">Portable exact sparse isolation · r170</a>
+            <a class="architecture-report-link" href="/UPKIE_ANYTIME_FEASIBILITY_TIMING_AB_R167.html" target="_blank" rel="noopener">Anytime exact-feasibility CPU profile · r167</a>
+            <a class="architecture-report-link" href="/UPKIE_PLANNER_CONTINUATION_PLANT_AB_R166.html" target="_blank" rel="noopener">Bounded planner continuation rejection · r166</a>
+            <a class="architecture-report-link" href="/UPKIE_EQUALITY_FIRST_FEASIBILITY_PLANT_AB_R165.html" target="_blank" rel="noopener">Equality-first feasibility plant A/B · r165</a>
+            <a class="architecture-report-link" href="/UPKIE_BOUNDED_FEASIBILITY_TIMING_AB_R164.html" target="_blank" rel="noopener">Sparse feasibility timing rejection · r164</a>
+            <a class="architecture-report-link" href="/UPKIE_EXECUTION_RESIDUAL_VETO_PLANT_AB_R163.html" target="_blank" rel="noopener">Execution-residual veto plant A/B · r163</a>
+            <a class="architecture-report-link" href="/UPKIE_EXECUTION_RESIDUAL_MONITOR_R162.html" target="_blank" rel="noopener">Causal execution-residual monitor · r162</a>
+            <a class="architecture-report-link" href="/UPKIE_PAIRED_STATE_FORECAST_CERTIFICATE_R161.html" target="_blank" rel="noopener">Paired-state certificate holdout · r161</a>
+            <a class="architecture-report-link" href="/UPKIE_CONDITIONED_FORECAST_CERTIFICATE_R160.html" target="_blank" rel="noopener">Conditioned certificate holdout · r160</a>
+            <a class="architecture-report-link" href="/UPKIE_EXECUTED_FORECAST_REALIZATION_CONTRACT_R159.html" target="_blank" rel="noopener">Final-command forecast holdout · r159</a>
+            <a class="architecture-report-link" href="/UPKIE_HYBRID_GUARD_MEASURED_CONTACT_PLANT_AB_R158.html" target="_blank" rel="noopener">Hybrid-support guard A/B · r158</a>
+            <a class="architecture-report-link" href="/UPKIE_FORECAST_REALIZATION_ENVELOPE_R157.html" target="_blank" rel="noopener">Forecast vs realized support envelope · r157</a>
+            <a class="architecture-report-link" href="/UPKIE_CONFIRMED_MULTISTEP_MEASURED_CONTACT_PLANT_AB_R156.html" target="_blank" rel="noopener">Shadow-confirmed viability A/B · r156</a>
+            <a class="architecture-report-link" href="/UPKIE_PAIRED_MULTISTEP_MEASURED_CONTACT_PLANT_AB_R155.html" target="_blank" rel="noopener">Rust paired-query viability A/B · r155</a>
+            <a class="architecture-report-link" href="/UPKIE_MULTISTEP_MEASURED_CONTACT_PLANT_AB_R154.html" target="_blank" rel="noopener">Measured-contact budgeted viability A/B · r154</a>
+            <a class="architecture-report-link" href="/UPKIE_LATERAL_ANYTIME_MULTISTEP_VIABILITY_AB_R153.html" target="_blank" rel="noopener">Anytime lateral-wake viability A/B · r153</a>
+            <a class="architecture-report-link" href="/UPKIE_LATERAL_BUDGETED_MULTISTEP_VIABILITY_AB_R152.html" target="_blank" rel="noopener">Lateral-wake budgeted viability A/B · r152</a>
+            <a class="architecture-report-link" href="/UPKIE_BUDGETED_MULTISTEP_VIABILITY_AB_R151.html" target="_blank" rel="noopener">Fixed-budget multistep viability A/B · r151</a>
+            <a class="architecture-report-link" href="/UPKIE_CONDITIONAL_VIABILITY_PLANNER_AB_R150.html" target="_blank" rel="noopener">Request-gated viability planner A/B · r150</a>
+            <a class="architecture-report-link" href="/UPKIE_VIABILITY_REQUEST_PLANT_AB_R149.html" target="_blank" rel="noopener">Supervised viability request plant A/B · r149</a>
+            <a class="architecture-report-link" href="/UPKIE_VIABILITY_REQUEST_SUPERVISOR_R148.html" target="_blank" rel="noopener">Viability request supervisor contract · r148</a>
+            <a class="architecture-report-link" href="/UPKIE_VIABILITY_COORDINATE_PLANNER_R147.html" target="_blank" rel="noopener">Bounded viability coordinate planner · r147</a>
+            <a class="architecture-report-link" href="/UPKIE_STATE_LOCAL_VIABILITY_DESCENT_R146.html" target="_blank" rel="noopener">Frozen-state viability oracle · r146</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_COMMAND_FRESHNESS_COMPOSITION_R145.html" target="_blank" rel="noopener">Contact grace + freshness composition · r145</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_COMMAND_LEASE_AB_R144.html" target="_blank" rel="noopener">Contact-command lease physical A/B · r144</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_COMMAND_LEASE_CONTRACT_R143.html" target="_blank" rel="noopener">Bounded contact-command lease contract · r143</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_UNLOAD_PRECURSOR_R142.html" target="_blank" rel="noopener">Contact-load precursor · r142</a>
+            <a class="architecture-report-link" href="/UPKIE_REDUCED_SUPPORT_COMMAND_GATE_AB_R141.html" target="_blank" rel="noopener">Reduced-support gate · r141</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_OBSERVED_CONTROLLER_AB_R140.html" target="_blank" rel="noopener">Measured-contact controller · r140</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_OBSERVATION_CONTRACT_R139.html" target="_blank" rel="noopener">Causal contact contract · r139</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_TRUTH_AUTHORITY_R138.html" target="_blank" rel="noopener">Measured contact truth · r138</a>
+            <a class="architecture-report-link" href="/UPKIE_STALE_COMMAND_EXPIRY_AB_R137.html" target="_blank" rel="noopener">Stale-command expiry · r137</a>
+            <a class="architecture-report-link" href="/UPKIE_FALL_SAFE_CONTINGENCY_R136.html" target="_blank" rel="noopener">Explicit contingency · r136</a>
+            <a class="architecture-report-link" href="/UPKIE_STATE_LOCAL_AUTHORITY_R135.html" target="_blank" rel="noopener">State-local authority · r135</a>
+            <a class="architecture-report-link" href="/UPKIE_PLANAR_CAPTURE_AB_R134.html" target="_blank" rel="noopener">Planar capture A/B · r134</a>
+            <a class="architecture-report-link" href="/UPKIE_DISTURBANCE_ENVELOPE_R133.html" target="_blank" rel="noopener">3D disturbance envelope · r133</a>
+            <a class="architecture-report-link" href="/LIVE_WRENCH_APPLICATION_R132.html" target="_blank" rel="noopener">Application-point wrench · r132</a>
+            <a class="architecture-report-link" href="/LIVE_UPKIE_PLANT_GATEWAY_R131.html" target="_blank" rel="noopener">Live physical PUSH · r131</a>
+            <a class="architecture-report-link" href="/UPKIE_ROOTED_CAPTURE_PLANT_R130.html" target="_blank" rel="noopener">Rooted capture plant · r130</a>
+            <a class="architecture-report-link" href="/UPKIE_CAPTURE_FRACTION_SWEEP_R130.html" target="_blank" rel="noopener">Capture robustness sweep · r130</a>
+            <a class="architecture-report-link" href="/LIVE_EDITOR_LIMIT_RECOVERY_R126.html" target="_blank" rel="noopener">Joint-limit recovery · r126</a>
+            <a class="architecture-report-link" href="/UPKIE_RESOURCE_AUTHORITY_R125.html" target="_blank" rel="noopener">Resource authority replay · r125</a>
+            <a class="architecture-report-link" href="/UPKIE_CONTACT_TRANSITION_R124.html" target="_blank" rel="noopener">Contact transition replay · r124</a>
+            <a class="architecture-report-link" href="/UPKIE_STATE_LOCAL_WBC_R123.html" target="_blank" rel="noopener">Composed WBC audit · r123</a>
+          </div>
+        </div>
+        <button id="architecture-close" type="button" aria-label="Close architecture review">×</button>
+      </header>
+      <div id="architecture-content" class="architecture-content"></div>
+    </aside>
+    <script src="/motion-rig-r16.js?v=217" defer></script>
+  </body>
+</html>

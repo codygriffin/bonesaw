@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw coincident task-step limit audit · r67</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw coincident task-step limit audit · r67</h1>
+<h2>Decision · REJECT</h2>
+<p>The candidate freezes every exactly coincident hard limit reached by one semantic-task correction before rebuilding the projected task pseudoinverse. A two-coordinate unit witness proves the mechanism can reduce three inverse evaluations to two. The immutable 2,317-state G1 corpus contains no instance where that mechanism removes actual dense work: control and candidate both execute 16,809 task pseudoinverses and 10,604 clipped steps.</p>
+<blockquote>This is a workload-negative result, not a numerical failure. All physical, decision, residual, authority, clipping, rank, feasibility, and allocation arrays are bit-exact. Two Jacobi-sweep diagnostic samples change by at most two sweeps and the aggregate increases from 122,031 to 122,032. The experiment stays opt-in and production r66 remains unchanged.</blockquote>
+<h2>Work comparison</h2>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>control</th><th>candidate</th><th>delta</th></tr></thead><tbody><tr><td>clipped steps</td><td>10604</td><td>10604</td><td>0</td></tr><tr><td>clipped steps by priority</td><td>10604</td><td>10604</td><td>0</td></tr><tr><td>task jacobi sweeps</td><td>122031</td><td>122032</td><td>1</td></tr><tr><td>task jacobi sweeps by priority</td><td>122031</td><td>122032</td><td>1</td></tr><tr><td>task pseudoinverse calls</td><td>16809</td><td>16809</td><td>0</td></tr><tr><td>task pseudoinverse calls by priority</td><td>16809</td><td>16809</td><td>0</td></tr></tbody></table></div>
+<h2>Boundary and interpretation</h2>
+<ul><li>56 non-timing arrays compared; 50 physical/decision/authority arrays are bit-exact.</li><li>Both variants pass all 43 admission gates and report zero Rust hot-loop allocations.</li><li>The evaluator has no policy, state integration, contact simulation, or physics rollout.</li><li>Hardware counters are intentionally not used: zero target-work reduction already falsifies promotion, and timing the added scan could only encourage a noise-based claim.</li><li>The next CPU experiment must target sequential, non-coincident Viability clipping rather than rare simultaneous boundaries.</li></ul>
+<h2>Gates</h2>
+<ul><li>PASS `control_passes_all_43_admission_gates`</li><li>PASS `candidate_passes_all_43_admission_gates`</li><li>PASS `all_physical_decision_and_authority_arrays_are_bit_exact`</li><li>PASS `candidate_keeps_zero_measured_rust_allocations`</li><li>FAIL `candidate_reduces_task_pseudoinverse_calls`</li><li>FAIL `candidate_does_not_increase_jacobi_sweeps`</li></ul></main></body></html>

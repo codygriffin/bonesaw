@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upkie MuJoCo plant audit</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Upkie MuJoCo plant audit · upkie-mujoco-plant-r127</h1>
+<p>**Admission: FAIL.** This is the first retained closed-loop physical differential. Python owns MuJoCo contact, integration, the external torso wrench, and experiment orchestration. Rust receives the observed floating state and returns inverse-dynamics WBC effort. The browser preview and this plant are not conflated.</p>
+<h2>Boundary under test</h2>
+<p>```text MuJoCo q/v/root ──observed state──&gt; Bonesaw Rust WBC ──torque──&gt; MuJoCo       ^                                                        │       └──────────── Python-applied torso wrench ────────────────┘ ```</p>
+<p>The task-reference adapter is a deterministic upright/posture plus Upkie-like PI wheel-balance composition in Python. It is not learned policy. Moving that robot-specific composition into a fingerprinted Rust tools session is an explicit promotion gate; the policy-/physics-free state-local WBC corpus remains the solver-semantics gate.</p>
+<h2>Timing and jitter</h2>
+<div class=table-wrap><table><thead><tr><th>case</th><th>Rust p50 µs</th><th>Rust p95 µs</th><th>Rust p99 µs</th><th>full loop p99 µs</th><th>&gt;5 ms</th></tr></thead><tbody><tr><td>nominal</td><td>143.6</td><td>8211.9</td><td>8479.0</td><td>8691.7</td><td>118</td></tr><tr><td>8 N torso push</td><td>141.8</td><td>8102.7</td><td>8362.5</td><td>8536.4</td><td>90</td></tr></tbody></table></div>
+<h2>Physical response</h2>
+<div class=table-wrap><table><thead><tr><th>case</th><th>peak tilt deg</th><th>peak</th><th>x</th><th>mm</th><th>min z m</th><th>posture RMS rad</th><th>recovery s</th><th>fell</th></tr></thead><tbody><tr><td>nominal</td><td>148.239</td><td>560.49</td><td>0.0630</td><td>1.22687</td><td>—</td><td>True</td></tr><tr><td>push</td><td>148.923</td><td>535.11</td><td>0.0634</td><td>1.23642</td><td>—</td><td>True</td></tr></tbody></table></div>
+<h2>Admission gates</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>observed</th><th>pass</th></tr></thead><tbody><tr><td>finite trace</td><td>True</td><td>True</td></tr><tr><td>physical disturbance is observable</td><td>peak tilt delta 0.6844 deg</td><td>True</td></tr><tr><td>no fall</td><td>True</td><td>False</td></tr><tr><td>post-disturbance recovery</td><td>None</td><td>False</td></tr><tr><td>controller timed region allocation-free</td><td>0 calls / 0 bytes</td><td>True</td></tr><tr><td>5 ms loop budget</td><td>90 overruns</td><td>False</td></tr><tr><td>hard equation residual</td><td>5.973e+01</td><td>False</td></tr><tr><td>solver remains admitted</td><td>{&#x27;Solved&#x27;: 94, &#x27;SolvedWithSlack&#x27;: 738, &#x27;MaxIterations&#x27;: 68}</td><td>False</td></tr></tbody></table></div>
+<h2>Resource and authority evidence</h2>
+<ul><li>Rust timed-region allocations: **0 calls / 0 bytes**.</li><li>Python GC collections during pushed loop: **0**; RSS delta: **0.34 MiB**.</li><li>Peak actuator effort utilization: **0.8794**.</li><li>Maximum hard dynamics/contact residual: **5.973e+01 / 2.087e+01**.</li><li>Solver status counts: **{&#x27;Solved&#x27;: 94, &#x27;SolvedWithSlack&#x27;: 738, &#x27;MaxIterations&#x27;: 68}**.</li></ul>
+<h2>Deliberate limits</h2>
+<p>This plant is an evaluation adapter, not a reference implementation of MuJoCo dynamics inside Bonesaw. The URDF is compiled by MuJoCo with generated sagittal root joints (x, z, and pitch), a ground plane, direct torque motors, and small declared damping/armature. MuJoCo wheel/ground contact and Bonesaw&#x27;s two rigid rolling constraints are not identical; that mismatch is part of the test. There is no estimator delay/noise, motor bandwidth, thermal model, terrain change, contact-mode estimator, network, or hardware calibration in this checkpoint.</p>
+<p>The physical browser gesture remains disabled until this adapter is connected to the live WebSocket process. A green target must never be relabeled as a push. The retained CSV traces contain every control tick for independent review.</p></main></body></html>

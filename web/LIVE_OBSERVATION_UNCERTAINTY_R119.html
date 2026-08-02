@@ -1,0 +1,219 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw observation uncertainty authority · r119</title><style>
+:root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}body{margin:0;background:#0b0d10;color:#dce6e1}main{max-width:1100px;margin:auto;padding:28px 18px 60px}h1{font:600 24px system-ui;color:#eff8f3}h2{color:#8fe6c0}.pass{padding:13px;border-left:3px solid #8fe6c0;background:#14231d;color:#bdebd7}.table{overflow-x:auto}table{width:100%;min-width:900px;border-collapse:collapse;font-size:12px}th,td{padding:9px;border:1px solid #2a3039;text-align:right}th:first-child,td:first-child{text-align:left}th{color:#8fe6c0;background:#151a1d}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;border:1px solid #2a3039;background:#11151a;line-height:1.5}@media(max-width:600px){main{padding:18px 10px 40px}}
+</style></head><body><main><h1>Bonesaw live observation uncertainty authority · r119</h1><p class="pass">PASS · exact, interpolation, and prediction error bounds erode real hard margins deterministically.</p><div class="table"><table><thead><tr><th>mode</th><th>exposure ms</th><th>q error mrad</th><th>v error rad/s</th><th>point error mm</th><th>self erosion mm</th><th>world erosion mm</th><th>support erosion mm</th><th>selection</th></tr></thead><tbody><tr><td>exact</td><td>0.000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>0.000000</td><td>{&quot;contingency&quot;: 0, &quot;primary&quot;: 20, &quot;rejected&quot;: 0}</td></tr><tr><td>interpolated</td><td>2.500</td><td>0.218750</td><td>0.015000</td><td>0.128125</td><td>0.256250</td><td>0.128125</td><td>0.076562</td><td>{&quot;contingency&quot;: 5, &quot;primary&quot;: 15, &quot;rejected&quot;: 0}</td></tr><tr><td>predicted</td><td>5.000</td><td>0.475000</td><td>0.030000</td><td>0.262500</td><td>0.525000</td><td>0.262500</td><td>0.156250</td><td>{&quot;contingency&quot;: 8, &quot;primary&quot;: 12, &quot;rejected&quot;: 0}</td></tr></tbody></table></div><h2>Complete retained audit</h2><pre>{
+  &quot;contract_source&quot;: &quot;bonesaw-tools/flat-foot-editor-r119&quot;,
+  &quot;execution&quot;: &quot;guided_preview_without_policy_or_physics_rollout&quot;,
+  &quot;modes&quot;: {
+    &quot;exact&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 2006.641,
+        &quot;p50_us&quot;: 1435.2459999999999,
+        &quot;p99_us&quot;: 2006.641
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 0.0,
+        &quot;joint_position_rad&quot;: 0.0,
+        &quot;joint_velocity_rad_s&quot;: 0.0,
+        &quot;point_position_m&quot;: 0.0,
+        &quot;root_rotation_rad&quot;: 0.0,
+        &quot;root_translation_m&quot;: 0.0
+      },
+      &quot;exposure_ns&quot;: 0,
+      &quot;frames&quot;: 20,
+      &quot;margin_erosion&quot;: {
+        &quot;joint_position_rad&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;joint_stopping_rad_s2&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;self_collision_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;support_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;world_collision_m&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        }
+      },
+      &quot;minimum_robust_margins&quot;: {
+        &quot;joint_position_rad&quot;: 0.25,
+        &quot;joint_stopping_rad_s2&quot;: 196.5901593652091,
+        &quot;self_collision_m&quot;: 0.030000000000000002,
+        &quot;support_m&quot;: 0.02,
+        &quot;world_collision_m&quot;: 0.04640933182979967
+      },
+      &quot;provenance&quot;: &quot;exact&quot;,
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 0,
+        &quot;primary&quot;: 20,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 2828.503,
+        &quot;p50_us&quot;: 1932.3855000000003,
+        &quot;p99_us&quot;: 2828.503
+      }
+    },
+    &quot;interpolated&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 1571.228,
+        &quot;p50_us&quot;: 1425.7275,
+        &quot;p99_us&quot;: 1571.228
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 7.65625e-05,
+        &quot;joint_position_rad&quot;: 0.00021875,
+        &quot;joint_velocity_rad_s&quot;: 0.015,
+        &quot;point_position_m&quot;: 0.000128125,
+        &quot;root_rotation_rad&quot;: 0.000103125,
+        &quot;root_translation_m&quot;: 7.75e-05
+      },
+      &quot;exposure_ns&quot;: 2500000,
+      &quot;frames&quot;: 20,
+      &quot;margin_erosion&quot;: {
+        &quot;joint_position_rad&quot;: {
+          &quot;maximum&quot;: 0.00021874999999998979,
+          &quot;minimum&quot;: 0.00021874999999998979
+        },
+        &quot;joint_stopping_rad_s2&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;self_collision_m&quot;: {
+          &quot;maximum&quot;: 0.00025624999999999953,
+          &quot;minimum&quot;: 0.00025624999999999953
+        },
+        &quot;support_m&quot;: {
+          &quot;maximum&quot;: 7.656250000000198e-05,
+          &quot;minimum&quot;: 7.65624999999985e-05
+        },
+        &quot;world_collision_m&quot;: {
+          &quot;maximum&quot;: 0.00012812499999999977,
+          &quot;minimum&quot;: 0.00012812499999999977
+        }
+      },
+      &quot;minimum_robust_margins&quot;: {
+        &quot;joint_position_rad&quot;: 0.24978125,
+        &quot;joint_stopping_rad_s2&quot;: 195.63803446342632,
+        &quot;self_collision_m&quot;: 0.029743750000000003,
+        &quot;support_m&quot;: 0.0308286788806807,
+        &quot;world_collision_m&quot;: 0.04628120682979968
+      },
+      &quot;provenance&quot;: &quot;interpolated&quot;,
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 5,
+        &quot;primary&quot;: 15,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 2167.334,
+        &quot;p50_us&quot;: 1725.509,
+        &quot;p99_us&quot;: 2167.334
+      }
+    },
+    &quot;predicted&quot;: {
+      &quot;command_admission&quot;: {
+        &quot;maximum_us&quot;: 2009.4650000000001,
+        &quot;p50_us&quot;: 1433.6485,
+        &quot;p99_us&quot;: 2009.4650000000001
+      },
+      &quot;error_bound&quot;: {
+        &quot;center_of_mass_position_m&quot;: 0.00015624999999999998,
+        &quot;joint_position_rad&quot;: 0.000475,
+        &quot;joint_velocity_rad_s&quot;: 0.03,
+        &quot;point_position_m&quot;: 0.0002625,
+        &quot;root_rotation_rad&quot;: 0.00021250000000000002,
+        &quot;root_translation_m&quot;: 0.00015999999999999999
+      },
+      &quot;exposure_ns&quot;: 5000000,
+      &quot;frames&quot;: 20,
+      &quot;margin_erosion&quot;: {
+        &quot;joint_position_rad&quot;: {
+          &quot;maximum&quot;: 0.0004750000000000032,
+          &quot;minimum&quot;: 0.0004750000000000032
+        },
+        &quot;joint_stopping_rad_s2&quot;: {
+          &quot;maximum&quot;: 0.0,
+          &quot;minimum&quot;: 0.0
+        },
+        &quot;self_collision_m&quot;: {
+          &quot;maximum&quot;: 0.0005250000000000012,
+          &quot;minimum&quot;: 0.0005250000000000012
+        },
+        &quot;support_m&quot;: {
+          &quot;maximum&quot;: 0.00015624999999999667,
+          &quot;minimum&quot;: 0.00015624999999999667
+        },
+        &quot;world_collision_m&quot;: {
+          &quot;maximum&quot;: 0.00026249999999999885,
+          &quot;minimum&quot;: 0.00026249999999999885
+        }
+      },
+      &quot;minimum_robust_margins&quot;: {
+        &quot;joint_position_rad&quot;: 0.249525,
+        &quot;joint_stopping_rad_s2&quot;: 194.22053886234897,
+        &quot;self_collision_m&quot;: 0.030000000000000002,
+        &quot;support_m&quot;: 0.03378303567893175,
+        &quot;world_collision_m&quot;: 0.04640933182979967
+      },
+      &quot;provenance&quot;: &quot;predicted&quot;,
+      &quot;selection_counts&quot;: {
+        &quot;contingency&quot;: 8,
+        &quot;primary&quot;: 12,
+        &quot;rejected&quot;: 0
+      },
+      &quot;solve&quot;: {
+        &quot;maximum_us&quot;: 3188.6529999999993,
+        &quot;p50_us&quot;: 1925.5209999999997,
+        &quot;p99_us&quot;: 3188.6529999999993
+      }
+    }
+  },
+  &quot;program_fingerprint&quot;: &quot;04780b6be2bc0784fff0d24badd805fa8da4ffd226f1ed7f382c392ea8192b54&quot;,
+  &quot;recovery_tick&quot;: 64,
+  &quot;revision&quot;: &quot;live-observation-uncertainty-r119&quot;,
+  &quot;schema&quot;: 1,
+  &quot;stale_withheld&quot;: {
+    &quot;newest_sample_time_ns&quot;: 1235000000,
+    &quot;query_time_ns&quot;: 1245000000,
+    &quot;reason&quot;: &quot;robot observation reconstruction withheld WBC input: robot observation prediction is disabled or exceeds its horizon&quot;,
+    &quot;tick&quot;: 62,
+    &quot;transport_mode&quot;: &quot;stale&quot;,
+    &quot;type&quot;: &quot;observation_withheld&quot;
+  },
+  &quot;status&quot;: &quot;pass&quot;,
+  &quot;url&quot;: &quot;ws://127.0.0.1:8819/ws&quot;
+}</pre><h2>Method</h2><pre># Bonesaw live observation uncertainty authority · r119
+
+**PASS.** A caller-authored deterministic error-growth envelope now propagates
+from canonical reconstruction into the actual Rust WBC hard rows. The eval uses
+the real WebSocket/WBC path and guided state without a policy or physics rollout.
+Raw geometric/state margins remain visible beside robust margins; no aggregate
+health score or probabilistic confidence claim is introduced.
+
+| mode | exposure ms | q / v error (mrad / rad/s) | point / CoM error (mm) | self / world / support erosion (mm) | stopping erosion rad/s² | selection |
+|---|---:|---:|---:|---:|---:|---|
+| exact | 0.000 | 0.000000 / 0.000000 | 0.000000 / 0.000000 | 0.000000 / 0.000000 / 0.000000 | 0.000000–0.000000 | `{&quot;contingency&quot;: 0, &quot;primary&quot;: 20, &quot;rejected&quot;: 0}` |
+| interpolated | 2.500 | 0.218750 / 0.015000 | 0.128125 / 0.076562 | 0.256250 / 0.128125 / 0.076562 | 0.000000–0.000000 | `{&quot;contingency&quot;: 5, &quot;primary&quot;: 15, &quot;rejected&quot;: 0}` |
+| predicted | 5.000 | 0.475000 / 0.030000 | 0.262500 / 0.156250 | 0.525000 / 0.262500 / 0.156250 | 0.000000–0.000000 | `{&quot;contingency&quot;: 8, &quot;primary&quot;: 12, &quot;rejected&quot;: 0}` |
+
+## Propagation contract
+
+- Joint stopping intersects the safe acceleration interval over all four
+  corners of the `q ± error`, `v ± error` box.
+- Finite-support rows add the CoM-position error radius to the authored erosion.
+- Self-collision rows add two represented-point radii; world-SDF rows add one.
+- Exact reconstruction has zero configured exposure and bit-identical raw and
+  robust margins. Interpolation uses distance to the nearest bracket endpoint.
+  Prediction grows monotonically from the newest source sample.
+- Held or stale evidence remains ineligible and never reaches these hard rows.
+
+</pre></main></body></html>

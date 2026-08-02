@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw CUDA mirror state input · r91</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw CUDA mirror state input · r91</h1>
+<h2>Outcome</h2>
+<p>**DEVICE UNAVAILABLE.** R91 is the first real device implementation boundary after CPU concept admission. `bonesaw-cuda` now embeds a fixed PTX state-input kernel, dynamically loads the CUDA Driver API, owns a context/module/five fixed device buffers, validates finite `f32` state on-device, zeros malformed and padded agents, and exposes a runtime fingerprint. The execution method has no CPU fallback.</p>
+<p>This is deliberately a **StateInput-only** claim. FK, Jacobians, dynamics, task/constraint emission, hierarchy, actuation, integration, CUDA Graph capture, and `CudaThroughputF32` remain unimplemented on device.</p>
+<h2>Compiled boundary</h2>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>value</th></tr></thead><tbody><tr><td>runtime probe</td><td>no_device</td></tr><tr><td>driver version</td><td>None</td></tr><tr><td>visible devices</td><td>0</td></tr><tr><td>kernel manifest bits</td><td>1</td></tr><tr><td>kernel SHA-256</td><td>45652bbb5db690174ece50f579fe350527db76e15b580eecf66bbe11d93a567d</td></tr><tr><td>ptxas syntax validation</td><td>unavailable</td></tr><tr><td>profile capability</td><td>state input=True · full mirror=False · Graph=False</td></tr><tr><td>layout</td><td>18 coordinates · 17 active capacity · stride 32</td></tr><tr><td>hidden CPU fallback</td><td>False</td></tr></tbody></table></div>
+<p>The PTX assigns one thread to one complete agent, uses no atomics, performs no cross-agent reduction, and writes deterministic zeroes for inactive or invalid lanes. Driver symbols are resolved only during executor construction, so a CPU-only process can load the crate and receive typed unavailability.</p>
+<h2>CPU mirror witness</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>active agents typed OK</td><td>True</td></tr><tr><td>padding inactive and zero</td><td>True</td></tr><tr><td>allocation-free 100-call Rust unit sentinel</td><td>True</td></tr><tr><td>bitwise repeated CPU output</td><td>True</td></tr></tbody></table></div>
+<p>Device D1/D2, launch, timing, and isolation gates are **NOT RUN**. The report does not substitute CPU execution or call this a CUDA pass.</p>
+<h2>Admission boundary</h2>
+<p>R91 does not promote `CudaMirrorF32` as a backend. It promotes only the compiled StateInput stage and the runtime probe. A CUDA-capable CI host must still JIT the retained kernel and pass D1 repeated bytes, D2 CPU-mirror bytes, malformed-agent isolation, padding, permutation/chunking, direct-versus-Graph, allocation/memory, error-injection, and timing gates. The current host reports `no_device`; therefore all device gates remain unavailable rather than emulated.</p></main></body></html>

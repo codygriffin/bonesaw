@@ -1,0 +1,84 @@
+[package]
+name = "bonesaw-tools"
+description = "Benchmarks, evaluations, and command-line tooling for Bonesaw"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+bonesaw-core = { path = "../bonesaw-core" }
+bonesaw-cuda = { path = "../bonesaw-cuda" }
+futures-util.workspace = true
+nalgebra.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lib]
+doctest = false
+
+[[bin]]
+name = "bonesaw-eval"
+path = "src/main.rs"
+
+[[bin]]
+name = "bonesaw-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "bonesaw-compile"
+path = "src/bin/compile.rs"
+
+[[bin]]
+name = "bonesaw-oracle-fixture"
+path = "src/bin/oracle_fixture.rs"
+
+[[bin]]
+name = "bonesaw-upkie-balance-worker"
+path = "src/bin/upkie_balance_worker.rs"
+
+[[bin]]
+name = "bonesaw-lipm-reference"
+path = "src/bin/lipm_reference.rs"
+
+[[bin]]
+name = "bonesaw-cuda-state-input-audit"
+path = "src/bin/cuda_state_input_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-fk-com-audit"
+path = "src/bin/cuda_fk_com_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-kinematics-audit"
+path = "src/bin/cuda_kinematics_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-dynamics-audit"
+path = "src/bin/cuda_dynamics_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-point-queries-audit"
+path = "src/bin/cuda_point_queries_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-emission-audit"
+path = "src/bin/cuda_emission_audit.rs"
+
+[[bin]]
+name = "bonesaw-cpu-mirror-solve-audit"
+path = "src/bin/cpu_mirror_solve_audit.rs"
+
+[[bin]]
+name = "bonesaw-cuda-solve-audit"
+path = "src/bin/cuda_solve_audit.rs"
+
+[[bin]]
+name = "bonesaw-observation-uncertainty-audit"
+path = "src/bin/observation_uncertainty_audit.rs"

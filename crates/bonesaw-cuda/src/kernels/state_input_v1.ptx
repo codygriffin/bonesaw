@@ -1,0 +1,119 @@
+.version 7.0
+.target sm_50
+.address_size 64
+
+// One thread owns one complete agent. It validates every f32 input before
+// copying any output, writes deterministic zeros for invalid/inactive agents,
+// and never reads or writes another agent's lane.
+.visible .entry bonesaw_state_input_v1(
+    .param .u64 q_input,
+    .param .u64 root_pose_input,
+    .param .u32 active_agents,
+    .param .u32 coordinate_count,
+    .param .u32 agent_stride,
+    .param .u64 q_output,
+    .param .u64 root_pose_output,
+    .param .u64 status_output
+)
+{
+    .reg .pred %p<8>;
+    .reg .b32 %r<24>;
+    .reg .b64 %rd<24>;
+
+    ld.param.u64 %rd0, [q_input];
+    ld.param.u64 %rd1, [root_pose_input];
+    ld.param.u32 %r0, [active_agents];
+    ld.param.u32 %r1, [coordinate_count];
+    ld.param.u32 %r2, [agent_stride];
+    ld.param.u64 %rd2, [q_output];
+    ld.param.u64 %rd3, [root_pose_output];
+    ld.param.u64 %rd4, [status_output];
+
+    mov.u32 %r3, %ctaid.x;
+    mov.u32 %r4, %ntid.x;
+    mov.u32 %r5, %tid.x;
+    mad.lo.s32 %r6, %r3, %r4, %r5;
+    setp.ge.u32 %p0, %r6, %r2;
+    @%p0 ret;
+
+    setp.lt.u32 %p1, %r6, %r0;
+    selp.u32 %r7, 1, 0, %p1; // active
+    mov.u32 %r8, 1;          // finite
+    setp.eq.u32 %p2, %r7, 0;
+    @%p2 bra VALIDATION_DONE;
+
+    mov.u32 %r9, 0;
+VALIDATE_Q:
+    setp.ge.u32 %p3, %r9, %r1;
+    @%p3 bra VALIDATE_ROOT_BEGIN;
+    mul.lo.u32 %r10, %r9, %r2;
+    add.u32 %r10, %r10, %r6;
+    mul.wide.u32 %rd5, %r10, 4;
+    add.s64 %rd6, %rd0, %rd5;
+    ld.global.u32 %r11, [%rd6];
+    and.b32 %r12, %r11, 0x7f800000;
+    setp.eq.u32 %p4, %r12, 0x7f800000;
+    @%p4 mov.u32 %r8, 0;
+    add.u32 %r9, %r9, 1;
+    bra VALIDATE_Q;
+
+VALIDATE_ROOT_BEGIN:
+    mov.u32 %r9, 0;
+VALIDATE_ROOT:
+    setp.ge.u32 %p3, %r9, 12;
+    @%p3 bra VALIDATION_DONE;
+    mul.lo.u32 %r10, %r9, %r2;
+    add.u32 %r10, %r10, %r6;
+    mul.wide.u32 %rd5, %r10, 4;
+    add.s64 %rd6, %rd1, %rd5;
+    ld.global.u32 %r11, [%rd6];
+    and.b32 %r12, %r11, 0x7f800000;
+    setp.eq.u32 %p4, %r12, 0x7f800000;
+    @%p4 mov.u32 %r8, 0;
+    add.u32 %r9, %r9, 1;
+    bra VALIDATE_ROOT;
+
+VALIDATION_DONE:
+    setp.ne.u32 %p5, %r7, 0;
+    setp.ne.u32 %p6, %r8, 0;
+    and.pred %p7, %p5, %p6;
+    selp.u32 %r13, 2, 0, %p5;
+    @%p7 mov.u32 %r13, 1;
+    cvt.u64.u32 %rd7, %r6;
+    add.s64 %rd8, %rd4, %rd7;
+    st.global.u8 [%rd8], %r13;
+
+    mov.u32 %r9, 0;
+WRITE_Q:
+    setp.ge.u32 %p3, %r9, %r1;
+    @%p3 bra WRITE_ROOT_BEGIN;
+    mul.lo.u32 %r10, %r9, %r2;
+    add.u32 %r10, %r10, %r6;
+    mul.wide.u32 %rd5, %r10, 4;
+    add.s64 %rd6, %rd0, %rd5;
+    add.s64 %rd9, %rd2, %rd5;
+    mov.u32 %r14, 0;
+    @%p7 ld.global.u32 %r14, [%rd6];
+    st.global.u32 [%rd9], %r14;
+    add.u32 %r9, %r9, 1;
+    bra WRITE_Q;
+
+WRITE_ROOT_BEGIN:
+    mov.u32 %r9, 0;
+WRITE_ROOT:
+    setp.ge.u32 %p3, %r9, 12;
+    @%p3 bra DONE;
+    mul.lo.u32 %r10, %r9, %r2;
+    add.u32 %r10, %r10, %r6;
+    mul.wide.u32 %rd5, %r10, 4;
+    add.s64 %rd6, %rd1, %rd5;
+    add.s64 %rd9, %rd3, %rd5;
+    mov.u32 %r14, 0;
+    @%p7 ld.global.u32 %r14, [%rd6];
+    st.global.u32 [%rd9], %r14;
+    add.u32 %r9, %r9, 1;
+    bra WRITE_ROOT;
+
+DONE:
+    ret;
+}

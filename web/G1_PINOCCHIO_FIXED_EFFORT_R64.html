@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 fixed-effort Pinocchio reference · r64</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 fixed-effort Pinocchio reference · r64</h1>
+<h2>Result</h2>
+<p>An independent Pinocchio 4.0.0 model reconstructs floating mass, bias, eight sole-point Jacobians, and contact acceleration bias at 48 selected immutable r54 states. A separate NumPy SVD implementation rebuilds the four-level r63 lexicographic equality solve for four effort profiles. No Bonesaw model product or solver workspace is consumed by the reference.</p>
+<blockquote>This remains a state-local differential oracle: no policy, integration, contact simulation, or rigid-body rollout. It validates r63 equations and optimizer semantics, not calibrated actuator response or stability.</blockquote>
+<h2>Differential matrix</h2>
+<div class=table-wrap><table><thead><tr><th>scenario</th><th>acceleration RMS / max</th><th>contact-force RMS / max</th><th>Pin dynamics max</th><th>Pin contact max</th><th>NumPy p99</th></tr></thead><tbody><tr><td>ideal_control</td><td>9.786e-11 / 1.258e-09</td><td>3.534e-11 / 4.907e-10</td><td>1.021e-09</td><td>4.360e-10</td><td>45346.0 µs</td></tr><tr><td>fast_synthetic</td><td>9.875e-11 / 1.242e-09</td><td>1.155e-08 / 1.860e-07</td><td>1.672e-09</td><td>4.373e-10</td><td>41982.9 µs</td></tr><tr><td>slow_synthetic</td><td>1.030e-10 / 1.235e-09</td><td>2.433e-08 / 3.046e-07</td><td>6.293e-09</td><td>4.378e-10</td><td>48865.8 µs</td></tr><tr><td>quarter_available_slow</td><td>1.028e-10 / 1.232e-09</td><td>2.571e-08 / 3.047e-07</td><td>6.244e-09</td><td>4.372e-10</td><td>39886.2 µs</td></tr></tbody></table></div>
+<h2>Interpretation</h2>
+<ul><li>Pinocchio independently owns inertial products and point Jacobians; NumPy independently owns equality seeding, damped task pseudoinverses, and nullspace freezing.</li><li>The sample set includes every contact edge neighborhood and additional evenly distributed/adverse-pressure states. It is a differential sentinel, not a replacement for r63&#x27;s complete 2,317-state curve.</li><li>Dynamics/contact residuals evaluate the Rust solution directly under Pinocchio products. Solution deltas then test the independent lexicographic optimizer, so product and optimization disagreement cannot hide in one number.</li><li>Acceleration and contact-force comparisons remain separate because their units and operational meaning differ.</li></ul>
+<h2>Gates</h2>
+<ul><li>PASS `source_artifacts_remain_immutable`</li><li>PASS `pinocchio_products_validate_every_rust_dynamics_row_below_2e-8`</li><li>PASS `pinocchio_products_validate_every_rust_contact_row_below_2e-8`</li><li>PASS `numpy_lexicographic_acceleration_matches_rust_within_2e-5`</li><li>PASS `numpy_lexicographic_contact_force_matches_rust_within_2e-4_n`</li><li>PASS `numpy_reference_repeats_bit_exactly_on_two_states_per_scenario`</li></ul>
+<h2>Artifacts</h2>
+<p>The raw NPZ retains every selected-state acceleration/contact-force/complete-solution delta, direct Pinocchio hard residual, and reference product/solve timing. The JSON retains selected ticks, per-scenario distributions, evaluation boundaries, and source checksums. Markdown and public HTML are human-readable mirrors.</p></main></body></html>

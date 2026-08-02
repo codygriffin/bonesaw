@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw observed-versus-commanded authority · r114</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw observed-versus-commanded authority · r114</h1>
+<h2>Outcome</h2>
+<p>**PASS.** R114 turns the existing command-divergence diagnostic into a two-stage authority envelope. The observed joint state is mapped through the exact actuation transform, then compared with the commanded splice position and velocity. Crossing a contingency threshold withholds feed-forward effort and selects the independently validated brake. Crossing a reject threshold withholds both plans. This evaluates a controller contract only; it introduces no policy, physics engine, state integration, or claim that the plant follows the command.</p>
+<div class=table-wrap><table><thead><tr><th>case</th><th>position / velocity error</th><th>tracking action</th><th>selection</th><th>flags</th><th>position contingency / reject headroom</th><th>velocity contingency / reject headroom</th></tr></thead><tbody><tr><td>nominal</td><td>0.005 / 0.100</td><td>nominal</td><td>primary</td><td>0x0</td><td>0.005 / 0.025</td><td>0.100 / 0.400</td></tr><tr><td>position_contingency</td><td>0.020 / 0.100</td><td>contingency</td><td>contingency</td><td>0x40000</td><td>-0.010 / 0.010</td><td>0.100 / 0.400</td></tr><tr><td>position_rejected</td><td>0.040 / 0.100</td><td>rejected</td><td>rejected</td><td>0x80000</td><td>-0.030 / -0.010</td><td>0.100 / 0.400</td></tr><tr><td>velocity_contingency</td><td>0.005 / 0.300</td><td>contingency</td><td>contingency</td><td>0x40000</td><td>0.005 / 0.025</td><td>-0.100 / 0.200</td></tr><tr><td>velocity_rejected</td><td>0.005 / 0.600</td><td>rejected</td><td>rejected</td><td>0x80000</td><td>0.005 / 0.025</td><td>-0.400 / -0.100</td></tr></tbody></table></div>
+<p>The configured position thresholds are `0.010/0.030` actuator units and velocity thresholds are `0.200/0.500` actuator units/s. Headroom remains signed and continuous on both sides of each decision. Limiting actuator indices are retained independently for position and velocity.</p>
+<h2>Execution evidence</h2>
+<p>Across 10000 retained transactions, timing was `7.143/12.063/73.249` µs p50/p99/max. Semantic replay was exact: **True**. Timed allocation calls/bytes were `0/0`. An inverted contingency/reject envelope is rejected at construction: **True**.</p>
+<h2>Authority boundary</h2>
+<p>This is direct evidence that observation and command have diverged, not an explanation of why. Torque saturation, bandwidth, delay, contact loss, calibration error, thermal derating, and mechanical failure remain separately typed causes. A warning selects braking but does not certify that the physical body will realize that brake; a hard breach rejects because command-space geometry is no longer an adequate witness for the observed mechanism state.</p></main></body></html>

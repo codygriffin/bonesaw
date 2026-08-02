@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "revision": "world-sdf-root-command-r111",
+  "generated_utc": "2026-08-01T17:58:04.861676+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/collision_sweep_toy.urdf": "e979a7f091d7cb54260e26e613ae7306338b85b359671c5e95ecf588889ad950",
+    "crates/bonesaw-core/src/world_collision.rs": "83e53cb9442e6968b6248238ceec25bfa0944ba3e440a59045d95875241172d4",
+    "crates/bonesaw-core/src/dynamic_controller.rs": "2b83f0fff67e9a6b6948db0b2527d563be191f27c95a506b56d8d95b3e75ef7b",
+    "crates/bonesaw-py/src/lib.rs": "cecff6d3ffcb9f05002ee9b58fd1f851543931d17780534fcd29451a6ef7137d",
+    "/home/codygriffin/Documents/bonepilot/python/evals/world_sdf_command_report.py": "15317762ebf0d358382f82a983750502d440b529ce264370c17bd4b84fd9f54f"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free, integrator-free WBC command transactions",
+    "model": "models/collision_sweep_toy.urdf",
+    "grid_dimensions_xyz": [
+      21,
+      21,
+      21
+    ],
+    "grid_spacing_m": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "wall_x_m": 0.2,
+    "clearance_m": 0.02,
+    "corpus": {
+      "case_count": 321,
+      "maximum_sampled_distance_oracle_error_m": 2.7755575615628914e-16,
+      "maximum_violation_time_oracle_error_ns": 0,
+      "maximum_continuity_lower_bound_oracle_error_m": 2.7755575615628914e-16,
+      "maximum_rate_bound_oracle_error_mps": 3.9968028886505635e-15,
+      "maximum_root_prediction_oracle_error": 1.50872761438887e-18,
+      "root_changed_sampled_outcome_count": 0,
+      "maximum_root_distance_effect_m": 0.00956800410788855,
+      "minimum_dense_truth_minus_certificate_m": 6.10322128875157e-05,
+      "sampled_collision_counts": {
+        "primary": 3,
+        "contingency": 1
+      },
+      "continuous_only_failure_counts": {
+        "primary": 0,
+        "contingency": 0
+      },
+      "certified_counts": {
+        "primary": 318,
+        "contingency": 320
+      },
+      "selections": {
+        "primary": 318,
+        "contingency": 2,
+        "rejected": 1
+      },
+      "status_codes": [
+        0,
+        2,
+        3
+      ],
+      "solve_status_codes": [
+        0
+      ],
+      "flags_union": 6144,
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0
+    },
+    "root_motion_admission": {
+      "q": -0.577,
+      "root_velocity_x_mps": -0.275,
+      "fixed_root_primary_minimum_m": 0.023000000000000076,
+      "predicted_root_primary_minimum_m": 0.01750000000000007,
+      "predicted_root_contingency_minimum_m": 0.02024999999999988,
+      "primary_first_violation_time_ns": 11000000,
+      "selection": 1,
+      "primary_valid": false,
+      "contingency_valid": true,
+      "maximum_primary_root_twist_mps": 0.275
+    },
+    "adaptive_refinement": {
+      "q": -0.555,
+      "v": -0.75,
+      "desired_joint_acceleration_mps2": -60.0,
+      "grid_only_lower_bound_m": 0.01909617066019532,
+      "adaptive_lower_bound_m": 0.02010564044029638,
+      "dense_minimum_m": 0.02024985040888241,
+      "dense_truth_minus_adaptive_certificate_m": 0.00014420996858603014,
+      "primary_leaf_intervals": 23,
+      "primary_midpoint_samples": 3,
+      "primary_unresolved_intervals": 0,
+      "primary_maximum_depth": 3,
+      "grid_selection": 1,
+      "adaptive_selection": 0,
+      "adaptive_allocation_calls": 0,
+      "adaptive_allocated_bytes": 0
+    },
+    "boundary_policy": {
+      "reject": {
+        "primary_unknown_probe": 1,
+        "primary_unknown_time_ns": 16000000,
+        "contingency_unknown_probe": 18446744073709551615,
+        "selection": 1,
+        "primary_valid": false,
+        "contingency_valid": true,
+        "flags": 32768
+      },
+      "occupied": {
+        "primary_source": 1,
+        "primary_violation_probe": 1,
+        "primary_violation_time_ns": 0,
+        "selection": 2,
+        "primary_valid": false,
+        "contingency_valid": false,
+        "flags": 6144
+      }
+    },
+    "benchmark": {
+      "timing_us": {
+        "minimum": 16.972,
+        "mean": 17.5034175,
+        "stddev": 1.0395564737876197,
+        "mad": 0.05900000000000105,
+        "p50": 17.262,
+        "p95": 18.354,
+        "p99": 23.94501,
+        "p99_9": 25.410485000000506,
+        "maximum": 28.254
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "685d471ca8c4e7c8f5e35064c6a81bb34571366145806d70aedd4acfd6832d30"
+    }
+  }
+}

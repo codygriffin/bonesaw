@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "revision": "robot-observation-history-r116",
+  "generated_utc": "2026-08-01T19:31:31.115589+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/collision_sweep_toy.urdf": "e979a7f091d7cb54260e26e613ae7306338b85b359671c5e95ecf588889ad950",
+    "crates/bonesaw-core/src/history.rs": "2c56bc569fdddc7d1704d9e0ef85b9b35ff5fb80c0c3709c061d18814e42a33f",
+    "crates/bonesaw-py/src/lib.rs": "076054912101ff3ba0c09009403fd47be787187da63b3ba64a610c8eabe88832",
+    "/home/codygriffin/Documents/bonepilot/python/evals/robot_observation_history_report.py": "daa65e0566008da1c2df380c3d0b840700941fca048e38a85ca052e20d83b4e4"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free canonical observation history and reconstruction",
+    "repeats": 2000,
+    "capacity": 2,
+    "preallocated_generalized_scalars": 4,
+    "canonical_report": {
+      "batch_sorted": 1,
+      "policy_valid": 1,
+      "inserted": 2,
+      "replaced_sequence": 1,
+      "replaced_source": 0,
+      "ignored_duplicate": 0,
+      "ignored_source": 1,
+      "rejected_epoch": 0,
+      "rejected_future": 0,
+      "rejected_stale": 0,
+      "rejected_uncertain": 0,
+      "rejected_invalid_policy": 0,
+      "rejected_invalid_state": 0,
+      "rejected_out_of_order": 0,
+      "rejected_unsorted": 0
+    },
+    "chunking_invariant": true,
+    "unsorted_batch_atomic": true,
+    "fault_cases": [
+      {
+        "name": "epoch",
+        "expected": "rejected_epoch",
+        "report": {
+          "batch_sorted": 1,
+          "policy_valid": 1,
+          "inserted": 0,
+          "replaced_sequence": 0,
+          "replaced_source": 0,
+          "ignored_duplicate": 0,
+          "ignored_source": 0,
+          "rejected_epoch": 1,
+          "rejected_future": 0,
+          "rejected_stale": 0,
+          "rejected_uncertain": 0,
+          "rejected_invalid_policy": 0,
+          "rejected_invalid_state": 0,
+          "rejected_out_of_order": 0,
+          "rejected_unsorted": 0
+        },
+        "passed": true
+      },
+      {
+        "name": "future",
+        "expected": "rejected_future",
+        "report": {
+          "batch_sorted": 1,
+          "policy_valid": 1,
+          "inserted": 0,
+          "replaced_sequence": 0,
+          "replaced_source": 0,
+          "ignored_duplicate": 0,
+          "ignored_source": 0,
+          "rejected_epoch": 0,
+          "rejected_future": 1,
+          "rejected_stale": 0,
+          "rejected_uncertain": 0,
+          "rejected_invalid_policy": 0,
+          "rejected_invalid_state": 0,
+          "rejected_out_of_order": 0,
+          "rejected_unsorted": 0
+        },
+        "passed": true
+      },
+      {
+        "name": "stale",
+        "expected": "rejected_stale",
+        "report": {
+          "batch_sorted": 1,
+          "policy_valid": 1,
+          "inserted": 0,
+          "replaced_sequence": 0,
+          "replaced_source": 0,
+          "ignored_duplicate": 0,
+          "ignored_source": 0,
+          "rejected_epoch": 0,
+          "rejected_future": 0,
+          "rejected_stale": 1,
+          "rejected_uncertain": 0,
+          "rejected_invalid_policy": 0,
+          "rejected_invalid_state": 0,
+          "rejected_out_of_order": 0,
+          "rejected_unsorted": 0
+        },
+        "passed": true
+      },
+      {
+        "name": "uncertain",
+        "expected": "rejected_uncertain",
+        "report": {
+          "batch_sorted": 1,
+          "policy_valid": 1,
+          "inserted": 0,
+          "replaced_sequence": 0,
+          "replaced_source": 0,
+          "ignored_duplicate": 0,
+          "ignored_source": 0,
+          "rejected_epoch": 0,
+          "rejected_future": 0,
+          "rejected_stale": 0,
+          "rejected_uncertain": 1,
+          "rejected_invalid_policy": 0,
+          "rejected_invalid_state": 0,
+          "rejected_out_of_order": 0,
+          "rejected_unsorted": 0
+        },
+        "passed": true
+      },
+      {
+        "name": "invalid_state",
+        "expected": "rejected_invalid_state",
+        "report": {
+          "batch_sorted": 1,
+          "policy_valid": 1,
+          "inserted": 0,
+          "replaced_sequence": 0,
+          "replaced_source": 0,
+          "ignored_duplicate": 0,
+          "ignored_source": 0,
+          "rejected_epoch": 0,
+          "rejected_future": 0,
+          "rejected_stale": 0,
+          "rejected_uncertain": 0,
+          "rejected_invalid_policy": 0,
+          "rejected_invalid_state": 1,
+          "rejected_out_of_order": 0,
+          "rejected_unsorted": 0
+        },
+        "passed": true
+      }
+    ],
+    "reconstruction_cases": [
+      {
+        "name": "exact",
+        "status": 0,
+        "provenance": "exact",
+        "q0": 0.02,
+        "hard_eligible": true,
+        "timing_ns": 120,
+        "passed": true
+      },
+      {
+        "name": "interpolated",
+        "status": 0,
+        "provenance": "interpolated",
+        "q0": 0.01,
+        "hard_eligible": true,
+        "timing_ns": 1242,
+        "passed": true
+      },
+      {
+        "name": "predicted",
+        "status": 0,
+        "provenance": "predicted",
+        "q0": 0.025,
+        "hard_eligible": true,
+        "timing_ns": 330,
+        "passed": true
+      },
+      {
+        "name": "held",
+        "status": 0,
+        "provenance": "held",
+        "q0": 0.02,
+        "hard_eligible": false,
+        "timing_ns": 70,
+        "passed": true
+      }
+    ],
+    "too_old_status": 5,
+    "interpolation_gap_status": 3,
+    "wraparound_passed": true,
+    "semantic_replay_exact": true,
+    "maximum_allocation_calls": 0,
+    "maximum_allocated_bytes": 0,
+    "ingest_timing_us": {
+      "minimum": 0.11,
+      "mean": 0.1808535,
+      "stddev": 0.13951606014273055,
+      "mad": 0.02100000000000002,
+      "p50": 0.18,
+      "p95": 0.22,
+      "p99": 0.231,
+      "p99_9": 0.48115000000003055,
+      "maximum": 6.192
+    },
+    "query_timing_us": {
+      "minimum": 0.05,
+      "mean": 0.08937450000000001,
+      "stddev": 0.024213513783629174,
+      "mad": 0.010000000000000009,
+      "p50": 0.09,
+      "p95": 0.12,
+      "p99": 0.14,
+      "p99_9": 0.2400010000000002,
+      "maximum": 0.792
+    }
+  }
+}

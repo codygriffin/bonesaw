@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "revision": "tight-primitive-avoidance-r107",
+  "generated_utc": "2026-08-01T15:26:41.963624+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/tight_avoidance_toy.urdf": "d4519d835457fce1d1b0b7001e8dfb6c3062dc60d1b4b1449cd614657945c018",
+    "crates/bonesaw-core/src/collision.rs": "d51a1c809c9a65daeea7b359c4457dc6195611a3b21e764ef0b98ce318cd97ad",
+    "crates/bonesaw-core/src/controller.rs": "653b9006d6f029c1c564e306ecfdadf551c9a95a2bfd17b505afe49fb83107e3",
+    "crates/bonesaw-py/src/lib.rs": "8dfdb6ac1519b045d8796f4984dbb0b1ca73a57d7b7db7536429afb7a11b9c0a",
+    "python/bonesaw/__init__.py": "0588b195ff148a7faa6bf55995c1897d03118683a58382364c5434fb38413bbe",
+    "/home/codygriffin/Documents/bonepilot/python/evals/tight_primitive_avoidance_report.py": "66b39ac1ac3d22c8609f705880f296891c30325e9a9739ac729301aa638ce95f"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free shared tight-primitive distance/Jacobian query",
+    "model": "models/tight_avoidance_toy.urdf",
+    "hard_margin_m": 0.02,
+    "influence_margin_m": 0.1,
+    "coordinate_sweep": {
+      "minimum": -0.12,
+      "maximum": 0.2,
+      "samples": 321
+    },
+    "tight_pair_count": 1,
+    "sphere_cover_pair_count": 3,
+    "tight_minimum_distance_m": 0.03,
+    "sphere_cover_minimum_distance_m": -0.10104634152000361,
+    "maximum_sphere_cover_overreach_m": 0.13104634152000363,
+    "false_influence_samples": 132,
+    "false_collision_samples": 122,
+    "maximum_analytic_distance_error_m": 2.7755575615628914e-17,
+    "maximum_finite_difference_jacobian_error": 5.838671768287895e-10,
+    "maximum_normal_norm_error": 0.0,
+    "maximum_surface_witness_error_m": 5.551115123125783e-17,
+    "tight_quality_codes": [
+      1
+    ],
+    "tight": {
+      "pair_count": 1,
+      "timing_us": {
+        "minimum": 0.291,
+        "mean": 0.32356399999999996,
+        "stddev": 0.18595731204768476,
+        "mad": 0.009000000000000008,
+        "p50": 0.311,
+        "p95": 0.34004999999999996,
+        "p99": 0.391,
+        "p99_9": 0.47671000000051417,
+        "maximum": 6.181
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "7e91cb57b609e54b19675e842ca757e273bc67f0f048ae682889d073c77413e0"
+    },
+    "sphere_cover_fallback": {
+      "pair_count": 3,
+      "timing_us": {
+        "minimum": 0.43,
+        "mean": 0.5034090000000001,
+        "stddev": 0.01741176955395402,
+        "mad": 0.010000000000000009,
+        "p50": 0.501,
+        "p95": 0.521,
+        "p99": 0.5710000000000001,
+        "p99_9": 0.6810700000000064,
+        "maximum": 0.751
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "252a1c9e5e57175231ae9b48dc09bc88dba147782a39eac50f772550b7c13418"
+    }
+  }
+}

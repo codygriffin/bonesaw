@@ -1,0 +1,731 @@
+{
+  "implementation": "Bonesaw",
+  "version": "0.1.0",
+  "binding": "PyO3 0.28 + rust-numpy 0.28, fixed-shape batch writes",
+  "baseline_memory": {
+    "rss_bytes": 41332736,
+    "uss_bytes": 23097344,
+    "pss_bytes": 27118592,
+    "vms_bytes": 796962816
+  },
+  "import_memory": {
+    "rss_bytes": 42029056,
+    "uss_bytes": 23150592,
+    "pss_bytes": 27493376,
+    "vms_bytes": 798294016
+  },
+  "setup_memory": {
+    "rss_bytes": 42893312,
+    "uss_bytes": 23425024,
+    "pss_bytes": 28062720,
+    "vms_bytes": 798568448
+  },
+  "import_wall_ns": 906762,
+  "setup_wall_ns": 481830,
+  "scenarios": {
+    "end_effector_reach": {
+      "ticks": 5000,
+      "wall_ns": 206104135,
+      "cpu_ns": 206086025,
+      "thread_cpu_ns": 206075045,
+      "cpu_to_wall_ratio": 0.9999121317968706,
+      "thread_cpu_to_wall_ratio": 0.9998588577565414,
+      "throughput_steps_per_second": 24259.581206364444,
+      "latency_ns": {
+        "min": 37821.0,
+        "mean": 40625.1484,
+        "stddev": 1709.0760004099993,
+        "median": 40516.0,
+        "mad": 972.0,
+        "p90": 42049.0,
+        "p95": 43242.950000000004,
+        "p99": 46348.100000000006,
+        "p99_9": 55066.26400000046,
+        "p99_99": 66230.87059999384,
+        "max": 70583.0
+      },
+      "jitter_abs_delta_ns": {
+        "min": 0.0,
+        "mean": 1113.260652130426,
+        "stddev": 1369.392997247407,
+        "median": 591.0,
+        "mad": 421.0,
+        "p90": 2925.2,
+        "p95": 4007.0999999999995,
+        "p99": 6121.819999999981,
+        "p99_9": 9057.722000000147,
+        "p99_99": 18711.49119999876,
+        "max": 19939.0
+      },
+      "deadline_misses": {
+        "1ms": 0,
+        "5ms": 0,
+        "20ms": 0
+      },
+      "tracking_error_m": {
+        "min": 0.000621526392583301,
+        "mean": 0.0015210263056706418,
+        "stddev": 0.006116239039948243,
+        "median": 0.0012918704322861568,
+        "mad": 2.7175503520264705e-05,
+        "p90": 0.0013274034461474922,
+        "p95": 0.0013285101929012045,
+        "p99": 0.0013293794666250937,
+        "p99_9": 0.08632331946385262,
+        "p99_99": 0.2456887455799995,
+        "max": 0.2456887455799995
+      },
+      "tracking_rms_m": 0.0063025313181553555,
+      "steady_state_rms_m_after_1s": 0.0012916889633906884,
+      "integrated_absolute_error_m_s": 0.3042052611341283,
+      "integrated_squared_error_m2_s": 0.007944380203265817,
+      "fraction_over_1cm": 0.0022,
+      "fraction_over_3cm": 0.0016,
+      "fraction_over_5cm": 0.0014,
+      "status_counts": {
+        "ok": 3678,
+        "degraded": 1322,
+        "contingency": 0,
+        "failed_or_rejected": 0
+      },
+      "memory_before": {
+        "rss_bytes": 44007424,
+        "uss_bytes": 24465408,
+        "pss_bytes": 29137920,
+        "vms_bytes": 801099776
+      },
+      "memory_after": {
+        "rss_bytes": 45441024,
+        "uss_bytes": 25899008,
+        "pss_bytes": 30571520,
+        "vms_bytes": 801099776
+      },
+      "peak_rss_bytes": 45441024,
+      "rss_delta_bytes": 1433600,
+      "usage_delta": {
+        "user_cpu_seconds": 0.20578200000000013,
+        "system_cpu_seconds": 0.0030000000000000027,
+        "minor_faults": 352,
+        "major_faults": 0,
+        "voluntary_context_switches": 0,
+        "involuntary_context_switches": 0,
+        "max_rss_kib": 0
+      },
+      "python_gc_delta": {
+        "count": [
+          25,
+          0,
+          0
+        ],
+        "collections": [
+          0,
+          0,
+          0
+        ],
+        "collected": [
+          0,
+          0,
+          0
+        ],
+        "uncollectable": [
+          0,
+          0,
+          0
+        ]
+      },
+      "python_tracemalloc_current_bytes": 504,
+      "python_tracemalloc_peak_bytes": 34949,
+      "temporal_windows": [
+        {
+          "tick_start": 0,
+          "tick_stop": 500,
+          "latency_p50_ns": 40641.5,
+          "latency_p99_ns": 55086.63999999998,
+          "tracking_rms_m": 0.019549981738721946,
+          "tracking_p99_m": 0.08660173210155522
+        },
+        {
+          "tick_start": 500,
+          "tick_stop": 1000,
+          "latency_p50_ns": 40201.0,
+          "latency_p99_ns": 45316.81,
+          "tracking_rms_m": 0.0012916838443651686,
+          "tracking_p99_m": 0.0013292367509451074
+        },
+        {
+          "tick_start": 1000,
+          "tick_stop": 1500,
+          "latency_p50_ns": 40867.5,
+          "latency_p99_ns": 45389.299999999996,
+          "tracking_rms_m": 0.0012917996089034246,
+          "tracking_p99_m": 0.0013292367509449992
+        },
+        {
+          "tick_start": 1500,
+          "tick_stop": 2000,
+          "latency_p50_ns": 40241.0,
+          "latency_p99_ns": 45360.21,
+          "tracking_rms_m": 0.0012916838443651638,
+          "tracking_p99_m": 0.0013292367509450858
+        },
+        {
+          "tick_start": 2000,
+          "tick_stop": 2500,
+          "latency_p50_ns": 40687.0,
+          "latency_p99_ns": 49393.8,
+          "tracking_rms_m": 0.0012917996089034237,
+          "tracking_p99_m": 0.0013292367509450851
+        },
+        {
+          "tick_start": 2500,
+          "tick_stop": 3000,
+          "latency_p50_ns": 40321.0,
+          "latency_p99_ns": 45099.409999999996,
+          "tracking_rms_m": 0.0012916838443651675,
+          "tracking_p99_m": 0.001329236750945125
+        },
+        {
+          "tick_start": 3000,
+          "tick_stop": 3500,
+          "latency_p50_ns": 40666.5,
+          "latency_p99_ns": 45618.59,
+          "tracking_rms_m": 0.0012917996089034307,
+          "tracking_p99_m": 0.0013292367509453375
+        },
+        {
+          "tick_start": 3500,
+          "tick_stop": 4000,
+          "latency_p50_ns": 40381.0,
+          "latency_p99_ns": 45578.11,
+          "tracking_rms_m": 0.0012916838443651731,
+          "tracking_p99_m": 0.0013292367509453679
+        },
+        {
+          "tick_start": 4000,
+          "tick_stop": 4500,
+          "latency_p50_ns": 40757.0,
+          "latency_p99_ns": 45436.4,
+          "tracking_rms_m": 0.0012917996089034285,
+          "tracking_p99_m": 0.0013292367509453755
+        },
+        {
+          "tick_start": 4500,
+          "tick_stop": 5000,
+          "latency_p50_ns": 40261.0,
+          "latency_p99_ns": 45426.29,
+          "tracking_rms_m": 0.0012916851959750694,
+          "tracking_p99_m": 0.0013292367509454151
+        }
+      ]
+    },
+    "bimanual_priority_conflict": {
+      "ticks": 5000,
+      "wall_ns": 445519388,
+      "cpu_ns": 445475924,
+      "thread_cpu_ns": 445464372,
+      "cpu_to_wall_ratio": 0.9999024419561288,
+      "thread_cpu_to_wall_ratio": 0.9998765126692982,
+      "throughput_steps_per_second": 11222.856142009245,
+      "latency_ns": {
+        "min": 51027.0,
+        "mean": 88481.9028,
+        "stddev": 6042.042620550782,
+        "median": 88577.0,
+        "mad": 2073.0,
+        "p90": 92495.0,
+        "p95": 94759.0,
+        "p99": 107074.09000000003,
+        "p99_9": 116841.36000000007,
+        "p99_99": 125573.07299999241,
+        "max": 130937.0
+      },
+      "jitter_abs_delta_ns": {
+        "min": 0.0,
+        "mean": 2764.6987397479497,
+        "stddev": 2761.3926786977627,
+        "median": 2204.0,
+        "mad": 1382.0,
+        "p90": 5765.7999999999965,
+        "p95": 7223.9999999999945,
+        "p99": 12574.0,
+        "p99_9": 24927.0,
+        "p99_99": 44682.05159999229,
+        "max": 52308.0
+      },
+      "deadline_misses": {
+        "1ms": 0,
+        "5ms": 0,
+        "20ms": 0
+      },
+      "tracking_error_m": {
+        "min": 0.0,
+        "mean": 0.0002155345086232689,
+        "stddev": 0.004740235242742731,
+        "median": 3.560295004908868e-15,
+        "mad": 2.1554423764416292e-15,
+        "p90": 9.988313350645485e-15,
+        "p95": 1.2601164294897509e-14,
+        "p99": 1.3615539119711892e-08,
+        "p99_9": 0.08887046044403056,
+        "p99_99": 0.17858187284941726,
+        "max": 0.17858187284941726
+      },
+      "tracking_rms_m": 0.0047451327990845225,
+      "steady_state_rms_m_after_1s": 2.6470626833725725e-10,
+      "integrated_absolute_error_m_s": 0.043106901724653784,
+      "integrated_squared_error_m2_s": 0.004503257056189544,
+      "fraction_over_1cm": 0.0028,
+      "fraction_over_3cm": 0.0022,
+      "fraction_over_5cm": 0.0018,
+      "status_counts": {
+        "ok": 0,
+        "degraded": 4996,
+        "contingency": 4,
+        "failed_or_rejected": 0
+      },
+      "memory_before": {
+        "rss_bytes": 48312320,
+        "uss_bytes": 28246016,
+        "pss_bytes": 33180672,
+        "vms_bytes": 804868096
+      },
+      "memory_after": {
+        "rss_bytes": 49745920,
+        "uss_bytes": 29679616,
+        "pss_bytes": 34614272,
+        "vms_bytes": 804868096
+      },
+      "peak_rss_bytes": 49745920,
+      "rss_delta_bytes": 1433600,
+      "usage_delta": {
+        "user_cpu_seconds": 0.44554099999999996,
+        "system_cpu_seconds": 0.003026000000000001,
+        "minor_faults": 350,
+        "major_faults": 0,
+        "voluntary_context_switches": 0,
+        "involuntary_context_switches": 3,
+        "max_rss_kib": 0
+      },
+      "python_gc_delta": {
+        "count": [
+          22,
+          0,
+          0
+        ],
+        "collections": [
+          0,
+          0,
+          0
+        ],
+        "collected": [
+          0,
+          0,
+          0
+        ],
+        "uncollectable": [
+          0,
+          0,
+          0
+        ]
+      },
+      "python_tracemalloc_current_bytes": 396,
+      "python_tracemalloc_peak_bytes": 34837,
+      "temporal_windows": [
+        {
+          "tick_start": 0,
+          "tick_stop": 500,
+          "latency_p50_ns": 87946.0,
+          "latency_p99_ns": 104557.3,
+          "tracking_rms_m": 0.015005427445077237,
+          "tracking_p99_m": 0.08894351758118413
+        },
+        {
+          "tick_start": 500,
+          "tick_stop": 1000,
+          "latency_p50_ns": 88908.0,
+          "latency_p99_ns": 116751.9,
+          "tracking_rms_m": 2.071864390560133e-15,
+          "tracking_p99_m": 4.027906882180629e-15
+        },
+        {
+          "tick_start": 1000,
+          "tick_stop": 1500,
+          "latency_p50_ns": 88903.0,
+          "latency_p99_ns": 108113.03999999998,
+          "tracking_rms_m": 7.615092837356803e-15,
+          "tracking_p99_m": 1.0604954704687877e-14
+        },
+        {
+          "tick_start": 1500,
+          "tick_stop": 2000,
+          "latency_p50_ns": 88332.0,
+          "latency_p99_ns": 106817.51,
+          "tracking_rms_m": 4.397117532391961e-15,
+          "tracking_p99_m": 7.652102785846317e-15
+        },
+        {
+          "tick_start": 2000,
+          "tick_stop": 2500,
+          "latency_p50_ns": 88637.5,
+          "latency_p99_ns": 96121.5,
+          "tracking_rms_m": 3.2852033253812754e-15,
+          "tracking_p99_m": 5.9790587416074816e-15
+        },
+        {
+          "tick_start": 2500,
+          "tick_stop": 3000,
+          "latency_p50_ns": 88447.0,
+          "latency_p99_ns": 96813.6,
+          "tracking_rms_m": 3.1302720459834665e-15,
+          "tracking_p99_m": 6.525242993543902e-15
+        },
+        {
+          "tick_start": 3000,
+          "tick_stop": 3500,
+          "latency_p50_ns": 88577.5,
+          "latency_p99_ns": 95669.51999999999,
+          "tracking_rms_m": 4.685381305975794e-15,
+          "tracking_p99_m": 7.566451432814035e-15
+        },
+        {
+          "tick_start": 3500,
+          "tick_stop": 4000,
+          "latency_p50_ns": 88817.0,
+          "latency_p99_ns": 95266.20999999999,
+          "tracking_rms_m": 1.1028187024685933e-14,
+          "tracking_p99_m": 1.4097674087632201e-14
+        },
+        {
+          "tick_start": 4000,
+          "tick_stop": 4500,
+          "latency_p50_ns": 88311.5,
+          "latency_p99_ns": 100003.31,
+          "tracking_rms_m": 4.904490555710833e-15,
+          "tracking_p99_m": 1.4572775483875674e-14
+        },
+        {
+          "tick_start": 4500,
+          "tick_stop": 5000,
+          "latency_p50_ns": 88658.0,
+          "latency_p99_ns": 97394.2,
+          "tracking_rms_m": 4.647079065818142e-15,
+          "tracking_p99_m": 7.535788521932578e-15
+        }
+      ]
+    },
+    "walking_motion_retarget": {
+      "ticks": 5000,
+      "wall_ns": 326612845,
+      "cpu_ns": 326594686,
+      "thread_cpu_ns": 326583886,
+      "cpu_to_wall_ratio": 0.9999444020641626,
+      "thread_cpu_to_wall_ratio": 0.999911335391601,
+      "throughput_steps_per_second": 15308.644704405302,
+      "latency_ns": {
+        "min": 53351.0,
+        "mean": 64675.7386,
+        "stddev": 4101.386603268465,
+        "median": 65148.0,
+        "mad": 2745.5,
+        "p90": 69591.0,
+        "p95": 70543.5,
+        "p99": 75212.1,
+        "p99_9": 84940.35100000007,
+        "p99_99": 87094.5280999998,
+        "max": 87235.0
+      },
+      "jitter_abs_delta_ns": {
+        "min": 0.0,
+        "mean": 2953.5753150630126,
+        "stddev": 2703.573069577977,
+        "median": 2475.0,
+        "mad": 1753.0,
+        "p90": 7013.0,
+        "p95": 8286.0,
+        "p99": 11222.77999999998,
+        "p99_9": 16622.220000000045,
+        "p99_99": 19477.008599998717,
+        "max": 20748.0
+      },
+      "deadline_misses": {
+        "1ms": 0,
+        "5ms": 0,
+        "20ms": 0
+      },
+      "tracking_error_m": {
+        "min": 0.0006171469560365993,
+        "mean": 0.02750137453263243,
+        "stddev": 0.029707469880375027,
+        "median": 0.017902441820771487,
+        "mad": 0.009695542613689566,
+        "p90": 0.07094000817865602,
+        "p95": 0.09498408342811565,
+        "p99": 0.14536670355023718,
+        "p99_9": 0.1555222004431405,
+        "p99_99": 0.155727926715738,
+        "max": 0.15572792671631197
+      },
+      "tracking_rms_m": 0.040482828061753705,
+      "steady_state_rms_m_after_1s": 0.040617344874377063,
+      "integrated_absolute_error_m_s": 11.000549813052972,
+      "integrated_squared_error_m2_s": 0.6555437471510053,
+      "fraction_over_1cm": 0.73705,
+      "fraction_over_3cm": 0.25245,
+      "fraction_over_5cm": 0.1452,
+      "status_counts": {
+        "ok": 1212,
+        "degraded": 3788,
+        "contingency": 0,
+        "failed_or_rejected": 0
+      },
+      "memory_before": {
+        "rss_bytes": 50847744,
+        "uss_bytes": 30781440,
+        "pss_bytes": 35716096,
+        "vms_bytes": 807510016
+      },
+      "memory_after": {
+        "rss_bytes": 52281344,
+        "uss_bytes": 32215040,
+        "pss_bytes": 37149696,
+        "vms_bytes": 807510016
+      },
+      "peak_rss_bytes": 52281344,
+      "rss_delta_bytes": 1433600,
+      "usage_delta": {
+        "user_cpu_seconds": 0.32678300000000027,
+        "system_cpu_seconds": 0.003008999999999998,
+        "minor_faults": 350,
+        "major_faults": 0,
+        "voluntary_context_switches": 0,
+        "involuntary_context_switches": 0,
+        "max_rss_kib": 0
+      },
+      "python_gc_delta": {
+        "count": [
+          22,
+          0,
+          0
+        ],
+        "collections": [
+          0,
+          0,
+          0
+        ],
+        "collected": [
+          0,
+          0,
+          0
+        ],
+        "uncollectable": [
+          0,
+          0,
+          0
+        ]
+      },
+      "python_tracemalloc_current_bytes": 396,
+      "python_tracemalloc_peak_bytes": 34837,
+      "temporal_windows": [
+        {
+          "tick_start": 0,
+          "tick_stop": 500,
+          "latency_p50_ns": 64422.0,
+          "latency_p99_ns": 73381.11,
+          "tracking_rms_m": 0.03881536950991133,
+          "tracking_p99_m": 0.142422517818954
+        },
+        {
+          "tick_start": 500,
+          "tick_stop": 1000,
+          "latency_p50_ns": 65553.0,
+          "latency_p99_ns": 73253.70999999999,
+          "tracking_rms_m": 0.04075315977158412,
+          "tracking_p99_m": 0.14573374299749334
+        },
+        {
+          "tick_start": 1000,
+          "tick_stop": 1500,
+          "latency_p50_ns": 65449.0,
+          "latency_p99_ns": 72848.9,
+          "tracking_rms_m": 0.04220743941496619,
+          "tracking_p99_m": 0.14647028309282892
+        },
+        {
+          "tick_start": 1500,
+          "tick_stop": 2000,
+          "latency_p50_ns": 64672.5,
+          "latency_p99_ns": 72333.70999999999,
+          "tracking_rms_m": 0.03936957722632725,
+          "tracking_p99_m": 0.14271049589117732
+        },
+        {
+          "tick_start": 2000,
+          "tick_stop": 2500,
+          "latency_p50_ns": 65324.0,
+          "latency_p99_ns": 82046.9,
+          "tracking_rms_m": 0.040875031381284066,
+          "tracking_p99_m": 0.14573377762351092
+        },
+        {
+          "tick_start": 2500,
+          "tick_stop": 3000,
+          "latency_p50_ns": 65294.0,
+          "latency_p99_ns": 72996.73,
+          "tracking_rms_m": 0.041863277677408474,
+          "tracking_p99_m": 0.14753290031047625
+        },
+        {
+          "tick_start": 3000,
+          "tick_stop": 3500,
+          "latency_p50_ns": 64552.0,
+          "latency_p99_ns": 72656.31999999999,
+          "tracking_rms_m": 0.03859408801947065,
+          "tracking_p99_m": 0.1418701009768476
+        },
+        {
+          "tick_start": 3500,
+          "tick_stop": 4000,
+          "latency_p50_ns": 64913.0,
+          "latency_p99_ns": 79761.33999999998,
+          "tracking_rms_m": 0.03997337650439594,
+          "tracking_p99_m": 0.14366376844147732
+        },
+        {
+          "tick_start": 4000,
+          "tick_stop": 4500,
+          "latency_p50_ns": 65273.5,
+          "latency_p99_ns": 81706.24999999999,
+          "tracking_rms_m": 0.04283989632930378,
+          "tracking_p99_m": 0.14838961642841766
+        },
+        {
+          "tick_start": 4500,
+          "tick_stop": 5000,
+          "latency_p50_ns": 64927.5,
+          "latency_p99_ns": 73840.3,
+          "tracking_rms_m": 0.0392909124255091,
+          "tracking_p99_m": 0.14187010097589184
+        }
+      ],
+      "walking_retarget": {
+        "foot_tracking_rms_m": 0.05548547171409974,
+        "hand_tracking_rms_m": 0.014109612482944497,
+        "stance_foot_tracking_rms_m": 0.058193862815473084,
+        "swing_foot_tracking_rms_m": 0.05057866633730856,
+        "swing_clearance_error_rms_m": 0.021780452775007998,
+        "minimum_swing_clearance_m": 0.00013813606893697816,
+        "maximum_swing_clearance_m": 0.108577361245902,
+        "reference_maximum_swing_clearance_m": 0.10731704757222615,
+        "double_support_fraction": 0.2566,
+        "flight_fraction": 0.0,
+        "contact_transition_count": 606,
+        "contact_transition_target_step_p99_m": 0.05757018774644731,
+        "contact_transition_tracked_step_p99_m": 0.06592544194930523,
+        "cadence": {
+          "0.75x": {
+            "ticks": 1400,
+            "tracking_rms_m": 0.038572838762159875,
+            "foot_tracking_rms_m": 0.05276468627799488,
+            "hand_tracking_rms_m": 0.013842530922051248
+          },
+          "1.00x": {
+            "ticks": 2400,
+            "tracking_rms_m": 0.04060655344538605,
+            "foot_tracking_rms_m": 0.05566262029207362,
+            "hand_tracking_rms_m": 0.01412292702120995
+          },
+          "1.25x": {
+            "ticks": 1200,
+            "tracking_rms_m": 0.04236691077791097,
+            "foot_tracking_rms_m": 0.058162454791074535,
+            "hand_tracking_rms_m": 0.014388853686209676
+          }
+        },
+        "per_effector": {
+          "left_foot": {
+            "tracking_rms_m": 0.04485738565384847,
+            "tracking_p95_m": 0.08661808036911946,
+            "tracking_max_m": 0.09810467554300173,
+            "reference_axis_range_m": [
+              0.6752699958368065,
+              0.33206311624783835,
+              0.10731704757222615
+            ],
+            "achieved_axis_range_m": [
+              0.6536315435128192,
+              0.287242216376799,
+              0.10744442583251046
+            ]
+          },
+          "right_foot": {
+            "tracking_rms_m": 0.06438237410172318,
+            "tracking_p95_m": 0.14197713702850723,
+            "tracking_max_m": 0.15572792671631197,
+            "reference_axis_range_m": [
+              0.7127910695312163,
+              0.25857978537221155,
+              0.10394492026177127
+            ],
+            "achieved_axis_range_m": [
+              0.6312813125666594,
+              0.22975723459438638,
+              0.10810275825062399
+            ]
+          },
+          "left_hand": {
+            "tracking_rms_m": 0.016461068379125234,
+            "tracking_p95_m": 0.027144054520033975,
+            "tracking_max_m": 0.02802607633625476,
+            "reference_axis_range_m": [
+              0.07266093093783896,
+              0.03067062631766579,
+              0.030498370551959184
+            ],
+            "achieved_axis_range_m": [
+              0.06977156402284412,
+              0.06506393283823786,
+              0.01853239366968551
+            ]
+          },
+          "right_hand": {
+            "tracking_rms_m": 0.011278100755689746,
+            "tracking_p95_m": 0.019320114363971654,
+            "tracking_max_m": 0.020282706533739647,
+            "reference_axis_range_m": [
+              0.04194010190140844,
+              0.026497420817503836,
+              0.017971677621035576
+            ],
+            "achieved_axis_range_m": [
+              0.03741269409862612,
+              0.032853938445427056,
+              0.00952041632827444
+            ]
+          }
+        },
+        "acceptance": {
+          "passed": false,
+          "checks": {
+            "foot_tracking_rms_le_5cm": false,
+            "hand_tracking_rms_le_3cm": true,
+            "stance_foot_tracking_rms_le_6cm": true,
+            "swing_foot_tracking_rms_le_6cm": true,
+            "swing_clearance_error_rms_le_3cm": true,
+            "minimum_swing_clearance_ge_minus_1cm": true,
+            "each_cadence_foot_tracking_rms_le_6cm": true,
+            "no_contingency_or_rejected_ticks": true
+          },
+          "thresholds": {
+            "foot_tracking_rms_m": 0.05,
+            "hand_tracking_rms_m": 0.03,
+            "stance_foot_tracking_rms_m": 0.06,
+            "swing_foot_tracking_rms_m": 0.06,
+            "swing_clearance_error_rms_m": 0.03,
+            "minimum_swing_clearance_m": -0.01,
+            "per_cadence_foot_tracking_rms_m": 0.06
+          }
+        }
+      }
+    }
+  }
+}

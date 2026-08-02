@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw discarded-column Jacobi pair A/B · r60</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw discarded-column Jacobi pair A/B · r60</h1>
+<h2>Decision · REJECT</h2>
+<p>Skipping coupling dots for cached columns already below the discarded-energy floor is mathematically and bitwise neutral, but it costs 92,433 additional retired instructions per native sentinel tick (+0.420%). Production therefore keeps the original unconditional coupling dot and does not ship the extra pair-level branch.</p>
+<blockquote>Cycle and latency medians are retained but do not overrule retired instructions: the two sequential trial blocks experience different frequency/contention, while instruction counts have sub-part-per-million within-variant spans.</blockquote>
+<h2>Native five-run A/B</h2>
+<div class=table-wrap><table><thead><tr><th>variant</th><th>instructions/tick M</th><th>cycles/tick M</th><th>task-clock/tick ms</th><th>p50 / p99 / max µs</th></tr></thead><tbody><tr><td>production control</td><td>21.991005</td><td>5.886</td><td>1.434</td><td>1410.215 / 1758.324 / 2070.944</td></tr><tr><td>skip experiment</td><td>22.083438</td><td>5.845</td><td>1.436</td><td>1421.878 / 1755.498 / 2247.658</td></tr></tbody></table></div>
+<h2>Why the apparently obvious skip loses</h2>
+<p>The cached energy comparison is executed for every Jacobi column pair. On this admitted G1 sentinel, columns below the discard floor are too sparse to amortize the added branch; most pairs still require the coupling dot. The experiment changes no consumed arithmetic after the rejected check, which is why all semantic outputs remain identical even as instruction work increases.</p>
+<h2>Behavioral preservation</h2>
+<ul><li>Native control and experiment semantic reports are exactly equal across status, residual, margin, tracking, extrema, bitwise-repeat, and allocation fields.</li><li>The restored production default passes the r54 four-step oracle 43/43 and keeps all 56 non-timing NPZ arrays byte-exact against the admitted baseline.</li><li>The experimental path remains available only behind `bonesaw-core/jacobi-discarded-pair-experiment` for reproduction; it is disabled by default.</li><li>No iteration cap, tolerance change, clock exit, task reprioritization, or feasibility relaxation is accepted.</li></ul>
+<h2>Artifact integrity</h2>
+<div class=table-wrap><table><thead><tr><th>artifact</th><th>SHA-256</th></tr></thead><tbody><tr><td>benchmarks/results/g1-jacobi-discarded-r60/control/native-wbc-counter-metrics.json</td><td>f728bd5b9a9e08fe37e4b252382d3d9c6b8257eaae6fdf972dd2b0bfcea2cea2</td></tr><tr><td>benchmarks/results/g1-jacobi-discarded-r60/experiment/native-wbc-counter-metrics.json</td><td>9c329439f54423aa8332106e22c27cde225e9caf8255daed57bccb01dac3ccf6</td></tr><tr><td>benchmarks/results/g1-multistep-oracle-r54/oracle-wbc-admission-raw.npz</td><td>f1521acd7a0cc777f61407e49865f5953355d4382035421fb2582f2fa0164295</td></tr><tr><td>benchmarks/results/g1-jacobi-discarded-r60/r54-default/oracle-wbc-admission-raw.npz</td><td>9af615c529a374c042ecabe6f0f135052c1db60a0380f8f542eee4d85d21149b</td></tr></tbody></table></div></main></body></html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw G1 kinetic impulse ellipsoid holdout · r214</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw G1 kinetic impulse ellipsoid holdout · r214</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED** · controller/policy steps **0**.</blockquote>
+<h2>Contract</h2>
+<ul><li>Rust bounds a zero-centered generalized impulse set `pᵀM⁻¹p ≤ E₂` directly in the kinetic metric. Exact component support is `sqrt(E₂ (M⁻¹)ᵢᵢ)`, avoiding the coordinate box&#x27;s sum of every absolute coupled inverse-mass column.</li><li>Before either fresh law ran, `E₂` was frozen analytically as `f² m (gΔt)²` with f=0.50. Its pure-translation speed scale is 0.02453 m/s. No R212 residual or quantile determines it.</li><li>The fresh state sequences begin at offsets 10,000 and 20,000. Contact formulations are medium/pyramidal/implicit and hard/pyramidal/Euler, distinct from both R212 laws. Every sample resets; completed contact impulse remains an evaluation-only oracle label.</li></ul>
+<h2>Fresh result</h2>
+<div class=table-wrap><table><thead><tr><th>contact law</th><th>samples</th><th>sample coverage</th><th>component coverage</th><th>root ω width p95</th><th>root v width p95</th><th>joint width p95</th><th>missed samples</th><th>zero alloc</th><th>profile</th></tr></thead><tbody><tr><td>medium_pyramidal_implicit</td><td>48</td><td>100.000%</td><td>100.0000%</td><td>1.092</td><td>0.075</td><td>19.966</td><td>0</td><td>yes</td><td>REJECT</td></tr><tr><td>hard_pyramidal_euler</td><td>48</td><td>97.917%</td><td>99.9282%</td><td>1.092</td><td>0.075</td><td>19.966</td><td>1</td><td>yes</td><td>REJECT</td></tr></tbody></table></div>
+<p>The hard-law miss is state index 20,020 at `left_ankle_roll_joint`; its realized 16.164 rad/s residual exceeds the 7.659 rad/s ellipsoid half-width. A different state (20,005) has no within-window contact and remains covered, so the miss is not an empty-label artifact.</p>
+<h2>Decision</h2>
+<p>The kinetic ellipsoid removes the coordinate box&#x27;s catastrophic width amplification, but the single analytic energy radius does not satisfy strict coverage and useful width together on both fresh laws. The primitive is retained; the profile is rejected without tuning from missed holdout samples. The next construction must separate causal contact phase/load/slip or root and articulated energy budgets.</p></main></body></html>

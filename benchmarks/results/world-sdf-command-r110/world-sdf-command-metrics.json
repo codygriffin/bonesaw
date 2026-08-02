@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "revision": "world-sdf-command-r110",
+  "generated_utc": "2026-08-01T17:27:33.082322+00:00",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "artifacts": {
+    "models/collision_sweep_toy.urdf": "e979a7f091d7cb54260e26e613ae7306338b85b359671c5e95ecf588889ad950",
+    "crates/bonesaw-core/src/world_collision.rs": "829231b2b7f633c50436fe08ebafcf2d381743acd16062d4cb04798401c262a1",
+    "crates/bonesaw-core/src/dynamic_controller.rs": "fb78ea00a52f50a94b6ad2804e159044ce4d1c85d5b3d9bb38fd96b6b0ee3da9",
+    "crates/bonesaw-py/src/lib.rs": "1c33b8706027d34fb5026880ae5f75b8661641febef0dac563c93f897f5f463d",
+    "/home/codygriffin/Documents/bonepilot/python/evals/world_sdf_command_report.py": "d6a4238d2193b2b866f1546e0394cd87ecbe2dafc586a1ed2816b227900bbb20"
+  },
+  "audit": {
+    "status": "pass",
+    "scope": "policy-free, physics-free, integrator-free WBC command transactions",
+    "model": "models/collision_sweep_toy.urdf",
+    "grid_dimensions_xyz": [
+      21,
+      21,
+      21
+    ],
+    "grid_spacing_m": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "wall_x_m": 0.2,
+    "clearance_m": 0.02,
+    "corpus": {
+      "case_count": 321,
+      "maximum_sampled_distance_oracle_error_m": 2.7755575615628914e-16,
+      "maximum_violation_time_oracle_error_ns": 0,
+      "maximum_continuity_lower_bound_oracle_error_m": 2.7755575615628914e-16,
+      "maximum_rate_bound_oracle_error_mps": 3.1086244689504383e-15,
+      "minimum_dense_truth_minus_certificate_m": 5.551115123125783e-17,
+      "sampled_collision_counts": {
+        "primary": 3,
+        "contingency": 1
+      },
+      "continuous_only_failure_counts": {
+        "primary": 1,
+        "contingency": 0
+      },
+      "certified_counts": {
+        "primary": 317,
+        "contingency": 320
+      },
+      "selections": {
+        "primary": 317,
+        "contingency": 3,
+        "rejected": 1
+      },
+      "status_codes": [
+        0,
+        2,
+        3
+      ],
+      "solve_status_codes": [
+        0
+      ],
+      "flags_union": 14336,
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0
+    },
+    "adaptive_refinement": {
+      "q": -0.55,
+      "v": -0.9,
+      "desired_joint_acceleration_mps2": -60.0,
+      "grid_only_lower_bound_m": 0.019285084103450506,
+      "adaptive_lower_bound_m": 0.02006061681404156,
+      "dense_minimum_m": 0.020319127717571994,
+      "dense_truth_minus_adaptive_certificate_m": 0.0002585109035304345,
+      "primary_leaf_intervals": 22,
+      "primary_midpoint_samples": 2,
+      "primary_unresolved_intervals": 0,
+      "primary_maximum_depth": 2,
+      "grid_selection": 1,
+      "adaptive_selection": 0,
+      "adaptive_allocation_calls": 0,
+      "adaptive_allocated_bytes": 0
+    },
+    "boundary_policy": {
+      "reject": {
+        "primary_unknown_probe": 1,
+        "primary_unknown_time_ns": 15000000,
+        "contingency_unknown_probe": 18446744073709551615,
+        "selection": 1,
+        "primary_valid": false,
+        "contingency_valid": true,
+        "flags": 32768
+      },
+      "occupied": {
+        "primary_source": 1,
+        "primary_violation_probe": 1,
+        "primary_violation_time_ns": 0,
+        "selection": 2,
+        "primary_valid": false,
+        "contingency_valid": false,
+        "flags": 6144
+      }
+    },
+    "benchmark": {
+      "timing_us": {
+        "minimum": 15.540000000000001,
+        "mean": 16.0921475,
+        "stddev": 1.1159062271283147,
+        "mad": 0.054499999999999105,
+        "p50": 15.8545,
+        "p95": 16.953500000000002,
+        "p99": 22.003189999999996,
+        "p99_9": 24.387634000000332,
+        "maximum": 30.287
+      },
+      "maximum_allocation_calls": 0,
+      "maximum_allocated_bytes": 0,
+      "semantic_replay_exact": true,
+      "semantic_digest": "1f41d9a51cdcfaca90b98745c19ba8be6f16f4ae73bdb85edc5009365c3f10fb"
+    }
+  }
+}

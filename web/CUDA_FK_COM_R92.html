@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw CUDA FK + center of mass · r92</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw CUDA FK + center of mass · r92</h1>
+<h2>Outcome</h2>
+<p>**SOURCE + CPU WITNESS PASS; COMPILER/DEVICE UNAVAILABLE.** R92 adds the first generic model-product device boundary after R91 StateInput: a packed immutable tree ABI, NVRTC-loaded CUDA source, a fixed-buffer Driver API executor, ordered StateInput→FK/CoM launches, and one complete agent per CUDA thread. The hot Rust call owns no allocation and never falls back to the CPU.</p>
+<p>This is deliberately a **StateInput + ForwardKinematics + CenterOfMass** implementation claim. Jacobians, dynamics, point products, row emission, hierarchy, actuation, integration, CUDA Graph capture, and `CudaThroughputF32` remain unavailable on device.</p>
+<h2>Independent authority levels</h2>
+<div class=table-wrap><table><thead><tr><th>authority level</th><th>result</th><th>meaning</th></tr></thead><tbody><tr><td>source / ABI</td><td>PASS</td><td>entry point, ownership, no atomic/allocation/barrier policy</td></tr><tr><td>CPU mirror witness</td><td>PASS</td><td>semantic and deterministic reference only</td></tr><tr><td>NVRTC compiler</td><td>LIBRARY_UNAVAILABLE</td><td>NVRTC library is unavailable</td></tr><tr><td>CUDA runtime</td><td>NO_DEVICE</td><td>0 visible device(s)</td></tr><tr><td>device D1/D2</td><td>NOT RUN</td><td>never inherited from CPU or source checks</td></tr><tr><td>full CudaMirrorF32 / Graph</td><td>False / False</td><td>later stages remain gated</td></tr></tbody></table></div>
+<p>These rows are intentionally not collapsed into one backend-health boolean. A source implementation can exist while its host compiler or device evidence is unavailable.</p>
+<h2>Compiled boundary</h2>
+<div class=table-wrap><table><thead><tr><th>signal</th><th>value</th></tr></thead><tbody><tr><td>stage manifest bits</td><td>7</td></tr><tr><td>CUDA source SHA-256</td><td>35df5864625436d33350cbd382daa5215a550c979e74cd417b2cab6ab4e72532</td></tr><tr><td>packed model SHA-256</td><td>685662c9f66ae34a5de3c07325204842fb19fc5215e58b06d501f88da1f593f5</td></tr><tr><td>NVRTC target</td><td>7.5</td></tr><tr><td>NVRTC toolkit</td><td>None</td></tr><tr><td>generated PTX bytes</td><td>None</td></tr><tr><td>layout</td><td>20 joints · 21 bodies · 18 coordinates · capacity 17 · stride 32</td></tr><tr><td>hidden CPU fallback</td><td>False</td></tr></tbody></table></div>
+<p>The packed model uses joint AoS constants because all warp lanes read the same joint record, while state and output remain agent-minor SoA. Each thread walks the same topologically compiled tree, writes all body poses, and performs its own mass-weighted CoM reduction. There are no atomics or cross-agent reductions.</p>
+<h2>CPU mirror witness</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>200-call complete-output bitwise repeat</td><td>True</td></tr><tr><td>active agents typed OK</td><td>True</td></tr><tr><td>malformed agent typed invalid</td><td>True</td></tr><tr><td>malformed neighbor isolation exact</td><td>True</td></tr><tr><td>padding inactive and zero</td><td>True</td></tr><tr><td>allocation-free hot-path Rust unit gate</td><td>True</td></tr></tbody></table></div>
+<p>NVRTC compilation and device D1/D2, launch, timing, isolation, and memory gates are **NOT RUN**. The report does not substitute CPU execution or call the FK/CoM stage device-certified.</p>
+<h2>Admission boundary</h2>
+<p>R92 promotes `cuda_mirror_fk_com_f32` only as an implemented stage capability; it does not promote the full CUDA backend. This host reports NVRTC `library_unavailable` and runtime `no_device`. A CUDA CI host must retain the source/model/toolkit/driver/GPU fingerprint and pass D1 repeated bytes, D2 CPU-mirror tolerance, invalid-neighbor canaries, permutation/padding/chunking, memory scaling, direct-launch timing, error injection, and direct-versus-Graph equivalence before device admission.</p></main></body></html>
