@@ -43,8 +43,8 @@ material point (including `ω × r`), keeps centre-minus-radius gap geometry,
 and evaluates contact `aref` from the current collision-boundary gap. R246 is
 the untouched confirmation on two new pyramidal laws and offsets
 230,000/240,000. Both rows cover 48/48 with exact active sets: implicitfast
-fits 0.059 / 0.007 / 4.949 angular / linear / joint width at 0.861 ms p99;
-RK4 fits 0.065 / 0.010 / 2.239 at 3.415 ms. Both allocate zero timed Rust
+fits 0.059 / 0.007 / 4.949 angular / linear / joint width at 0.871 ms p99;
+RK4 fits 0.065 / 0.010 / 2.239 at 3.399 ms. Both allocate zero timed Rust
 bytes, repeat bitwise, meet five milliseconds, and reproduce all 62 semantic
 arrays in an independent process. The physical-transition evaluator profile
 is promoted; no R224 selection, plant action, or authority follows yet.

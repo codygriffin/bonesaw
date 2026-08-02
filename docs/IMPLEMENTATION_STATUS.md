@@ -157,7 +157,7 @@ updates remain caller-owned and allocation-free.
 R246 generates two new pyramidal laws at disjoint offsets 230,000/240,000 only
 after that freeze. Both implicitfast/id-0 and RK4/id-4 rows cover 48/48 with
 exact active sets. Widths are 0.059/0.007/4.949 and 0.065/0.010/2.239
-angular/linear/joint; p99 is 0.861/3.415 ms. Both repeat bitwise, allocate zero
+angular/linear/joint; p99 is 0.871/3.399 ms. Both repeat bitwise, allocate zero
 timed Rust bytes, meet five milliseconds, and reproduce all 62 semantic arrays
 in an independent process. The evaluator profile is promoted. R224-bounded
 plant action, non-regression, and authority remain closed.

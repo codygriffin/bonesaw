@@ -3,7 +3,7 @@
   "revision": "surface-material-cross-integrator-holdout-r246",
   "updated": "2026-08-02",
   "stage": "The CPU physical-transition evaluator now transfers strictly across implicitfast and RK4 pyramidal contact laws; R224-bounded plant action, non-regression, and authority remain closed · r246/r245",
-  "checkpoint": "R245 closes the cross-profile loophole by forcing edge-coordinate cone ABI 2 for both integrators and freezing work from causal refinement only: ABI 0 selects 64 sweeps and ABI 4 selects 32. Rust separates sphere gap and friction kinematics: centre-minus-radius owns collision distance, the instantaneous surface material point supplies ω×r tangent motion, and contact aref uses the current collision-boundary gap. R246 then generates two new pyramidal laws at offsets 230,000/240,000. Both cover 48/48 with exact active sets. Implicitfast fits 0.059/0.007/4.949 angular/linear/joint width at 0.861 ms p99; RK4 fits 0.065/0.010/2.239 at 3.415 ms. Both are bitwise repeatable, zero-allocation, below five milliseconds, and all 62 semantic arrays reproduce in an independent process. The evaluator profile is promoted; no selector, plant action, or authority follows yet.",
+  "checkpoint": "R245 closes the cross-profile loophole by forcing edge-coordinate cone ABI 2 for both integrators and freezing work from causal refinement only: ABI 0 selects 64 sweeps and ABI 4 selects 32. Rust separates sphere gap and friction kinematics: centre-minus-radius owns collision distance, the instantaneous surface material point supplies ω×r tangent motion, and contact aref uses the current collision-boundary gap. R246 then generates two new pyramidal laws at offsets 230,000/240,000. Both cover 48/48 with exact active sets. Implicitfast fits 0.059/0.007/4.949 angular/linear/joint width at 0.871 ms p99; RK4 fits 0.065/0.010/2.239 at 3.399 ms. Both are bitwise repeatable, zero-allocation, below five milliseconds, and all 62 semantic arrays reproduce in an independent process. The evaluator profile is promoted; no selector, plant action, or authority follows yet.",
   "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns current-stage-force RK4 ABI 4, current-boundary non-RK ABI 0, and evaluator-only pyramid-edge cone ABI 2 with fixed caller-owned scratch and incremental D·λ updates. Historical ABIs and failed R242/R244 evidence remain unchanged. Python owns causal profile selection, fresh MuJoCo labels, scoring, and replay; R246 promotes only the physical-transition evaluator. The next CPU gate is an R224-bounded state/trajectory-conditioned action with strict plant non-regression, followed by the ordinary-process 200 Hz deadline audit. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
@@ -97,13 +97,13 @@
     {
       "status": "promoted",
       "title": "Fresh surface-material holdout promotes the physical-transition evaluator",
-      "detail": "R246 generates two new pyramidal laws at disjoint offsets 230,000/240,000 after R245 freezes 64 ABI-0 and 32 ABI-4 sweeps. Both cone-ABI-2 rows cover 48/48 with exact active sets. Implicitfast fits 0.059/0.007/4.949 width at 0.861 ms p99; RK4 fits 0.065/0.010/2.239 at 3.415 ms. Both repeat bitwise, allocate zero timed Rust bytes, meet five milliseconds, and reproduce all 62 semantic arrays independently. Plant action and authority remain disabled.",
+      "detail": "R246 generates two new pyramidal laws at disjoint offsets 230,000/240,000 after R245 freezes 64 ABI-0 and 32 ABI-4 sweeps. Both cone-ABI-2 rows cover 48/48 with exact active sets. Implicitfast fits 0.059/0.007/4.949 width at 0.871 ms p99; RK4 fits 0.065/0.010/2.239 at 3.399 ms. Both repeat bitwise, allocate zero timed Rust bytes, meet five milliseconds, and reproduce all 62 semantic arrays independently. Plant action and authority remain disabled.",
       "evidence": "/G1_SURFACE_MATERIAL_CROSS_INTEGRATOR_HOLDOUT_R246.html"
     },
     {
       "status": "frozen",
       "title": "Per-integrator pyramid-edge work freezes before fresh labels",
-      "detail": "R245 corrects R243's cross-profile gap by forcing cone ABI 2 for both integrators and freezing each independently on causal R241 states. ABI 0 selects 64 sweeps at 1.033% refinement and 1.145 ms p99; ABI 4 selects 32 sweeps at 1.780% and 4.814 ms. No completed labels are opened for selection; these settings feed R246.",
+      "detail": "R245 corrects R243's cross-profile gap by forcing cone ABI 2 for both integrators and freezing each independently on causal R241 states. ABI 0 selects 64 sweeps at 1.033% refinement and 1.188 ms p99; ABI 4 selects 32 sweeps at 1.780% and 3.826 ms. No completed labels are opened for selection; these settings feed R246.",
       "evidence": "/G1_PYRAMID_EDGE_CROSS_PROFILE_AUDIT_R245.html"
     },
     {

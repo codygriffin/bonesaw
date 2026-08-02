@@ -2532,8 +2532,8 @@ gap, while the instantaneous surface material point includes `ω × r`; contact
 
 R246 is the untouched confirmation on two new pyramidal laws and offsets
 230,000/240,000. Both rows cover 48/48 with exact active sets. Implicitfast
-needs 0.059/0.007/4.949 angular/linear/joint width at 0.861 ms p99; RK4 needs
-0.065/0.010/2.239 at 3.415 ms. Both meet the five-millisecond,
+needs 0.059/0.007/4.949 angular/linear/joint width at 0.871 ms p99; RK4 needs
+0.065/0.010/2.239 at 3.399 ms. Both meet the five-millisecond,
 zero-allocation, bitwise-repeat, and strict component gates; an independent
 process reproduces all 62 semantic arrays. The evaluator profile is promoted,
 but plant action and authority remain disabled. See the [r245 per-integrator profile audit](benchmarks/results/g1-pyramid-edge-cross-profile-audit-r245/G1_PYRAMID_EDGE_CROSS_PROFILE_AUDIT.md) and [r246 fresh surface-material holdout](benchmarks/results/g1-surface-material-cross-integrator-holdout-r246/G1_SURFACE_MATERIAL_CROSS_INTEGRATOR_HOLDOUT.md).
