@@ -18,6 +18,20 @@ controller solve time. Draw p95 must remain below 16.7 ms on a 60 Hz display.
 This gate is **NOT RUN** in the current CLI session because no in-app browser
 target is available. Transport or controller timing cannot substitute for it.
 
+## Open behavior gate: floating walking/contact transfer
+
+R260 consolidates the pinned WBC behavior evidence into one Python manifest. The
+fixed-base end-effector reach and bimanual-priority rows are retained alongside
+the CMU subject 37/01 walking retarget, the measured-feedback floating
+moving-liftoff prefix, the 600-tick floating support-transfer stress trace, and
+the Upkie C++ WheelBalancer oracle. The moving-liftoff prefix and Upkie parity
+pass; the walking row remains red at 5.549 cm foot RMS, and the full transfer
+remains red with contingency/deadline/residual growth after the contact-mode
+change. These are behavior/evaluation failures, not reset or authority
+decisions. The next WBC slice is a causal support-transition/contact-mode
+improvement with the same 250 Hz MuJoCo / 50 Hz measured-feedback contract.
+See the [r260 WBC benchmark manifest](benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md).
+
 ## Open CPU authority gate: useful physical transition tube
 
 The RK4 stage-force and implicitfast-integrator conflation complaints are now

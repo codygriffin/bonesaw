@@ -338,7 +338,21 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r259 completes state composition but rejects the profile
+## Current evaluation checkpoint — r260 consolidates WBC behavior evidence
+
+R260 adds one pinned Python manifest over the existing end-effector reach,
+bimanual priority conflict, CMU 37/01 walking retarget, measured-feedback
+floating moving-liftoff, 600-tick floating support-transfer stress, and Upkie
+C++ WheelBalancer artifacts. It retains tracking RMS, p50/p99/p99.9 latency,
+jitter, deadline misses, process memory/CPU/GC, solver work, contact/dynamics
+residuals, status transitions, and ten execution-time windows. Fixed-base
+reach/conflict, the moving-liftoff prefix, and Upkie canonical parity pass;
+walking remains red at 5.549 cm foot RMS and full transfer remains red after
+contact-mode change with contingency, deadline, and residual growth. This is
+evaluation evidence only and admits no policy, plant action, or authority.
+See [`WBC_BENCHMARK_MANIFEST.md`](../benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md).
+
+## Prior CPU checkpoint — r259 completes state composition but rejects the profile
 
 R259 consumes the immutable R258 terminal-state corpus and fits baseline plus
 candidate-minus-baseline residual boxes over complete terminal root

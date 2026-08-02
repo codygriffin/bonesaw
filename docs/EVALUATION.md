@@ -922,6 +922,22 @@ Artifacts live in
 Future variants add model-aware support viability, morphology sweeps,
 missing-hand channels, and a second independently licensed clip.
 
+### Revision r260 behavior manifest
+
+`scripts/run-wbc-benchmark-manifest-r260.sh` composes the pinned fixed-base,
+floating, and Upkie artifacts into
+`benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md`.
+It is intentionally artifact-only: no policy or plant is rerun while building
+the manifest, and no authority is inferred. The matrix keeps end-effector
+reach, bimanual priority conflict, CMU walking retargeting, measured-feedback
+moving liftoff, full support-transfer stress, and the upstream Upkie law
+together with RMS tracking, p50/p99/p99.9 latency, jitter, deadline misses,
+process resources/GC, solver work, contact/dynamics residuals, status
+transitions, and ten execution windows. Reach/conflict, moving liftoff, and
+Upkie canonical parity pass; fixed-base walking remains red at 5.549 cm foot
+RMS and full transfer remains red after contact-mode change. The red rows are
+kept as behavior gates rather than omitted or reset.
+
 ### 4. Deterministic replay
 
 The same initial state, targets, tick bytes, program, and CPU backend are

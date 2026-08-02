@@ -2435,15 +2435,26 @@ tube width/profile is not frozen and authority stays closed. See the [r256
 paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
 and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
+R260 consolidates the behavior-level WBC evidence into one pinned Python
+manifest. It keeps end-effector reach, bimanual priority conflict, CMU 37/01
+walking retargeting, measured-feedback floating moving liftoff, the 600-tick
+floating support-transfer stress case, and the Upkie C++ WheelBalancer oracle
+in one matrix with tracking RMS, p50/p99/p99.9 latency, jitter, deadline,
+memory/CPU, solver-work, contact/residual, and ten-window drift evidence. The
+fixed-base reach/conflict, moving-liftoff prefix, and Upkie parity pass; the
+walking row remains red at 5.549 cm foot RMS and full transfer remains red
+after contact-mode change with contingency/deadline/residual growth. This is
+behavior evidence only: no policy, plant action, or authority is admitted. See
+the [r260 WBC benchmark manifest](benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md).
+
 R259 completes the state-aware paired composition on the immutable R258 corpus.
 It fits baseline and candidate-minus-baseline residual boxes over terminal
 attitude/angular rate, joint position, and joint velocity while preserving the
 shared-baseline correlation in Rust. With zero policy, physics, and plant
 actions, source component and aggregate coverage reach 100%; the exact,
-allocation-free paired query records 0.409 ms p99. The profile is rejected,
-however: the smallest nonzero worst-component and aggregate uppers are still
-18.486 and 9.451, all 96 rows select the exact-zero baseline, and the unchanged spent
-R254 rehearsal reaches 98.553%/97.917% component/aggregate coverage with zero
+allocation-free paired query records 0.415 ms p99. The profile is rejected:
+all 96 rows select the exact-zero baseline, and the unchanged spent R254
+rehearsal reaches 98.553%/97.917% component/aggregate coverage with zero
 nonzero selections. No profile, holdout, or authority follows. See the [r259
 complete terminal-state tube](benchmarks/results/g1-terminal-state-tube-freeze-r259/G1_TERMINAL_STATE_TUBE_FREEZE.md).
 
@@ -2455,8 +2466,7 @@ extraction runs 480 historical WBC queries and 1,440 MuJoCo steps with zero
 warnings; an independent allocation-free Rust state rescore reproduces all
 4,896 terminal diagnostics exactly (recorded p99 0.524 ms). This is corpus
 extraction only: no policy, plant action, profile, or authority is admitted.
-R259 must fit the causal paired tube from these immutable states and prove a
-useful nonzero profile before any new-law holdout. See the [r258 spent
+R259's complete-state fit is recorded above and remains non-authoritative. See the [r258 spent
 terminal-state corpus](benchmarks/results/g1-spent-terminal-state-corpus-r258/G1_SPENT_TERMINAL_STATE_CORPUS.md).
 
 R257 tries to freeze a useful paired state profile without a policy or physics

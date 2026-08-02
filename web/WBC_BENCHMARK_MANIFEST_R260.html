@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw WBC benchmark manifest · r260</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw WBC benchmark manifest · r260</h1>
+<blockquote>This report composes pinned Python evaluation artifacts; it does not rerun policy or plant code and admits no authority.</blockquote>
+<h2>Coverage matrix</h2>
+<div class=table-wrap><table><thead><tr><th>Boundary</th><th>Evidence</th><th>Result</th></tr></thead><tbody><tr><td>End-effector reach</td><td>fixed-base Bonesaw vs PlaCo, 5,000 ticks</td><td>recorded</td></tr><tr><td>Bimanual priority conflict</td><td>shared target with strict-vs-soft reference</td><td>recorded</td></tr><tr><td>Walking retarget</td><td>CMU subject 37/01, three cadences</td><td>FAIL (retained red gate)</td></tr><tr><td>Floating moving liftoff</td><td>measured q/v, contact transition, 250/50 Hz contract</td><td>PASS</td></tr><tr><td>Floating full transfer</td><td>same contract through support transfer</td><td>FAIL (retained stress case)</td></tr><tr><td>Upkie WheelBalancer</td><td>pinned upstream C++ parity and resource profile</td><td>PASS</td></tr></tbody></table></div>
+<h2>Fixed-base tracking and timing</h2>
+<div class=table-wrap><table><thead><tr><th>Scenario</th><th>Bonesaw RMS</th><th>PlaCo RMS</th><th>Bonesaw p99</th><th>PlaCo p99</th></tr></thead><tbody><tr><td>end_effector_reach</td><td>0.630 cm</td><td>0.809 cm</td><td>40.5 µs</td><td>108.1 µs</td></tr><tr><td>bimanual_priority_conflict</td><td>0.475 cm</td><td>0.365 cm</td><td>83.4 µs</td><td>118.4 µs</td></tr><tr><td>walking_motion_retarget</td><td>4.048 cm</td><td>2.634 cm</td><td>67.1 µs</td><td>143.0 µs</td></tr></tbody></table></div>
+<p>The fixed-base reach and conflict rows are useful end-effector and priority-regression sentinels. Walking remains a deliberate red behavior row: Bonesaw&#x27;s recorded overall foot RMS is 5.549 cm against the 5 cm gate, while the independent PlaCo row misses swing-clearance RMS at 3.301 cm. Neither failure is hidden by the faster Rust path.</p>
+<h2>Floating measured-feedback behavior</h2>
+<div class=table-wrap><table><thead><tr><th>Profile</th><th>Ticks</th><th>Nominal prefix</th><th>Full p99</th><th>Full dynamics residual</th><th>Full acceptance</th></tr></thead><tbody><tr><td>moving_liftoff</td><td>260</td><td>260</td><td>3738.0 µs</td><td>1.22e-09</td><td>PASS</td></tr><tr><td>full_transfer_stress</td><td>600</td><td>351</td><td>276773.8 µs</td><td>304</td><td>FAIL</td></tr></tbody></table></div>
+<p>The moving-liftoff prefix passes the existing behavior and 5 ms p99 gate. The 600-tick transfer stress remains red: the measured-feedback path records contact contingency, infeasible timing/residual windows, and a 281-tick 20 ms deadline miss. This is the highest-value WBC behavior gap and is retained as a required contact-mode/retargeting improvement, not converted into a reset or authority decision.</p>
+<h2>Upkie reference</h2>
+<p>The official aligned law is canonical-bitwise equal with 0 mismatches; Bonesaw p50/p99 is 0.030/0.031 µs against upstream 1.393/2.385 µs. The measured Rust hot loop reports zero allocation calls and bytes. Ten temporal windows are retained for drift/jitter inspection.</p>
+<p>No row in this manifest authorizes a plant command. The next behavior checkpoint should improve the floating support-transition path, then rerun the same immutable metric schema with over-time windows, contact/CoP/friction margins, actuator/resource health, and reference parity intact.</p></main></body></html>
