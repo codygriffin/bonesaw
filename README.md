@@ -84,7 +84,8 @@ This is an engineering prototype, not a safety-rated robot controller.
   and localize a failed support without releasing its physically solved peer.
   On the policy/physics-free G1 trace, localized handoff retains 336.5 N on the
   left foot and delays global release 95 ms; a separate control retains 227.3 N
-  with hard residuals below 1e-8. The walking profile remains rejected because
+  with hard residuals below 1e-8. The diagnostic predeclares the right foot as
+  the first fallback target; automatic fault localization remains open. The walking profile remains rejected because
   first NormalFallback is unchanged, full-run root/attitude tracking diverges,
   and the control p99 exceeds 5 ms. Defaults and authority remain unchanged.
   See the

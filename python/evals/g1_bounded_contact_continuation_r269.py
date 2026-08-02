@@ -183,6 +183,14 @@ def main() -> int:
         "localized_control_sha256": fingerprint(LOCALIZED_CONTROL),
         "future_wbc_outputs_consumed": False,
     }
+    controller_profile = {
+        "maximum_feasibility_projection_sweeps_per_solve": PER_SOLVE_SWEEP_CAP,
+        "maximum_contact_solve_hold_ticks": 12,
+        "localized_contact_fallback_target": 1,
+        "localized_contact_fallback_target_semantics": (
+            "predeclared right-foot diagnostic; not automatic fault localization"
+        ),
+    }
 
     baseline_summary = summaries["r268_low_gain_baseline"]
     candidate_summary = summaries["r269_bounded_continuation"]
@@ -229,6 +237,7 @@ def main() -> int:
             )
         ),
         "source_contract": source_contract,
+        "controller_profile": controller_profile,
         "profiles": summaries,
         "hold_contract": hold_contract,
         "scheduled_handoff_contract": handoff_contract,
@@ -277,7 +286,7 @@ def main() -> int:
             "",
             f"The low-gain frontier still enters NormalFallback at tick 863, but the first all-contact release moves from tick 869 to tick {candidate_summary['first_global_release_tick']}—a {release_delay_ticks}-tick ({release_delay_ticks * DT_SECONDS:.3f} s) extension. This is a failure-handling improvement, not nominal tracking progress.",
             "",
-            "At tick 869, localized handoff removes only the failed right support while the left foot remains Locked with 336.5 N. The accepted partial-support solution has hard residuals below 1e-8.",
+            "This diagnostic profile predeclares target 1 (the right foot) as the first contact eligible for normal-only demotion. That is evaluator-authored fault isolation, not a claim that the controller inferred which foot was bad. At tick 869, localized handoff removes that failed right support while the left foot remains Locked with 336.5 N. The accepted partial-support solution has hard residuals below 1e-8.",
             "",
             "Ticks 876–887 are status 8 (`contact_solve_hold`). State is bitwise constant across q, v, root pose, tracked points, and CoM. Cumulative feasibility work advances 16, 32, …, 192 sweeps. The configured cap is eight sweeps per solver query, while this WBC path can issue a primary query plus one retry, so the observable aggregate ceiling is 16 sweeps per WBC tick. Rejected residuals on hold ticks are diagnostic only and are never integrated.",
             "",
@@ -296,6 +305,7 @@ def main() -> int:
             "- Status 8 is a bounded, non-integrating hold; status 9 is a physically checked partial-support solution.",
             "- Status 5 remains global free-body release and carries zero dynamics/contact residual witnesses.",
             "- The continuation is opt-in and capped at 12 hold ticks in this evaluation; each solve is capped at eight sweeps and the current WBC retry path can issue two solves per tick.",
+            "- Target 1/right-foot fallback is explicitly authored by this diagnostic profile; production fault localization remains open.",
             "- No future oracle WBC force, acceleration, status, or policy outputs are consumed.",
         ]
     )

@@ -24,6 +24,7 @@ class BoundedContactContinuationR269Test(unittest.TestCase):
         self.assertFalse(metrics["authority_admitted"])
         self.assertEqual(metrics["policy_steps"], 0)
         self.assertEqual(metrics["physics_steps"], 0)
+        self.assertEqual(metrics["controller_profile"]["localized_contact_fallback_target"], 1)
 
         baseline = metrics["profiles"]["r268_low_gain_baseline"]
         candidate = metrics["profiles"]["r269_bounded_continuation"]

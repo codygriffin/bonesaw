@@ -21,6 +21,9 @@ the same localized handoff at tick 529: only the failed right
 support is removed, the incoming left support remains active with 227.3 N, and
 the accepted partial-support solution has hard residuals below 1e-8. Status 5
 remains global free-body release and its rejected residual witnesses are zero.
+Target 1/right-foot fallback is predeclared by this diagnostic profile; R269
+does not infer which support failed, so automatic fault localization remains
+an open controller boundary.
 
 The mechanism passes, but the low-gain walking profile remains rejected. First
 NormalFallback is unchanged at tick 863; full-run root RMS is 17.026 m and

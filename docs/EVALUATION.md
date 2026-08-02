@@ -2830,7 +2830,9 @@ r268 low-gain native-reference trace with two regenerated r269 traces. It uses
 no policy or physics simulator. The first trace enables exact-prefix reuse,
 eight feasibility sweeps per solver query, and a 12-tick non-integrating hold.
 The second independently exercises localized handoff under a centroidal
-control profile.
+control profile. Both explicitly predeclare target 1/right foot as the first
+normal-only fallback target; this is a causal diagnostic input rather than an
+inferred contact-fault label.
 
 The evaluator checks that status-8 ticks preserve q, v, root pose, tracked
 points, and CoM bit-for-bit; that observable aggregate work remains within two

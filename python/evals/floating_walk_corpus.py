@@ -2925,7 +2925,10 @@ def main() -> None:
         raise ValueError(
             "--morphology-posture-position-only requires --morphology-posture-trace"
         )
-    if args.localized_contact_fallback_target is not None and args.localized_contact_fallback_target < 0:
+    if (
+        args.localized_contact_fallback_target is not None
+        and args.localized_contact_fallback_target < 0
+    ):
         raise ValueError("--localized-contact-fallback-target must be nonnegative")
     if args.reference_inputs:
         standalone_reference = load_standalone_reference(

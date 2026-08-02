@@ -66,7 +66,8 @@ current WBC retry path can issue two solves, for a visible 16-sweep aggregate
 ceiling per tick. A typed status-8 hold integrates no unfinished output and
 preserves q, v, root pose, tracked points, and CoM bit-for-bit. A separately
 typed status-9 handoff can remove only a failed support and retain its
-physically solved peer. In the retained low-gain trace, localized handoff at
+physically solved peer. This diagnostic predeclares target 1/right foot as the
+first fallback target; it does not infer the failed contact. In the retained low-gain trace, localized handoff at
 tick 869 drops only the failed right foot and retains 336.5 N on the locked
 left support. Ticks 876–887 then preserve state exactly across twelve bounded
 holds; first global release moves from tick 869 to 888. An independent
@@ -81,7 +82,7 @@ profile, continuation, and timeout are
 default-off and grant no authority. The remaining behavior complaint is
 continuous exit from persistent NormalFallback while restoring post-touchdown
 root/attitude tracking, without more per-call solver work or weaker contact
-admission. See the
+admission. Automatic contact-fault localization also remains open. See the
 [r269 bounded continuation report](benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
 ## Open CPU authority gate: useful physical transition tube

@@ -12,7 +12,7 @@
 
 The low-gain frontier still enters NormalFallback at tick 863, but the first all-contact release moves from tick 869 to tick 888—a 19-tick (0.095 s) extension. This is a failure-handling improvement, not nominal tracking progress.
 
-At tick 869, localized handoff removes only the failed right support while the left foot remains Locked with 336.5 N. The accepted partial-support solution has hard residuals below 1e-8.
+This diagnostic profile predeclares target 1 (the right foot) as the first contact eligible for normal-only demotion. That is evaluator-authored fault isolation, not a claim that the controller inferred which foot was bad. At tick 869, localized handoff removes that failed right support while the left foot remains Locked with 336.5 N. The accepted partial-support solution has hard residuals below 1e-8.
 
 Ticks 876–887 are status 8 (`contact_solve_hold`). State is bitwise constant across q, v, root pose, tracked points, and CoM. Cumulative feasibility work advances 16, 32, …, 192 sweeps. The configured cap is eight sweeps per solver query, while this WBC path can issue a primary query plus one retry, so the observable aggregate ceiling is 16 sweeps per WBC tick. Rejected residuals on hold ticks are diagnostic only and are never integrated.
 
@@ -31,4 +31,5 @@ Defaults and execution authority remain unchanged. Cross-tick continuation requi
 - Status 8 is a bounded, non-integrating hold; status 9 is a physically checked partial-support solution.
 - Status 5 remains global free-body release and carries zero dynamics/contact residual witnesses.
 - The continuation is opt-in and capped at 12 hold ticks in this evaluation; each solve is capped at eight sweeps and the current WBC retry path can issue two solves per tick.
+- Target 1/right-foot fallback is explicitly authored by this diagnostic profile; production fault localization remains open.
 - No future oracle WBC force, acceleration, status, or policy outputs are consumed.
