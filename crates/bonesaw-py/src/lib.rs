@@ -349,6 +349,7 @@ struct FloatingWbcSession {
     precontact_ticks: usize,
     precontact_maximum_acceleration: f64,
     material_touchdown_task: bool,
+    normal_fallback_task_weight_scale: f64,
     contact_friction_coefficient: f64,
     maximum_normal_force_multiple: f64,
     maximum_acceleration: f64,
@@ -13406,6 +13407,7 @@ impl FloatingWbcSession {
         precontact_ticks=0,
         precontact_maximum_acceleration=25.0,
         material_touchdown_task=false,
+        normal_fallback_task_weight_scale=1.0,
         contact_patch_center_x=0.0,
         contact_patch_half_length=0.0,
         contact_patch_half_width=0.0,
@@ -13478,6 +13480,7 @@ impl FloatingWbcSession {
         precontact_ticks: usize,
         precontact_maximum_acceleration: f64,
         material_touchdown_task: bool,
+        normal_fallback_task_weight_scale: f64,
         contact_patch_center_x: f64,
         contact_patch_half_length: f64,
         contact_patch_half_width: f64,
@@ -13524,6 +13527,12 @@ impl FloatingWbcSession {
         {
             return Err(PyValueError::new_err(
                 "minimum_support_load_fraction must be finite and in 0..=1",
+            ));
+        }
+        if !normal_fallback_task_weight_scale.is_finite() || normal_fallback_task_weight_scale < 0.0
+        {
+            return Err(PyValueError::new_err(
+                "normal_fallback_task_weight_scale must be finite and nonnegative",
             ));
         }
         if feasibility_projection_continuation_violation_threshold
@@ -13832,6 +13841,7 @@ impl FloatingWbcSession {
             precontact_ticks,
             precontact_maximum_acceleration,
             material_touchdown_task,
+            normal_fallback_task_weight_scale,
             contact_friction_coefficient: friction_coefficient,
             maximum_normal_force_multiple,
             maximum_acceleration,
@@ -16604,6 +16614,8 @@ impl FloatingWbcSession {
                         },
                         weight: if is_contact && !support_phase.is_normal_only() {
                             0.0
+                        } else if support_phase == SupportPhase::NormalFallback {
+                            weights[target] * self.normal_fallback_task_weight_scale
                         } else {
                             weights[target]
                         },

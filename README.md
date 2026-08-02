@@ -109,6 +109,11 @@ This is an engineering prototype, not a safety-rated robot controller.
   support before useful walking. The mechanism is retained as a generic,
   default-off falsifier; the global walking profile receives no authority. See
   the [r271 support-load report](benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
+- R272 exposes the existing `NormalFallback` viability point-task scale as a
+  default-preserving causal control. Every reduced scale is bitwise identical
+  through the tick-875 fallback, so none can change the tick-874 knee-limit
+  cause; all release earlier than the scale-1 default. No authority is admitted. See the
+  [r272 fallback-task report](benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

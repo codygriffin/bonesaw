@@ -3,7 +3,13 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R270 addresses the specific early upper-body activation/velocity-cap symptom
+R272 makes the existing `NormalFallback` viability point-task weight an
+explicit scale. Scale 0.25 stays under 5 ms p99 but worsens root RMS to
+17.030 m; scale 0.5 improves RMS to 14.691 m but crosses the timing gate, and
+every reduced trace is bitwise identical through fallback tick 875. It cannot
+change the tick-874 knee-limit event and all reduced scales release earlier
+than the default. The split is partial and
+rejected/default-off. R270 addresses the specific early upper-body activation/velocity-cap symptom
 without closing the behavior gate. Its causal split shows that the default-off
 hard lower-body bound keeps the critical knee above -8 rad/s and delays first
 fallback, while the much longer release delay requires the soft+hard
@@ -17,6 +23,8 @@ is therefore continuous position-limit/support-transition recovery and
 compositional authority after the knee event, not an unbounded solver timeout.
 See the [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md)
 and [r271 support-load report](benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
+The [r272 fallback-task report](benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md)
+captures the newer causal split.
 
 ## Open browser gate: viewport frame time
 

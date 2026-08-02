@@ -2848,6 +2848,27 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r272 NormalFallback point-task scale causal split
+
+`python/evals/g1_normal_fallback_task_scale_r272.py` compares the retained R270
+trace with scale 0, 0.25, and 0.5 controls on the existing viability point task
+that remains after measured `NormalFallback`. The scale is default-preserving,
+adds no rows or solver work, and uses no policy or physics simulator.
+
+The mechanism is partial but rejected. The dormant scale-1 replay is bitwise
+equal to R270 on 72 non-timing arrays, and every reduced-scale trace is bitwise
+equal to baseline through fallback tick 875. All profiles therefore hit the
+knee limit at tick 874 with the same −4.097 rad/s critical-window minimum; the
+different later full-trace minima are downstream consequences, not causal
+improvements. Scale 0.25 stays under 5 ms p99 but worsens root RMS
+to 17.030 m; scale 0.5 improves root RMS to 14.691 m but crosses p99 at
+5.162 ms. No scale is admitted.
+
+Run `scripts/run-g1-normal-fallback-task-scale-r272.sh` to rebuild the PyO3
+extension, regenerate the dormant and three scale traces, and render the
+Markdown/HTML decision report. The retained artifact is
+[`G1_NORMAL_FALLBACK_TASK_SCALE_R272.md`](../benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md).
+
 ### Revision r271 aggregate support-load floor falsifier
 
 `python/evals/g1_support_load_floor_r271.py` compares the retained R270

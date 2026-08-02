@@ -2,6 +2,23 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r272 NormalFallback task-scale causal split
+
+R272 makes the existing NormalFallback viability point-task weight an explicit
+scale (`normal_fallback_task_weight_scale`, default `1.0`). Scale `0.0`–`0.5`
+reduces only that soft task after measured fallback; hard contact rows, force
+cones, acceleration bounds, and release cleanup are unchanged. The dormant
+scale-1 replay is bitwise equal to R270 on all 72 non-timing arrays. In the
+policy-free, physics-free G1 sweep, every reduced scale is also bitwise equal
+to baseline through fallback tick 875. The knee reaches its lower limit at tick
+874 with the same −4.097 rad/s critical-window minimum in every profile; later
+full-trace velocity differences cannot be attributed as prevention. Scale 0.25 stays below 5 ms p99
+but worsens root RMS to 17.030 m; scale 0.5 improves RMS to 14.691 m but
+crosses p99 at 5.162 ms. No scale is admitted; the next slice remains
+continuous position-limit/support-transition recovery. See the
+[`G1_NORMAL_FALLBACK_TASK_SCALE_R272.md`](../benchmarks/results/g1-normal-fallback-task-scale-r272/G1_NORMAL_FALLBACK_TASK_SCALE_R272.md)
+report.
+
 ## Current CPU checkpoint — r271 aggregate support-load floor falsifier
 
 R271 adds an opt-in hard aggregate normal-load row to each finite support patch.

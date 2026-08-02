@@ -260,6 +260,12 @@ def parse_args() -> argparse.Namespace:
         "--precontact-maximum-acceleration", type=float, default=25.0
     )
     parser.add_argument(
+        "--normal-fallback-task-weight-scale",
+        type=float,
+        default=1.0,
+        help="default-preserving scale for the soft point task after NormalFallback",
+    )
+    parser.add_argument(
         "--capture-landing-retarget",
         action="store_true",
         help="retarget the latched sole-center landing in Rust from measured DCM",
@@ -3260,6 +3266,7 @@ def main() -> None:
         precontact_ticks=args.precontact_ticks,
         precontact_maximum_acceleration=args.precontact_maximum_acceleration,
         material_touchdown_task=args.material_touchdown_task,
+        normal_fallback_task_weight_scale=args.normal_fallback_task_weight_scale,
         contact_patch_center_x=args.contact_patch_center_x,
         contact_patch_half_length=args.contact_patch_half_length,
         contact_patch_half_width=args.contact_patch_half_width,
@@ -3669,6 +3676,7 @@ def main() -> None:
         "precontact_maximum_acceleration_m_s2": (
             args.precontact_maximum_acceleration
         ),
+        "normal_fallback_task_weight_scale": args.normal_fallback_task_weight_scale,
         "capture_landing_retarget_enabled": args.capture_landing_retarget,
         "capture_landing_activation_margin_m": (
             args.capture_landing_activation_margin
