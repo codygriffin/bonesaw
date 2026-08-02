@@ -59,18 +59,35 @@ eventual MuJoCo load in 6/6 misses and exact in 5/6, which localizes the initial
 event but not later contact growth. Ten semantic arrays, normalized metrics,
 and the report replay exactly.
 
-The live complaint is transferable stiff-contact fidelity. Derive a causal
-coupled re-solve with state-dependent contact activation, geometry, velocity,
-and Delassus evolution independently of the spent R228 labels. Freeze it before
-another untouched holdout, and only then feed an admitted transition set into
-R224 terminal selection and strict plant non-regression.
+R230 removes the static-state/event-order complaint for Euler-family laws.
+Allocation-free Rust now owns the floating state, five authored 1 ms collision
+ticks, sphere support geometry, convective point acceleration, inverse dynamics,
+and a refreshed full Delassus solve. Prediction-only convergence selects 32
+sweeps at 1.619% of the width gate and about 0.70 ms p99. On the spent R228
+corpus, stiff active sets become 48/48 exact and the fitted combined width is
+0.168/0.023/9.893, inside all useful-width gates. That profile was frozen before
+R231 labels.
+
+R231 removes the fresh-holdout ambiguity and rejects cross-integrator transfer.
+The new medium/pyramidal/implicit-fast law has exact active sets 48/48 but misses
+one frozen residual row (47/48; fitted width 0.054/0.012/13.211). The new
+hard/elliptic/RK4 law covers only 24/48, misses 22 actual contact points, and
+needs 1.894/0.247/62.325 fitted width. Deadline, repeat, and zero timed Rust
+allocation pass. Do not tune these fresh misses into R230.
+
+The live complaint is now generalized integrator fidelity. R230 implements
+velocity-first Euler/implicit state evolution, but RK4 is still only represented
+by a reduced trapezoidal point-law update rather than four generalized
+dynamics/contact stages. Derive and freeze a true model-owned RK4 event/state
+construction independently of the spent R231 labels before another untouched
+holdout. Only a passing profile may enter R224 terminal selection and strict
+plant non-regression.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive and freeze independently motivated stiff contact-activation/order and
-  state-evolution machinery after R228's 42/48 rejection, without fitting the
-  six holdout misses;
-- pass a new strict coverage/width/deadline holdout, then demonstrate an R224-bounded
+- derive and freeze a generalized RK4 contact/state integrator after R231's
+  24/48 rejection, without fitting the fresh holdout misses;
+- pass a new strict cross-integrator coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.

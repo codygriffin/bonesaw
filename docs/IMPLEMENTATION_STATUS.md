@@ -2,6 +2,31 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r231 rejects generalized RK4 transfer
+
+R230 adds a model-owned, allocation-free contact evolution query. Rust retains
+the floating state and returns its evolved pose/tangent, samples collision
+membership on five authored 1 ms ticks, represents each foot sphere as
+`center - plane_normal * radius`, refreshes rigid point velocity and convective
+acceleration, recomputes floating inverse dynamics and the complete Delassus
+operator, and re-solves the active set. One compliant update belongs to each
+physics tick; projection sweeps are the only inner convergence knob.
+
+Prediction-only double-sweep convergence selects 32 sweeps at 1.619% of the
+useful-width gate and about 0.70 ms p99, with bitwise repeat and zero timed Rust
+allocation. Only after selection, the spent R228 labels show 48/48 exact stiff
+active sets and a combined fitted width of 0.168/0.023/9.893, so R230 freezes
+that profile for a new holdout. All 106 non-timing arrays replay exactly.
+
+R231 spends untouched offsets 110,000/120,000. Medium/pyramidal/implicit-fast
+retains 48/48 exact active sets but covers 47/48 under the frozen residual box;
+its fitted width is 0.054/0.012/13.211. Hard/elliptic/RK4 covers only 24/48,
+misses 22 actual contact points, and requires 1.894/0.247/62.325. Both remain
+below the 5 ms deadline and preserve repeat/allocation gates. The profile is
+rejected without retuning; all 60 non-timing arrays replay exactly. The next CPU construction is a genuine four-stage
+generalized RK4 dynamics/contact evolution; the existing exponential-
+trapezoidal point update is not an RK4 substitute.
+
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 
 R229 reads the completed immutable R228 labels explicitly, so it is a

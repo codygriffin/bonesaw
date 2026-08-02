@@ -562,6 +562,118 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(unchanged_after, 8.0)
         np.testing.assert_array_equal(unchanged_gap, 9.0)
 
+    def test_model_coupled_positive_reference_refreshes_state_without_allocation(self) -> None:
+        contacts = self.generic.contact_count()
+        dof = self.generic.joint_dof()
+        generalized_dof = self.generic.generalized_dof()
+        generalized_velocity = np.zeros(generalized_dof, np.float64)
+        generalized_velocity[5] = -10.0
+        generalized_free_acceleration = np.zeros(generalized_dof, np.float64)
+        generalized_free_acceleration[5] = -9.81
+        contact_points = self.points.copy()
+        contact_points[:, 2] = 0.02
+        point_free_acceleration = np.zeros((contacts, 3), np.float64)
+        point_free_acceleration[:, 2] = -9.81
+        upper = np.full((contacts, 3), 100.0, np.float64)
+        parameter = lambda value: np.full(contacts, value, np.float64)
+        impulse = np.empty((contacts, 3), np.float64)
+        velocity_after = np.empty((contacts, 3), np.float64)
+        gap_after = np.empty(contacts, np.float64)
+        root_after = np.empty(3, np.float64)
+        quaternion_after = np.empty(4, np.float64)
+        q_after = np.empty(dof, np.float64)
+        generalized_velocity_after = np.empty(generalized_dof, np.float64)
+        arguments = (
+            self.root,
+            self.quaternion,
+            self.q,
+            generalized_velocity,
+            generalized_free_acceleration,
+            contact_points,
+            self.bases,
+            np.zeros(contacts, np.float64),
+            point_free_acceleration,
+            upper,
+            parameter(0.5),
+            parameter(0.02),
+            parameter(1.0),
+            parameter(0.8),
+            parameter(0.96),
+            parameter(0.001),
+            parameter(0.5),
+            parameter(2.0),
+            np.asarray([0.0, 0.0, 1.0], np.float64),
+            0.0,
+            0.002,
+            0.005,
+            5,
+            8,
+            8,
+            0,
+            1,
+            impulse,
+            velocity_after,
+            gap_after,
+            root_after,
+            quaternion_after,
+            q_after,
+            generalized_velocity_after,
+        )
+        timing = self.generic.solve_model_coupled_positive_reference_compliant_contact_impulse(
+            *arguments
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(np.isfinite(impulse)))
+        self.assertTrue(np.any(impulse[:, 2] > 0.0))
+        self.assertLess(root_after[2], self.root[2])
+        self.assertAlmostEqual(np.linalg.norm(quaternion_after), 1.0)
+        first = tuple(
+            value.copy()
+            for value in (
+                impulse,
+                velocity_after,
+                gap_after,
+                root_after,
+                quaternion_after,
+                q_after,
+                generalized_velocity_after,
+            )
+        )
+        self.generic.solve_model_coupled_positive_reference_compliant_contact_impulse(
+            *arguments
+        )
+        for expected, actual in zip(
+            first,
+            (
+                impulse,
+                velocity_after,
+                gap_after,
+                root_after,
+                quaternion_after,
+                q_after,
+                generalized_velocity_after,
+            ),
+            strict=True,
+        ):
+            np.testing.assert_array_equal(actual, expected)
+
+        unchanged = [
+            np.full_like(impulse, 7.0),
+            np.full_like(velocity_after, 8.0),
+            np.full_like(gap_after, 9.0),
+            np.full_like(root_after, 10.0),
+            np.full_like(quaternion_after, 11.0),
+            np.full_like(q_after, 12.0),
+            np.full_like(generalized_velocity_after, 13.0),
+        ]
+        invalid = (*arguments[:22], 0, *arguments[23:27], *unchanged)
+        with self.assertRaisesRegex(ValueError, "model coupled positive reference"):
+            self.generic.solve_model_coupled_positive_reference_compliant_contact_impulse(
+                *invalid
+            )
+        for expected, actual in zip(range(7, 14), unchanged, strict=True):
+            np.testing.assert_array_equal(actual, float(expected))
+
     def test_terminal_state_batch_is_generic_atomic_and_allocation_free(self) -> None:
         joints = self.generic.joint_dof()
         states = np.asarray(

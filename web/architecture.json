@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "stiff-contact-activation-localization-r229",
+  "revision": "model-coupled-rk4-holdout-rejection-r231",
   "updated": "2026-08-02",
-  "stage": "Label-explicit localization rejects thresholding: stiff contact needs a causal evolving coupled re-solve; profile and authority remain absent · r229",
-  "checkpoint": "R229 inspects only the spent R228 labels. Predicted-only points occur in all 6 stiff misses, but also 8/42 covered stiff and 13/48 covered soft rows. An oracle mask repairs four misses and worsens two multi-contact cases, reaching only 46/48. A label-free first ballistic cohort is a subset of eventual load in 6/6 misses and exact in 5/6, localizing initial activation but not contact growth. Ten semantic arrays, normalized metrics, and the report replay exactly; no profile or authority is promoted.",
-  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. External command provenance remains separate from contact/impact evidence and unobserved-model reserve. Complete-Delassus coupling remains a retained generic mechanism, but R228 rejects its frozen transition profile and R229 shows that masking predicted-only contacts cannot repair it. The next CPU gate is an independently derived causal re-solve with evolving activation, geometry, velocity, and Delassus response, then another untouched holdout and plant non-regression. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "Model-owned Euler contact evolution freezes on spent evidence, then fresh RK4 transfer rejects the profile; authority remains absent · r231",
+  "checkpoint": "R230 moves five authored 1 ms event ticks, sphere support geometry, convective point acceleration, inverse dynamics, full Delassus refresh, and evolved floating state into allocation-free Rust. Prediction-only convergence selects 32 sweeps at 1.619% of the useful-width gate and about 0.70 ms p99; spent R228 stiff active sets become 48/48 exact at fitted combined width 0.168/0.023/9.893. R231 then rejects transfer: medium/pyramidal/implicit-fast covers 47/48, while hard/elliptic/RK4 covers 24/48 and misses 22 actual contacts. The profile and authority are rejected without retuning.",
+  "summary": "State ownership remains visible: green is WBC TARGET PREVIEW, orange dashed is MUJOCO MEASURED, and z=0 is a physical filled plane. External command provenance remains separate from contact/impact evidence and unobserved-model reserve. Rust now owns causal Euler-family contact event/state evolution and returns the evolved floating state, but R231 proves that the reduced trapezoidal point update is not a generalized RK4 implementation. The next CPU gate is a true four-stage generalized dynamics/contact construction frozen independently of these spent labels, then another untouched holdout and plant non-regression. Browser frame-time measurement, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -90,6 +90,18 @@
         }
   ],
   "decisions": [
+    {
+      "status": "rejected",
+      "title": "Fresh RK4 evidence rejects the Euler-family model-coupled profile",
+      "detail": "R231 preserves R230's five 1 ms state/event ticks, one compliant update per tick, 32 sweeps, sphere support geometry, and frozen 0.168/0.023/9.893 width. Medium/pyramidal/implicit-fast retains 48/48 exact active sets but covers 47/48. Hard/elliptic/RK4 covers only 24/48, misses 22 actual contact points, and needs 1.894/0.247/62.325 fitted width. Both meet deadline, repeat, and allocation gates. Retain the generic model-owned mechanism, reject the profile, and implement genuine generalized RK4 stages before another holdout.",
+      "evidence": "/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT_R231.html"
+    },
+    {
+      "status": "frozen",
+      "title": "Model-owned Euler contact evolution is selected without completed labels",
+      "detail": "R230 owns floating state, five authored collision ticks, sphere support radius, refreshed point geometry/velocity/convective acceleration, floating inverse dynamics, full Delassus response, and evolved state output in allocation-free Rust. Prediction-only double-sweep convergence selects 32 sweeps at 1.619% of the useful-width gate and about 0.70 ms p99. Only afterward, spent R228 labels show 48/48 exact stiff active sets and fitted combined width 0.168/0.023/9.893. This froze a holdout profile, never authority.",
+      "evidence": "/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT_R230.html"
+    },
     {
       "status": "localized",
       "title": "Stiff-contact misses require an evolving coupled re-solve, not a threshold",
@@ -803,6 +815,18 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R231 fresh model-coupled cross-integrator holdout",
+      "result": "MECHANISM PASS / PROFILE REJECTED / AUTHORITY NO · MEDIUM IMPLICIT-FAST 47/48 WITH ACTIVE SETS 48/48 · HARD RK4 24/48 WITH 22 MISSED CONTACT POINTS · FITTED RK4 WIDTH 1.894/0.247/62.325 · P99 BELOW 0.8 MS · 60-ARRAY EXACT REPLAY · ZERO TIMED RUST ALLOCATION",
+      "scope": "new medium+pyramidal+implicit-fast and hard+elliptic+RK4 laws · untouched offsets 110,000/120,000 · reset every transition · frozen R230 clock/sweeps/geometry/width · 480 MuJoCo label steps · no policy, controller, selector, plant action, hardware, safety, or authority claim",
+      "href": "/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT_R231.html"
+    },
+    {
+      "metric": "R230 model-owned contact event/state construction",
+      "result": "CONSTRUCTION PROFILE FROZEN / AUTHORITY NO · FIVE 1 MS STATE TICKS · ONE COMPLIANT UPDATE/TICK · 32 SWEEPS SELECTED AT 1.619% GATE FRACTION · SPENT STIFF ACTIVE SETS 48/48 EXACT · FITTED WIDTH 0.168/0.023/9.893 · P99 BELOW 0.8 MS · 106-ARRAY EXACT REPLAY · ZERO TIMED RUST ALLOCATION",
+      "scope": "selection receives only causal R228 prestate geometry/velocity and model dynamics · completed impulses/residuals reopened only after selection · Rust owns sphere support geometry, convective acceleration, inverse dynamics, full Delassus refresh, velocity-first Euler state evolution, and state output · no new MuJoCo steps, selector, plant action, hardware, safety, or authority claim",
+      "href": "/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT_R230.html"
+    },
     {
       "metric": "R229 stiff-contact activation localization",
       "result": "DIAGNOSTIC PASS / PROFILE-AUTHORITY NO · ALL 6 MISSES HAVE PREDICTED-ONLY LOAD · COVERED STIFF 8/42 AND SOFT 13/48 ALSO DO · LABEL MASK 42/48 → 46/48 ONLY · FIRST BALLISTIC COHORT SUBSET 6/6 / EXACT 5/6 · 10-ARRAY EXACT REPLAY",

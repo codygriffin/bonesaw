@@ -2377,6 +2377,29 @@ and exact in 5/6, so it can seed event evolution but cannot predict the final
 contact set. All ten semantic arrays, normalized metrics, and the report replay
 exactly. See the [r229 activation localization](benchmarks/results/g1-stiff-contact-activation-localization-r229/G1_STIFF_CONTACT_ACTIVATION_LOCALIZATION.md).
 
+R230 moves the event/state loop into allocation-free Rust. The query owns the
+floating state, five authored 1 ms collision ticks, explicit sphere support
+radius, refreshed geometry/point velocity/convective acceleration, floating
+inverse dynamics, the complete Delassus response, and evolved state output.
+Collision membership is sampled once at the beginning of each state tick; one
+compliant update belongs to that tick, while projection sweeps remain the only
+inner convergence knob. Prediction-only double-sweep convergence selects 32
+sweeps at 1.619% of the useful-width gate and about 0.70 ms p99. Scored only
+after selection, the spent R228 corpus reaches 48/48 exact stiff active sets
+and fitted combined width 0.168/0.023/9.893. The profile is frozen for a fresh
+holdout, not authority; 106 non-timing arrays replay exactly. See the [r230 model-coupled construction audit](benchmarks/results/g1-model-coupled-positive-reference-compliance-audit-r230/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
+
+R231 then spends new medium/pyramidal/implicit-fast and hard/elliptic/RK4 laws
+at untouched offsets 110,000/120,000. The medium law has exact active sets
+48/48 but covers 47/48 under the frozen residual box. The hard RK4 law covers
+only 24/48 and misses 22 actual contact points; fitted width expands to
+1.894/0.247/62.325. Timing, repeat, and zero timed allocation pass, but strict
+coverage is conjunctive, so the profile is rejected without tuning. This
+localizes the next mechanism to a real four-stage generalized RK4
+dynamics/contact integrator; the reduced trapezoidal point update is not one.
+All 60 non-timing arrays replay exactly.
+See the [r231 fresh model-coupled holdout](benchmarks/results/g1-model-coupled-positive-reference-compliance-holdout-r231/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2492,6 +2515,8 @@ Reproduce it with:
 ./scripts/run-g1-coupled-positive-reference-compliance-audit.sh
 ./scripts/run-g1-coupled-positive-reference-compliance-holdout.sh
 ./scripts/run-g1-stiff-contact-activation-localization.sh
+./scripts/run-g1-model-coupled-positive-reference-compliance-audit.sh
+./scripts/run-g1-model-coupled-positive-reference-compliance-holdout.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

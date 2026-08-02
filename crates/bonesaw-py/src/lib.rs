@@ -36,7 +36,9 @@ use bonesaw_core::{
     FloatingDynamicWbcInput, FloatingDynamicWbcOutput, FloatingDynamicWbcScratch,
     FloatingFrameAngularAccelerationTask, FloatingJointAccelerationTask,
     FloatingPointAccelerationTask, FloatingRobotState, FloatingTaskPriorities, FloatingTaskWeights,
-    FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache, Motion6, MotionProgram, PlanarIkOptions,
+    FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache,
+    ModelCoupledPositiveReferenceCompliantContactImpulseInput,
+    ModelCoupledPositiveReferenceContactScratch, Motion6, MotionProgram, PlanarIkOptions,
     PlanarIkScratch, PlanarPointIkTarget, PointImpulseResponseSpec,
     PositiveReferenceCompliantContactImpulseInput, Priority, ReconstructionProvenance,
     RobotObservationHistory, RobotObservationLimits, RobotObservationQueryError,
@@ -62,7 +64,8 @@ use bonesaw_core::{
     score_terminal_impact_velocity_box_upper, score_viability_forecast,
     select_conservative_terminal_impact_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
-    solve_coupled_positive_reference_compliant_contact_impulse, solve_planar_point_ik_into,
+    solve_coupled_positive_reference_compliant_contact_impulse,
+    solve_model_coupled_positive_reference_compliant_contact_impulse, solve_planar_point_ik_into,
     solve_positive_reference_compliant_contact_impulse, solve_substepped_compliant_contact_impulse,
     solve_whole_body_ik_into, solve_whole_body_kinematic_jets_into, step_actuator_realization,
     step_actuator_resource, step_contact_command_lease, step_contact_observation,
@@ -386,6 +389,9 @@ struct ContactTransitionModelSession {
     coupled_delta_scratch: Vec<f64>,
     compliant_desired_velocity_delta_scratch: Vec<f64>,
     compliant_step_impulse_scratch: Vec<f64>,
+    model_compliant_scratch: ModelCoupledPositiveReferenceContactScratch,
+    floating_input: FloatingRobotState,
+    floating_output: FloatingRobotState,
 }
 
 #[pymethods]
@@ -421,6 +427,10 @@ impl ContactTransitionModelSession {
         let scratch = ContactTransitionResponseScratch::new(&program.model);
         let contact_axes = frame_names.len() * CONTACT_TRANSITION_IMPULSE_WIDTH;
         let generalized_dof = program.model.dof + 6;
+        let model_compliant_scratch =
+            ModelCoupledPositiveReferenceContactScratch::new(&program.model, frame_names.len());
+        let floating_input = FloatingRobotState::zeros(&program.model);
+        let floating_output = FloatingRobotState::zeros(&program.model);
         Ok(Self {
             program,
             robot,
@@ -432,6 +442,9 @@ impl ContactTransitionModelSession {
             coupled_delta_scratch: vec![0.0; generalized_dof],
             compliant_desired_velocity_delta_scratch: vec![0.0; contact_axes],
             compliant_step_impulse_scratch: vec![0.0; contact_axes],
+            model_compliant_scratch,
+            floating_input,
+            floating_output,
         })
     }
 
@@ -1107,6 +1120,280 @@ impl ContactTransitionModelSession {
                 "coupled positive reference compliant contact allocated inside the Rust hot path",
             ));
         }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Advance a floating model on an independently declared state/event
+    /// clock, refreshing rigid point geometry and the full Delassus operator
+    /// before each event test. All numerical outputs are caller-owned.
+    #[allow(clippy::too_many_arguments)]
+    fn solve_model_coupled_positive_reference_compliant_contact_impulse(
+        &mut self,
+        root_position: PyReadonlyArray1<'_, f64>,
+        root_quaternion_wxyz: PyReadonlyArray1<'_, f64>,
+        q: PyReadonlyArray1<'_, f64>,
+        generalized_velocity: PyReadonlyArray1<'_, f64>,
+        generalized_free_acceleration: PyReadonlyArray1<'_, f64>,
+        contact_points_world: PyReadonlyArray2<'_, f64>,
+        contact_bases_world: PyReadonlyArray3<'_, f64>,
+        contact_surface_radius_m: PyReadonlyArray1<'_, f64>,
+        initial_contact_free_acceleration: PyReadonlyArray2<'_, f64>,
+        impulse_upper: PyReadonlyArray2<'_, f64>,
+        friction: PyReadonlyArray1<'_, f64>,
+        time_constant_s: PyReadonlyArray1<'_, f64>,
+        damping_ratio: PyReadonlyArray1<'_, f64>,
+        impedance_min: PyReadonlyArray1<'_, f64>,
+        impedance_max: PyReadonlyArray1<'_, f64>,
+        impedance_width_m: PyReadonlyArray1<'_, f64>,
+        impedance_midpoint: PyReadonlyArray1<'_, f64>,
+        impedance_power: PyReadonlyArray1<'_, f64>,
+        plane_normal_world: PyReadonlyArray1<'_, f64>,
+        plane_offset_m: f64,
+        minimum_time_constant_s: f64,
+        time_step_s: f64,
+        state_steps: usize,
+        compliance_substeps: usize,
+        projection_sweeps: usize,
+        friction_cone: u8,
+        integrator: u8,
+        mut impulse_out: PyReadwriteArray2<'_, f64>,
+        mut contact_velocity_after_out: PyReadwriteArray2<'_, f64>,
+        mut contact_gap_after_out: PyReadwriteArray1<'_, f64>,
+        mut root_position_after_out: PyReadwriteArray1<'_, f64>,
+        mut root_quaternion_wxyz_after_out: PyReadwriteArray1<'_, f64>,
+        mut q_after_out: PyReadwriteArray1<'_, f64>,
+        mut generalized_velocity_after_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let friction_cone = match friction_cone {
+            0 => CompliantFrictionCone::Circular,
+            1 => CompliantFrictionCone::Pyramidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "model coupled positive reference contact cone must be circular=0 or pyramidal=1",
+                ));
+            }
+        };
+        let integrator = match integrator {
+            0 => CompliantStepIntegrator::ExplicitEuler,
+            1 => CompliantStepIntegrator::ImplicitEuler,
+            2 => CompliantStepIntegrator::ExponentialTrapezoidal,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "model coupled positive reference contact integrator must be explicit=0, implicit=1, or exponential-trapezoidal=2",
+                ));
+            }
+        };
+        let point_shape = contact_points_world.as_array().dim();
+        let basis_shape = contact_bases_world.as_array().dim();
+        let acceleration_shape = initial_contact_free_acceleration.as_array().dim();
+        let upper_shape = impulse_upper.as_array().dim();
+        let impulse_shape = impulse_out.as_array().dim();
+        let velocity_after_shape = contact_velocity_after_out.as_array().dim();
+        let root_position = root_position.as_slice()?;
+        let root_quaternion_wxyz = root_quaternion_wxyz.as_slice()?;
+        let q = q.as_slice()?;
+        let generalized_velocity = generalized_velocity.as_slice()?;
+        let generalized_free_acceleration = generalized_free_acceleration.as_slice()?;
+        let contact_points_world = contact_points_world.as_slice()?;
+        let contact_bases_world = contact_bases_world.as_slice()?;
+        let contact_surface_radius_m = contact_surface_radius_m.as_slice()?;
+        let initial_contact_free_acceleration = initial_contact_free_acceleration.as_slice()?;
+        let impulse_upper = impulse_upper.as_slice()?;
+        let friction = friction.as_slice()?;
+        let time_constant_s = time_constant_s.as_slice()?;
+        let damping_ratio = damping_ratio.as_slice()?;
+        let impedance_min = impedance_min.as_slice()?;
+        let impedance_max = impedance_max.as_slice()?;
+        let impedance_width_m = impedance_width_m.as_slice()?;
+        let impedance_midpoint = impedance_midpoint.as_slice()?;
+        let impedance_power = impedance_power.as_slice()?;
+        let plane_normal_world = plane_normal_world.as_slice()?;
+        let impulse_out = impulse_out.as_slice_mut()?;
+        let contact_velocity_after_out = contact_velocity_after_out.as_slice_mut()?;
+        let contact_gap_after_out = contact_gap_after_out.as_slice_mut()?;
+        let root_position_after_out = root_position_after_out.as_slice_mut()?;
+        let root_quaternion_wxyz_after_out = root_quaternion_wxyz_after_out.as_slice_mut()?;
+        let q_after_out = q_after_out.as_slice_mut()?;
+        let generalized_velocity_after_out = generalized_velocity_after_out.as_slice_mut()?;
+        let contacts = self.point_specs.len();
+        let dof = self.program.model.dof;
+        let generalized_dof = dof + 6;
+        let parameter_lengths = [
+            friction.len(),
+            time_constant_s.len(),
+            damping_ratio.len(),
+            impedance_min.len(),
+            impedance_max.len(),
+            impedance_width_m.len(),
+            impedance_midpoint.len(),
+            impedance_power.len(),
+            contact_surface_radius_m.len(),
+            contact_gap_after_out.len(),
+        ];
+        if root_position.len() != 3
+            || root_quaternion_wxyz.len() != 4
+            || q.len() != dof
+            || generalized_velocity.len() != generalized_dof
+            || generalized_free_acceleration.len() != generalized_dof
+            || point_shape != (contacts, 3)
+            || basis_shape != (contacts, 3, 3)
+            || acceleration_shape != (contacts, 3)
+            || upper_shape != (contacts, 3)
+            || impulse_shape != (contacts, 3)
+            || velocity_after_shape != (contacts, 3)
+            || parameter_lengths.iter().any(|length| *length != contacts)
+            || plane_normal_world.len() != 3
+            || root_position_after_out.len() != 3
+            || root_quaternion_wxyz_after_out.len() != 4
+            || q_after_out.len() != dof
+            || generalized_velocity_after_out.len() != generalized_dof
+        {
+            return Err(PyValueError::new_err(format!(
+                "model coupled contact expects root[3], quaternion[4], q[{dof}], generalized velocity/acceleration[{generalized_dof}], points[{contacts},3], bases[{contacts},3,3], point acceleration/upper/impulse/velocity[{contacts},3], scalar parameters[{contacts}], plane normal[3], gap[{contacts}], and matching state outputs"
+            )));
+        }
+        if root_position
+            .iter()
+            .chain(root_quaternion_wxyz)
+            .chain(q)
+            .chain(generalized_velocity)
+            .chain(generalized_free_acceleration)
+            .chain(contact_points_world)
+            .chain(contact_bases_world)
+            .chain(contact_surface_radius_m)
+            .chain(initial_contact_free_acceleration)
+            .chain(impulse_upper)
+            .chain(plane_normal_world)
+            .any(|value| !value.is_finite())
+        {
+            return Err(PyValueError::new_err(
+                "model coupled contact state and geometric inputs must be finite",
+            ));
+        }
+        let rotation = UnitQuaternion::try_new(
+            nalgebra::Quaternion::new(
+                root_quaternion_wxyz[0],
+                root_quaternion_wxyz[1],
+                root_quaternion_wxyz[2],
+                root_quaternion_wxyz[3],
+            ),
+            1.0e-12,
+        )
+        .ok_or_else(|| PyValueError::new_err("model coupled contact quaternion is degenerate"))?;
+        for (contact, spec) in self.point_specs.iter_mut().enumerate() {
+            spec.point_world = Vec3::new(
+                contact_points_world[contact * 3],
+                contact_points_world[contact * 3 + 1],
+                contact_points_world[contact * 3 + 2],
+            );
+            spec.basis_world = std::array::from_fn(|axis| {
+                let start = contact * 9 + axis * 3;
+                Vec3::new(
+                    contact_bases_world[start],
+                    contact_bases_world[start + 1],
+                    contact_bases_world[start + 2],
+                )
+            });
+        }
+        self.floating_input.robot.control_world_from_root = Transform3::from_parts(
+            Translation3::new(root_position[0], root_position[1], root_position[2]),
+            rotation,
+        );
+        self.floating_input
+            .robot
+            .q
+            .as_mut_slice()
+            .copy_from_slice(q);
+        self.floating_input
+            .root_twist_world
+            .0
+            .as_mut_slice()
+            .copy_from_slice(&generalized_velocity[..6]);
+        self.floating_input
+            .robot
+            .v
+            .as_mut_slice()
+            .copy_from_slice(&generalized_velocity[6..]);
+        let input = ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+            initial_state: &self.floating_input,
+            contacts: &self.point_specs,
+            contact_surface_radius_m,
+            plane_normal_world: Vec3::new(
+                plane_normal_world[0],
+                plane_normal_world[1],
+                plane_normal_world[2],
+            ),
+            plane_offset_m,
+            generalized_free_acceleration,
+            initial_contact_free_acceleration,
+            impulse_upper,
+            friction,
+            time_constant_s,
+            damping_ratio,
+            impedance_min,
+            impedance_max,
+            impedance_width_m,
+            impedance_midpoint,
+            impedance_power,
+            minimum_time_constant_s,
+            time_step_s,
+            state_steps,
+            compliance_substeps,
+            projection_sweeps,
+            friction_cone,
+            integrator,
+        };
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &self.program.model,
+            input,
+            &mut self.model_compliant_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+            &mut self.floating_output,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid model coupled positive reference contact: {error:?}"
+            ))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &self.program.model,
+            input,
+            &mut self.model_compliant_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+            &mut self.floating_output,
+        )
+        .expect("validated model coupled positive reference contact");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "model coupled positive reference contact allocated inside the Rust hot path",
+            ));
+        }
+        let pose = self.floating_output.robot.control_world_from_root;
+        root_position_after_out.copy_from_slice(pose.translation.vector.as_slice());
+        let quaternion = pose.rotation.quaternion();
+        root_quaternion_wxyz_after_out.copy_from_slice(&[
+            quaternion.w,
+            quaternion.i,
+            quaternion.j,
+            quaternion.k,
+        ]);
+        q_after_out.copy_from_slice(self.floating_output.robot.q.as_slice());
+        generalized_velocity_after_out[..6]
+            .copy_from_slice(self.floating_output.root_twist_world.0.as_slice());
+        generalized_velocity_after_out[6..]
+            .copy_from_slice(self.floating_output.robot.v.as_slice());
         Ok((
             elapsed_ns,
             allocation_after.0 - allocation_before.0,

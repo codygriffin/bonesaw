@@ -25,6 +25,7 @@ from g1_contact_law_momentum_holdout import (
     plant_layout,
     sha256,
     standing_posture,
+    to_bonesaw_tangent,
 )
 from g1_substepped_compliant_contact_holdout import (
     FRESH_CONTACT_LAWS,
@@ -127,6 +128,7 @@ def prepare_law(
     effective_mass = np.empty((samples, 8, 3), np.float64)
     delassus = np.empty((samples, 24, 24), np.float64)
     free_acceleration = np.empty((samples, 8, 3), np.float64)
+    generalized_free_acceleration = np.empty((samples, generalized_dof), np.float64)
     jacobian = np.empty((3, plant.nv), np.float64)
     jacobian_dot = np.empty((3, plant.nv), np.float64)
     point_response_timing = np.empty(samples, np.uint64)
@@ -145,6 +147,9 @@ def prepare_law(
         # Reference forward dynamics is a causal prestate query. It performs no
         # time integration and no policy/controller step.
         mujoco.mj_forward(plant, data)
+        generalized_free_acceleration[sample] = to_bonesaw_tangent(
+            data.qacc_smooth, root_qvel, qvel_indices
+        )
         points = replay[f"{prefix}_contact_points"][sample]
         reference_contact_acceleration(
             plant,
@@ -173,6 +178,7 @@ def prepare_law(
         "effective_mass": effective_mass,
         "delassus": delassus,
         "free_acceleration": free_acceleration,
+        "generalized_free_acceleration": generalized_free_acceleration,
         "total_mass_kg": float(np.sum(plant.body_mass)),
         "point_response_timing_ns": point_response_timing,
     }
