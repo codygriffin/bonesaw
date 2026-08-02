@@ -2338,6 +2338,18 @@ generalized RK4 or implicitfast integrators. Next, freeze a convergence/profile
 rule independently of these labels before a new untouched holdout. See the
 [r226 positive-reference compliance audit](benchmarks/results/g1-positive-reference-compliance-audit-r226/G1_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
 
+R227 freezes the coupled construction profile without using completed contact
+impulse or residual labels for selection. Its causal convergence rule chooses
+the least work whose prediction changes by at most 2% of the useful-width gate
+when projection sweeps double and 20% when microsteps double, while retaining a
+5 ms CPU deadline. That selects 32 microsteps × 32 forward/reverse sweeps:
+1.200% sweep refinement, 16.858% substep refinement, and 0.631 ms worst-law
+p99. The label-free impulse cap is whole-model mass times maximum causal
+closing speed plus one tick of gravity; tangent capacity comes from authored
+friction. Two retained runs reproduce all 192 semantic arrays exactly. This
+freezes a construction profile for a new untouched holdout only—no selector,
+plant action, or authority is promoted. See the [r227 causal convergence audit](benchmarks/results/g1-coupled-positive-reference-compliance-audit-r227/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2450,6 +2462,7 @@ Reproduce it with:
 ./scripts/run-g1-compliant-terminal-consequence-audit.sh
 ./scripts/run-g1-terminal-velocity-box-audit.sh
 ./scripts/run-g1-positive-reference-compliance-audit.sh
+./scripts/run-g1-coupled-positive-reference-compliance-audit.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

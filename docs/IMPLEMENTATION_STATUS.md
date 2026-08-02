@@ -38,6 +38,23 @@ lease expiry, fall report, next-step simulator reset, and fresh reconnect. This
 does not execute green base intent in MuJoCo and does not replace the unrun
 browser frame-time gate.
 
+## Current CPU checkpoint — r227 freezes coupled work from causal convergence
+
+R227 fixes a label-free momentum cap and selects the coupled construction
+profile using only differences between causal predictions. The least-work row
+must change by at most 2% of each useful-width gate when projection sweeps
+double, at most 20% when microsteps double, and remain below a 5 ms CPU
+deadline. This freezes 32 microsteps × 32 forward/reverse sweeps: 1.200% sweep
+refinement, 16.858% substep refinement, and 0.631 ms worst-law p99. Completed
+impulse and generalized-residual labels are accessed only after selection.
+
+The already-rejected R221 labels then show 48/48 coverage under each law at
+useful width, but they cannot promote the profile. All timed Rust calls allocate
+nothing and two complete runs reproduce 192 semantic arrays exactly. Generate
+a new untouched contact-law/state corpus next, preserving the frozen
+substeps/sweeps/cap/residual contract. No selector, plant action, or authority
+is admitted.
+
 ## Current CPU checkpoint — r226 uses the documented positive reference law
 
 R226 replaces the construction-only constant-impedance/reference scaling in

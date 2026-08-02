@@ -37,18 +37,24 @@ acceleration row fits angular/linear/joint width 0.095/0.030/6.131 and
 0.449/0.065/9.320 at 0.463/0.634 ms p99. No empirical profile is promoted and
 no fresh holdout is spent.
 
-The live complaint is now independently freezing the coupled solver's
-microstep/sweep/convergence rule before new evidence. Do not choose among the
-32/64/128-step successes, retune impulse caps, or fit residual widths from
-rejected R221 labels. The frozen candidate must pass a new untouched contact-
-law holdout at useful width and deadline, then feed the retained R224 bound
-into a selector with strict plant non-regression.
+R227 removes the coupled solver profile freeze from this punch list. A causal
+convergence rule compares predictions only, selecting the least work whose
+double-sweep change is at most 2% and double-substep change at most 20% of the
+useful-width gates under a 5 ms deadline. It freezes 32 substeps × 32 sweeps:
+1.200%/16.858% refinement and 0.631 ms p99. Completed impulse/residual labels
+do not enter selection, and 192 semantic arrays replay exactly.
+
+The live complaint is now a genuinely untouched contact-law/state holdout for
+that frozen profile. Do not retune its substeps, sweeps, label-free momentum
+cap, or residual widths after generating the new evidence. It must pass strict
+coverage, useful width, and deadline, then feed the retained R224 bound into a
+selector with strict plant non-regression.
 
 Acceptance still requires all of the following independent witnesses:
 
-- freeze the coupled soft-constraint solver's microstep, sweep, cap, and
-  residual contracts without selecting them from rejected R221 labels;
-- freeze a tighter independently motivated transition set, pass a new untouched
+- run the frozen R227 coupled transition profile on a new untouched law/state
+  corpus without changing its microsteps, sweeps, cap, or residual contract;
+- pass that new strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
