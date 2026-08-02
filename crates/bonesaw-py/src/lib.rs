@@ -18,10 +18,10 @@ use bonesaw_core::{
     CaptureLandingRetargetConfig, CollisionAccelerationBarrierConfig, CollisionContinuityPolicy,
     CollisionEvaluationScratch, CommandTrackingAction, CommandTrackingLimits,
     CompiledCollisionModel, CompiledFrameAtlas, CompiledWorldCollisionModel,
-    ContactCommandLeaseConfig, ContactCommandLeaseState, ContactMode, ContactObservation,
-    ContactObservationConfig, ContactObservationState, ContactPhaseAuthorityConfig,
-    ContactProgramAuthorityConfig, ContactProgramAuthorityState, ContactSpec,
-    ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
+    CompliantContactImpulseInput, ContactCommandLeaseConfig, ContactCommandLeaseState, ContactMode,
+    ContactObservation, ContactObservationConfig, ContactObservationState,
+    ContactPhaseAuthorityConfig, ContactProgramAuthorityConfig, ContactProgramAuthorityState,
+    ContactSpec, ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
     ContactTransitionResponseScratch, Controller, ControllerInput, ControllerOutputBuffer,
     ControllerScratch, ControllerState, CoupledContactHypothesisEnvelopeInput,
     CoupledContactImpulseInput, DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DcmBalanceConfig,
@@ -58,7 +58,8 @@ use bonesaw_core::{
     predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
     score_viability_forecast, select_conservative_terminal_impact_candidate,
     select_inexact_observation_authority, slew_contact_phase_authority, slew_touchdown_phase_rate,
-    solve_coupled_contact_impulse, solve_planar_point_ik_into, solve_whole_body_ik_into,
+    solve_coupled_contact_impulse, solve_planar_point_ik_into,
+    solve_substepped_compliant_contact_impulse, solve_whole_body_ik_into,
     solve_whole_body_kinematic_jets_into, step_actuator_realization, step_actuator_resource,
     step_contact_command_lease, step_contact_observation,
     step_contact_program_authority_with_inexact_command, step_viability_confirmation,
@@ -379,6 +380,7 @@ struct ContactTransitionModelSession {
     coupled_impulse_scratch: Vec<f64>,
     coupled_velocity_scratch: Vec<f64>,
     coupled_delta_scratch: Vec<f64>,
+    compliant_step_impulse_scratch: Vec<f64>,
 }
 
 #[pymethods]
@@ -423,6 +425,7 @@ impl ContactTransitionModelSession {
             coupled_impulse_scratch: vec![0.0; contact_axes],
             coupled_velocity_scratch: vec![0.0; contact_axes],
             coupled_delta_scratch: vec![0.0; generalized_dof],
+            compliant_step_impulse_scratch: vec![0.0; contact_axes],
         })
     }
 
@@ -691,6 +694,100 @@ impl ContactTransitionModelSession {
         if allocation_after != allocation_before {
             return Err(PyValueError::new_err(
                 "coupled contact impulse allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Integrate one explicit compliant contact law over fixed substeps.
+    #[allow(clippy::too_many_arguments)]
+    fn solve_substepped_compliant_contact_impulse(
+        &mut self,
+        contact_gap: PyReadonlyArray1<'_, f64>,
+        contact_velocity: PyReadonlyArray2<'_, f64>,
+        delassus: PyReadonlyArray2<'_, f64>,
+        impulse_upper: PyReadonlyArray2<'_, f64>,
+        friction: PyReadonlyArray1<'_, f64>,
+        normal_stiffness: PyReadonlyArray1<'_, f64>,
+        normal_damping: PyReadonlyArray1<'_, f64>,
+        time_step_s: f64,
+        substeps: usize,
+        mut impulse_out: PyReadwriteArray2<'_, f64>,
+        mut contact_velocity_after_out: PyReadwriteArray2<'_, f64>,
+        mut contact_gap_after_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let velocity_shape = contact_velocity.as_array().dim();
+        let delassus_shape = delassus.as_array().dim();
+        let upper_shape = impulse_upper.as_array().dim();
+        let impulse_shape = impulse_out.as_array().dim();
+        let after_shape = contact_velocity_after_out.as_array().dim();
+        let contact_gap = contact_gap.as_slice()?;
+        let contact_velocity = contact_velocity.as_slice()?;
+        let delassus = delassus.as_slice()?;
+        let impulse_upper = impulse_upper.as_slice()?;
+        let friction = friction.as_slice()?;
+        let normal_stiffness = normal_stiffness.as_slice()?;
+        let normal_damping = normal_damping.as_slice()?;
+        let impulse_out = impulse_out.as_slice_mut()?;
+        let contact_velocity_after_out = contact_velocity_after_out.as_slice_mut()?;
+        let contact_gap_after_out = contact_gap_after_out.as_slice_mut()?;
+        let contacts = self.point_specs.len();
+        let axes = contacts * CONTACT_TRANSITION_IMPULSE_WIDTH;
+        if contact_gap.len() != contacts
+            || velocity_shape != (contacts, CONTACT_TRANSITION_IMPULSE_WIDTH)
+            || delassus_shape != (axes, axes)
+            || upper_shape != velocity_shape
+            || friction.len() != contacts
+            || normal_stiffness.len() != contacts
+            || normal_damping.len() != contacts
+            || impulse_shape != velocity_shape
+            || after_shape != velocity_shape
+            || contact_gap_after_out.len() != contacts
+        {
+            return Err(PyValueError::new_err(format!(
+                "substepped compliant contact expects gap/stiffness/damping/friction[{contacts}], velocity/upper/impulse/after[{contacts},3], delassus[{axes},{axes}], and gap_after[{contacts}]"
+            )));
+        }
+        let input = CompliantContactImpulseInput {
+            contact_gap,
+            contact_velocity,
+            delassus,
+            impulse_upper,
+            friction,
+            normal_stiffness,
+            normal_damping,
+            time_step_s,
+            substeps,
+        };
+        solve_substepped_compliant_contact_impulse(
+            input,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!("invalid substepped compliant contact: {error:?}"))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        solve_substepped_compliant_contact_impulse(
+            input,
+            &mut self.compliant_step_impulse_scratch,
+            impulse_out,
+            contact_velocity_after_out,
+            contact_gap_after_out,
+        )
+        .expect("validated substepped compliant contact");
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "substepped compliant contact allocated inside the Rust hot path",
             ));
         }
         Ok((

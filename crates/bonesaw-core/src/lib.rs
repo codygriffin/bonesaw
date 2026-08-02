@@ -77,12 +77,14 @@ pub use contact_program_authority::{
 };
 pub use contact_transition::{
     CONTACT_TRANSITION_IMPULSE_WIDTH, CONTACT_TRANSITION_WITNESS_WIDTH,
-    ContactTransitionAccelerationIntervalInput, ContactTransitionError, ContactTransitionInput,
-    ContactTransitionResponseError, ContactTransitionResponseScratch,
-    CoupledContactHypothesisEnvelopeInput, CoupledContactImpulseError, CoupledContactImpulseInput,
+    CompliantContactImpulseInput, ContactTransitionAccelerationIntervalInput,
+    ContactTransitionError, ContactTransitionInput, ContactTransitionResponseError,
+    ContactTransitionResponseScratch, CoupledContactHypothesisEnvelopeInput,
+    CoupledContactImpulseError, CoupledContactImpulseInput,
     DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DirectionalContactTransitionInput,
     PointImpulseResponseSpec, SPATIAL_IMPULSE_WIDTH, SPATIAL_PATCH_TRANSITION_WITNESS_WIDTH,
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, solve_coupled_contact_impulse,
+    solve_substepped_compliant_contact_impulse,
     write_contact_transition_acceleration_interval_bounds, write_contact_transition_bounds,
     write_coupled_contact_hypothesis_velocity_envelope,
     write_directional_contact_transition_bounds, write_generalized_momentum_impulse_residuals,

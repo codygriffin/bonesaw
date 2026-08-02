@@ -2227,6 +2227,39 @@ without tuning it. The generic solver stays; typed estimator uncertainty or a
 higher-order compliant law is the next gate. See the
 [r218 fresh-law holdout](benchmarks/results/g1-coupled-contact-law-holdout-r218/G1_COUPLED_CONTACT_LAW_HOLDOUT.md).
 
+R219 makes contact-estimator ambiguity a typed, finite Rust boundary rather
+than an implicit residual scalar. Each explicitly enumerated hypothesis owns
+contact velocity, impulse caps, friction, restitution, and compliance while
+sharing one state-local Delassus and generalized response. Caller-owned scratch
+keeps the query allocation-free, every scenario validates before outputs
+change, and the API states that it does not certify unenumerated values between
+scenarios. On immutable R218 labels, a 315-row set including all `2⁸` signed
+normal-velocity patterns reaches only 81.25% strict coverage at a useful
+9.185 rad/s joint p95 width. Larger rows reach 92.708% at 23.306 rad/s; cap
+inflation reaches 96.875% near 22.5 rad/s and still misses. Those 315-scenario
+queries also take 6.383–7.784 ms p99 in the retained run, exceeding the 5 ms
+period. No construction row advances to a fresh holdout. See the
+[r219 typed contact-hypothesis replay](benchmarks/results/g1-contact-estimator-hypothesis-replay-r219/G1_CONTACT_ESTIMATOR_HYPOTHESIS_REPLAY.md).
+
+R220 replaces static scenarios with stateful compliant evolution inside the
+prediction interval. Rust carries signed gap and contact velocity through fixed
+microsteps, applies explicit Kelvin–Voigt normal impulse and circular Coulomb
+tangent projection, updates every point through the full Delassus operator,
+and advances gap after the coupled impulse. The construction-selected
+128-microstep profile covers all 96 immutable R218 labels with a fitted
+1.748/0.299/9.802 groupwise residual width and a 55.705 µs p99 query. The
+profile is frozen but not promoted. See the
+[r220 compliant construction replay](benchmarks/results/g1-substepped-compliant-contact-replay-r220/G1_SUBSTEPPED_COMPLIANT_CONTACT_REPLAY.md).
+
+R221 tests that exact profile on untouched mid/elliptic/implicit-fast and hard/
+pyramidal/RK4 laws at new state offsets. The mid law covers 44/48 complete
+samples; the hard law covers only 31/48. Component coverage remains
+99.7126%/98.1322%, queries stay near 50 µs p99 with zero Rust allocation and
+bitwise repeat, and all non-timing artifacts reproduce exactly—but strict
+coverage is conjunctive. The mechanism stays and the frozen profile is rejected
+without holdout tuning. See the
+[r221 compliant fresh-law holdout](benchmarks/results/g1-substepped-compliant-contact-holdout-r221/G1_SUBSTEPPED_COMPLIANT_CONTACT_HOLDOUT.md).
+
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
 twist, joint position/velocity, selected action, and the center/spread of the
@@ -2333,6 +2366,9 @@ Reproduce it with:
 ./scripts/run-g1-causal-center-split-kinetic-replay.sh
 ./scripts/run-g1-coupled-contact-law-replay.sh
 ./scripts/run-g1-coupled-contact-law-holdout.sh
+./scripts/run-g1-contact-estimator-hypothesis-replay.sh
+./scripts/run-g1-substepped-compliant-contact-replay.sh
+./scripts/run-g1-substepped-compliant-contact-holdout.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh

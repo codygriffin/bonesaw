@@ -347,6 +347,64 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(unchanged_lower, 7.0)
         np.testing.assert_array_equal(unchanged_upper, 8.0)
 
+    def test_substepped_compliance_evolves_declared_gap_without_allocation(self) -> None:
+        gap = np.asarray([-0.01, 0.10], np.float64)
+        velocity = np.asarray(
+            [[0.0, 0.0, -1.0], [0.0, 0.0, 0.0]], np.float64
+        )
+        delassus = np.eye(6, dtype=np.float64)
+        upper = np.ones((2, 3), np.float64)
+        friction = np.full(2, 0.5, np.float64)
+        stiffness = np.full(2, 100.0, np.float64)
+        damping = np.zeros(2, np.float64)
+        impulse = np.empty((2, 3), np.float64)
+        after = np.empty((2, 3), np.float64)
+        gap_after = np.empty(2, np.float64)
+        timing = self.generic.solve_substepped_compliant_contact_impulse(
+            gap,
+            velocity,
+            delassus,
+            upper,
+            friction,
+            stiffness,
+            damping,
+            0.01,
+            1,
+            impulse,
+            after,
+            gap_after,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertAlmostEqual(impulse[0, 2], 0.02)
+        self.assertAlmostEqual(after[0, 2], -0.98)
+        self.assertAlmostEqual(gap_after[0], -0.0198)
+        np.testing.assert_array_equal(impulse[1], 0.0)
+        self.assertEqual(gap_after[1], gap[1])
+
+        unchanged_impulse = np.full((2, 3), 7.0, np.float64)
+        unchanged_after = np.full((2, 3), 8.0, np.float64)
+        unchanged_gap = np.full(2, 9.0, np.float64)
+        invalid_stiffness = stiffness.copy()
+        invalid_stiffness[-1] = np.nan
+        with self.assertRaisesRegex(ValueError, "substepped compliant"):
+            self.generic.solve_substepped_compliant_contact_impulse(
+                gap,
+                velocity,
+                delassus,
+                upper,
+                friction,
+                invalid_stiffness,
+                damping,
+                0.01,
+                1,
+                unchanged_impulse,
+                unchanged_after,
+                unchanged_gap,
+            )
+        np.testing.assert_array_equal(unchanged_impulse, 7.0)
+        np.testing.assert_array_equal(unchanged_after, 8.0)
+        np.testing.assert_array_equal(unchanged_gap, 9.0)
+
     def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
         generalized_dof = self.generic.generalized_dof()
         response = np.zeros((generalized_dof, 2, 6), np.float64)

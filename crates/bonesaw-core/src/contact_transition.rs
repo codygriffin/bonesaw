@@ -939,6 +939,24 @@ pub struct CoupledContactHypothesisEnvelopeInput<'a> {
     pub sweeps: usize,
 }
 
+/// Fixed-substep compliant contact evolution input.
+///
+/// Gap is positive while separated. Normal stiffness and damping are explicit
+/// per-contact model parameters; this function does not infer them from a
+/// simulator name or material label.
+#[derive(Clone, Copy, Debug)]
+pub struct CompliantContactImpulseInput<'a> {
+    pub contact_gap: &'a [f64],
+    pub contact_velocity: &'a [f64],
+    pub delassus: &'a [f64],
+    pub impulse_upper: &'a [f64],
+    pub friction: &'a [f64],
+    pub normal_stiffness: &'a [f64],
+    pub normal_damping: &'a [f64],
+    pub time_step_s: f64,
+    pub substeps: usize,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CoupledContactImpulseError {
     InvalidConfig,
@@ -1187,6 +1205,130 @@ pub fn write_coupled_contact_hypothesis_velocity_envelope(
                 generalized_velocity_lower_out[coordinate].min(delta);
             generalized_velocity_upper_out[coordinate] =
                 generalized_velocity_upper_out[coordinate].max(delta);
+        }
+    }
+    Ok(())
+}
+
+/// Integrate one explicit compliant contact model over fixed substeps.
+///
+/// Each substep predicts penetration from the current signed gap and normal
+/// velocity, applies a Kelvin–Voigt normal impulse, projects the tangent impulse
+/// to the current circular Coulomb disk, then updates the fully coupled contact
+/// velocity through `J M^-1 J^T`. Gap advances with the post-impulse normal
+/// velocity. This is a deterministic model witness, not a complementarity or
+/// continuous-time enclosure. All storage is caller-owned.
+pub fn solve_substepped_compliant_contact_impulse(
+    input: CompliantContactImpulseInput<'_>,
+    step_impulse_scratch: &mut [f64],
+    impulse_out: &mut [f64],
+    contact_velocity_after_out: &mut [f64],
+    contact_gap_after_out: &mut [f64],
+) -> Result<(), CoupledContactImpulseError> {
+    let axes = input.contact_velocity.len();
+    if axes == 0 || !axes.is_multiple_of(CONTACT_TRANSITION_IMPULSE_WIDTH) {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    let contacts = axes / CONTACT_TRANSITION_IMPULSE_WIDTH;
+    if input.contact_gap.len() != contacts
+        || input.normal_stiffness.len() != contacts
+        || input.normal_damping.len() != contacts
+        || contact_gap_after_out.len() != contacts
+        || step_impulse_scratch.len() != axes
+    {
+        return Err(CoupledContactImpulseError::Dimension);
+    }
+    validate_coupled_contact_impulse(
+        CoupledContactImpulseInput {
+            contact_velocity: input.contact_velocity,
+            delassus: input.delassus,
+            impulse_upper: input.impulse_upper,
+            friction: input.friction,
+            restitution: 0.0,
+            diagonal_regularization_ratio: 0.0,
+            sweeps: 1,
+        },
+        impulse_out.len(),
+        contact_velocity_after_out.len(),
+    )?;
+    if !input.time_step_s.is_finite()
+        || input.time_step_s <= 0.0
+        || input.substeps == 0
+        || input.substeps > 256
+    {
+        return Err(CoupledContactImpulseError::InvalidConfig);
+    }
+    if input.contact_gap.iter().any(|value| !value.is_finite())
+        || input
+            .normal_stiffness
+            .iter()
+            .chain(input.normal_damping)
+            .any(|value| !nonnegative_finite(*value))
+    {
+        return Err(CoupledContactImpulseError::InvalidWitness);
+    }
+
+    impulse_out.fill(0.0);
+    contact_velocity_after_out.copy_from_slice(input.contact_velocity);
+    contact_gap_after_out.copy_from_slice(input.contact_gap);
+    let substep_s = input.time_step_s / input.substeps as f64;
+    for _ in 0..input.substeps {
+        step_impulse_scratch.fill(0.0);
+        for contact in 0..contacts {
+            let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
+            let tangent_y = tangent_x + 1;
+            let normal = tangent_x + 2;
+            let predicted_gap =
+                contact_gap_after_out[contact] + substep_s * contact_velocity_after_out[normal];
+            if predicted_gap >= 0.0 {
+                continue;
+            }
+            let penetration = -predicted_gap;
+            let closing_speed = (-contact_velocity_after_out[normal]).max(0.0);
+            let normal_force = input.normal_stiffness[contact] * penetration
+                + input.normal_damping[contact] * closing_speed;
+            let normal_remaining = (input.impulse_upper[normal] - impulse_out[normal]).max(0.0);
+            let normal_impulse = (normal_force * substep_s).clamp(0.0, normal_remaining);
+            step_impulse_scratch[normal] = normal_impulse;
+
+            let friction_radius = input.friction[contact] * normal_impulse;
+            let diagonal_x = input.delassus[tangent_x * axes + tangent_x];
+            let diagonal_y = input.delassus[tangent_y * axes + tangent_y];
+            let desired_total_x = (impulse_out[tangent_x]
+                - contact_velocity_after_out[tangent_x] / diagonal_x)
+                .clamp(
+                    -input.impulse_upper[tangent_x],
+                    input.impulse_upper[tangent_x],
+                );
+            let desired_total_y = (impulse_out[tangent_y]
+                - contact_velocity_after_out[tangent_y] / diagonal_y)
+                .clamp(
+                    -input.impulse_upper[tangent_y],
+                    input.impulse_upper[tangent_y],
+                );
+            let mut tangent_impulse_x = desired_total_x - impulse_out[tangent_x];
+            let mut tangent_impulse_y = desired_total_y - impulse_out[tangent_y];
+            let tangent_norm = tangent_impulse_x.hypot(tangent_impulse_y);
+            if tangent_norm > friction_radius && tangent_norm > 0.0 {
+                let scale = friction_radius / tangent_norm;
+                tangent_impulse_x *= scale;
+                tangent_impulse_y *= scale;
+            }
+            step_impulse_scratch[tangent_x] = tangent_impulse_x;
+            step_impulse_scratch[tangent_y] = tangent_impulse_y;
+        }
+        for row in 0..axes {
+            let velocity_delta = (0..axes)
+                .map(|column| input.delassus[row * axes + column] * step_impulse_scratch[column])
+                .sum::<f64>();
+            contact_velocity_after_out[row] += velocity_delta;
+        }
+        for axis in 0..axes {
+            impulse_out[axis] += step_impulse_scratch[axis];
+        }
+        for contact in 0..contacts {
+            let normal = contact * CONTACT_TRANSITION_IMPULSE_WIDTH + 2;
+            contact_gap_after_out[contact] += substep_s * contact_velocity_after_out[normal];
         }
     }
     Ok(())
@@ -2649,6 +2791,83 @@ mod tests {
         );
         assert_eq!(lower, [7.0]);
         assert_eq!(upper, [8.0]);
+    }
+
+    #[test]
+    fn substepped_compliance_evolves_gap_velocity_and_bounded_impulse() {
+        let input = CompliantContactImpulseInput {
+            contact_gap: &[-0.01],
+            contact_velocity: &[0.0, 0.0, -1.0],
+            delassus: &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            impulse_upper: &[1.0, 1.0, 1.0],
+            friction: &[0.5],
+            normal_stiffness: &[100.0],
+            normal_damping: &[0.0],
+            time_step_s: 0.01,
+            substeps: 1,
+        };
+        let mut step = [0.0; 3];
+        let mut impulse = [0.0; 3];
+        let mut velocity = [0.0; 3];
+        let mut gap = [0.0];
+        solve_substepped_compliant_contact_impulse(
+            input,
+            &mut step,
+            &mut impulse,
+            &mut velocity,
+            &mut gap,
+        )
+        .unwrap();
+        assert!((impulse[2] - 0.02).abs() < 1.0e-12);
+        assert!((velocity[2] + 0.98).abs() < 1.0e-12);
+        assert!((gap[0] + 0.0198).abs() < 1.0e-12);
+        assert_eq!(impulse[0].hypot(impulse[1]), 0.0);
+
+        let mut repeat_impulse = [0.0; 3];
+        let mut repeat_velocity = [0.0; 3];
+        let mut repeat_gap = [0.0];
+        solve_substepped_compliant_contact_impulse(
+            input,
+            &mut step,
+            &mut repeat_impulse,
+            &mut repeat_velocity,
+            &mut repeat_gap,
+        )
+        .unwrap();
+        assert_eq!(repeat_impulse, impulse);
+        assert_eq!(repeat_velocity, velocity);
+        assert_eq!(repeat_gap, gap);
+    }
+
+    #[test]
+    fn substepped_compliance_rejects_invalid_model_atomically() {
+        let mut step = [0.0; 3];
+        let mut impulse = [7.0; 3];
+        let mut velocity = [8.0; 3];
+        let mut gap = [9.0];
+        assert_eq!(
+            solve_substepped_compliant_contact_impulse(
+                CompliantContactImpulseInput {
+                    contact_gap: &[0.0],
+                    contact_velocity: &[0.0, 0.0, -1.0],
+                    delassus: &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                    impulse_upper: &[1.0; 3],
+                    friction: &[0.5],
+                    normal_stiffness: &[f64::NAN],
+                    normal_damping: &[1.0],
+                    time_step_s: 0.01,
+                    substeps: 4,
+                },
+                &mut step,
+                &mut impulse,
+                &mut velocity,
+                &mut gap,
+            ),
+            Err(CoupledContactImpulseError::InvalidWitness)
+        );
+        assert_eq!(impulse, [7.0; 3]);
+        assert_eq!(velocity, [8.0; 3]);
+        assert_eq!(gap, [9.0]);
     }
 
     #[test]

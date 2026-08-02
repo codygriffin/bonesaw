@@ -33,11 +33,28 @@ perfectly fitted centered interval around the stiff-law predictor cannot beat
 No holdout miss was tuned back into the profile. Prior R203–R216 construction
 details now live in revisioned reports rather than this unresolved list.
 
+R219 knocks off the implementation half of typed estimator uncertainty. Rust
+now envelopes an explicit finite contact-hypothesis set atomically and without
+allocation. The construction result rejects scenario enumeration as the next
+authority profile: 315 scenarios reach only 81.25% coverage at the useful
+9.185 rad/s joint-width edge; larger rows reach at most 96.875%, remain near
+22.5 rad/s, and take 6.383–7.784 ms p99. No row earns a fresh holdout. The live
+complaint is now a higher-order compliant predictor, not another larger finite
+scenario list.
+
+R220 implements that predictor and passes its all-label construction gate at a
+useful 1.748/0.299/9.802 width with a 55.705 µs p99 allocation-free query.
+R221 rejects the frozen profile on genuinely new laws: mid compliance covers
+44/48 samples and hard compliance only 31/48. Bitwise repeat, component
+coverage, and timing remain good, but strict coverage is not negotiable. The
+implementation item is knocked off; the remaining complaint is contact-law
+transfer. Do not retune the 128 microsteps, 16× cap, or group box from R221.
+
 Acceptance still requires all of the following independent witnesses:
 
-- type a causal contact-estimator uncertainty set or implement a higher-order
-  compliant contact law before freezing another untouched law/state holdout;
-  the r217/r218 coupled time-step calibration is already rejected;
+- derive an independently motivated transferable contact-law residual or model
+  parameterization before another untouched holdout; r221 already rejects the
+  label-fit substepped-compliance profile despite useful width and deadline;
 - type declared external-wrench/load provenance into the online command and
   keep it separate from impact impulse and unobserved-model reserves;
 - demonstrate a state/trajectory-conditioned terminal action with strict plant

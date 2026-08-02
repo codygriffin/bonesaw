@@ -2,7 +2,57 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r218 fresh-law holdout rejects the frozen coupled profile
+## Current CPU checkpoint — r221 fresh laws reject the frozen compliant profile
+
+R220 adds a fixed-substep compliant predictor in generic Rust. It carries
+signed point gap and contact velocity through each microstep, computes explicit
+Kelvin–Voigt normal impulse, projects tangent impulse to the circular Coulomb
+disk, updates all contacts through the full state-local Delassus operator, and
+advances gap with post-impulse normal velocity. Stiffness and damping are
+explicitly mapped from effective normal mass, declared relaxation, and
+impedance. Inputs validate before output mutation; core/Python evolution,
+atomicity, determinism, and zero-allocation tests pass.
+
+On immutable R218 construction labels, the selected 128-microstep profile and
+its label-fit group residual box cover all 96 samples at
+1.748/0.299/9.802 root-angular/root-linear/joint width. The retained query is
+55.705 µs p99 with zero Rust allocation, and all 52 non-timing arrays reproduce
+exactly. The 16× cap scale, microstep count, and residual box are explicitly
+construction calibration, not hardware physics or authority.
+
+R221 freezes every one of those choices before generating two new reset law/
+state sequences at offsets 70,000 and 80,000. The mid/elliptic/implicit-fast
+law covers 44/48 samples (91.667%, 99.7126% of components); the hard/pyramidal/
+RK4 law covers 31/48 (64.583%, 98.1322% of components). Queries repeat bitwise,
+allocate nothing, and remain at 52.646/53.573 µs p99, but strict coverage
+fails. All 56 non-timing holdout arrays reproduce exactly. The mechanism stays;
+the profile and authority are rejected without retuning from R221.
+
+## Prior CPU checkpoint — r219 types finite estimator hypotheses and rejects scenario explosion
+
+R219 adds a generic Rust envelope over an explicitly enumerated finite contact-
+estimator hypothesis set. Every hypothesis owns contact velocity, impulse caps,
+friction, restitution, and compliance while sharing the exact state-local
+Delassus operator and generalized impulse response. The caller owns all output
+and scratch buffers. Rust validates every scenario before touching output, so
+a malformed late hypothesis is atomic; core and Python independent-solve
+oracles pass with zero timed allocation. The API explicitly does not claim
+coverage between the enumerated scenarios.
+
+The zero-plant construction replay evaluates eight profiles on immutable R218
+labels. The 59-scenario family includes nominal, global gap/normal/tangent,
+per-contact signed-axis, and law-error rows. The 315-scenario family additionally
+enumerates all `2⁸` signed normal-velocity patterns. Its useful-width edge
+reaches only 81.25% strict sample coverage at 0.864/0.129/9.185 p95 width;
+larger uncertainty reaches 92.708% at 1.923/0.339/23.306. Raising impulse caps
+reaches 96.875% but stays near 22.5 rad/s joint width, still misses, and every
+315-scenario p99 query exceeds the 5 ms control period (6.383–7.784 ms in the
+retained run). All 48 non-timing replay arrays reproduce exactly. The finite-
+hypothesis mechanism stays, but no profile advances to a fresh holdout. The
+next predictor must model higher-order compliant evolution rather than expand
+a discrete scenario list until it memorizes completed labels.
+
+## Prior CPU checkpoint — r218 fresh-law holdout rejects the frozen coupled profile
 
 R217 adds a generic PyO3 boundary over the existing allocation-free Rust
 projected Delassus solve. All eight prospective G1 foot points are solved
