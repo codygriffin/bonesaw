@@ -37,12 +37,27 @@ session accepts a finite total Dykstra projection ceiling; the Python sweep
 retains the unbounded baseline and 8/16/32/64-sweep traces. Unbounded work
 misses the 20 ms 50 Hz deadline on 281/600 ticks at 276.8 ms p99. Every finite
 profile has zero 20 ms misses, no failed/infeasible or contact-release tick,
-and p99 below 5 ms; 8 sweeps is the measured minimum. This fixes the
-"solver runs until the web view appears to stop" timing failure, but not the
-floating contact-transfer behavior: normal-contact contingency remains active
-and tracking/residual acceptance stays red. The ceiling is fail-closed and
-does not make an unfinished solve executable, reset the state, or grant
-authority. See the [r262 budget report](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+and p99 below 5 ms, although generic-build maxima remain 16.44–16.70 ms. The
+complete host-native profile pairs the minimum 8-sweep ceiling with two polish
+iterations. Five CPU-4-pinned, 600-tick processes record 0/3,000 five- and
+twenty-millisecond misses, 3.469 ms worst p99, 3.551 ms observed maximum,
+72/72 exact non-timing arrays, and zero Python collections. This fixes the
+"solver runs until the web view appears to stop" failure and demonstrates the
+measured 200 Hz envelope for a fail-closed profile, but not floating transfer:
+354/600 ticks are contingency and tracking/residual acceptance stays red. The
+default remains unchanged; an unfinished solve never becomes executable and
+does not reset state or grant authority. See the [r262 budget report](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
+R263 closes the separate interactive freeze/reset complaint. On the retained
+600-tick cap8 transfer, the r262 state held an exact root-and-joint state for
+171 ticks after contact contingency. Rust now treats `MaxIterations` and every
+other unsolved contact result as non-executable, retries once with normal-only
+rows, latches released targets out of hard rows until reset/schedule release,
+and advances under a bounded free-body damping/gravity fallback when no
+contact solve remains. The r263 trace has zero exact state stalls, one release
+contingency, zero 20 ms misses, and 3.974 ms p99. The fallback is not a walking
+or plant-authority claim: contact, tracking, residual, MuJoCo feedback, and
+thermal gates remain open. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
 ## Open CPU authority gate: useful physical transition tube
 
@@ -184,6 +199,39 @@ component regressions and one aggregate regression. No fresh holdout or
 authority follows; the next profile must cover multiple spent law families
 without destroying those useful selections.
 
+R264 knocks off that multi-law profile complaint on spent evidence. One frozen
+55-coordinate observed-state profile now uses same-cell nearest residual
+prototypes across all four R248/R254 contact-law families, with asymmetric
+causal-cell calibration and an explicit distance gate. The bounded Rust query
+checks at most 192 caller-owned prototypes, allocates zero timed bytes, repeats
+all non-timing outputs exactly, and agrees with Python on every nearest identity
+(maximum squared-distance error 2.84e-14). Leave-one-law-out centers plus the
+frozen calibration cover 192/192 component and aggregate rows; three nonzero
+candidate-2 choices survive and all three are actually strictly nonregressing
+and improving. The broad 38.317 component / 19.137 aggregate worst extensions
+explain the deliberately low action rate. Model and source hashes are pinned,
+and the evaluator executes zero policy steps, physics steps, or plant actions.
+This profile was frozen for exactly one untouched new-law/offset holdout;
+R265 has now consumed it, and no authority follows from spent rehearsal. See the
+[r264 residual-prototype report](benchmarks/results/g1-residual-prototype-profile-r264/G1_RESIDUAL_PROTOTYPE_PROFILE.md).
+
+R265 consumes that holdout exactly once without refit or widening. The new
+medium elliptic/Euler and stiff elliptic/RK4 laws use offsets 330,000/340,000
+and execute 1,440 fresh MuJoCo steps. Provenance, WBC/realization, allocation,
+repeat, warning, and timing mechanisms pass: 88/96 rows remain inside the
+frozen distance envelope, the Rust profile query is 0.996 µs p99, WBC is
+3.253 ms p99, allocation is zero, and warnings are zero. The profile is
+rejected. Supported component/aggregate coverage is only 92.045%/85.985%.
+Joint-position pressure and headroom dominate at 27.992/2.834 maximum miss;
+aggregate miss reaches 13.964. The sole nonzero action is medium-Euler row 20,
+candidate 1: aggregate improves by 0.732, but tilt/angular-rate pressure regress
+by 0.0119/0.00349, outside boxes that predicted improvement. Candidate 1 had
+never been selected in the spent rehearsal but was still selectable on the
+fresh state. The holdout is consumed and will not be rerun. The next profile
+must freeze action-support evidence as well as state distance/calibration, then
+be designed on now-spent R265 labels before any later holdout is declared. See
+the [r265 one-shot report](benchmarks/results/g1-residual-prototype-plant-holdout-r265/G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md).
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -198,11 +246,13 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- cover multiple spent law families with one causal, useful correlated paired
-  profile (or certify complete within-step action bounds), then require one
-  untouched new-law/offset holdout before any authority;
-- return the complete ordinary-process 200 Hz path to zero five-millisecond
-  overruns and retain allocation/GC and exact-replay witnesses.
+- freeze a new correlated profile on spent evidence with explicit per-action
+  selection support, not only same-cell state distance, and require complete
+  consequence coverage before declaring any later one-shot holdout;
+- preserve R262's zero-overrun host-native envelope, allocation/GC contract,
+  and exact replay when the useful floating behavior profile is promoted to
+  the ordinary path; R262's fail-closed timing profile alone is not functional
+  admission.
 
 ## Open robustness and hardware calibration
 

@@ -1,0 +1,76 @@
+{
+  "baseline": {
+    "artifact": "benchmarks/results/floating-g1-transfer-r262-cap8/floating-walk-raw.npz",
+    "deadline_misses": {
+      "20ms": 0,
+      "5ms": 2
+    },
+    "finite_state": true,
+    "first_contingency_tick": 300,
+    "label": "r262-cap8",
+    "latency_us": {
+      "max": 16697.959,
+      "p50": 1665.9275,
+      "p99": 4027.78919
+    },
+    "longest_exact_state_stall_ticks": 171,
+    "post_contingency_root_motion": true,
+    "status_change_ticks": [
+      0,
+      199,
+      300,
+      428,
+      429
+    ],
+    "status_counts": {
+      "0": 199,
+      "1": 101,
+      "4": 299,
+      "6": 1
+    },
+    "ticks": 600
+  },
+  "candidate": {
+    "artifact": "benchmarks/results/floating-g1-transfer-r263-release-cap8/floating-walk-raw.npz",
+    "deadline_misses": {
+      "20ms": 0,
+      "5ms": 1
+    },
+    "finite_state": true,
+    "first_contingency_tick": 300,
+    "label": "r263-release-cap8",
+    "latency_us": {
+      "max": 5172.933,
+      "p50": 1758.192,
+      "p99": 3974.1712099999995
+    },
+    "longest_exact_state_stall_ticks": 0,
+    "post_contingency_root_motion": true,
+    "status_change_ticks": [
+      0,
+      199,
+      300,
+      312,
+      313
+    ],
+    "status_counts": {
+      "0": 199,
+      "1": 101,
+      "4": 299,
+      "5": 1
+    },
+    "ticks": 600
+  },
+  "functional_admission": false,
+  "gates": {
+    "baseline_exhibits_state_stall": true,
+    "candidate_has_no_state_stall": true,
+    "candidate_moves_after_contingency": true,
+    "candidate_no_failed_or_infeasible": true,
+    "candidate_p99_under_5ms": true,
+    "candidate_release_is_bounded": true,
+    "candidate_zero_20ms_misses": true
+  },
+  "note": "The release latch and free-body fallback close the freeze/reset failure mode. They do not admit the floating walking transfer: contact/tracking/residual behavior remains a separate open gate.",
+  "revision": "g1-floating-contact-release-r263"
+}

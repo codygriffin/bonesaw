@@ -14,6 +14,10 @@ class FloatingProjectionBudgetR262Test(unittest.TestCase):
         self.assertTrue(result["gates"]["bounded_50hz_budget"])
         self.assertTrue(result["gates"]["bounded_no_failed_or_infeasible"])
         self.assertTrue(result["gates"]["bounded_no_contact_release"])
+        self.assertTrue(result["gates"]["host_native_zero_5ms_overruns"])
+        self.assertTrue(result["gates"]["host_native_zero_20ms_overruns"])
+        self.assertTrue(result["gates"]["host_native_exact_non_timing_replay"])
+        self.assertTrue(result["gates"]["host_native_zero_python_gc"])
         self.assertFalse(result["gates"]["functional_full_transfer"])
         self.assertIn("authority is not admitted", report)
 
@@ -25,6 +29,16 @@ class FloatingProjectionBudgetR262Test(unittest.TestCase):
         for label in ("cap8", "cap16", "cap32", "cap64"):
             self.assertTrue(rows[label]["finite_trace"])
             self.assertTrue(rows[label]["no_failed_or_infeasible_ticks"])
+
+        native = result["host_native_execution_profile"]
+        self.assertEqual(native["ticks"], 3_000)
+        self.assertEqual(native["five_ms_misses"], 0)
+        self.assertLess(native["observed_maximum_us"], 5_000.0)
+        self.assertEqual(native["non_timing_replay"]["exact_fields"], 72)
+        self.assertEqual(native["non_timing_replay"]["changed_fields"], [])
+        self.assertEqual(
+            result["recommended_execution_profile"]["feasibility_iterations"], 2
+        )
 
 
 if __name__ == "__main__":

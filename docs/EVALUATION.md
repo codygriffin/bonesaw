@@ -922,6 +922,54 @@ Artifacts live in
 Future variants add model-aware support viability, morphology sweeps,
 missing-hand channels, and a second independently licensed clip.
 
+### Revision r264 cross-law residual-prototype freeze
+
+`scripts/run-g1-residual-prototype-profile-r264.sh` rebuilds the Rust/PyO3
+boundary and consumes only checksum-pinned R258 and R254 artifacts. It performs
+zero policy steps, physics steps, and plant actions. Python fits one complete
+55-coordinate observed-state scale, computes leave-one-law-out nearest
+residual centers within 16 predeclared closing-speed/tilt cells, and freezes
+asymmetric cell calibration plus a maximum same-cell distance. Rust validates
+the immutable flat profile once, searches at most 192 caller-owned prototypes,
+fails closed beyond the distance gate, constructs all three consequence boxes,
+and invokes the existing component/aggregate nonregression selector without
+timed allocation.
+
+All 192 spent rows are component- and aggregate-covered; 189 select the exact
+zero baseline and three select candidate 2. All three nonzero choices are
+actually strictly nonregressing and improving. Rust matches every Python
+nearest identity, maximum squared-distance disagreement is 2.84e-14, and every
+non-timing output repeats exactly. The recorded query is 1.23 µs p99 with zero
+Rust allocations. Worst fitted component/aggregate upper extensions are broad
+at 38.317/19.137, so usefulness is intentionally sparse. The profile was frozen
+for exactly one untouched new-law/offset holdout; R265 has now consumed that
+holdout. No refit, widening, candidate change, plant command, or authority is
+implied. See the
+[r264 residual-prototype profile](../benchmarks/results/g1-residual-prototype-profile-r264/G1_RESIDUAL_PROTOTYPE_PROFILE.md).
+
+### Revision r265 exactly-once residual-prototype plant holdout
+
+`python/evals/g1_residual_prototype_plant_holdout_r265.py` refuses to run when
+either its label or result artifact already exists. Before labels, it pins the
+R264 NPZ hash, model hash, complete 192-prototype profile, thresholds,
+candidate family, medium elliptic/Euler and stiff elliptic/RK4 laws, and unused
+330,000/340,000 offsets. The only execution produced 96 states and 1,440 fresh
+MuJoCo steps under the unchanged five-by-4-ms plant cadence; it runs no policy
+or plant command.
+
+The mechanism passes: 88/96 states are inside the frozen state-distance gate,
+unsupported states fail closed, all queries repeat, Rust allocations and
+MuJoCo warnings are zero, profile p99 is 0.996 µs, and WBC p99 is 3.253 ms.
+The profile does not transfer. Supported component/aggregate coverage is
+92.045%/85.985%; worst joint-position, headroom, and aggregate misses are
+27.992, 2.834, and 13.964. One medium-Euler state selects candidate 1 and
+improves aggregate consequence by 0.732, but tilt and angular-rate pressure
+regress by 0.0119 and 0.00349, so zero of one nonzero actions is strictly safe.
+Candidate 1 was present in the frozen family but had never been selected on
+spent rehearsal, identifying action-selection support as a separate necessary
+gate. The holdout is consumed and may not be repeated. See the [r265 one-shot
+report](../benchmarks/results/g1-residual-prototype-plant-holdout-r265/G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md).
+
 ### Revision r262 floating feasibility budget profile
 
 `scripts/run-g1-floating-projection-budget-profile-r262.sh` compares the
@@ -930,12 +978,32 @@ Dykstra projection ceilings. This is an artifact-backed WBC timing evaluation:
 it performs no policy step, physics step, or plant action. The unbounded trace
 misses the 20 ms 50 Hz budget on 281/600 ticks at 276.8 ms p99. Every finite
 profile has zero 20 ms misses, no failed/infeasible or contact-release tick,
-and p99 below 5 ms; the measured 8-sweep option is the smallest passing timing
-cap. The behavior remains functionally red: all bounded traces exercise
-normal-contact contingency and retain the transfer tracking/residual gates.
-The finite ceiling is therefore a fail-closed profile option, not a silent
-default change or an authority admission. See the
+and p99 below 5 ms; generic-build maxima still exceed 5 ms. The reproducible
+runner then builds with `-C target-cpu=native`, pins logical CPU 4, and repeats
+the eight-sweep/two-polish profile in five independent processes. That row has
+0/3,000 five- and twenty-millisecond misses, 3.469 ms worst p99, 3.551 ms
+observed maximum, 72/72 exact non-timing arrays, and zero Python collections.
+The behavior remains functionally red: the strict timing profile exercises
+354/600 normal-contact contingency ticks and retains transfer
+tracking/residual failures. The finite budgets are therefore a fail-closed
+execution option, not a silent default change or an authority admission. See the
 [r262 floating projection-budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
+### Revision r263 floating contact-release recovery
+
+`python/evals/g1_floating_contact_release_r263.py` compares the retained r262
+cap8 trace with the current Rust floating session. The old trace can leave the
+integrated state unchanged for 171 consecutive ticks after contact
+contingency. R263 treats every unsolved contact result (including bounded
+`MaxIterations`) as non-executable, retries once with normal-only rows, then
+latches released targets out of hard rows until a schedule/reset edge permits
+reacquisition. If no contact solve remains executable, Rust advances with a
+bounded free-body damping/gravity fallback rather than repeatedly spending the
+feasibility budget or freezing the state. The 600-tick comparison has zero
+exact state stalls, one release contingency, zero 20 ms misses, and 3.974 ms
+p99. This closes the reset/freeze failure mode and preserves typed degraded
+state evidence; it does not admit functional walking, physical CoM/contact
+tracking, or plant authority. See the [r263 recovery report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
 ### Revision r260 behavior manifest
 

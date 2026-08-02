@@ -79,6 +79,13 @@ This is an engineering prototype, not a safety-rated robot controller.
 - A narrow PyO3/NumPy batch API: Python owns corpus generation, statistics,
   plots, and reports while Rust executes the complete tick loop into
   caller-owned fixed-shape arrays.
+- A fail-tolerant floating WBC contact boundary: unsolved contact rows are
+  retried once as normal-only, then latched out per target; a bounded
+  free-body damping/gravity fallback keeps the state advancing without
+  granting contact or plant authority. The r263 600-tick regression removes a
+  171-tick exact state stall at 3.974 ms p99, while functional walking remains
+  explicitly unadmitted. See the
+  [r263 contact-release report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 - A policy-free, simulator-free G1 admission pipeline: standalone authored
   root/CoM/foot references, allocation-free whole-body position and analytic
   velocity/acceleration projection, then 600 independent oracle-state floating
@@ -2453,12 +2460,44 @@ feasibility projection work. The artifact-only Python sweep compares the
 unbounded 600-tick trace with 8/16/32/64-sweep `FloatingWbcSession` ceilings.
 Unbounded work misses the 20 ms 50 Hz budget on 281/600 ticks at 276.8 ms p99;
 the smallest finite cap has zero 20 ms misses, p99 4.03 ms, max 16.70 ms, and
-no failed/infeasible or contact-release tick. This is a typed fail-closed
-timing profile, not a claim that the
-floating transfer works: bounded traces still exercise 299 normal-contact
-contingency ticks and fail tracking/residual gates. The default remains
-unchanged and authority remains closed. See the [r262 floating projection
-budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+no failed/infeasible or contact-release tick. A second five-process profile
+uses the spec's host-native CPU build, logical CPU 4, eight projection sweeps,
+and two polish iterations. It records 0/3,000 five-millisecond misses, 3.469 ms
+worst p99, 3.551 ms observed maximum, 72/72 exact non-timing arrays, and zero
+Python collections. This is a typed fail-closed execution profile, not a claim
+that floating transfer works: the stricter row spends 354/600 ticks in
+normal-contact contingency and fails tracking/residual gates. The default
+remains unchanged and authority remains closed. See the [r262 floating
+projection budget profile](benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
+
+R264 freezes the first useful correlated profile across all four already-spent
+R248/R254 contact-law families. Python fits a 55-coordinate observed-state
+nearest-residual profile inside the existing 16 causal closing-speed/tilt
+cells; Rust owns bounded lookup over at most 192 caller-owned prototypes,
+distance rejection, calibrated component/aggregate boxes, and conservative
+selection. The evaluator runs no policy, physics, or plant action. Its
+leave-one-law-out centers plus fixed calibration cover all 192 spent rows and
+retain three nonzero candidate-2 choices, all actually strictly nonregressing
+and improving. Every nearest identity agrees with Python, non-timing replay is
+exact, timed Rust allocation is zero, and the measured query is 1.23 µs p99.
+The deliberately broad 38.317/19.137 worst component/aggregate extensions keep
+189/192 rows at the exact-zero baseline. Source/model hashes are pinned. This
+froze the profile for exactly one untouched new-law/offset holdout; R265 has now
+consumed it, and R264 itself admits no authority. See the [r264 residual-prototype
+profile](benchmarks/results/g1-residual-prototype-profile-r264/G1_RESIDUAL_PROTOTYPE_PROFILE.md).
+
+R265 is the final no-refit result for that profile. Two predeclared new laws—
+medium elliptic/Euler and stiff elliptic/RK4—at untouched offsets
+330,000/340,000 execute 1,440 fresh MuJoCo steps. The mechanism passes with
+88/96 distance-supported rows, zero warnings/allocation, exact repeat,
+0.996 µs profile p99, and 3.253 ms WBC p99. Transfer is rejected:
+supported component/aggregate coverage falls to 92.045%/85.985%, with maximum
+joint-position/headroom/aggregate misses of 27.992/2.834/13.964. Only medium-
+Euler row 20 selects nonzero candidate 1; aggregate improves 0.732, but
+tilt/angular-rate pressure regress 0.0119/0.00349. Candidate 1 never appeared as
+a spent selection, exposing that state-distance support alone did not freeze
+action-selection support. The holdout is consumed and cannot be rerun. See the
+[r265 one-shot plant holdout](benchmarks/results/g1-residual-prototype-plant-holdout-r265/G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md).
 
 R260 consolidates the behavior-level WBC evidence into one pinned Python
 manifest. It keeps end-effector reach, bimanual priority conflict, CMU 37/01

@@ -2,6 +2,44 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r265 rejects the frozen profile on its one-shot holdout
+
+R265 consumes R264's single authorized holdout with no refit, widening, retry,
+or authority path. New medium elliptic/Euler and stiff elliptic/RK4 laws use
+predeclared offsets 330,000/340,000 across 96 states and 1,440 MuJoCo steps.
+The mechanism passes: the pinned model/profile hashes match, 88 rows are inside
+the frozen distance gate, unsupported rows retain baseline, semantic replay is
+exact, timed Rust allocation and MuJoCo warnings are zero, and profile/WBC p99
+are 0.996 µs/3.253 ms.
+
+The profile is rejected. Supported consequence coverage drops to
+92.045% component and 85.985% aggregate. Joint-position pressure has a 27.992
+worst miss, headroom 2.834, and aggregate 13.964. The sole nonzero selection is
+medium-Euler row 20 candidate 1: its aggregate improves 0.732 but tilt and
+angular-rate pressure regress 0.0119/0.00349. That candidate was part of the
+frozen family but never selected in the spent rehearsal. The next construction
+must therefore freeze per-action selection support in addition to state
+distance/calibration. R265 is consumed and cannot be rerun; authority remains
+closed. See
+[`G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md`](../benchmarks/results/g1-residual-prototype-plant-holdout-r265/G1_RESIDUAL_PROTOTYPE_PLANT_HOLDOUT.md).
+
+## Prior CPU checkpoint — r263 floating contact-release recovery
+
+The floating session now treats every unsolved contact result, including
+bounded `MaxIterations`, as non-executable. It retries once with normal-only
+contact rows, then records a fixed-capacity per-target release latch and clears
+the measured support phase/landing anchors before retrying without contacts.
+The latch prevents the same failed contact from being rebuilt on every 50 Hz
+tick. If no contact solve is executable, Rust advances with a bounded
+free-body fallback (angular/joint damping plus gravity, clamped to the current
+acceleration envelope) and keeps contingency status visible; it never turns an
+unfinished contact solve into authority. The latch clears only on reset or a
+schedule edge that actually releases the target. A 600-tick r262→r263
+comparison removes the 171-tick exact state stall, records one release
+contingency, zero 20 ms misses, and 3.974 ms p99. This closes the interactive
+freeze/reset failure mode, not the functional floating-walk, MuJoCo tracking,
+thermal, or authority gates. See the [r263 recovery report](../benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
+
 ## Current live feedback checkpoint — r235 measured-state lifecycle
 
 The live plant now has an explicit ownership contract. Green `TARGET` remains a
@@ -338,19 +376,46 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r262 bounds floating feasibility work without functional admission
+## Prior CPU checkpoint — r264 freezes a useful cross-law residual profile
+
+R264 adds a fixed-capacity residual-prototype boundary to `bonesaw-core` and a
+batched caller-owned PyO3 adapter. A validated profile contains at most 64
+features, 256 prototypes, and 16 causal cells. Each query performs a bounded
+same-cell nearest search, rejects out-of-envelope distance, composes asymmetric
+component/aggregate calibration around the predicted plus prototype residual,
+and invokes the existing conservative three-candidate selector. Candidate zero
+must remain the exact available zero box; validation rejects any baseline
+residual or widening. The hot path allocates no memory.
+
+The Python freeze consumes checksum-pinned R258/R254 state and diagnostic
+artifacts only. Its 55-coordinate full observed-state profile covers 192/192
+leave-one-law-out component and aggregate rows and retains three nonzero
+candidate-2 selections, all actually strictly nonregressing and improving.
+Rust matches every Python nearest identity with 2.84e-14 maximum squared-
+distance error, repeats all non-timing output exactly, allocates zero timed
+bytes, and records 1.23 µs p99. Broad 38.317/19.137 worst component/aggregate
+extensions keep 189 rows at baseline. The profile was frozen for exactly one
+untouched new-law/offset holdout, now consumed by R265; no policy, plant action,
+default change, or authority is admitted. See
+[`G1_RESIDUAL_PROTOTYPE_PROFILE.md`](../benchmarks/results/g1-residual-prototype-profile-r264/G1_RESIDUAL_PROTOTYPE_PROFILE.md).
+
+## Prior CPU checkpoint — r262 bounds floating feasibility work without functional admission
 
 R262 adds an explicit finite `FloatingWbcSession` feasibility policy and a
 reproducible Python sweep over 8/16/32/64 total Dykstra projection sweeps. The
 unbounded 600-tick floating support-transfer trace misses the 20 ms 50 Hz
 budget on 281 ticks at 276.8 ms p99. Every finite profile has zero 20 ms
 misses, p99 below 5 ms, no failed/infeasible tick, and no contact-release
-reset; 8 sweeps is the smallest measured timing cap. This is fail-closed
-budgeting: the unfinished hard solve never becomes an executable command and
-the existing normal-contact contingency keeps state flow alive. All bounded
-traces remain functionally red (299 contingency ticks, large tracking and
-residual gates), so the default, transfer behavior, profile admission, and
-authority remain unchanged. See
+reset, but generic-build maxima remain above 16 ms. A five-process host-native
+profile pins logical CPU 4 and combines the minimum eight projection sweeps
+with two feasibility-polish iterations. It records 0/3,000 five- and
+twenty-millisecond misses, 3.469 ms worst p99, 3.551 ms observed maximum,
+72/72 exact non-timing arrays, and zero Python collections. This is fail-closed
+budgeting: the unfinished hard solve never becomes executable and the existing
+normal-contact contingency keeps state flow alive. The strict row remains
+functionally red (354/600 contingency ticks plus large tracking/residual
+errors), so the default, transfer behavior, profile admission, and authority
+remain unchanged. See
 [`G1_FLOATING_PROJECTION_BUDGET_PROFILE.md`](../benchmarks/results/g1-floating-projection-budget-profile-r262/G1_FLOATING_PROJECTION_BUDGET_PROFILE.md).
 
 ## Prior CPU checkpoint — r261 finds a useful source profile but rejects transfer

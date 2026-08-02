@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw one-shot holdout · r265</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw residual-prototype one-shot plant holdout · r265</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · holdout **CONSUMED** · authority **NOT ADMITTED**.</blockquote>
+<p>R265 is the single no-refit holdout authorized by R264. The frozen 55-coordinate profile, all 192 prototypes, causal-cell calibration, distance gates, candidates, thresholds, source hashes, and model hash are consumed unchanged. New medium elliptic/Euler and stiff elliptic/RK4 laws use untouched offsets 330,000 and 340,000. Each of 96 states executes exact zero, realized zero-WBC, and realized neutral-recovery branches for five 4 ms MuJoCo steps. No policy or plant command runs.</p>
+<div class=table-wrap><table><thead><tr><th>fresh law</th><th>offset</th><th>distance support</th><th>selected 0 / 1 / 2</th><th>strict safe+improved / nonzero</th><th>component coverage</th><th>aggregate coverage</th></tr></thead><tbody><tr><td>medium_elliptic_euler</td><td>330000</td><td>43/48</td><td>47 / 1 / 0</td><td>0 / 1</td><td>91.473%</td><td>87.597%</td></tr><tr><td>stiff_elliptic_rk4</td><td>340000</td><td>45/48</td><td>48 / 0 / 0</td><td>0 / 0</td><td>92.593%</td><td>84.444%</td></tr></tbody></table></div>
+<p>The run executes 1,440 fresh MuJoCo steps. 88/96 rows are inside the frozen distance envelope; unsupported rows fail closed to baseline. Supported component/aggregate coverage is 92.045%/85.985%. The selector emits 1 nonzero actions; 0 are actually strictly nonregressing and improving, with 1/0 selected component/aggregate regression rows. Profile query p99 is 1.00 µs with zero Rust allocations and exact semantic repeat.</p>
+<p>This one-shot result is final evidence. The evaluator refuses overwrite, and the holdout may not be rerun, widened, or reinterpreted as a plant command or authority.</p></main></body></html>

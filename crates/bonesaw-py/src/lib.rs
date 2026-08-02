@@ -47,23 +47,25 @@ use bonesaw_core::{
     SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
-    TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
-    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateExemplar,
-    TerminalImpactPairedStateTube, TerminalImpactScore, TerminalImpactState,
-    TerminalImpactStateBox, TerminalImpactVelocityBoxState, TimingSpec,
-    TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput, Transform3,
-    VIABILITY_EXECUTION_COMPONENTS, VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds,
-    ViabilityConfirmationConfig, ViabilityConfirmationState, ViabilityExecutionMonitorConfig,
-    ViabilityExecutionMonitorState, ViabilityForecastCandidate, ViabilityForecastConfig,
-    ViabilityForecastKnot, ViabilityForecastState, ViabilityHybridGuardConfig,
-    ViabilityHybridGuardState, ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig,
-    ViabilityRequestState, WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions,
-    WholeBodyPointIkTarget, WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity,
-    balance_feedback_authority, bound_terminal_impact_paired_state_delta, capture_landing_retarget,
-    contact_phase_authority, cubic_precontact_acceleration, dcm_balance_acceleration,
-    joint_acceleration_interval, joint_velocity_envelope_acceleration,
-    maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
-    predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
+    TERMINAL_IMPACT_PAIRED_COMPONENTS, TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES,
+    TerminalImpactCandidate, TerminalImpactComponentDeltaBox, TerminalImpactConfig,
+    TerminalImpactError, TerminalImpactPairedStateExemplar, TerminalImpactPairedStateTube,
+    TerminalImpactResidualPrototypeProfile, TerminalImpactResidualPrototypeQuery,
+    TerminalImpactScore, TerminalImpactState, TerminalImpactStateBox,
+    TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
+    TouchdownPhaseRetimingInput, Transform3, VIABILITY_EXECUTION_COMPONENTS,
+    VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds, ViabilityConfirmationConfig,
+    ViabilityConfirmationState, ViabilityExecutionMonitorConfig, ViabilityExecutionMonitorState,
+    ViabilityForecastCandidate, ViabilityForecastConfig, ViabilityForecastKnot,
+    ViabilityForecastState, ViabilityHybridGuardConfig, ViabilityHybridGuardState,
+    ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig, ViabilityRequestState,
+    WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions, WholeBodyPointIkTarget,
+    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
+    bound_terminal_impact_paired_state_delta, capture_landing_retarget, contact_phase_authority,
+    cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
+    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
+    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
+    sample_quintic_vector_jet, score_terminal_impact,
     score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
     score_terminal_impact_velocity_box_upper, score_viability_forecast,
     select_conservative_terminal_impact_candidate,
@@ -314,6 +316,12 @@ struct FloatingWbcSession {
     contacts: Vec<ContactSpec>,
     support_patches: Vec<SupportPatchSpec>,
     support_transitions: [SupportTransitionState; FLOATING_POINT_TASK_CAPACITY],
+    /// Contacts that were deliberately released after an unsolved contact
+    /// solve.  This is controller-owned hysteresis: keep the failed contact
+    /// out of subsequent hard rows until the authored schedule releases it,
+    /// rather than retrying the same expensive contact problem every tick.
+    contact_release_suppressed: [bool; FLOATING_POINT_TASK_CAPACITY],
+    no_contact_safe_mode: bool,
     support_transition_config: SupportTransitionConfig,
     precontact_authored_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
     precontact_anchor_world: [Vec3; FLOATING_POINT_TASK_CAPACITY],
@@ -2317,6 +2325,199 @@ impl ContactTransitionModelSession {
             allocation_after.0 - allocation_before.0,
             allocation_after.1 - allocation_before.1,
         ))
+    }
+
+    /// Apply one immutable causal nearest-residual profile to a batch of
+    /// predicted paired terminal deltas. Static profile storage is validated
+    /// once; each row then executes a bounded allocation-free Rust query.
+    #[allow(clippy::too_many_arguments)]
+    fn score_terminal_impact_residual_prototype_profile(
+        &self,
+        query_features: PyReadonlyArray2<'_, f64>,
+        query_groups: PyReadonlyArray1<'_, u8>,
+        predicted_component_delta: PyReadonlyArray3<'_, f64>,
+        predicted_aggregate_delta: PyReadonlyArray2<'_, f64>,
+        candidate_available: PyReadonlyArray2<'_, u8>,
+        feature_inverse_scale: PyReadonlyArray1<'_, f64>,
+        prototype_features: PyReadonlyArray2<'_, f64>,
+        prototype_groups: PyReadonlyArray1<'_, u8>,
+        prototype_component_residuals: PyReadonlyArray3<'_, f64>,
+        prototype_aggregate_residuals: PyReadonlyArray2<'_, f64>,
+        group_component_lower_extension: PyReadonlyArray3<'_, f64>,
+        group_component_upper_extension: PyReadonlyArray3<'_, f64>,
+        group_aggregate_lower_extension: PyReadonlyArray2<'_, f64>,
+        group_aggregate_upper_extension: PyReadonlyArray2<'_, f64>,
+        maximum_distance_squared_by_group: PyReadonlyArray1<'_, f64>,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut envelope_diagnostics_out: PyReadwriteArray3<'_, f64>,
+        mut selection_out: PyReadwriteArray2<'_, f64>,
+        mut nearest_prototype_index_out: PyReadwriteArray1<'_, i64>,
+        mut nearest_distance_squared_out: PyReadwriteArray1<'_, f64>,
+        mut profile_supported_out: PyReadwriteArray1<'_, u8>,
+        mut timing_ns_out: PyReadwriteArray1<'_, u64>,
+        mut allocation_calls_out: PyReadwriteArray1<'_, u64>,
+        mut allocated_bytes_out: PyReadwriteArray1<'_, u64>,
+    ) -> PyResult<()> {
+        const CANDIDATES: usize = TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES;
+        const COMPONENTS: usize = TERMINAL_IMPACT_PAIRED_COMPONENTS;
+        const DIAGNOSTICS: usize = 2 * COMPONENTS + 2;
+        let query_shape = query_features.as_array().dim();
+        let predicted_component_shape = predicted_component_delta.as_array().dim();
+        let predicted_aggregate_shape = predicted_aggregate_delta.as_array().dim();
+        let available_shape = candidate_available.as_array().dim();
+        let prototype_shape = prototype_features.as_array().dim();
+        let prototype_component_shape = prototype_component_residuals.as_array().dim();
+        let prototype_aggregate_shape = prototype_aggregate_residuals.as_array().dim();
+        let group_component_lower_shape = group_component_lower_extension.as_array().dim();
+        let group_component_upper_shape = group_component_upper_extension.as_array().dim();
+        let group_aggregate_lower_shape = group_aggregate_lower_extension.as_array().dim();
+        let group_aggregate_upper_shape = group_aggregate_upper_extension.as_array().dim();
+        let envelope_shape = envelope_diagnostics_out.as_array().dim();
+        let selection_shape = selection_out.as_array().dim();
+        let rows = query_shape.0;
+        let features = query_shape.1;
+        let prototypes = prototype_shape.0;
+        let groups = maximum_distance_squared_by_group.as_array().len();
+        let query_features = query_features.as_slice()?;
+        let query_groups = query_groups.as_slice()?;
+        let predicted_component_delta = predicted_component_delta.as_slice()?;
+        let predicted_aggregate_delta = predicted_aggregate_delta.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let inverse_scale = feature_inverse_scale.as_slice()?;
+        let prototype_features = prototype_features.as_slice()?;
+        let prototype_groups = prototype_groups.as_slice()?;
+        let prototype_component_residuals = prototype_component_residuals.as_slice()?;
+        let prototype_aggregate_residuals = prototype_aggregate_residuals.as_slice()?;
+        let group_component_lower_extension = group_component_lower_extension.as_slice()?;
+        let group_component_upper_extension = group_component_upper_extension.as_slice()?;
+        let group_aggregate_lower_extension = group_aggregate_lower_extension.as_slice()?;
+        let group_aggregate_upper_extension = group_aggregate_upper_extension.as_slice()?;
+        let maximum_distance_squared_by_group = maximum_distance_squared_by_group.as_slice()?;
+        let envelope_out = envelope_diagnostics_out.as_slice_mut()?;
+        let selection_out = selection_out.as_slice_mut()?;
+        let nearest_index_out = nearest_prototype_index_out.as_slice_mut()?;
+        let nearest_distance_out = nearest_distance_squared_out.as_slice_mut()?;
+        let supported_out = profile_supported_out.as_slice_mut()?;
+        let timing_out = timing_ns_out.as_slice_mut()?;
+        let allocation_calls_out = allocation_calls_out.as_slice_mut()?;
+        let allocated_bytes_out = allocated_bytes_out.as_slice_mut()?;
+        if rows == 0
+            || query_groups.len() != rows
+            || predicted_component_shape != (rows, CANDIDATES, COMPONENTS)
+            || predicted_aggregate_shape != (rows, CANDIDATES)
+            || available_shape != (rows, CANDIDATES)
+            || available.iter().any(|value| *value > 1)
+            || inverse_scale.len() != features
+            || prototype_shape.1 != features
+            || prototype_groups.len() != prototypes
+            || prototype_component_shape != (prototypes, CANDIDATES, COMPONENTS)
+            || prototype_aggregate_shape != (prototypes, CANDIDATES)
+            || group_component_lower_shape != (groups, CANDIDATES, COMPONENTS)
+            || group_component_upper_shape != (groups, CANDIDATES, COMPONENTS)
+            || group_aggregate_lower_shape != (groups, CANDIDATES)
+            || group_aggregate_upper_shape != (groups, CANDIDATES)
+            || envelope_shape != (rows, CANDIDATES, DIAGNOSTICS)
+            || selection_shape != (rows, 6)
+            || nearest_index_out.len() != rows
+            || nearest_distance_out.len() != rows
+            || supported_out.len() != rows
+            || timing_out.len() != rows
+            || allocation_calls_out.len() != rows
+            || allocated_bytes_out.len() != rows
+        {
+            return Err(PyValueError::new_err(
+                "terminal residual prototypes expect query[R,F], group[R], predicted components[R,3,6], predicted aggregate/availability[R,3], inverse scale[F], prototypes[P,F]/groups[P]/components[P,3,6]/aggregate[P,3], group extensions[G,3,6]/[G,3], envelopes[R,3,14], selection[R,6], and scalar outputs[R]",
+            ));
+        }
+        let profile = TerminalImpactResidualPrototypeProfile {
+            feature_inverse_scale: inverse_scale,
+            prototype_features,
+            prototype_groups,
+            prototype_component_residuals,
+            prototype_aggregate_residuals,
+            group_component_lower_extension,
+            group_component_upper_extension,
+            group_aggregate_lower_extension,
+            group_aggregate_upper_extension,
+            maximum_distance_squared_by_group,
+        }
+        .validate()
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid terminal residual prototype profile: {error:?}"
+            ))
+        })?;
+        let query_at = |row: usize| TerminalImpactResidualPrototypeQuery {
+            features: &query_features[row * features..(row + 1) * features],
+            group: query_groups[row],
+            predicted_component_delta: std::array::from_fn(|candidate| {
+                std::array::from_fn(|component| {
+                    predicted_component_delta
+                        [(row * CANDIDATES + candidate) * COMPONENTS + component]
+                })
+            }),
+            predicted_aggregate_delta: std::array::from_fn(|candidate| {
+                predicted_aggregate_delta[row * CANDIDATES + candidate]
+            }),
+            available: std::array::from_fn(|candidate| {
+                available[row * CANDIDATES + candidate] != 0
+            }),
+            maximum_component_regression,
+            minimum_component_improvement,
+        };
+
+        // Preflight the complete batch before any caller-owned output changes.
+        for row in 0..rows {
+            profile.score(query_at(row)).map_err(|error| {
+                PyValueError::new_err(format!(
+                    "invalid terminal residual prototype query at row {row}: {error:?}"
+                ))
+            })?;
+        }
+        for row in 0..rows {
+            let allocation_before = allocation_snapshot();
+            let started = Instant::now();
+            let output = profile
+                .score(query_at(row))
+                .expect("preflighted terminal residual prototype query");
+            let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+            let allocation_after = allocation_snapshot();
+            if allocation_after != allocation_before {
+                return Err(PyValueError::new_err(
+                    "terminal residual prototype query allocated inside the Rust hot path",
+                ));
+            }
+            for candidate in 0..CANDIDATES {
+                let offset = (row * CANDIDATES + candidate) * DIAGNOSTICS;
+                envelope_out[offset..offset + COMPONENTS]
+                    .copy_from_slice(&output.candidates[candidate].component_lower);
+                envelope_out[offset + COMPONENTS..offset + 2 * COMPONENTS]
+                    .copy_from_slice(&output.candidates[candidate].component_upper);
+                envelope_out[offset + 2 * COMPONENTS] =
+                    output.candidates[candidate].aggregate_lower;
+                envelope_out[offset + 2 * COMPONENTS + 1] =
+                    output.candidates[candidate].aggregate_upper;
+            }
+            let selection_offset = row * 6;
+            selection_out[selection_offset..selection_offset + 6].copy_from_slice(&[
+                output.selection.selected_index as f64,
+                output.selection.baseline_index as f64,
+                output.selection.maximum_component_delta_upper,
+                output.selection.maximum_guaranteed_component_improvement,
+                output.selection.aggregate_delta_lower,
+                output.selection.aggregate_delta_upper,
+            ]);
+            nearest_index_out[row] = output
+                .nearest_prototype_index
+                .map_or(-1, |index| index as i64);
+            nearest_distance_out[row] = output.nearest_distance_squared;
+            supported_out[row] = u8::from(output.profile_supported);
+            timing_out[row] = elapsed_ns;
+            allocation_calls_out[row] = allocation_after.0 - allocation_before.0;
+            allocated_bytes_out[row] = allocation_after.1 - allocation_before.1;
+        }
+        Ok(())
     }
 
     /// Conservatively score every generalized velocity in a componentwise
@@ -13533,6 +13734,8 @@ impl FloatingWbcSession {
             contacts: Vec::with_capacity(maximum_contacts),
             support_patches: Vec::with_capacity(FLOATING_POINT_TASK_CAPACITY),
             support_transitions: [SupportTransitionState::default(); FLOATING_POINT_TASK_CAPACITY],
+            contact_release_suppressed: [false; FLOATING_POINT_TASK_CAPACITY],
+            no_contact_safe_mode: false,
             support_transition_config: SupportTransitionConfig::default(),
             precontact_authored_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
             precontact_anchor_world: [Vec3::zeros(); FLOATING_POINT_TASK_CAPACITY],
@@ -14062,6 +14265,8 @@ impl FloatingWbcSession {
         self.previous_center_of_mass_world = self.tracking_cache.center_of_mass_world;
         self.support_transitions
             .fill(SupportTransitionState::default());
+        self.contact_release_suppressed.fill(false);
+        self.no_contact_safe_mode = false;
         self.precontact_authored_anchor_world.fill(Vec3::zeros());
         self.precontact_anchor_world.fill(Vec3::zeros());
         self.precontact_future_root_world.fill(Vec3::zeros());
@@ -15641,6 +15846,7 @@ impl FloatingWbcSession {
             let has_pending_requested_support = (0..target_count).any(|target| {
                 contact_active[[reference_tick, target]] != 0
                     && target_active[[reference_tick, target]] != 0
+                    && !self.contact_release_suppressed[target]
                     && !matches!(
                         self.support_transitions[target].phase,
                         SupportPhase::Locked | SupportPhase::NormalFallback
@@ -15649,6 +15855,7 @@ impl FloatingWbcSession {
             let has_established_requested_support = (0..target_count).any(|target| {
                 contact_active[[reference_tick, target]] != 0
                     && target_active[[reference_tick, target]] != 0
+                    && !self.contact_release_suppressed[target]
                     && matches!(
                         self.support_transitions[target].phase,
                         SupportPhase::Locked | SupportPhase::NormalFallback
@@ -15664,7 +15871,14 @@ impl FloatingWbcSession {
                 }
                 if target_active[[reference_tick, target]] == 0 {
                     self.support_transitions[target].clear();
+                    self.contact_release_suppressed[target] = false;
                     self.precontact_planned[target] = false;
+                    self.precontact_authored_anchor_world[target] = Vec3::zeros();
+                    self.precontact_anchor_world[target] = Vec3::zeros();
+                    self.precontact_future_root_world[target] = Vec3::zeros();
+                    self.precontact_rotation_world[target] = UnitQuaternion::identity();
+                    self.contact_anchor_world[target] = Vec3::zeros();
+                    self.contact_patch_anchor_world[target] = [Vec3::zeros(); 4];
                     continue;
                 }
                 let frame = bonesaw_core::FrameId(frame_ids[target] as usize);
@@ -15707,6 +15921,14 @@ impl FloatingWbcSession {
                     effective_target_positions_out[[tick, target, axis]] = target_position[axis];
                 }
                 let contact_requested = contact_active[[reference_tick, target]] != 0;
+                // A release contingency is sticky while the schedule still
+                // requests this contact.  Once the schedule goes through a
+                // swing sample, clear the latch so a later touchdown can
+                // acquire the contact again.
+                if !contact_requested {
+                    self.contact_release_suppressed[target] = false;
+                }
+                let contact_release_suppressed = self.contact_release_suppressed[target];
                 effective_contact_active_out[[tick, target]] = u8::from(contact_requested);
                 let prior_phase = self.support_transitions[target].phase;
                 let precontact_offset = (!contact_requested && self.precontact_ticks > 0)
@@ -15839,9 +16061,12 @@ impl FloatingWbcSession {
                     && prior_phase.is_contact()
                     && has_pending_requested_support
                     && !has_established_requested_support;
-                let is_contact = (contact_requested && touchdown_admitted) || hold_existing_support;
-                let is_precontact =
-                    scheduled_precontact || (admission_pending && !touchdown_admitted);
+                let is_contact = !self.no_contact_safe_mode
+                    && !contact_release_suppressed
+                    && ((contact_requested && touchdown_admitted) || hold_existing_support);
+                let is_precontact = !self.no_contact_safe_mode
+                    && !contact_release_suppressed
+                    && (scheduled_precontact || (admission_pending && !touchdown_admitted));
                 precontact_transition |= is_precontact;
                 let tangential_speed = (is_contact && prior_phase == SupportPhase::TouchdownNormal)
                     .then_some(maximum_patch_tangential_speed);
@@ -16246,41 +16471,48 @@ impl FloatingWbcSession {
                         support_point_count += 1;
                     }
                 }
-                let balance = dcm_balance_acceleration(
-                    center_of_mass_world,
-                    center_of_mass_velocity_world,
-                    center_of_mass_target_position,
-                    center_of_mass_target_velocity,
-                    &support_points[..support_point_count],
-                    self.dcm_balance_config,
-                )
-                .ok_or_else(|| {
-                    PyValueError::new_err(
-                        "DCM balance requires a nondegenerate measured support polygon and valid configuration",
-                    )
-                })?;
-                desired_center_of_mass.x = balance.desired_horizontal_acceleration_world.x;
-                desired_center_of_mass.y = balance.desired_horizontal_acceleration_world.y;
-                for axis in 0..3 {
-                    dcm_out[[tick, axis]] = balance.dcm_world[axis];
-                    target_dcm_out[[tick, axis]] = balance.target_dcm_world[axis];
-                    virtual_zmp_out[[tick, axis]] = balance.virtual_zmp_world[axis];
-                    clipped_zmp_out[[tick, axis]] = balance.clipped_zmp_world[axis];
+                // A released/failed contact leaves no measured support
+                // polygon.  DCM is an authority observer, not a reason to
+                // abort the whole trace; fall back to the authored CoM task
+                // until a nondegenerate measured polygon returns.
+                if support_point_count >= 3 {
+                    if let Some(balance) = dcm_balance_acceleration(
+                        center_of_mass_world,
+                        center_of_mass_velocity_world,
+                        center_of_mass_target_position,
+                        center_of_mass_target_velocity,
+                        &support_points[..support_point_count],
+                        self.dcm_balance_config,
+                    ) {
+                        desired_center_of_mass.x = balance.desired_horizontal_acceleration_world.x;
+                        desired_center_of_mass.y = balance.desired_horizontal_acceleration_world.y;
+                        for axis in 0..3 {
+                            dcm_out[[tick, axis]] = balance.dcm_world[axis];
+                            target_dcm_out[[tick, axis]] = balance.target_dcm_world[axis];
+                            virtual_zmp_out[[tick, axis]] = balance.virtual_zmp_world[axis];
+                            clipped_zmp_out[[tick, axis]] = balance.clipped_zmp_world[axis];
+                        }
+                        dcm_natural_frequency_out[tick] = balance.natural_frequency_rad_s;
+                        dcm_measured_height_out[tick] = balance.measured_com_height_m;
+                        dcm_height_clamped_out[tick] = u8::from(balance.com_height_was_clamped);
+                        dcm_zmp_clipped_out[tick] = u8::from(balance.zmp_was_clipped);
+                        dcm_support_vertices_out[tick] = balance.support_vertex_count as u8;
+                        dcm_support_margin_out[tick] = balance.dcm_support_margin_m;
+                        self.last_dcm_world = balance.dcm_world;
+                        self.last_dcm_support_margin_m = balance.dcm_support_margin_m;
+                        self.last_dcm_observation_valid = true;
+                    } else {
+                        self.last_dcm_observation_valid = false;
+                    }
+                } else {
+                    self.last_dcm_observation_valid = false;
                 }
-                dcm_natural_frequency_out[tick] = balance.natural_frequency_rad_s;
-                dcm_measured_height_out[tick] = balance.measured_com_height_m;
-                dcm_height_clamped_out[tick] = u8::from(balance.com_height_was_clamped);
-                dcm_zmp_clipped_out[tick] = u8::from(balance.zmp_was_clipped);
-                dcm_support_vertices_out[tick] = balance.support_vertex_count as u8;
-                dcm_support_margin_out[tick] = balance.dcm_support_margin_m;
-                self.last_dcm_world = balance.dcm_world;
-                self.last_dcm_support_margin_m = balance.dcm_support_margin_m;
-                self.last_dcm_observation_valid = true;
             } else {
                 self.last_dcm_observation_valid = false;
             }
             if self.balance_phase_retiming_enabled
                 && contact_phase_authority.phase != bonesaw_core::MeasuredContactPhase::MultiSupport
+                && dcm_support_margin_out[tick].is_finite()
             {
                 let balance_rate = support_margin_phase_rate(
                     dcm_support_margin_out[tick],
@@ -16391,7 +16623,13 @@ impl FloatingWbcSession {
                 .iter()
                 .any(|state| state.phase == SupportPhase::NormalFallback);
             let mut contact_release_contingency = false;
-            {
+            let mut no_contact_safe_fallback = false;
+            if self.no_contact_safe_mode && self.contacts.is_empty() {
+                // The controller has already entered the bounded free-body
+                // fallback.  Do not pay the dense feasibility cost again
+                // while the authored schedule remains contact-free.
+                self.output.status = SolveStatus::MaxIterations;
+            } else {
                 let solve_input = FloatingDynamicWbcInput {
                     state: &self.state.robot,
                     root_twist_world: self.state.root_twist_world,
@@ -16429,10 +16667,16 @@ impl FloatingWbcSession {
                     .solve_into(solve_input, &mut self.output, &mut self.scratch)
                     .map_err(value_error)?;
             }
-            if self.output.status == SolveStatus::PrimalInfeasible
-                && !self.contacts.is_empty()
-                && !normal_contact_contingency
-            {
+            // Any non-solved contact result is unsafe to integrate with the
+            // authored hard rows.  Demote once to normal-only rows, then
+            // release the contact if the bounded solver still cannot produce
+            // an executable result.  In particular, MaxIterations must not
+            // leave the trace frozen behind an apparently healthy contact.
+            let contact_solve_unsolved = !matches!(
+                self.output.status,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+            );
+            if contact_solve_unsolved && !self.contacts.is_empty() && !normal_contact_contingency {
                 for (point, contact) in self.contacts.iter_mut().enumerate() {
                     let fallback_kinematic = self.contact_points_per_target == 1 || point % 4 < 3;
                     contact.mode = ContactMode::NormalPoint;
@@ -16489,54 +16733,98 @@ impl FloatingWbcSession {
                     )
                     .map_err(value_error)?;
             }
-            if self.output.status == SolveStatus::PrimalInfeasible && !self.contacts.is_empty() {
+            if !matches!(
+                self.output.status,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+            ) && !self.contacts.is_empty()
+            {
+                for contact in &self.contacts {
+                    let target = contact.stable_id.saturating_sub(1) as usize / 4;
+                    if target < self.contact_release_suppressed.len() {
+                        self.contact_release_suppressed[target] = true;
+                        self.support_transitions[target].clear();
+                        self.precontact_planned[target] = false;
+                        self.precontact_authored_anchor_world[target] = Vec3::zeros();
+                        self.precontact_anchor_world[target] = Vec3::zeros();
+                        self.precontact_future_root_world[target] = Vec3::zeros();
+                        self.precontact_rotation_world[target] = UnitQuaternion::identity();
+                        self.contact_anchor_world[target] = Vec3::zeros();
+                        self.contact_patch_anchor_world[target] = [Vec3::zeros(); 4];
+                    }
+                }
                 self.contacts.clear();
                 self.support_patches.clear();
                 contact_release_contingency = true;
-                self.controller
-                    .solve_into(
-                        FloatingDynamicWbcInput {
-                            state: &self.state.robot,
-                            root_twist_world: self.state.root_twist_world,
-                            desired_generalized_acceleration: &self.desired_acceleration,
-                            task_priorities: FloatingTaskPriorities {
-                                root_angular: Priority::Invariant,
-                                root_horizontal: self.root_horizontal_task_priority,
-                                root_height: Priority::Invariant,
-                                joint_posture: self.joint_posture_priority,
-                            },
-                            task_weights: FloatingTaskWeights {
-                                root_angular: self.root_angular_task_weight,
-                                root_horizontal: self.root_horizontal_task_weight,
-                                root_height: self.root_height_task_weight,
-                                joint_posture: 1.0,
-                            },
-                            joint_posture_weight: self.joint_posture_weight,
-                            joint_acceleration_task,
-                            center_of_mass_task,
-                            centroidal_angular_momentum_task,
-                            frame_angular_acceleration_tasks: &self.angular_tasks,
-                            point_acceleration_tasks: &self.point_tasks,
-                            generalized_acceleration_bounds: &self.acceleration_bounds,
-                            torque_bounds: &self.torque_bounds,
-                            actuator_effort: self.coupled_actuation_enabled.then_some(
-                                ActuatorEffortInput {
-                                    actuation: &self.program.actuation,
-                                    bounds: &self.actuator_effort_bounds,
-                                },
-                            ),
-                            contacts: &self.contacts,
-                            support_patches: &[],
-                        },
-                        &mut self.output,
-                        &mut self.scratch,
-                    )
-                    .map_err(value_error)?;
+                self.no_contact_safe_mode = true;
+            }
+            // A contact-free unsolved result is recoverable.  Enter a
+            // deterministic free-body fallback instead of paying the dense
+            // feasibility cost again and leaving the interactive state frozen.
+            // The fallback is deliberately conservative: damp angular and
+            // joint velocity, apply gravity to the free root, clamp every
+            // component to the already-admitted acceleration envelope, and
+            // keep the typed contingency status visible to the caller.
+            if !matches!(
+                self.output.status,
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack
+            ) && self.contacts.is_empty()
+            {
+                self.point_tasks.clear();
+                self.angular_tasks.clear();
+                let root_twist = self.state.root_twist_world.0.as_slice();
+                self.output.generalized_acceleration.fill(0.0);
+                for coordinate in 0..generalized_dof {
+                    let candidate = if coordinate < 3 {
+                        -2.0 * root_twist[coordinate] / dt_seconds
+                    } else if coordinate < 6 {
+                        if coordinate == 5 { -9.81 } else { 0.0 }
+                    } else {
+                        -2.0 * self.state.robot.v[coordinate - 6] / dt_seconds
+                    };
+                    let lower = self.acceleration_bounds.lower[coordinate];
+                    let upper = self.acceleration_bounds.upper[coordinate];
+                    self.output.generalized_acceleration[coordinate] = if lower <= upper {
+                        candidate.clamp(lower, upper)
+                    } else {
+                        0.0
+                    };
+                }
+                self.output.contact_force_basis.fill(0.0);
+                self.output.contact_force_world.fill(0.0);
+                self.output.active_contacts = 0;
+                self.output.solve.status = SolveStatus::MaxIterations;
+                self.output.solve.level_residuals.clear();
+                self.output.solve.clipped_levels.clear();
+                self.output.solve.rank_by_level.clear();
+                self.output.solve.active_constraints.clear();
+                self.output.solve.task_pseudoinverse_calls = 0;
+                self.output.solve.task_pseudoinverse_calls_by_level.fill(0);
+                self.output.solve.task_jacobi_sweeps = 0;
+                self.output.solve.task_jacobi_sweeps_by_level.fill(0);
+                self.output.solve.clipped_steps = 0;
+                self.output.solve.clipped_steps_by_level.fill(0);
+                self.output.solve.equality_pseudoinverse_reused = false;
+                self.output.solve.feasibility_projection_sweeps = 0;
+                self.output.solve.feasibility_halfspace_projections = 0;
+                self.output.solve.feasibility_polish_iterations = 0;
+                self.output.solve.feasibility_polish_pseudoinverse_calls = 0;
+                self.output.solve.feasibility_polish_jacobi_sweeps = 0;
+                self.output.solve.feasibility_seed_reused = false;
+                self.output.solve.feasibility_prefix_resumed = false;
+                for residual in &mut self.output.task_residuals {
+                    residual.active = false;
+                    residual.clipped = false;
+                    residual.rows = 0;
+                    residual.l2 = 0.0;
+                    residual.rms = 0.0;
+                }
+                self.no_contact_safe_mode = true;
+                no_contact_safe_fallback = true;
             }
             let solved = matches!(
                 self.output.status,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
-            );
+            ) || no_contact_safe_fallback;
             if solved {
                 self.program
                     .model
@@ -16594,16 +16882,13 @@ impl FloatingWbcSession {
             contact_residual_out[tick] = self.output.contact_acceleration_residual_linf;
             minimum_support_margin_out[tick] = self.output.minimum_support_margin_m;
             status_out[tick] = match self.output.status {
-                SolveStatus::Solved | SolveStatus::SolvedWithSlack
-                    if contact_release_contingency =>
-                {
-                    5
-                }
+                _ if contact_release_contingency => 5,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack
                     if normal_contact_contingency =>
                 {
                     4
                 }
+                SolveStatus::Solved | SolveStatus::SolvedWithSlack if no_contact_safe_fallback => 4,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack if touchdown_transition => 6,
                 SolveStatus::Solved | SolveStatus::SolvedWithSlack if precontact_transition => 7,
                 SolveStatus::Solved => 0,

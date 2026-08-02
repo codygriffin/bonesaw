@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw floating contact-release recovery · r263</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae;--warn:#f1bd72}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(980px,calc(100% - 24px));margin:auto;padding:32px 0 72px}h1{font-size:clamp(28px,6vw,48px);line-height:1.05;margin:0 0 28px}h2{margin:42px 0 14px;padding-top:14px;border-top:1px solid var(--line);font-size:22px}p{color:#bcc6c2;max-width:86ch}.callout{padding:14px 16px;border-left:3px solid var(--accent);background:var(--panel);overflow-wrap:anywhere}.table-wrap{overflow-x:auto;border:1px solid var(--line);margin:16px 0 26px}table{width:100%;border-collapse:collapse;font-size:12px;min-width:680px}th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}.pass{color:var(--accent)}.note{color:var(--warn)}@media(max-width:600px){main{width:calc(100% - 18px);padding-top:22px}h2{font-size:19px}.table-wrap{margin-left:-1px;margin-right:-1px}}
+</style></head><body><main>
+<h1>Floating contact-release recovery · r263</h1>
+<div class="callout">CPU-only, policy-free, physics-free artifact comparison. This closes the state-freeze/reset complaint; it does not admit the floating walking transfer or plant authority.</div>
+<h2>Result</h2>
+<p>The r262 cap8 trace held an exact state for 171 consecutive ticks after contact contingency. r263 retries unsolved contacts through one normal-only fallback, latches released targets out of hard rows until reset/schedule release, and advances with a bounded free-body damping/gravity fallback when no executable contact solve remains.</p>
+<div class="table-wrap"><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>r262 exhibits exact state stall</td><td class="pass">PASS (171 ticks)</td></tr><tr><td>r263 has no exact state stall</td><td class="pass">PASS</td></tr><tr><td>r263 moves after contingency</td><td class="pass">PASS</td></tr><tr><td>r263 zero 20 ms misses</td><td class="pass">PASS (0/600)</td></tr><tr><td>r263 p99 under 5 ms</td><td class="pass">PASS (3,974 µs)</td></tr><tr><td>functional walking admission</td><td class="note">CLOSED</td></tr></tbody></table></div>
+<h2>Runtime/state comparison</h2>
+<div class="table-wrap"><table><thead><tr><th>profile</th><th>first contingency</th><th>longest exact stall</th><th>p50 µs</th><th>p99 µs</th><th>max µs</th><th>5 ms misses</th><th>20 ms misses</th><th>release ticks</th></tr></thead><tbody><tr><td>r262 cap8</td><td>300</td><td>171</td><td>1,666</td><td>4,028</td><td>16,698</td><td>2</td><td>0</td><td>0</td></tr><tr><td>r263 release cap8</td><td>300</td><td>0</td><td>1,758</td><td>3,974</td><td>5,173</td><td>1</td><td>0</td><td>1</td></tr></tbody></table></div>
+<h2>Safety interpretation</h2>
+<p>The fallback is fail-closed with respect to contact authority: once the hard contact solve is not executable, contact rows remain suppressed until reset. The state can continue under a bounded free-body fallback, but this is not a claim that feet, CoM, power, or thermal constraints are realized. The functional transfer, MuJoCo feedback, and browser-frame gates remain separate.</p>
+</main></body></html>

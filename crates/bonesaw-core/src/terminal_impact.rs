@@ -213,6 +213,14 @@ pub struct ConservativeTerminalImpactSelection {
 /// paired delta gate. Impact speed is candidate-invariant for this boundary;
 /// admission remains the separate `available` gate.
 pub const TERMINAL_IMPACT_PAIRED_COMPONENTS: usize = 6;
+/// Fixed candidate count used by the paired terminal-action family.
+pub const TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES: usize = 3;
+/// Compile-time ceiling for a compact causal state coordinate.
+pub const TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_FEATURES: usize = 64;
+/// Compile-time ceiling for a CPU-resident residual prototype profile.
+pub const TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_PROTOTYPES: usize = 256;
+/// Compile-time ceiling for causal calibration cells.
+pub const TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_GROUPS: usize = 16;
 
 /// A caller-supplied outer bound on candidate-minus-baseline terminal
 /// consequence. The six components are tilt, angular rate, joint position,
@@ -237,6 +245,54 @@ pub struct ConservativeTerminalImpactDeltaSelection {
     pub maximum_guaranteed_component_improvement: f64,
     pub aggregate_delta_lower: f64,
     pub aggregate_delta_upper: f64,
+}
+
+/// Borrowed, fixed-capacity view of a causal residual-prototype profile.
+///
+/// Features and residuals are row-major. Component residuals use
+/// `[prototype][candidate][component]`; aggregate residuals use
+/// `[prototype][candidate]`. Calibration extensions use the same layouts with
+/// a leading causal group. All backing memory remains caller owned.
+#[derive(Clone, Copy, Debug)]
+pub struct TerminalImpactResidualPrototypeProfile<'a> {
+    pub feature_inverse_scale: &'a [f64],
+    pub prototype_features: &'a [f64],
+    pub prototype_groups: &'a [u8],
+    pub prototype_component_residuals: &'a [f64],
+    pub prototype_aggregate_residuals: &'a [f64],
+    pub group_component_lower_extension: &'a [f64],
+    pub group_component_upper_extension: &'a [f64],
+    pub group_aggregate_lower_extension: &'a [f64],
+    pub group_aggregate_upper_extension: &'a [f64],
+    pub maximum_distance_squared_by_group: &'a [f64],
+}
+
+/// A profile that has paid all static shape/finite-value checks once.
+#[derive(Clone, Copy, Debug)]
+pub struct ValidatedTerminalImpactResidualPrototypeProfile<'a> {
+    profile: TerminalImpactResidualPrototypeProfile<'a>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TerminalImpactResidualPrototypeQuery<'a> {
+    pub features: &'a [f64],
+    pub group: u8,
+    pub predicted_component_delta:
+        [[f64; TERMINAL_IMPACT_PAIRED_COMPONENTS]; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES],
+    pub predicted_aggregate_delta: [f64; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES],
+    pub available: [bool; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES],
+    pub maximum_component_regression: f64,
+    pub minimum_component_improvement: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TerminalImpactResidualPrototypeOutput {
+    pub profile_supported: bool,
+    pub nearest_prototype_index: Option<usize>,
+    pub nearest_distance_squared: f64,
+    pub candidates:
+        [TerminalImpactComponentDeltaBox; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES],
+    pub selection: ConservativeTerminalImpactDeltaSelection,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1442,6 +1498,223 @@ pub fn select_conservative_terminal_impact_candidate(
     })
 }
 
+impl<'a> TerminalImpactResidualPrototypeProfile<'a> {
+    /// Validate immutable profile storage once before a batch or control loop.
+    pub fn validate(
+        self,
+    ) -> Result<ValidatedTerminalImpactResidualPrototypeProfile<'a>, TerminalImpactError> {
+        let features = self.feature_inverse_scale.len();
+        let prototypes = self.prototype_groups.len();
+        let groups = self.maximum_distance_squared_by_group.len();
+        let candidate_components =
+            TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+        let valid_shapes = (1..=TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_FEATURES)
+            .contains(&features)
+            && (1..=TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_PROTOTYPES).contains(&prototypes)
+            && (1..=TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_GROUPS).contains(&groups)
+            && self.prototype_features.len() == prototypes * features
+            && self.prototype_component_residuals.len() == prototypes * candidate_components
+            && self.prototype_aggregate_residuals.len()
+                == prototypes * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES
+            && self.group_component_lower_extension.len() == groups * candidate_components
+            && self.group_component_upper_extension.len() == groups * candidate_components
+            && self.group_aggregate_lower_extension.len()
+                == groups * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES
+            && self.group_aggregate_upper_extension.len()
+                == groups * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES;
+        if !valid_shapes
+            || self
+                .feature_inverse_scale
+                .iter()
+                .any(|value| !value.is_finite() || *value <= 0.0)
+            || self
+                .prototype_features
+                .iter()
+                .chain(self.prototype_component_residuals)
+                .chain(self.prototype_aggregate_residuals)
+                .any(|value| !value.is_finite())
+            || self
+                .group_component_lower_extension
+                .iter()
+                .chain(self.group_component_upper_extension)
+                .chain(self.group_aggregate_lower_extension)
+                .chain(self.group_aggregate_upper_extension)
+                .any(|value| !value.is_finite() || *value < 0.0)
+            || self
+                .maximum_distance_squared_by_group
+                .iter()
+                .any(|value| !value.is_finite() || *value < 0.0)
+            || self
+                .prototype_groups
+                .iter()
+                .any(|group| *group as usize >= groups)
+        {
+            return Err(TerminalImpactError::InvalidState);
+        }
+
+        let mut group_present = [false; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_MAX_GROUPS];
+        for group in self.prototype_groups.iter().copied() {
+            group_present[group as usize] = true;
+        }
+        if group_present[..groups].iter().any(|present| !present) {
+            return Err(TerminalImpactError::InvalidState);
+        }
+
+        // Candidate zero is an exact no-action baseline. Residual evidence or
+        // calibration is never allowed to widen it silently.
+        for prototype in 0..prototypes {
+            let component = prototype * candidate_components;
+            let aggregate = prototype * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES;
+            if self.prototype_component_residuals
+                [component..component + TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .iter()
+                .any(|value| *value != 0.0)
+                || self.prototype_aggregate_residuals[aggregate] != 0.0
+            {
+                return Err(TerminalImpactError::InvalidState);
+            }
+        }
+        for group in 0..groups {
+            let component = group * candidate_components;
+            let aggregate = group * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES;
+            if self.group_component_lower_extension
+                [component..component + TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .iter()
+                .chain(
+                    &self.group_component_upper_extension
+                        [component..component + TERMINAL_IMPACT_PAIRED_COMPONENTS],
+                )
+                .any(|value| *value != 0.0)
+                || self.group_aggregate_lower_extension[aggregate] != 0.0
+                || self.group_aggregate_upper_extension[aggregate] != 0.0
+            {
+                return Err(TerminalImpactError::InvalidState);
+            }
+        }
+        Ok(ValidatedTerminalImpactResidualPrototypeProfile { profile: self })
+    }
+}
+
+impl ValidatedTerminalImpactResidualPrototypeProfile<'_> {
+    /// Apply the nearest same-cell residual exemplar and calibrated outer
+    /// extensions, then invoke the ordinary conservative paired selector.
+    ///
+    /// The loop is bounded by the validated fixed profile ceilings and uses
+    /// only stack/caller-owned storage.
+    pub fn score(
+        &self,
+        query: TerminalImpactResidualPrototypeQuery<'_>,
+    ) -> Result<TerminalImpactResidualPrototypeOutput, TerminalImpactError> {
+        let profile = self.profile;
+        let features = profile.feature_inverse_scale.len();
+        let group = query.group as usize;
+        if query.features.len() != features
+            || group >= profile.maximum_distance_squared_by_group.len()
+            || !query.available[0]
+            || !query.maximum_component_regression.is_finite()
+            || query.maximum_component_regression < 0.0
+            || !query.minimum_component_improvement.is_finite()
+            || query.minimum_component_improvement < 0.0
+            || query.features.iter().any(|value| !value.is_finite())
+            || query
+                .predicted_component_delta
+                .iter()
+                .flatten()
+                .chain(query.predicted_aggregate_delta.iter())
+                .any(|value| !value.is_finite())
+            || query.predicted_component_delta[0] != [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS]
+            || query.predicted_aggregate_delta[0] != 0.0
+        {
+            return Err(TerminalImpactError::InvalidState);
+        }
+
+        let mut nearest = None;
+        let mut nearest_distance_squared = f64::INFINITY;
+        for prototype in 0..profile.prototype_groups.len() {
+            if profile.prototype_groups[prototype] as usize != group {
+                continue;
+            }
+            let mut distance_squared = 0.0;
+            let feature_offset = prototype * features;
+            for feature in 0..features {
+                let delta = (query.features[feature]
+                    - profile.prototype_features[feature_offset + feature])
+                    * profile.feature_inverse_scale[feature];
+                distance_squared += delta * delta;
+            }
+            if !distance_squared.is_finite() {
+                return Err(TerminalImpactError::InvalidState);
+            }
+            if distance_squared < nearest_distance_squared {
+                nearest = Some(prototype);
+                nearest_distance_squared = distance_squared;
+            }
+        }
+        let nearest = nearest.ok_or(TerminalImpactError::InvalidState)?;
+        let profile_supported =
+            nearest_distance_squared <= profile.maximum_distance_squared_by_group[group];
+        let unavailable = TerminalImpactComponentDeltaBox {
+            available: false,
+            component_lower: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            aggregate_lower: 0.0,
+            aggregate_upper: 0.0,
+        };
+        let mut candidates = [unavailable; TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES];
+        candidates[0].available = true;
+        if profile_supported {
+            for candidate in 0..TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES {
+                let component_offset = (nearest * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES
+                    + candidate)
+                    * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+                let group_component_offset =
+                    (group * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES + candidate)
+                        * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+                let aggregate_offset =
+                    nearest * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES + candidate;
+                let group_aggregate_offset =
+                    group * TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES + candidate;
+                let mut lower = [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS];
+                let mut upper = [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS];
+                for component in 0..TERMINAL_IMPACT_PAIRED_COMPONENTS {
+                    let center = query.predicted_component_delta[candidate][component]
+                        + profile.prototype_component_residuals[component_offset + component];
+                    lower[component] = center
+                        - profile.group_component_lower_extension
+                            [group_component_offset + component];
+                    upper[component] = center
+                        + profile.group_component_upper_extension
+                            [group_component_offset + component];
+                }
+                let aggregate_center = query.predicted_aggregate_delta[candidate]
+                    + profile.prototype_aggregate_residuals[aggregate_offset];
+                candidates[candidate] = TerminalImpactComponentDeltaBox {
+                    available: query.available[candidate],
+                    component_lower: lower,
+                    component_upper: upper,
+                    aggregate_lower: aggregate_center
+                        - profile.group_aggregate_lower_extension[group_aggregate_offset],
+                    aggregate_upper: aggregate_center
+                        + profile.group_aggregate_upper_extension[group_aggregate_offset],
+                };
+            }
+        }
+        let selection = select_conservative_terminal_impact_delta_candidate(
+            &candidates,
+            0,
+            query.maximum_component_regression,
+            query.minimum_component_improvement,
+        )?;
+        Ok(TerminalImpactResidualPrototypeOutput {
+            profile_supported,
+            nearest_prototype_index: Some(nearest),
+            nearest_distance_squared,
+            candidates,
+            selection,
+        })
+    }
+}
+
 /// Select a paired terminal-consequence delta box without allocating.
 ///
 /// The baseline row must be the exact available zero delta. A non-baseline
@@ -2477,6 +2750,136 @@ mod tests {
                 TerminalImpactConfig::default(),
             ),
             Err(TerminalImpactError::InvalidState)
+        );
+    }
+
+    #[test]
+    fn residual_prototype_profile_selects_the_nearest_same_group() {
+        let inverse_scale = [1.0, 2.0];
+        let prototype_features = [0.0, 0.0, 10.0, 10.0, 2.0, 0.0];
+        let prototype_groups = [0, 1, 0];
+        let mut component_residuals = [0.0; 3 * 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        let mut aggregate_residuals = [0.0; 3 * 3];
+        for prototype in 0..3 {
+            let improving = (prototype * 3 + 1) * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+            component_residuals[improving..improving + TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .fill(-0.10 - prototype as f64 * 0.01);
+            let regressing = (prototype * 3 + 2) * TERMINAL_IMPACT_PAIRED_COMPONENTS;
+            component_residuals[regressing..regressing + TERMINAL_IMPACT_PAIRED_COMPONENTS]
+                .fill(1.0);
+            aggregate_residuals[prototype * 3 + 1] = -0.20 - prototype as f64 * 0.01;
+            aggregate_residuals[prototype * 3 + 2] = 1.0;
+        }
+        let lower_extension = [0.0; 2 * 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        let mut upper_extension = [0.0; 2 * 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        upper_extension[TERMINAL_IMPACT_PAIRED_COMPONENTS..2 * TERMINAL_IMPACT_PAIRED_COMPONENTS]
+            .fill(0.05);
+        let aggregate_lower_extension = [0.0; 2 * 3];
+        let mut aggregate_upper_extension = [0.0; 2 * 3];
+        aggregate_upper_extension[1] = 0.05;
+        let maximum_distance = [10.0, 10.0];
+        let profile = TerminalImpactResidualPrototypeProfile {
+            feature_inverse_scale: &inverse_scale,
+            prototype_features: &prototype_features,
+            prototype_groups: &prototype_groups,
+            prototype_component_residuals: &component_residuals,
+            prototype_aggregate_residuals: &aggregate_residuals,
+            group_component_lower_extension: &lower_extension,
+            group_component_upper_extension: &upper_extension,
+            group_aggregate_lower_extension: &aggregate_lower_extension,
+            group_aggregate_upper_extension: &aggregate_upper_extension,
+            maximum_distance_squared_by_group: &maximum_distance,
+        }
+        .validate()
+        .unwrap();
+        let output = profile
+            .score(TerminalImpactResidualPrototypeQuery {
+                features: &[1.8, 0.0],
+                group: 0,
+                predicted_component_delta: [[0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS]; 3],
+                predicted_aggregate_delta: [0.0; 3],
+                available: [true; 3],
+                maximum_component_regression: 0.0,
+                minimum_component_improvement: 0.01,
+            })
+            .unwrap();
+        assert!(output.profile_supported);
+        assert_eq!(output.nearest_prototype_index, Some(2));
+        assert!((output.nearest_distance_squared - 0.04).abs() < 1.0e-12);
+        assert_eq!(output.selection.selected_index, 1);
+        assert_eq!(output.candidates[0].component_upper, [0.0; 6]);
+        assert_eq!(output.candidates[1].component_upper, [-0.07; 6]);
+        assert!((output.candidates[1].aggregate_upper + 0.17).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn residual_prototype_distance_gate_retains_only_the_baseline() {
+        let inverse_scale = [1.0];
+        let prototype_features = [0.0];
+        let prototype_groups = [0];
+        let component_residuals = [0.0; 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        let aggregate_residuals = [0.0; 3];
+        let component_extension = [0.0; 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        let aggregate_extension = [0.0; 3];
+        let maximum_distance = [0.5];
+        let profile = TerminalImpactResidualPrototypeProfile {
+            feature_inverse_scale: &inverse_scale,
+            prototype_features: &prototype_features,
+            prototype_groups: &prototype_groups,
+            prototype_component_residuals: &component_residuals,
+            prototype_aggregate_residuals: &aggregate_residuals,
+            group_component_lower_extension: &component_extension,
+            group_component_upper_extension: &component_extension,
+            group_aggregate_lower_extension: &aggregate_extension,
+            group_aggregate_upper_extension: &aggregate_extension,
+            maximum_distance_squared_by_group: &maximum_distance,
+        }
+        .validate()
+        .unwrap();
+        let output = profile
+            .score(TerminalImpactResidualPrototypeQuery {
+                features: &[1.0],
+                group: 0,
+                predicted_component_delta: [[0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS]; 3],
+                predicted_aggregate_delta: [0.0; 3],
+                available: [true; 3],
+                maximum_component_regression: 0.0,
+                minimum_component_improvement: 0.01,
+            })
+            .unwrap();
+        assert!(!output.profile_supported);
+        assert_eq!(output.selection.selected_index, 0);
+        assert!(!output.candidates[1].available);
+        assert!(!output.candidates[2].available);
+    }
+
+    #[test]
+    fn residual_prototype_profile_rejects_a_widened_baseline() {
+        let inverse_scale = [1.0];
+        let prototype_features = [0.0];
+        let prototype_groups = [0];
+        let mut component_residuals = [0.0; 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        component_residuals[0] = 1.0e-9;
+        let aggregate_residuals = [0.0; 3];
+        let component_extension = [0.0; 3 * TERMINAL_IMPACT_PAIRED_COMPONENTS];
+        let aggregate_extension = [0.0; 3];
+        let maximum_distance = [1.0];
+        assert_eq!(
+            TerminalImpactResidualPrototypeProfile {
+                feature_inverse_scale: &inverse_scale,
+                prototype_features: &prototype_features,
+                prototype_groups: &prototype_groups,
+                prototype_component_residuals: &component_residuals,
+                prototype_aggregate_residuals: &aggregate_residuals,
+                group_component_lower_extension: &component_extension,
+                group_component_upper_extension: &component_extension,
+                group_aggregate_lower_extension: &aggregate_extension,
+                group_aggregate_upper_extension: &aggregate_extension,
+                maximum_distance_squared_by_group: &maximum_distance,
+            }
+            .validate()
+            .unwrap_err(),
+            TerminalImpactError::InvalidState
         );
     }
 }
