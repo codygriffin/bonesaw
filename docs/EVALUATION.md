@@ -2848,6 +2848,26 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r271 aggregate support-load floor falsifier
+
+`python/evals/g1_support_load_floor_r271.py` compares the retained R270
+lower-body hard-envelope trace with default-off aggregate support-load floors
+of 0.5%, 10%, and 25% of supported weight per active patch. Rust emits one
+hard linear inequality over the sum of normal-force slots, so a four-point sole
+may redistribute load without silently accepting an underloaded support. The
+replay uses no policy and no physics simulator.
+
+The mechanism is causal but rejected: first fallback moves 875→505→424→308
+as the floor increases, with support release immediately following the floor
+contingency. Full root RMS reaches 24.382–28.960 m. This makes the prior
+42–58 N status-4 load trade explicit and fail-closed, but does not restore useful
+walking authority. The API defaults to zero, and no authority is admitted.
+
+Run `scripts/run-g1-support-load-floor-r271.sh` to rebuild the PyO3 extension,
+regenerate the dormant A/B and three floor traces, and render the Markdown/HTML decision report.
+The retained artifact is
+[`G1_SUPPORT_LOAD_FLOOR_R271.md`](../benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
+
 ### Revision r270 lower-body velocity-envelope causal split
 
 `python/evals/g1_lower_body_velocity_envelope_r270.py` compares the retained

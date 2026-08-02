@@ -7,11 +7,16 @@ R270 addresses the specific early upper-body activation/velocity-cap symptom
 without closing the behavior gate. Its causal split shows that the default-off
 hard lower-body bound keeps the critical knee above -8 rad/s and delays first
 fallback, while the much longer release delay requires the soft+hard
-interaction. The candidate still reaches the knee position limit, and that
-interaction does not compose with r269. The remaining complaint is therefore
-continuous position-limit/support-transition recovery and compositional
-authority after the knee event, not an unbounded solver timeout. See the
-[r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md).
+interaction. R271 then adds a hard aggregate support-load floor as a falsifier:
+even a 0.5% floor moves fallback 875→505, and 10%/25% move it to 424/308,
+exposing earlier authority exhaustion instead of accepting 42–58 N as meaningful
+support. The 0% control preserves 72/72 non-timing arrays and enabled rows have
+zero violations, so the generic mechanism passes; all global walking floor
+profiles are rejected and the mechanism stays default-off. The remaining complaint
+is therefore continuous position-limit/support-transition recovery and
+compositional authority after the knee event, not an unbounded solver timeout.
+See the [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md)
+and [r271 support-load report](benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
 
 ## Open browser gate: viewport frame time
 

@@ -760,6 +760,7 @@ impl CpuExactDynamicBatchSolver {
                     first_contact,
                     contact_count: patch.contact_count,
                     minimum_margin_m: margin,
+                    minimum_total_normal_force: 0.0,
                 });
             }
             if !valid {

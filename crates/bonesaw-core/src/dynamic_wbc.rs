@@ -688,13 +688,18 @@ pub struct ContactSpec {
 /// referenced force points. For every hull edge it emits the exact linear
 /// center-of-pressure inequality over normal-force variables, eroded inward by
 /// `minimum_margin_m`. A zero-load patch is unconstrained; any positively
-/// loaded patch must keep its CoP inside the requested margin.
+/// loaded patch must keep its CoP inside the requested margin. An optional
+/// aggregate normal-load row can require a minimum total support force while
+/// preserving per-point load redistribution.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SupportPatchSpec {
     pub stable_id: u32,
     pub first_contact: usize,
     pub contact_count: usize,
     pub minimum_margin_m: f64,
+    /// Minimum aggregate normal load carried by this support patch. This is a
+    /// patch-level row, allowing load to redistribute across force slots.
+    pub minimum_total_normal_force: f64,
 }
 
 impl ContactSpec {
@@ -2961,6 +2966,8 @@ fn validate_support_patches(
             || end > contacts.len()
             || !patch.minimum_margin_m.is_finite()
             || patch.minimum_margin_m < 0.0
+            || !patch.minimum_total_normal_force.is_finite()
+            || patch.minimum_total_normal_force < 0.0
             || previous_end.is_some_and(|value| value > patch.first_contact)
             || patch_index
                 .checked_sub(1)
@@ -3110,6 +3117,17 @@ fn emit_floating_support_patch_rows(
                 signed_distance - patch.minimum_margin_m - margin_inflation_m;
         }
         row.lower = 0.0;
+        row.upper = f64::INFINITY;
+    }
+    if patch.minimum_total_normal_force > 0.0 {
+        let row = constraints
+            .push()
+            .ok_or(DynamicWbcError::ConstraintCapacity)?;
+        row.stable_id = SUPPORT_ROW_BASE | patch.stable_id.saturating_mul(16) | hull_len as u32;
+        for contact_index in patch.first_contact..patch.first_contact + patch.contact_count {
+            row.coefficients[force_base + contact_index * 3 + 2] = 1.0;
+        }
+        row.lower = patch.minimum_total_normal_force;
         row.upper = f64::INFINITY;
     }
     Ok(())
@@ -4061,6 +4079,7 @@ mod tests {
             first_contact: 0,
             contact_count: contacts.len(),
             minimum_margin_m: 0.02,
+            minimum_total_normal_force: 0.0,
         };
         let force_base = model.dof + 6 + model.dof;
         let variables = force_base + contacts.len() * 3;
@@ -4101,6 +4120,72 @@ mod tests {
                 .iter()
                 .any(|row| evaluate(row, &corner_load) < -1.0)
         );
+    }
+
+    #[test]
+    fn finite_support_patch_can_require_an_aggregate_normal_load() {
+        let model = toy_humanoid();
+        let state = RobotState::zeros(&model);
+        let mut cache = ModelCache::new(&model);
+        model.forward_kinematics(&state, &mut cache).unwrap();
+        let foot = model.frame_id("left_foot").unwrap();
+        let points = [
+            Vec3::new(-0.08, -0.04, -0.07),
+            Vec3::new(-0.08, 0.04, -0.07),
+            Vec3::new(0.12, -0.04, -0.07),
+            Vec3::new(0.12, 0.04, -0.07),
+        ];
+        let contacts = points.map(|point| {
+            ContactSpec::horizontal(
+                1,
+                foot,
+                point,
+                ContactMode::NormalPoint,
+                0.8,
+                1_000.0,
+                100.0,
+            )
+        });
+        let patch = SupportPatchSpec {
+            stable_id: 8,
+            first_contact: 0,
+            contact_count: contacts.len(),
+            minimum_margin_m: 0.0,
+            minimum_total_normal_force: 80.0,
+        };
+        let force_base = model.dof + 6 + model.dof;
+        let variables = force_base + contacts.len() * 3;
+        let mut constraints = ConstraintBuffer::new(variables, 5);
+        constraints.begin();
+        emit_floating_support_patch_rows(
+            &mut constraints,
+            &contacts,
+            patch,
+            &cache,
+            force_base,
+            0.0,
+        )
+        .unwrap();
+        assert_eq!(constraints.active_len(), 5);
+        let floor = constraints
+            .active()
+            .iter()
+            .find(|row| row.stable_id == (SUPPORT_ROW_BASE | 8 * 16 | 4))
+            .expect("aggregate support-load row");
+        let mut load = DVector::zeros(variables);
+        for contact in 0..contacts.len() {
+            load[force_base + contact * 3 + 2] = 20.0;
+        }
+        let evaluate = |row: &crate::solver::LinearConstraint, load: &DVector<f64>| {
+            row.coefficients
+                .iter()
+                .zip(load.iter())
+                .map(|(coefficient, value)| coefficient * value)
+                .sum::<f64>()
+        };
+        assert!((evaluate(floor, &load) - 80.0).abs() < 1e-12);
+        load[force_base + 2] = 19.0;
+        assert!(evaluate(floor, &load) < 80.0);
     }
 
     #[test]

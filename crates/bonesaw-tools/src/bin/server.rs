@@ -1262,6 +1262,7 @@ fn compile_editor_contact_profile(
             first_contact: patch.first_contact_slot,
             contact_count: patch.contact_count,
             minimum_margin_m: 0.02,
+            minimum_total_normal_force: 0.0,
         })
         .collect::<Vec<_>>();
     let render_support_patches = support_patches

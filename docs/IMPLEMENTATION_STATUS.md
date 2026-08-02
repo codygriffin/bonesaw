@@ -2,6 +2,26 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r271 aggregate support-load floor falsifier
+
+R271 adds an opt-in hard aggregate normal-load row to each finite support patch.
+The row constrains the sum of normal-force slots, allowing a four-point sole to
+redistribute load instead of imposing equal per-slot floors. The Python shell
+exposes `minimum_support_load_fraction`, validated in `[0, 1]`, and leaves its
+default at zero. The requested fraction of supported weight is split evenly
+over active patches. A zero-floor A/B preserves all 72 retained non-timing
+arrays bit-for-bit, and exact compact-slot audits find zero violations in every
+enabled row. A policy-free, physics-free G1 sweep at 0.5%, 10%, and 25% still
+shows the global walking profile is not admissible: first fallback moves
+875→505→424→308 and release follows immediately for the floor profiles, while
+full root RMS reaches 24.382–28.960 m. This makes the previous 42–58 N
+underloaded-support episodes explicit rather than silently trading them against
+intent, but it does not provide useful walking authority. The generic mechanism
+remains default-off and the global profile is rejected; the next slice remains continuous position-limit and
+support-transition recovery. See the
+[`G1_SUPPORT_LOAD_FLOOR_R271.md`](../benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md)
+report.
+
 ## Current CPU checkpoint — r270 lower-body velocity-envelope causal split
 
 R270 adds an opt-in safety profile around the persistent floating WBC's

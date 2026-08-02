@@ -100,6 +100,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   while the composed distribution is over it. Full walking and composition
   remain rejected; no authority is admitted. See the
   [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md).
+- R271 adds a default-off aggregate normal-load floor over each four-point
+  support patch. The requested fraction of total supported weight is divided
+  evenly across the currently active patches; each hard row remains
+  load-redistributable within its sole. A 0% A/B preserves all 72 non-timing
+  arrays bit-for-bit, and every enabled row has zero measured violations, but
+  the 0.5%/10%/25% sweep moves fallback earlier (875→505→424→308) and releases
+  support before useful walking. The mechanism is retained as a generic,
+  default-off falsifier; the global walking profile receives no authority. See
+  the [r271 support-load report](benchmarks/results/g1-support-load-floor-r271/G1_SUPPORT_LOAD_FLOOR_R271.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

@@ -300,6 +300,12 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="hard inward erosion applied independently to every loaded finite sole",
     )
+    parser.add_argument(
+        "--minimum-support-load-fraction",
+        type=float,
+        default=0.0,
+        help="default-off hard aggregate normal-load floor per active support patch",
+    )
     parser.add_argument("--foot-task-weight", type=float, default=1.0)
     parser.add_argument(
         "--foot-task-priority",
@@ -3259,6 +3265,7 @@ def main() -> None:
         contact_patch_half_width=args.contact_patch_half_width,
         contact_patch_z=args.contact_patch_z,
         minimum_contact_cop_margin_m=args.minimum_contact_cop_margin,
+        minimum_support_load_fraction=args.minimum_support_load_fraction,
     )
     session.reset(
         q,
@@ -3656,6 +3663,7 @@ def main() -> None:
         "support_preview_seconds": args.support_preview_ticks * DT,
         "support_margin_m": args.support_margin,
         "support_reference_blend": args.support_reference_blend,
+        "minimum_support_load_fraction": args.minimum_support_load_fraction,
         "precontact_ticks": args.precontact_ticks,
         "precontact_seconds": args.precontact_ticks * DT,
         "precontact_maximum_acceleration_m_s2": (

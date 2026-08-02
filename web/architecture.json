@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "lower-body-velocity-envelope-causal-split-r270",
+  "revision": "support-load-floor-falsifier-r271",
   "updated": "2026-08-02",
-  "stage": "R270 causally splits soft and hard lower-body velocity protection, keeps walking and composition rejected, and isolates position-limit/support-transition recovery · r270",
-  "checkpoint": "R270 adds independently switchable soft viability and hard directional-braking parts over a lower-body coordinate mask derived once from pinned URDF names. Hard-only holds the right knee above -8 rad/s and moves first NormalFallback 863→888; soft-only moves it only to 864. Soft+hard reaches the next support transition at tick 1108, but composition with r269 releases at tick 897 and exceeds the five-millisecond p99 gate. The standalone combined distribution stays under that timing gate. Full root RMS remains 15.514 metres and the knee reaches its lower limit at tick 874, so the causal mechanism passes while walking and composition remain rejected/default-off. The remaining behavior slice is continuous position-limit/support-transition recovery; no policy, physics, plant, or authority is admitted. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact-prefix reuse, typed non-integrating holds, localized contact handoff, per-target contact recovery, independent root/CoM jets, explicit initial root twist, allocation-free cursor sampling, and the opt-in URDF-name-derived lower-body soft task plus hard directional braking bound. Python owns immutable corpus orchestration, causal controls, source correlation, and policy/physics-free R270 gates. The example authority stack remains explicit: Invariant dynamics/contact, Viability support and stopping, Intent tracking, contact-force and actuator margins, solver budget, backend conformance, and final command admission never collapse into one score. R270 proves a bounded knee-velocity mechanism, rejects nominal walking and r269 composition, and grants no authority. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "R271 makes support-load authority explicit, keeps walking rejected, and isolates position-limit/support-transition recovery · r271",
+  "checkpoint": "R271 adds a default-off hard aggregate normal-load row over each finite support patch. A 0.5%/10%/25% floor moves first fallback 875→505→424→308 and releases support immediately after the floor contingency, exposing authority exhaustion instead of accepting 42–58 N as meaningful support. The mechanism is retained as a falsifier, not admitted authority. R270's lower-body velocity protection remains default-off and causally useful for the knee but still reaches the position limit. No policy, physics, plant, or authority is admitted; browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact-prefix reuse, typed non-integrating holds, localized contact handoff, per-target contact recovery, independent root/CoM jets, explicit initial root twist, allocation-free cursor sampling, the opt-in URDF-name-derived lower-body velocity protection, and the opt-in aggregate support-load inequality. Python owns immutable corpus orchestration, causal controls, source correlation, and policy/physics-free R271 gates. The example authority stack remains explicit: Invariant dynamics/contact, Viability support and stopping, Intent tracking, contact-force and actuator margins, solver budget, backend conformance, and final command admission never collapse into one score. R271 proves a hard support-load mechanism but rejects nominal walking and grants no authority. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -94,6 +94,12 @@
         }
   ],
   "decisions": [
+    {
+      "status": "rejected",
+      "title": "R271 makes aggregate support load explicit but rejects walking authority",
+      "detail": "A default-off hard row constrains the sum of normal-force slots for each finite support patch, allowing redistribution across a four-point sole. The policy/physics-free G1 sweep at 0.5%, 10%, and 25% moves first fallback 875→505→424→308 and releases support immediately after the floor contingency; full root RMS reaches 24.382–28.960 metres. This falsifies the accepted 42–58 N underloaded-support trade and exposes authority exhaustion, but does not restore useful walking. The API default remains zero and no authority is admitted.",
+      "evidence": "/G1_SUPPORT_LOAD_FLOOR_R271.html"
+    },
     {
       "status": "rejected",
       "title": "R270 causally isolates lower-body velocity protection but rejects walking and composition",

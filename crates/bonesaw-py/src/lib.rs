@@ -344,6 +344,7 @@ struct FloatingWbcSession {
     contact_patch_points: [Vec3; 4],
     contact_points_per_target: usize,
     minimum_contact_cop_margin_m: f64,
+    minimum_support_load_fraction: f64,
     maximum_contacts: usize,
     precontact_ticks: usize,
     precontact_maximum_acceleration: f64,
@@ -13409,7 +13410,8 @@ impl FloatingWbcSession {
         contact_patch_half_length=0.0,
         contact_patch_half_width=0.0,
         contact_patch_z=0.0,
-        minimum_contact_cop_margin_m=0.0
+        minimum_contact_cop_margin_m=0.0,
+        minimum_support_load_fraction=0.0
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -13481,6 +13483,7 @@ impl FloatingWbcSession {
         contact_patch_half_width: f64,
         contact_patch_z: f64,
         minimum_contact_cop_margin_m: f64,
+        minimum_support_load_fraction: f64,
     ) -> PyResult<Self> {
         if maximum_contacts == 0 || maximum_contacts > 16 {
             return Err(PyValueError::new_err("maximum_contacts must be in 1..=16"));
@@ -13514,6 +13517,13 @@ impl FloatingWbcSession {
         {
             return Err(PyValueError::new_err(
                 "localized_contact_fallback_target exceeds the fixed target capacity",
+            ));
+        }
+        if !minimum_support_load_fraction.is_finite()
+            || !(0.0..=1.0).contains(&minimum_support_load_fraction)
+        {
+            return Err(PyValueError::new_err(
+                "minimum_support_load_fraction must be finite and in 0..=1",
             ));
         }
         if feasibility_projection_continuation_violation_threshold
@@ -13817,6 +13827,7 @@ impl FloatingWbcSession {
             contact_patch_points,
             contact_points_per_target,
             minimum_contact_cop_margin_m,
+            minimum_support_load_fraction,
             maximum_contacts,
             precontact_ticks,
             precontact_maximum_acceleration,
@@ -15109,6 +15120,7 @@ impl FloatingWbcSession {
                             first_contact,
                             contact_count: 4,
                             minimum_margin_m: self.minimum_contact_cop_margin_m,
+                            minimum_total_normal_force: 0.0,
                         });
                     }
                 }
@@ -16512,13 +16524,15 @@ impl FloatingWbcSession {
                         self.contacts.push(contact);
                     }
                     if self.contact_points_per_target == 4
-                        && self.minimum_contact_cop_margin_m > 0.0
+                        && (self.minimum_contact_cop_margin_m > 0.0
+                            || self.minimum_support_load_fraction > 0.0)
                     {
                         self.support_patches.push(SupportPatchSpec {
                             stable_id: 1 + target as u32,
                             first_contact,
                             contact_count: 4,
                             minimum_margin_m: self.minimum_contact_cop_margin_m,
+                            minimum_total_normal_force: 0.0,
                         });
                     }
                 }
@@ -16594,6 +16608,14 @@ impl FloatingWbcSession {
                             weights[target]
                         },
                     });
+                }
+            }
+            if !self.support_patches.is_empty() && self.minimum_support_load_fraction > 0.0 {
+                let active_patch_count = self.support_patches.len() as f64;
+                let minimum_total_normal_force =
+                    self.minimum_support_load_fraction * self.supported_weight / active_patch_count;
+                for patch in &mut self.support_patches {
+                    patch.minimum_total_normal_force = minimum_total_normal_force;
                 }
             }
             if self.contacts.len() > self.maximum_contacts {
@@ -16973,7 +16995,8 @@ impl FloatingWbcSession {
                     });
                     self.support_patches.clear();
                     if self.contact_points_per_target == 4
-                        && self.minimum_contact_cop_margin_m > 0.0
+                        && (self.minimum_contact_cop_margin_m > 0.0
+                            || self.minimum_support_load_fraction > 0.0)
                     {
                         for target in 0..target_count {
                             if locally_released[target]
@@ -16989,8 +17012,19 @@ impl FloatingWbcSession {
                                     first_contact,
                                     contact_count: self.contact_points_per_target,
                                     minimum_margin_m: self.minimum_contact_cop_margin_m,
+                                    minimum_total_normal_force: 0.0,
                                 });
                             }
+                        }
+                    }
+                    if !self.support_patches.is_empty() && self.minimum_support_load_fraction > 0.0
+                    {
+                        let active_patch_count = self.support_patches.len() as f64;
+                        let minimum_total_normal_force = self.minimum_support_load_fraction
+                            * self.supported_weight
+                            / active_patch_count;
+                        for patch in &mut self.support_patches {
+                            patch.minimum_total_normal_force = minimum_total_normal_force;
                         }
                     }
                     if !self.contacts.is_empty() {
