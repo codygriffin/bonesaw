@@ -1,0 +1,407 @@
+{
+  "activation_by_law": {
+    "soft_pyramidal_euler": {
+      "covered": {
+        "false_activation_points": 15,
+        "false_impulse_norm_sum_ns": {
+          "mad": 0.022680817569616443,
+          "maximum": 0.12371973213080728,
+          "mean": 0.038584562886589624,
+          "minimum": 0.0008159867524839987,
+          "p50": 0.024330645610878388,
+          "p95": 0.1116594780533835,
+          "p99": 0.1213076813153225,
+          "p99_9": 0.12347852704925884,
+          "stddev": 0.04124423671295535
+        },
+        "missed_actual_points": 0,
+        "rows": 48,
+        "rows_with_false_activation": 13
+      },
+      "law": "soft_pyramidal_euler",
+      "uncovered": {
+        "false_activation_points": 0,
+        "false_impulse_norm_sum_ns": null,
+        "missed_actual_points": 0,
+        "rows": 0,
+        "rows_with_false_activation": 0
+      }
+    },
+    "stiff_elliptic_implicitfast": {
+      "covered": {
+        "false_activation_points": 8,
+        "false_impulse_norm_sum_ns": {
+          "mad": 0.022243107826600245,
+          "maximum": 0.1755162901334267,
+          "mean": 0.06447802468744737,
+          "minimum": 0.015721705263289597,
+          "p50": 0.0594164197171142,
+          "p95": 0.14300116782914862,
+          "p99": 0.16901326567257108,
+          "p99_9": 0.17486598768734118,
+          "stddev": 0.04699433328818862
+        },
+        "missed_actual_points": 0,
+        "rows": 42,
+        "rows_with_false_activation": 8
+      },
+      "law": "stiff_elliptic_implicitfast",
+      "uncovered": {
+        "false_activation_points": 9,
+        "false_impulse_norm_sum_ns": {
+          "mad": 0.34157247065157426,
+          "maximum": 4.911294798546799,
+          "mean": 1.3539484620489972,
+          "minimum": 0.2408317574416368,
+          "p50": 0.6352621229561697,
+          "p95": 4.022094204716513,
+          "p99": 4.733454679780743,
+          "p99_9": 4.893510786670197,
+          "stddev": 1.6317129543213396
+        },
+        "missed_actual_points": 0,
+        "rows": 6,
+        "rows_with_false_activation": 6
+      }
+    }
+  },
+  "activity_epsilon_ns": 1e-12,
+  "causal_first_impact_cohort": {
+    "construction_eligible": true,
+    "description": "earliest ballistic surface crossing on the authored five-by-one-millisecond plant clock, from prestate gap/normal velocity/smooth free acceleration only",
+    "scoring_uses_completed_labels": true,
+    "selection_uses_completed_labels": false,
+    "sufficient_as_terminal_predictor": false,
+    "uncovered_exact_actual_sets": 5,
+    "uncovered_false_points": 0,
+    "uncovered_later_actual_points": 2,
+    "uncovered_rows": 6,
+    "uncovered_subset_of_actual_sets": 6
+  },
+  "causal_prestate_forward_queries": 48,
+  "completed_label_access": true,
+  "construction_or_selection_eligible": false,
+  "decision": {
+    "activation_presence_alone_explains_misses": false,
+    "authority_admitted": false,
+    "first_impact_cohort_localizes_initial_activation": true,
+    "masking_without_resolving_is_sufficient": false,
+    "next_construction_requirement": "advance on the authored plant clock, admit the first ballistic cohort, then recompute the coupled solution and model state before testing later cohorts",
+    "profile_promoted": false
+  },
+  "generated_at": "2026-08-02T15:18:11.752134+00:00",
+  "label_oracle_mask_counterfactual": {
+    "description": "zero predicted impulses only where the completed MuJoCo label is inactive; do not use for construction or selection",
+    "oracle_masked_covered_rows": 46,
+    "original_covered_rows": 42,
+    "original_misses_fixed": 4,
+    "remaining_uncovered_samples": [
+      9,
+      37
+    ],
+    "strict_coverage_passed": false
+  },
+  "model": "/home/codygriffin/Documents/bonepilot/benchmarks/cache/unitree-g1/g1_23dof_mode_10.urdf",
+  "model_sha256": "9333e89c51614c92b416c2c22a28f1614284d02321548e10479cce73552bcf43",
+  "physics_or_integration_steps": 0,
+  "policy_or_controller_steps": 0,
+  "retained_semantic_replay": {
+    "markdown_report_exact": true,
+    "normalized_metrics_exact": true,
+    "npz_arrays_exact": 10
+  },
+  "revision": "g1-stiff-contact-activation-localization-r229",
+  "rust_point_response_queries": 48,
+  "selector_or_plant_actions": 0,
+  "source_replay": "/home/codygriffin/Documents/bonepilot/benchmarks/results/g1-coupled-positive-reference-compliance-holdout-r228/g1-coupled-positive-reference-compliance-holdout.npz",
+  "source_replay_sha256": "0391c7205b48f64ae0779cc6f258ec9017e2caf98a525dbbed8b4c2854a5c480",
+  "source_revision": "g1-coupled-positive-reference-compliance-holdout-r228",
+  "stiff_false_impulse_magnitude_separation": {
+    "eligible_as_threshold": false,
+    "maximum_covered_false_impulse_norm_sum_ns": 0.1755162901334267,
+    "minimum_uncovered_false_impulse_norm_sum_ns": 0.2408317574416368,
+    "observed_strict_separation": true
+  },
+  "stiff_miss_rows": [
+    {
+      "actual_active_points": [
+        4
+      ],
+      "false_active_points": [
+        5
+      ],
+      "false_impulse_norm_sum_ns": 0.3465475471675541,
+      "false_point_free_time_to_impact_ms": [
+        5.047308792022507
+      ],
+      "false_point_gap_m": [
+        0.0037913508832412924
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.751162855190015
+      ],
+      "first_cohort_exact_actual_set": true,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        4
+      ],
+      "free_flight_activation_tick": [
+        0,
+        0,
+        0,
+        0,
+        4,
+        5,
+        0,
+        0
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": true,
+      "oracle_masked_max_abs_generalized_residual": 0.5592692333013378,
+      "original_max_abs_generalized_residual": 6.026996149884962,
+      "predicted_active_points": [
+        4,
+        5
+      ],
+      "sample": 7,
+      "state_index": 100007
+    },
+    {
+      "actual_active_points": [
+        4
+      ],
+      "false_active_points": [
+        5
+      ],
+      "false_impulse_norm_sum_ns": 0.5062190512027215,
+      "false_point_free_time_to_impact_ms": [
+        4.882896416909895
+      ],
+      "false_point_gap_m": [
+        0.003940069785725722
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.8069124243719196
+      ],
+      "first_cohort_exact_actual_set": true,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        4
+      ],
+      "free_flight_activation_tick": [
+        0,
+        0,
+        0,
+        0,
+        4,
+        5,
+        0,
+        0
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": true,
+      "oracle_masked_max_abs_generalized_residual": 2.351412805650577,
+      "original_max_abs_generalized_residual": 10.367039106434454,
+      "predicted_active_points": [
+        4,
+        5
+      ],
+      "sample": 8,
+      "state_index": 100008
+    },
+    {
+      "actual_active_points": [
+        4,
+        5
+      ],
+      "false_active_points": [
+        6,
+        7
+      ],
+      "false_impulse_norm_sum_ns": 1.3544924232256532,
+      "false_point_free_time_to_impact_ms": [
+        14.214706082866496,
+        14.29127827479777
+      ],
+      "false_point_gap_m": [
+        0.01074020490598231,
+        0.010930233932211056
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.7555699599675769,
+        -0.7648184943320422
+      ],
+      "first_cohort_exact_actual_set": true,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        4,
+        5
+      ],
+      "free_flight_activation_tick": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": false,
+      "oracle_masked_max_abs_generalized_residual": 33.7264000479955,
+      "original_max_abs_generalized_residual": 7.750900796528867,
+      "predicted_active_points": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "sample": 9,
+      "state_index": 100009
+    },
+    {
+      "actual_active_points": [
+        1
+      ],
+      "false_active_points": [
+        5
+      ],
+      "false_impulse_norm_sum_ns": 0.2408317574416368,
+      "false_point_free_time_to_impact_ms": [
+        4.476356830174242
+      ],
+      "false_point_gap_m": [
+        0.0014426137689399115
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.3222740777088045
+      ],
+      "first_cohort_exact_actual_set": true,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        1
+      ],
+      "free_flight_activation_tick": [
+        0,
+        4,
+        0,
+        0,
+        0,
+        5,
+        0,
+        0
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": true,
+      "oracle_masked_max_abs_generalized_residual": 0.386998906755256,
+      "original_max_abs_generalized_residual": 4.816153345284664,
+      "predicted_active_points": [
+        1,
+        5
+      ],
+      "sample": 14,
+      "state_index": 100014
+    },
+    {
+      "actual_active_points": [
+        6
+      ],
+      "false_active_points": [
+        1
+      ],
+      "false_impulse_norm_sum_ns": 0.7643051947096178,
+      "false_point_free_time_to_impact_ms": [
+        4.250495805330176
+      ],
+      "false_point_gap_m": [
+        0.0030006658345595226
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.7059566629372153
+      ],
+      "first_cohort_exact_actual_set": true,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        6
+      ],
+      "free_flight_activation_tick": [
+        0,
+        5,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": true,
+      "oracle_masked_max_abs_generalized_residual": 1.13895378611387,
+      "original_max_abs_generalized_residual": 11.792396640510725,
+      "predicted_active_points": [
+        1,
+        6
+      ],
+      "sample": 36,
+      "state_index": 100036
+    },
+    {
+      "actual_active_points": [
+        1,
+        3,
+        6
+      ],
+      "false_active_points": [
+        0,
+        2,
+        7
+      ],
+      "false_impulse_norm_sum_ns": 4.911294798546799,
+      "false_point_free_time_to_impact_ms": [
+        4.6493157150608795,
+        3.6253063250879167,
+        2.071701879017692
+      ],
+      "false_point_gap_m": [
+        0.00357458786607845,
+        0.0029219228497204966,
+        0.0016660969073001202
+      ],
+      "false_point_normal_velocity_m_s": [
+        -0.768841714598778,
+        -0.8059795746086746,
+        -0.8042165352913173
+      ],
+      "first_cohort_exact_actual_set": false,
+      "first_cohort_subset_of_actual_set": true,
+      "first_free_flight_cohort": [
+        6
+      ],
+      "free_flight_activation_tick": [
+        5,
+        4,
+        4,
+        3,
+        0,
+        0,
+        1,
+        3
+      ],
+      "missed_actual_points": [],
+      "oracle_masked_covered": false,
+      "oracle_masked_max_abs_generalized_residual": 90.43325537206924,
+      "original_max_abs_generalized_residual": 23.488197226613035,
+      "predicted_active_points": [
+        0,
+        1,
+        2,
+        3,
+        6,
+        7
+      ],
+      "sample": 37,
+      "state_index": 100037
+    }
+  ]
+}

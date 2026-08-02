@@ -50,18 +50,27 @@ stiff/elliptic/implicit-fast law covers only 42/48 (98.9943% components) under
 the unchanged 0.449/0.065/9.320 width. Deadline, repeat, allocation, and 46-
 array exact replay pass. Do not tune those six misses back into R227.
 
-The live complaint is again transferable stiff-contact fidelity, now localized
-by genuinely fresh evidence. Derive a new regularization/contact-formulation
-mechanism independently, freeze it before another untouched holdout, and only
-then feed an admitted transition set into R224 terminal selection and strict
-plant non-regression.
+R229 removes the localization ambiguity from this punch list without promoting
+anything from the spent labels. Every stiff miss has predicted-only foot load,
+but so do covered rows. A completed-label mask repairs only four misses and
+worsens the two multi-contact cases, proving that a scalar activation threshold
+or mask is insufficient. A label-free first ballistic cohort is a subset of
+eventual MuJoCo load in 6/6 misses and exact in 5/6, which localizes the initial
+event but not later contact growth. Ten semantic arrays, normalized metrics,
+and the report replay exactly.
+
+The live complaint is transferable stiff-contact fidelity. Derive a causal
+coupled re-solve with state-dependent contact activation, geometry, velocity,
+and Delassus evolution independently of the spent R228 labels. Freeze it before
+another untouched holdout, and only then feed an admitted transition set into
+R224 terminal selection and strict plant non-regression.
 
 Acceptance still requires all of the following independent witnesses:
 
-- derive and freeze an independently motivated stiff-contact formulation after
-  R228's 42/48 rejection, without fitting the six holdout misses;
+- derive and freeze independently motivated stiff contact-activation/order and
+  state-evolution machinery after R228's 42/48 rejection, without fitting the
+  six holdout misses;
 - pass a new strict coverage/width/deadline holdout, then demonstrate an R224-bounded
-  strict coverage/width/deadline holdout, then demonstrate an R224-bounded
   state/trajectory-conditioned action with strict plant non-regression;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.

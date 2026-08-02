@@ -311,7 +311,6 @@ def main() -> int:
             "- R227's causal convergence rule froze 32 compliant substeps, 32 forward/reverse projection sweeps, label-free total-momentum caps, and the construction residual box before these labels. Soft/pyramidal/Euler and stiff/elliptic/implicit-fast laws begin at untouched offsets 90,000 and 100,000; every transition resets.",
             "- MuJoCo supplies only the completed five-substep label. The Rust query receives causal prestate geometry, velocity, free acceleration, full Delassus response, model mass, and authored law. Each query repeats bitwise, allocates nothing, and must remain below 5 ms.",
             "- Strict sample coverage, frozen 0.449/0.065/9.320 angular/linear/joint width, deadline, repeat, and allocation gates are conjunctive. A pass promotes only this transition profile to terminal selection/non-regression work, never hardware or command authority.",
-            "- A complete retained rerun reproduced all 46 non-timing NPZ arrays exactly. Timing is reported but excluded from semantic equality.",
             "- A complete retained rerun reproduced all 46 non-timing NPZ arrays exactly. Timing is retained as measured evidence but excluded from semantic equality.",
             "",
             "## Fresh result",

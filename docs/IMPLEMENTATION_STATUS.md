@@ -2,6 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r229 localizes stiff activation without promotion
+
+R229 reads the completed immutable R228 labels explicitly, so it is a
+diagnostic only and cannot construct a threshold, select a profile, or admit
+authority. All six rejected stiff rows predict at least one foot point that
+MuJoCo leaves unloaded, and no actually loaded point is missed. Predicted-only
+points are not sufficient evidence, however: they also occur in 8/42 covered
+stiff rows and 13/48 covered soft rows.
+
+Summed predicted-only impulse strictly separates this spent corpus (0.176 N·s
+maximum covered versus 0.241 N·s minimum uncovered), but it is not an eligible
+threshold. A label-oracle mask that deletes those impulses without re-solving
+coupling repairs four of six misses and makes states 100009 and 100037 much
+worse, for only 46/48 coverage. A separately constructed label-free first
+ballistic cohort uses the authored five 1 ms ticks; it is a subset of eventual
+MuJoCo load in 6/6 misses and exact in 5/6. It identifies the first event but
+cannot predict later contact growth. Ten semantic arrays, normalized metrics,
+and the report replay exactly. The next construction must causally advance
+contact activation, geometry, velocity, and full Delassus response and re-solve
+the coupled set; R228 remains rejected.
+
 ## Current live boundary checkpoint — r225 typed external-load provenance
 
 The `/plant-ws` protocol now requires every executable external wrench to carry
@@ -45,13 +66,16 @@ offsets 90,000 and 100,000 after R227 froze 32 microsteps, 32 sweeps, the
 label-free momentum cap, and 0.449/0.065/9.320 angular/linear/joint width. The
 soft/pyramidal/Euler law passes 48/48. The stiff/elliptic/implicit-fast law
 passes only 42/48 and 98.9943% of components. Both laws retain deadline,
-bitwise-repeat, zero-allocation, and exact 46-array replay witnesses.
+bitwise-repeat, zero-allocation, and exact 46-array replay witnesses; query p99
+is 0.612/0.418 ms. The six stiff misses all predict additional near-
+simultaneous foot-point activation absent from measured reference load, and
+fitting them would require 1.926/0.338/46.976 width.
 
 The frozen profile is therefore rejected and not eligible for terminal
 selection. Retain the generic coupled mechanism, do not tune the six fresh
 misses back into R227, and independently derive the next stiff-contact
-formulation before another holdout. No selector, plant action, or authority is
-admitted.
+activation/order formulation with state-dependent geometry/Delassus evolution
+before another holdout. No selector, plant action, or authority is admitted.
 
 ## Current CPU checkpoint — r227 freezes coupled work from causal convergence
 
@@ -65,10 +89,9 @@ impulse and generalized-residual labels are accessed only after selection.
 
 The already-rejected R221 labels then show 48/48 coverage under each law at
 useful width, but they cannot promote the profile. All timed Rust calls allocate
-nothing and two complete runs reproduce 192 semantic arrays exactly. Generate
-a new untouched contact-law/state corpus next, preserving the frozen
-substeps/sweeps/cap/residual contract. No selector, plant action, or authority
-is admitted.
+nothing and two complete runs reproduce 192 semantic arrays exactly. R228
+preserves the frozen substeps/sweeps/cap/residual contract on new laws and
+rejects it. No selector, plant action, or authority is admitted.
 
 ## Current CPU checkpoint — r226 uses the documented positive reference law
 

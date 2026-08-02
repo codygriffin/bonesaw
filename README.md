@@ -2350,14 +2350,32 @@ friction. Two retained runs reproduce all 192 semantic arrays exactly. This
 freezes a construction profile for a new untouched holdout only—no selector,
 plant action, or authority is promoted. See the [r227 causal convergence audit](benchmarks/results/g1-coupled-positive-reference-compliance-audit-r227/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_AUDIT.md).
 
-R228 spends the next untouched law/state holdout and rejects that frozen
-profile without retuning it. The new soft/pyramidal/Euler law covers 48/48
-samples; the new stiff/elliptic/implicit-fast law covers 42/48 (98.9943% of
-components) under the unchanged 0.449/0.065/9.320 angular/linear/joint width.
-All deadline, repeat, allocation, and 46-array exact-replay witnesses pass, but
-coverage is conjunctive, so the profile is not promoted. Retain the generic
-coupled kernel; derive any next stiff-contact formulation independently before
-another holdout. See the [r228 fresh compliance holdout](benchmarks/results/g1-coupled-positive-reference-compliance-holdout-r228/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT.md).
+R228 freezes that entire profile before generating 96 reset-every-transition
+labels at untouched offsets 90,000/100,000. The cross-factor
+soft/pyramidal/Euler law passes 48/48; the stiff/elliptic/implicit-fast law
+covers only 42/48 (98.9943% of components). All six misses activate additional
+near-simultaneous reduced-model foot points that the reference plant never
+loads. The frozen width remains 0.449/0.065/9.320 and query p99 is
+0.612/0.418 ms, but fitting the stiff misses would require
+1.926/0.338/46.976. All 46 non-timing arrays replay exactly. Retain the generic
+coupled solver, reject the profile without retuning, and move the next
+construction to contact-activation/order plus state-dependent geometry and
+Delassus evolution. See the [r228 fresh holdout](benchmarks/results/g1-coupled-positive-reference-compliance-holdout-r228/G1_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT.md).
+
+R229 uses the completed R228 labels only to localize those six rejected stiff
+rows; it is explicitly ineligible for construction, selection, or authority.
+All six misses predict extra loaded foot points, but predicted-only points also
+occur in 8/42 covered stiff rows and 13/48 covered soft rows. Their summed
+impulse happens to separate this spent corpus (0.176 N·s maximum covered versus
+0.241 N·s minimum uncovered), but that observation is not promoted as a
+threshold. A label-oracle mask repairs four misses and worsens the two
+multi-contact cases, reaching only 46/48. The missing mechanism is therefore a
+causal coupled re-solve as activation, geometry, velocity, and Delassus response
+evolve—not a contact mask. A separate label-free first-impact construction uses the
+authored five 1 ms ticks: it is a subset of eventual MuJoCo load in 6/6 misses
+and exact in 5/6, so it can seed event evolution but cannot predict the final
+contact set. All ten semantic arrays, normalized metrics, and the report replay
+exactly. See the [r229 activation localization](benchmarks/results/g1-stiff-contact-activation-localization-r229/G1_STIFF_CONTACT_ACTIVATION_LOCALIZATION.md).
 
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root
@@ -2473,6 +2491,7 @@ Reproduce it with:
 ./scripts/run-g1-positive-reference-compliance-audit.sh
 ./scripts/run-g1-coupled-positive-reference-compliance-audit.sh
 ./scripts/run-g1-coupled-positive-reference-compliance-holdout.sh
+./scripts/run-g1-stiff-contact-activation-localization.sh
 ./scripts/run-upkie-terminal-residual-conditioning.sh
 ./scripts/run-upkie-observation-delay-startup-ab.sh
 ./scripts/run-upkie-observation-dropout-phase-ab.sh
