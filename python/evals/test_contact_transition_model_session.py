@@ -819,6 +819,199 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             )
         np.testing.assert_array_equal(unchanged, 7.0)
 
+    def test_terminal_state_box_hypotheses_preserve_candidate_major_rows(self) -> None:
+        joints = self.generic.joint_dof()
+        root_lower = np.zeros((3, 4, 6), np.float64)
+        root_upper = np.zeros_like(root_lower)
+        root_lower[..., 0] = 0.18
+        root_upper[..., 0] = 0.26
+        root_lower[..., 1] = -0.8
+        root_upper[..., 1] = 0.2
+        root_lower[..., 2:] = -0.15
+        root_upper[..., 2:] = 0.15
+        root_lower[1, 2, 2] = -0.2
+        root_upper[1, 2, 2] = 0.25
+        q_lower = np.full((3, 4, joints), -0.12, np.float64)
+        q_upper = np.full((3, 4, joints), 0.12, np.float64)
+        v_lower = np.full((3, 4, joints), -0.4, np.float64)
+        v_upper = np.full((3, 4, joints), 0.6, np.float64)
+        limits_lower = np.full(joints, -1.0, np.float64)
+        limits_upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 2.0, np.float64)
+        available = np.ones((3, 4), np.uint8)
+        root_acceleration = np.zeros((3, 4, 2), np.float64)
+        joint_acceleration = np.zeros((3, 4, joints), np.float64)
+        effort = np.zeros((3, 4), np.float64)
+        diagnostics = np.empty((3, 4, 17), np.float64)
+        timing = self.generic.score_terminal_impact_state_box_hypotheses(
+            root_lower,
+            root_upper,
+            q_lower,
+            q_upper,
+            v_lower,
+            v_upper,
+            limits_lower,
+            limits_upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            diagnostics,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(np.isfinite(diagnostics)))
+        replay = np.empty_like(diagnostics)
+        replay_timing = self.generic.score_terminal_impact_state_box_hypotheses(
+            root_lower,
+            root_upper,
+            q_lower,
+            q_upper,
+            v_lower,
+            v_upper,
+            limits_lower,
+            limits_upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            replay,
+        )
+        self.assertEqual(replay_timing[1:], (0, 0))
+        np.testing.assert_array_equal(diagnostics, replay)
+
+        invalid_upper = root_upper.copy()
+        invalid_upper[2, 3, 0] = root_lower[2, 3, 0] - 0.1
+        unchanged = np.full_like(diagnostics, 7.0)
+        with self.assertRaisesRegex(ValueError, r"\[2,3\]"):
+            self.generic.score_terminal_impact_state_box_hypotheses(
+                root_lower,
+                invalid_upper,
+                q_lower,
+                q_upper,
+                v_lower,
+                v_upper,
+                limits_lower,
+                limits_upper,
+                velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                unchanged,
+            )
+        np.testing.assert_array_equal(unchanged, 7.0)
+
+    def test_paired_terminal_state_tubes_are_atomic_and_keep_zero_baseline(self) -> None:
+        joints = self.generic.joint_dof()
+        baseline_root_lower = np.tile(
+            np.asarray([-0.18, -0.12, -1.0, -0.8], np.float64), (4, 1)
+        )
+        baseline_root_upper = np.tile(
+            np.asarray([0.22, 0.16, 1.2, 0.9], np.float64), (4, 1)
+        )
+        root_delta_lower = np.zeros((3, 4, 4), np.float64)
+        root_delta_upper = np.zeros_like(root_delta_lower)
+        root_delta_lower[1] = -0.04
+        root_delta_upper[1] = 0.03
+        root_delta_lower[2] = -0.08
+        root_delta_upper[2] = 0.06
+        q_lower = np.full((4, joints), -0.15, np.float64)
+        q_upper = np.full((4, joints), 0.20, np.float64)
+        q_delta_lower = np.zeros((3, 4, joints), np.float64)
+        q_delta_upper = np.zeros_like(q_delta_lower)
+        q_delta_lower[1] = -0.03
+        q_delta_upper[1] = 0.02
+        q_delta_lower[2] = -0.06
+        q_delta_upper[2] = 0.04
+        v_lower = np.full((4, joints), -0.8, np.float64)
+        v_upper = np.full((4, joints), 0.9, np.float64)
+        v_delta_lower = np.zeros((3, 4, joints), np.float64)
+        v_delta_upper = np.zeros_like(v_delta_lower)
+        v_delta_lower[1] = -0.12
+        v_delta_upper[1] = 0.08
+        v_delta_lower[2] = -0.20
+        v_delta_upper[2] = 0.15
+        limits_lower = np.full(joints, -1.0, np.float64)
+        limits_upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 3.0, np.float64)
+        available = np.ones((3, 4), np.uint8)
+        baseline_effort = np.full(4, 0.35, np.float64)
+        candidate_effort = np.tile(baseline_effort, (3, 1))
+        candidate_effort[2] = 0.7
+        hypotheses = np.empty((3, 4, 14), np.float64)
+        envelopes = np.empty((3, 14), np.float64)
+        selection = np.empty(6, np.float64)
+        timing = self.generic.bound_terminal_impact_paired_state_tubes(
+            baseline_root_lower,
+            baseline_root_upper,
+            root_delta_lower,
+            root_delta_upper,
+            q_lower,
+            q_upper,
+            q_delta_lower,
+            q_delta_upper,
+            v_lower,
+            v_upper,
+            v_delta_lower,
+            v_delta_upper,
+            limits_lower,
+            limits_upper,
+            velocity_limit,
+            available,
+            baseline_effort,
+            candidate_effort,
+            0,
+            0.0,
+            0.01,
+            hypotheses,
+            envelopes,
+            selection,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertTrue(np.all(np.isfinite(hypotheses)))
+        self.assertTrue(np.all(np.isfinite(envelopes)))
+        np.testing.assert_array_equal(hypotheses[0], 0.0)
+        np.testing.assert_array_equal(envelopes[0], 0.0)
+        self.assertEqual(selection[1], 0.0)
+
+        invalid_delta_upper = v_delta_upper.copy()
+        invalid_delta_upper[2, 3, -1] = v_delta_lower[2, 3, -1] - 0.1
+        unchanged_hypotheses = np.full_like(hypotheses, 7.0)
+        unchanged_envelopes = np.full_like(envelopes, 7.0)
+        unchanged_selection = np.full_like(selection, 7.0)
+        with self.assertRaisesRegex(ValueError, "paired terminal state tube"):
+            self.generic.bound_terminal_impact_paired_state_tubes(
+                baseline_root_lower,
+                baseline_root_upper,
+                root_delta_lower,
+                root_delta_upper,
+                q_lower,
+                q_upper,
+                q_delta_lower,
+                q_delta_upper,
+                v_lower,
+                v_upper,
+                v_delta_lower,
+                invalid_delta_upper,
+                limits_lower,
+                limits_upper,
+                velocity_limit,
+                available,
+                baseline_effort,
+                candidate_effort,
+                0,
+                0.0,
+                0.01,
+                unchanged_hypotheses,
+                unchanged_envelopes,
+                unchanged_selection,
+            )
+        np.testing.assert_array_equal(unchanged_hypotheses, 7.0)
+        np.testing.assert_array_equal(unchanged_envelopes, 7.0)
+        np.testing.assert_array_equal(unchanged_selection, 7.0)
+
     def test_complete_terminal_state_box_bounds_points_and_is_atomic(self) -> None:
         joints = self.generic.joint_dof()
         rows = 2

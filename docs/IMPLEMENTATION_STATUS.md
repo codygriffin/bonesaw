@@ -338,14 +338,33 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r255 composes complete terminal-state boxes
+## Current CPU checkpoint — r256 preserves paired state uncertainty
+
+R256 adds an allocation-free Rust delta boundary over a shared terminal-state
+tube. Every candidate is represented as the same uncertain baseline plus a
+candidate delta, so consequence differences are bounded directly instead of
+subtracting two independent score uppers. A fixed three-candidate,
+four-hypothesis G1 batch repeats 500 times at 378.45/402.02 microsecond p50/p99
+with exact replay, zero measured Rust allocation, an exact zero baseline, and
+384/384 independently sampled paired points contained.
+
+A separate replay composes R255 with authored directional contact and estimator
+hypotheses on immutable R254 states. It performs 96 MuJoCo kinematic forwards
+but zero physics or policy steps, 96 evaluation-only selector calls, and zero
+plant actions. The
+absolute tube contains all 288 stored terminal candidates with zero timed Rust
+allocation. That 100% coverage does not freeze a useful profile: reserve width,
+the q-drift lift, and paired lower/upper deltas must be fixed on spent evidence
+before a new-law holdout. No action or authority is admitted.
+
+## Prior CPU checkpoint — r255 composes complete terminal-state boxes
 
 R255 adds an atomic, allocation-free Rust interval boundary over the complete
 state consumed by the ballistic terminal-impact proxy: clearance, vertical
 speed, roll/pitch, angular rates, joint positions, and joint velocities.
 Pressure and aggregate consequence fields are upper bounds; raw joint headroom
 is a lower bound. A G1-shaped 64-row PyO3 batch repeats 500 times at
-50.61/71.12 microsecond p50/p99 with exact output and zero measured Rust
+50.72/75.50 microsecond p50/p99 with exact output and zero measured Rust
 allocation. Dense Rust tests and 2,048 independently scored interior points
 remain inside the reported bounds to floating-point roundoff.
 

@@ -110,6 +110,41 @@ pub struct TerminalImpactStateBox<'a> {
     pub joint_velocity_limit_rad_s: &'a [f64],
 }
 
+/// Candidate-minus-baseline terminal-state tube with explicitly shared
+/// baseline uncertainty.
+///
+/// These coordinates are the terminal coordinates *after* the caller's
+/// causal contact transition and support-free propagation. The candidate is
+/// represented as `baseline + delta`; the same baseline realization is used
+/// on both sides of every consequence difference. Ballistic clearance and
+/// vertical speed are omitted deliberately because this boundary requires
+/// them to be candidate-invariant.
+#[derive(Clone, Copy, Debug)]
+pub struct TerminalImpactPairedStateTube<'a> {
+    pub available: bool,
+    pub baseline_tilt_lower_rad: [f64; 2],
+    pub baseline_tilt_upper_rad: [f64; 2],
+    pub candidate_tilt_delta_lower_rad: [f64; 2],
+    pub candidate_tilt_delta_upper_rad: [f64; 2],
+    pub baseline_angular_rate_lower_rad_s: [f64; 2],
+    pub baseline_angular_rate_upper_rad_s: [f64; 2],
+    pub candidate_angular_rate_delta_lower_rad_s: [f64; 2],
+    pub candidate_angular_rate_delta_upper_rad_s: [f64; 2],
+    pub baseline_joint_position_lower_rad: &'a [f64],
+    pub baseline_joint_position_upper_rad: &'a [f64],
+    pub candidate_joint_position_delta_lower_rad: &'a [f64],
+    pub candidate_joint_position_delta_upper_rad: &'a [f64],
+    pub baseline_joint_velocity_lower_rad_s: &'a [f64],
+    pub baseline_joint_velocity_upper_rad_s: &'a [f64],
+    pub candidate_joint_velocity_delta_lower_rad_s: &'a [f64],
+    pub candidate_joint_velocity_delta_upper_rad_s: &'a [f64],
+    pub joint_position_limit_lower_rad: &'a [f64],
+    pub joint_position_limit_upper_rad: &'a [f64],
+    pub joint_velocity_limit_rad_s: &'a [f64],
+    pub baseline_actuator_effort_utilization: f64,
+    pub candidate_actuator_effort_utilization: f64,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct TerminalImpactCandidate<'a> {
     /// Whether the ordinary dynamics/resource path admitted this command.
@@ -196,6 +231,89 @@ pub enum TerminalImpactError {
 
 fn positive_finite(value: f64) -> bool {
     value.is_finite() && value > 0.0
+}
+
+fn absolute_interval(lower: f64, upper: f64) -> (f64, f64) {
+    let minimum = if lower <= 0.0 && upper >= 0.0 {
+        0.0
+    } else {
+        lower.abs().min(upper.abs())
+    };
+    (minimum, lower.abs().max(upper.abs()))
+}
+
+fn vector_pressure_interval(lower: [f64; 2], upper: [f64; 2], scale: f64) -> (f64, f64) {
+    let x = absolute_interval(lower[0], upper[0]);
+    let y = absolute_interval(lower[1], upper[1]);
+    (x.0.hypot(y.0) / scale, x.1.hypot(y.1) / scale)
+}
+
+fn paired_vector_pressure_delta_bound(
+    baseline_lower: [f64; 2],
+    baseline_upper: [f64; 2],
+    delta_lower: [f64; 2],
+    delta_upper: [f64; 2],
+    scale: f64,
+) -> (f64, f64) {
+    const CELLS_PER_AXIS: usize = 16;
+    let mut lower_bound = f64::INFINITY;
+    let mut upper_bound = f64::NEG_INFINITY;
+    for x in 0..CELLS_PER_AXIS {
+        let x_lower = baseline_lower[0]
+            + (baseline_upper[0] - baseline_lower[0]) * (x as f64 / CELLS_PER_AXIS as f64);
+        let x_upper = if x + 1 == CELLS_PER_AXIS {
+            baseline_upper[0]
+        } else {
+            baseline_lower[0]
+                + (baseline_upper[0] - baseline_lower[0]) * ((x + 1) as f64 / CELLS_PER_AXIS as f64)
+        };
+        for y in 0..CELLS_PER_AXIS {
+            let y_lower = baseline_lower[1]
+                + (baseline_upper[1] - baseline_lower[1]) * (y as f64 / CELLS_PER_AXIS as f64);
+            let y_upper = if y + 1 == CELLS_PER_AXIS {
+                baseline_upper[1]
+            } else {
+                baseline_lower[1]
+                    + (baseline_upper[1] - baseline_lower[1])
+                        * ((y + 1) as f64 / CELLS_PER_AXIS as f64)
+            };
+            let baseline = vector_pressure_interval([x_lower, y_lower], [x_upper, y_upper], scale);
+            let candidate = vector_pressure_interval(
+                [x_lower + delta_lower[0], y_lower + delta_lower[1]],
+                [x_upper + delta_upper[0], y_upper + delta_upper[1]],
+                scale,
+            );
+            lower_bound = lower_bound.min(candidate.0 - baseline.1);
+            upper_bound = upper_bound.max(candidate.1 - baseline.0);
+        }
+    }
+    (lower_bound, upper_bound)
+}
+
+fn paired_scalar_delta_bound(
+    baseline_lower: f64,
+    baseline_upper: f64,
+    delta_lower: f64,
+    delta_upper: f64,
+    interval_value: impl Fn(f64, f64) -> (f64, f64),
+) -> (f64, f64) {
+    const CELLS: usize = 64;
+    let mut lower_bound = f64::INFINITY;
+    let mut upper_bound = f64::NEG_INFINITY;
+    for cell in 0..CELLS {
+        let lower =
+            baseline_lower + (baseline_upper - baseline_lower) * (cell as f64 / CELLS as f64);
+        let upper = if cell + 1 == CELLS {
+            baseline_upper
+        } else {
+            baseline_lower + (baseline_upper - baseline_lower) * ((cell + 1) as f64 / CELLS as f64)
+        };
+        let baseline = interval_value(lower, upper);
+        let candidate = interval_value(lower + delta_lower, upper + delta_upper);
+        lower_bound = lower_bound.min(candidate.0 - baseline.1);
+        upper_bound = upper_bound.max(candidate.1 - baseline.0);
+    }
+    (lower_bound, upper_bound)
 }
 
 fn valid_config(config: TerminalImpactConfig) -> bool {
@@ -908,6 +1026,254 @@ pub fn score_terminal_impact_state_box_upper(
         admission_pressure,
         maximum_terminal_harm_pressure,
         aggregate_score,
+    })
+}
+
+/// Bound candidate-minus-baseline terminal consequence directly over a
+/// shared terminal-state tube.
+///
+/// This is intentionally not implemented by subtracting independent score
+/// envelopes. Root vector pressures are evaluated over a fixed partition of
+/// the same baseline box, and scalar joint pressures retain the same baseline
+/// cell on both sides of every subtraction. The max-over-joints inequality
+/// `max(c) - max(b) <= max(c - b)` then yields conservative position and
+/// velocity pressure deltas. The result contains no policy or authority.
+pub fn bound_terminal_impact_paired_state_delta(
+    tube: TerminalImpactPairedStateTube<'_>,
+    config: TerminalImpactConfig,
+) -> Result<TerminalImpactComponentDeltaBox, TerminalImpactError> {
+    let joints = tube.baseline_joint_position_lower_rad.len();
+    if tube.baseline_joint_position_upper_rad.len() != joints
+        || tube.candidate_joint_position_delta_lower_rad.len() != joints
+        || tube.candidate_joint_position_delta_upper_rad.len() != joints
+        || tube.baseline_joint_velocity_lower_rad_s.len() != joints
+        || tube.baseline_joint_velocity_upper_rad_s.len() != joints
+        || tube.candidate_joint_velocity_delta_lower_rad_s.len() != joints
+        || tube.candidate_joint_velocity_delta_upper_rad_s.len() != joints
+        || tube.joint_position_limit_lower_rad.len() != joints
+        || tube.joint_position_limit_upper_rad.len() != joints
+        || tube.joint_velocity_limit_rad_s.len() != joints
+    {
+        return Err(TerminalImpactError::Dimension);
+    }
+    if !valid_config(config) {
+        return Err(TerminalImpactError::InvalidConfig);
+    }
+    if !tube.baseline_actuator_effort_utilization.is_finite()
+        || tube.baseline_actuator_effort_utilization < 0.0
+        || !tube.candidate_actuator_effort_utilization.is_finite()
+        || tube.candidate_actuator_effort_utilization < 0.0
+    {
+        return Err(TerminalImpactError::InvalidCandidate);
+    }
+    let valid_pair =
+        |lower: f64, upper: f64| lower.is_finite() && upper.is_finite() && lower <= upper;
+    if tube
+        .baseline_tilt_lower_rad
+        .iter()
+        .zip(tube.baseline_tilt_upper_rad)
+        .chain(
+            tube.baseline_angular_rate_lower_rad_s
+                .iter()
+                .zip(tube.baseline_angular_rate_upper_rad_s),
+        )
+        .chain(
+            tube.candidate_tilt_delta_lower_rad
+                .iter()
+                .zip(tube.candidate_tilt_delta_upper_rad),
+        )
+        .chain(
+            tube.candidate_angular_rate_delta_lower_rad_s
+                .iter()
+                .zip(tube.candidate_angular_rate_delta_upper_rad_s),
+        )
+        .any(|(lower, upper)| !valid_pair(*lower, upper))
+        || tube
+            .baseline_joint_position_lower_rad
+            .iter()
+            .zip(tube.baseline_joint_position_upper_rad)
+            .chain(
+                tube.candidate_joint_position_delta_lower_rad
+                    .iter()
+                    .zip(tube.candidate_joint_position_delta_upper_rad),
+            )
+            .chain(
+                tube.baseline_joint_velocity_lower_rad_s
+                    .iter()
+                    .zip(tube.baseline_joint_velocity_upper_rad_s),
+            )
+            .chain(
+                tube.candidate_joint_velocity_delta_lower_rad_s
+                    .iter()
+                    .zip(tube.candidate_joint_velocity_delta_upper_rad_s),
+            )
+            .any(|(lower, upper)| !valid_pair(*lower, *upper))
+        || tube
+            .joint_position_limit_lower_rad
+            .iter()
+            .zip(tube.joint_position_limit_upper_rad)
+            .any(|(lower, upper)| {
+                !((lower.is_finite() && upper.is_finite() && lower < upper)
+                    || (lower.is_infinite()
+                        && lower.is_sign_negative()
+                        && upper.is_infinite()
+                        && upper.is_sign_positive()))
+            })
+        || tube
+            .joint_velocity_limit_rad_s
+            .iter()
+            .any(|limit| !positive_finite(*limit))
+    {
+        return Err(TerminalImpactError::InvalidState);
+    }
+
+    let exact_zero_delta = tube
+        .candidate_tilt_delta_lower_rad
+        .iter()
+        .chain(tube.candidate_tilt_delta_upper_rad.iter())
+        .chain(tube.candidate_angular_rate_delta_lower_rad_s.iter())
+        .chain(tube.candidate_angular_rate_delta_upper_rad_s.iter())
+        .chain(tube.candidate_joint_position_delta_lower_rad.iter())
+        .chain(tube.candidate_joint_position_delta_upper_rad.iter())
+        .chain(tube.candidate_joint_velocity_delta_lower_rad_s.iter())
+        .chain(tube.candidate_joint_velocity_delta_upper_rad_s.iter())
+        .all(|value| *value == 0.0)
+        && tube.candidate_actuator_effort_utilization == tube.baseline_actuator_effort_utilization;
+    if exact_zero_delta {
+        return Ok(TerminalImpactComponentDeltaBox {
+            available: tube.available,
+            component_lower: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            component_upper: [0.0; TERMINAL_IMPACT_PAIRED_COMPONENTS],
+            aggregate_lower: 0.0,
+            aggregate_upper: 0.0,
+        });
+    }
+
+    let tilt = paired_vector_pressure_delta_bound(
+        tube.baseline_tilt_lower_rad,
+        tube.baseline_tilt_upper_rad,
+        tube.candidate_tilt_delta_lower_rad,
+        tube.candidate_tilt_delta_upper_rad,
+        config.tilt_soft_limit_rad,
+    );
+    let angular_rate = paired_vector_pressure_delta_bound(
+        tube.baseline_angular_rate_lower_rad_s,
+        tube.baseline_angular_rate_upper_rad_s,
+        tube.candidate_angular_rate_delta_lower_rad_s,
+        tube.candidate_angular_rate_delta_upper_rad_s,
+        config.angular_rate_soft_limit_rad_s,
+    );
+
+    let mut joint_position = (0.0, 0.0);
+    let mut raw_headroom_loss = (0.0, 0.0);
+    let mut bounded_joint = false;
+    let mut joint_velocity = (0.0, 0.0);
+    let mut velocity_joint = false;
+    for joint in 0..joints {
+        let lower_limit = tube.joint_position_limit_lower_rad[joint];
+        let upper_limit = tube.joint_position_limit_upper_rad[joint];
+        if lower_limit.is_finite() {
+            let span = upper_limit - lower_limit;
+            let center = 0.5 * (lower_limit + upper_limit);
+            let position_pressure = paired_scalar_delta_bound(
+                tube.baseline_joint_position_lower_rad[joint],
+                tube.baseline_joint_position_upper_rad[joint],
+                tube.candidate_joint_position_delta_lower_rad[joint],
+                tube.candidate_joint_position_delta_upper_rad[joint],
+                |lower, upper| {
+                    let absolute = absolute_interval(lower - center, upper - center);
+                    let pressure = |distance: f64| {
+                        ((config.joint_position_soft_headroom_fraction - 0.5 + distance / span)
+                            / config.joint_position_soft_headroom_fraction)
+                            .max(0.0)
+                    };
+                    (pressure(absolute.0), pressure(absolute.1))
+                },
+            );
+            let headroom_loss = paired_scalar_delta_bound(
+                tube.baseline_joint_position_lower_rad[joint],
+                tube.baseline_joint_position_upper_rad[joint],
+                tube.candidate_joint_position_delta_lower_rad[joint],
+                tube.candidate_joint_position_delta_upper_rad[joint],
+                |lower, upper| {
+                    let absolute = absolute_interval(lower - center, upper - center);
+                    (absolute.0 / span - 0.5, absolute.1 / span - 0.5)
+                },
+            );
+            if !bounded_joint {
+                joint_position = position_pressure;
+                raw_headroom_loss = headroom_loss;
+                bounded_joint = true;
+            } else {
+                joint_position.0 = joint_position.0.min(position_pressure.0);
+                joint_position.1 = joint_position.1.max(position_pressure.1);
+                raw_headroom_loss.0 = raw_headroom_loss.0.min(headroom_loss.0);
+                raw_headroom_loss.1 = raw_headroom_loss.1.max(headroom_loss.1);
+            }
+        }
+
+        let limit = tube.joint_velocity_limit_rad_s[joint];
+        let velocity_pressure = paired_scalar_delta_bound(
+            tube.baseline_joint_velocity_lower_rad_s[joint],
+            tube.baseline_joint_velocity_upper_rad_s[joint],
+            tube.candidate_joint_velocity_delta_lower_rad_s[joint],
+            tube.candidate_joint_velocity_delta_upper_rad_s[joint],
+            |lower, upper| {
+                let absolute = absolute_interval(lower, upper);
+                (
+                    soft_upper_pressure(absolute.0 / limit, config.joint_velocity_soft_utilization),
+                    soft_upper_pressure(absolute.1 / limit, config.joint_velocity_soft_utilization),
+                )
+            },
+        );
+        if !velocity_joint {
+            joint_velocity = velocity_pressure;
+            velocity_joint = true;
+        } else {
+            joint_velocity.0 = joint_velocity.0.min(velocity_pressure.0);
+            joint_velocity.1 = joint_velocity.1.max(velocity_pressure.1);
+        }
+    }
+
+    let effort_delta = soft_upper_pressure(
+        tube.candidate_actuator_effort_utilization,
+        config.actuator_effort_soft_utilization,
+    ) - soft_upper_pressure(
+        tube.baseline_actuator_effort_utilization,
+        config.actuator_effort_soft_utilization,
+    );
+    let component_lower = [
+        tilt.0,
+        angular_rate.0,
+        joint_position.0,
+        joint_velocity.0,
+        effort_delta,
+        raw_headroom_loss.0,
+    ];
+    let component_upper = [
+        tilt.1,
+        angular_rate.1,
+        joint_position.1,
+        joint_velocity.1,
+        effort_delta,
+        raw_headroom_loss.1,
+    ];
+    let aggregate_lower = config.tilt_weight * tilt.0
+        + config.angular_rate_weight * angular_rate.0
+        + config.joint_position_weight * joint_position.0
+        + config.joint_velocity_weight * joint_velocity.0
+        + config.actuator_effort_weight * effort_delta;
+    let aggregate_upper = config.tilt_weight * tilt.1
+        + config.angular_rate_weight * angular_rate.1
+        + config.joint_position_weight * joint_position.1
+        + config.joint_velocity_weight * joint_velocity.1
+        + config.actuator_effort_weight * effort_delta;
+    Ok(TerminalImpactComponentDeltaBox {
+        available: tube.available,
+        component_lower,
+        component_upper,
+        aggregate_lower,
+        aggregate_upper,
     })
 }
 
@@ -1693,6 +2059,200 @@ mod tests {
                 candidate([0.0; 2], &joint),
                 TerminalImpactConfig::default(),
             ),
+            Err(TerminalImpactError::InvalidState)
+        );
+    }
+
+    #[test]
+    fn paired_state_tube_bounds_dense_shared_samples() {
+        let baseline_q_lower = [-0.45, 0.10, -0.20];
+        let baseline_q_upper = [0.35, 0.55, 0.30];
+        let delta_q_lower = [-0.18, -0.25, -0.10];
+        let delta_q_upper = [0.12, 0.08, 0.16];
+        let baseline_v_lower = [-2.0, -1.4, -3.0];
+        let baseline_v_upper = [1.3, 1.8, 2.2];
+        let delta_v_lower = [-0.8, -0.5, -1.1];
+        let delta_v_upper = [0.4, 0.7, 0.6];
+        let tube = TerminalImpactPairedStateTube {
+            available: true,
+            baseline_tilt_lower_rad: [-0.30, -0.22],
+            baseline_tilt_upper_rad: [0.28, 0.35],
+            candidate_tilt_delta_lower_rad: [-0.12, -0.16],
+            candidate_tilt_delta_upper_rad: [0.08, 0.11],
+            baseline_angular_rate_lower_rad_s: [-2.4, -1.7],
+            baseline_angular_rate_upper_rad_s: [2.0, 2.6],
+            candidate_angular_rate_delta_lower_rad_s: [-0.9, -0.6],
+            candidate_angular_rate_delta_upper_rad_s: [0.5, 0.8],
+            baseline_joint_position_lower_rad: &baseline_q_lower,
+            baseline_joint_position_upper_rad: &baseline_q_upper,
+            candidate_joint_position_delta_lower_rad: &delta_q_lower,
+            candidate_joint_position_delta_upper_rad: &delta_q_upper,
+            baseline_joint_velocity_lower_rad_s: &baseline_v_lower,
+            baseline_joint_velocity_upper_rad_s: &baseline_v_upper,
+            candidate_joint_velocity_delta_lower_rad_s: &delta_v_lower,
+            candidate_joint_velocity_delta_upper_rad_s: &delta_v_upper,
+            joint_position_limit_lower_rad: &LOWER,
+            joint_position_limit_upper_rad: &UPPER,
+            joint_velocity_limit_rad_s: &V_LIMIT,
+            baseline_actuator_effort_utilization: 0.52,
+            candidate_actuator_effort_utilization: 0.74,
+        };
+        let config = TerminalImpactConfig::default();
+        let bound = bound_terminal_impact_paired_state_delta(tube, config).unwrap();
+        let mut seed = 0x5a17_e7ab_1e5u64;
+        let mut sample = |lower: f64, upper: f64| {
+            seed = seed
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            let unit = ((seed >> 11) as f64) * (1.0 / ((1_u64 << 53) as f64));
+            lower + unit * (upper - lower)
+        };
+        for _ in 0..4_096 {
+            let baseline_tilt: [f64; 2] = std::array::from_fn(|axis| {
+                sample(
+                    tube.baseline_tilt_lower_rad[axis],
+                    tube.baseline_tilt_upper_rad[axis],
+                )
+            });
+            let tilt_delta: [f64; 2] = std::array::from_fn(|axis| {
+                sample(
+                    tube.candidate_tilt_delta_lower_rad[axis],
+                    tube.candidate_tilt_delta_upper_rad[axis],
+                )
+            });
+            let baseline_rate: [f64; 2] = std::array::from_fn(|axis| {
+                sample(
+                    tube.baseline_angular_rate_lower_rad_s[axis],
+                    tube.baseline_angular_rate_upper_rad_s[axis],
+                )
+            });
+            let rate_delta: [f64; 2] = std::array::from_fn(|axis| {
+                sample(
+                    tube.candidate_angular_rate_delta_lower_rad_s[axis],
+                    tube.candidate_angular_rate_delta_upper_rad_s[axis],
+                )
+            });
+            let baseline_q: [f64; 3] = std::array::from_fn(|joint| {
+                sample(baseline_q_lower[joint], baseline_q_upper[joint])
+            });
+            let candidate_q: [f64; 3] = std::array::from_fn(|joint| {
+                baseline_q[joint] + sample(delta_q_lower[joint], delta_q_upper[joint])
+            });
+            let baseline_v: [f64; 3] = std::array::from_fn(|joint| {
+                sample(baseline_v_lower[joint], baseline_v_upper[joint])
+            });
+            let candidate_v: [f64; 3] = std::array::from_fn(|joint| {
+                baseline_v[joint] + sample(delta_v_lower[joint], delta_v_upper[joint])
+            });
+            let vector_pressure = |value: [f64; 2], limit: f64| value[0].hypot(value[1]) / limit;
+            let tilt = vector_pressure(
+                [
+                    baseline_tilt[0] + tilt_delta[0],
+                    baseline_tilt[1] + tilt_delta[1],
+                ],
+                config.tilt_soft_limit_rad,
+            ) - vector_pressure(baseline_tilt, config.tilt_soft_limit_rad);
+            let angular_rate =
+                vector_pressure(
+                    [
+                        baseline_rate[0] + rate_delta[0],
+                        baseline_rate[1] + rate_delta[1],
+                    ],
+                    config.angular_rate_soft_limit_rad_s,
+                ) - vector_pressure(baseline_rate, config.angular_rate_soft_limit_rad_s);
+            let joint_position_pressure = |positions: &[f64; 3]| {
+                (0..2)
+                    .map(|joint| {
+                        let span = UPPER[joint] - LOWER[joint];
+                        let headroom = ((positions[joint] - LOWER[joint])
+                            .min(UPPER[joint] - positions[joint]))
+                            / span;
+                        ((config.joint_position_soft_headroom_fraction - headroom)
+                            / config.joint_position_soft_headroom_fraction)
+                            .max(0.0)
+                    })
+                    .fold(0.0_f64, f64::max)
+            };
+            let minimum_headroom = |positions: &[f64; 3]| {
+                (0..2)
+                    .map(|joint| {
+                        let span = UPPER[joint] - LOWER[joint];
+                        ((positions[joint] - LOWER[joint]).min(UPPER[joint] - positions[joint]))
+                            / span
+                    })
+                    .fold(0.5_f64, f64::min)
+            };
+            let velocity_pressure = |velocities: &[f64; 3]| {
+                soft_upper_pressure(
+                    (0..3)
+                        .map(|joint| velocities[joint].abs() / V_LIMIT[joint])
+                        .fold(0.0_f64, f64::max),
+                    config.joint_velocity_soft_utilization,
+                )
+            };
+            let joint_position =
+                joint_position_pressure(&candidate_q) - joint_position_pressure(&baseline_q);
+            let joint_velocity = velocity_pressure(&candidate_v) - velocity_pressure(&baseline_v);
+            let effort = soft_upper_pressure(
+                tube.candidate_actuator_effort_utilization,
+                config.actuator_effort_soft_utilization,
+            ) - soft_upper_pressure(
+                tube.baseline_actuator_effort_utilization,
+                config.actuator_effort_soft_utilization,
+            );
+            let raw_headroom = minimum_headroom(&baseline_q) - minimum_headroom(&candidate_q);
+            let components = [
+                tilt,
+                angular_rate,
+                joint_position,
+                joint_velocity,
+                effort,
+                raw_headroom,
+            ];
+            for (component, value) in components.into_iter().enumerate() {
+                assert!(value >= bound.component_lower[component] - 1.0e-12);
+                assert!(value <= bound.component_upper[component] + 1.0e-12);
+            }
+            let aggregate = config.tilt_weight * tilt
+                + config.angular_rate_weight * angular_rate
+                + config.joint_position_weight * joint_position
+                + config.joint_velocity_weight * joint_velocity
+                + config.actuator_effort_weight * effort;
+            assert!(aggregate >= bound.aggregate_lower - 1.0e-12);
+            assert!(aggregate <= bound.aggregate_upper + 1.0e-12);
+        }
+    }
+
+    #[test]
+    fn paired_state_tube_rejects_an_inverted_late_delta() {
+        let zero = [0.0; 3];
+        let inverted = [0.0, 0.0, 0.1];
+        let tube = TerminalImpactPairedStateTube {
+            available: true,
+            baseline_tilt_lower_rad: [0.0; 2],
+            baseline_tilt_upper_rad: [0.0; 2],
+            candidate_tilt_delta_lower_rad: [0.0; 2],
+            candidate_tilt_delta_upper_rad: [0.0; 2],
+            baseline_angular_rate_lower_rad_s: [0.0; 2],
+            baseline_angular_rate_upper_rad_s: [0.0; 2],
+            candidate_angular_rate_delta_lower_rad_s: [0.0; 2],
+            candidate_angular_rate_delta_upper_rad_s: [0.0; 2],
+            baseline_joint_position_lower_rad: &zero,
+            baseline_joint_position_upper_rad: &zero,
+            candidate_joint_position_delta_lower_rad: &inverted,
+            candidate_joint_position_delta_upper_rad: &zero,
+            baseline_joint_velocity_lower_rad_s: &zero,
+            baseline_joint_velocity_upper_rad_s: &zero,
+            candidate_joint_velocity_delta_lower_rad_s: &zero,
+            candidate_joint_velocity_delta_upper_rad_s: &zero,
+            joint_position_limit_lower_rad: &LOWER,
+            joint_position_limit_upper_rad: &UPPER,
+            joint_velocity_limit_rad_s: &V_LIMIT,
+            baseline_actuator_effort_utilization: 0.0,
+            candidate_actuator_effort_utilization: 0.0,
+        };
+        assert_eq!(
+            bound_terminal_impact_paired_state_delta(tube, TerminalImpactConfig::default()),
             Err(TerminalImpactError::InvalidState)
         );
     }

@@ -2413,12 +2413,27 @@ next model. Rust consumes complete terminal-state intervals—clearance,
 vertical speed, roll/pitch, angular rates, joint positions, and joint
 velocities—and returns conservative upper pressure/aggregate consequences plus
 a lower joint-headroom bound. A G1-shaped 64-row batch repeats 500 times with
-exact output, zero timed Rust allocation, and 50.61/71.12 microsecond p50/p99;
+exact output, zero timed Rust allocation, and 50.72/75.50 microsecond p50/p99;
 2,048 independently scored interior points are contained to floating-point
 roundoff. This passes the mechanism only. Independent candidate boxes discard
 the correlation needed to certify candidate-minus-baseline improvement, so no
 profile or authority is admitted. See the [r255 terminal-state box
 boundary](benchmarks/results/g1-terminal-state-box-boundary-r255/G1_TERMINAL_STATE_BOX_BOUNDARY.md).
+
+R256 preserves the correlation R255 deliberately did not claim. Rust bounds
+candidate-minus-baseline consequence directly from `shared uncertain baseline
++ candidate delta` terminal-state tubes; it never subtracts independent score
+uppers. Tilt, angular rate, joint-position pressure, joint-velocity pressure,
+actuator effort, raw headroom loss, and aggregate consequence remain separate.
+The fixed 3-candidate × 4-hypothesis G1 batch repeats 500 times at
+378.45/402.02 microsecond p50/p99 with zero allocation, an exact zero baseline,
+and 384/384 paired point samples contained. A separate immutable R254 replay
+constructs four authored contact/estimator hypotheses with 96 kinematic
+forwards and zero policy or physics steps; its absolute state boxes cover all
+288 stored terminal candidate labels. Both are mechanism evidence only: the
+tube width/profile is not frozen and authority stays closed. See the [r256
+paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
+and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type

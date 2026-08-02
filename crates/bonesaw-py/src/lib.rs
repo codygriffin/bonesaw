@@ -19,10 +19,10 @@ use bonesaw_core::{
     CollisionEvaluationScratch, CommandTrackingAction, CommandTrackingLimits,
     CompiledCollisionModel, CompiledFrameAtlas, CompiledWorldCollisionModel,
     CompliantContactImpulseInput, CompliantFrictionCone, CompliantStepIntegrator,
-    ContactCommandLeaseConfig, ContactCommandLeaseState, ContactMode, ContactObservation,
-    ContactObservationConfig, ContactObservationState, ContactPhaseAuthorityConfig,
-    ContactProgramAuthorityConfig, ContactProgramAuthorityState, ContactSpec,
-    ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
+    ConservativeTerminalImpactDeltaSelection, ContactCommandLeaseConfig, ContactCommandLeaseState,
+    ContactMode, ContactObservation, ContactObservationConfig, ContactObservationState,
+    ContactPhaseAuthorityConfig, ContactProgramAuthorityConfig, ContactProgramAuthorityState,
+    ContactSpec, ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
     ContactTransitionResponseScratch, Controller, ControllerInput, ControllerOutputBuffer,
     ControllerScratch, ControllerState, CoupledContactHypothesisEnvelopeInput,
     CoupledContactImpulseInput, CoupledPositiveReferenceCompliantContactImpulseInput,
@@ -48,18 +48,19 @@ use bonesaw_core::{
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TerminalImpactCandidate, TerminalImpactComponentDeltaBox,
-    TerminalImpactConfig, TerminalImpactScore, TerminalImpactState, TerminalImpactStateBox,
-    TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
-    TouchdownPhaseRetimingInput, Transform3, VIABILITY_EXECUTION_COMPONENTS,
-    VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds, ViabilityConfirmationConfig,
-    ViabilityConfirmationState, ViabilityExecutionMonitorConfig, ViabilityExecutionMonitorState,
-    ViabilityForecastCandidate, ViabilityForecastConfig, ViabilityForecastKnot,
-    ViabilityForecastState, ViabilityHybridGuardConfig, ViabilityHybridGuardState,
-    ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig, ViabilityRequestState,
-    WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions, WholeBodyPointIkTarget,
-    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
-    capture_landing_retarget, contact_phase_authority, cubic_precontact_acceleration,
-    dcm_balance_acceleration, joint_acceleration_interval, joint_velocity_envelope_acceleration,
+    TerminalImpactConfig, TerminalImpactError, TerminalImpactPairedStateTube, TerminalImpactScore,
+    TerminalImpactState, TerminalImpactStateBox, TerminalImpactVelocityBoxState, TimingSpec,
+    TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput, Transform3,
+    VIABILITY_EXECUTION_COMPONENTS, VIABILITY_FORECAST_KNOTS, Vec3, VectorJet, VelocityBounds,
+    ViabilityConfirmationConfig, ViabilityConfirmationState, ViabilityExecutionMonitorConfig,
+    ViabilityExecutionMonitorState, ViabilityForecastCandidate, ViabilityForecastConfig,
+    ViabilityForecastKnot, ViabilityForecastState, ViabilityHybridGuardConfig,
+    ViabilityHybridGuardState, ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig,
+    ViabilityRequestState, WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions,
+    WholeBodyPointIkTarget, WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity,
+    balance_feedback_authority, bound_terminal_impact_paired_state_delta, capture_landing_retarget,
+    contact_phase_authority, cubic_precontact_acceleration, dcm_balance_acceleration,
+    joint_acceleration_interval, joint_velocity_envelope_acceleration,
     maximum_actuator_effort_utilization, minimum_joint_position_headroom, next_viability_poll,
     predict_viability_forecast_path, sample_quintic_vector_jet, score_terminal_impact,
     score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
@@ -1685,6 +1686,426 @@ impl ContactTransitionModelSession {
                 "terminal-impact state box batch allocated inside the Rust hot path",
             ));
         }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Score a fixed candidate-major table of complete terminal state boxes.
+    /// This is a diagnostic table of independent consequence uppers. These
+    /// outputs must not be subtracted or passed to the paired selector: an
+    /// upper-minus-upper difference is not a conservative delta bound.
+    #[allow(clippy::too_many_arguments)]
+    fn score_terminal_impact_state_box_hypotheses(
+        &self,
+        root_lower: PyReadonlyArray3<'_, f64>,
+        root_upper: PyReadonlyArray3<'_, f64>,
+        joint_position_lower_state: PyReadonlyArray3<'_, f64>,
+        joint_position_upper_state: PyReadonlyArray3<'_, f64>,
+        joint_velocity_lower: PyReadonlyArray3<'_, f64>,
+        joint_velocity_upper: PyReadonlyArray3<'_, f64>,
+        joint_position_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray2<'_, u8>,
+        root_angular_acceleration: PyReadonlyArray3<'_, f64>,
+        joint_acceleration: PyReadonlyArray3<'_, f64>,
+        maximum_actuator_effort_utilization: PyReadonlyArray2<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray3<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        const HYPOTHESES: usize = 4;
+        let root_lower_shape = root_lower.as_array().dim();
+        let root_upper_shape = root_upper.as_array().dim();
+        let position_lower_shape = joint_position_lower_state.as_array().dim();
+        let position_upper_shape = joint_position_upper_state.as_array().dim();
+        let velocity_lower_shape = joint_velocity_lower.as_array().dim();
+        let velocity_upper_shape = joint_velocity_upper.as_array().dim();
+        let available_shape = candidate_available.as_array().dim();
+        let root_acceleration_shape = root_angular_acceleration.as_array().dim();
+        let joint_acceleration_shape = joint_acceleration.as_array().dim();
+        let effort_shape = maximum_actuator_effort_utilization.as_array().dim();
+        let diagnostic_shape = diagnostics_out.as_array().dim();
+        let root_lower = root_lower.as_slice()?;
+        let root_upper = root_upper.as_slice()?;
+        let joint_position_lower_state = joint_position_lower_state.as_slice()?;
+        let joint_position_upper_state = joint_position_upper_state.as_slice()?;
+        let joint_velocity_lower = joint_velocity_lower.as_slice()?;
+        let joint_velocity_upper = joint_velocity_upper.as_slice()?;
+        let joint_position_lower = joint_position_lower.as_slice()?;
+        let joint_position_upper = joint_position_upper.as_slice()?;
+        let joint_velocity_limit = joint_velocity_limit.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let root_acceleration = root_angular_acceleration.as_slice()?;
+        let joint_acceleration = joint_acceleration.as_slice()?;
+        let effort = maximum_actuator_effort_utilization.as_slice()?;
+        let diagnostics = diagnostics_out.as_slice_mut()?;
+        let joints = joint_position_lower.len();
+        if root_lower_shape != (CANDIDATES, HYPOTHESES, 6)
+            || root_upper_shape != (CANDIDATES, HYPOTHESES, 6)
+            || position_lower_shape != (CANDIDATES, HYPOTHESES, joints)
+            || position_upper_shape != (CANDIDATES, HYPOTHESES, joints)
+            || velocity_lower_shape != (CANDIDATES, HYPOTHESES, joints)
+            || velocity_upper_shape != (CANDIDATES, HYPOTHESES, joints)
+            || joint_position_upper.len() != joints
+            || joint_velocity_limit.len() != joints
+            || available_shape != (CANDIDATES, HYPOTHESES)
+            || available.iter().any(|value| *value > 1)
+            || root_acceleration_shape != (CANDIDATES, HYPOTHESES, 2)
+            || joint_acceleration_shape != (CANDIDATES, HYPOTHESES, joints)
+            || effort_shape != (CANDIDATES, HYPOTHESES)
+            || diagnostic_shape != (CANDIDATES, HYPOTHESES, 17)
+        {
+            return Err(PyValueError::new_err(
+                "terminal state-box hypotheses expect root lower/upper[3,4,6], position/velocity lower/upper[3,4,J], joint limits[J], availability/effort[3,4], root acceleration[3,4,2], joint acceleration[3,4,J], and diagnostics[3,4,17]",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let state_at = |candidate: usize, hypothesis: usize| {
+            let root = (candidate * HYPOTHESES + hypothesis) * 6;
+            let row = candidate * HYPOTHESES + hypothesis;
+            let joints_start = row * joints;
+            TerminalImpactStateBox {
+                root_clearance_lower_m: root_lower[root],
+                root_clearance_upper_m: root_upper[root],
+                root_vertical_velocity_lower_m_s: root_lower[root + 1],
+                root_vertical_velocity_upper_m_s: root_upper[root + 1],
+                root_tilt_lower_rad: [root_lower[root + 2], root_lower[root + 3]],
+                root_tilt_upper_rad: [root_upper[root + 2], root_upper[root + 3]],
+                root_angular_rate_lower_rad_s: [root_lower[root + 4], root_lower[root + 5]],
+                root_angular_rate_upper_rad_s: [root_upper[root + 4], root_upper[root + 5]],
+                joint_position_lower_state_rad: &joint_position_lower_state
+                    [joints_start..joints_start + joints],
+                joint_position_upper_state_rad: &joint_position_upper_state
+                    [joints_start..joints_start + joints],
+                joint_velocity_lower_rad_s: &joint_velocity_lower
+                    [joints_start..joints_start + joints],
+                joint_velocity_upper_rad_s: &joint_velocity_upper
+                    [joints_start..joints_start + joints],
+                joint_position_lower_rad: joint_position_lower,
+                joint_position_upper_rad: joint_position_upper,
+                joint_velocity_limit_rad_s: joint_velocity_limit,
+            }
+        };
+        let candidate_at = |candidate: usize, hypothesis: usize| {
+            let row = candidate * HYPOTHESES + hypothesis;
+            let joints_start = row * joints;
+            TerminalImpactCandidate {
+                available: available[row] != 0,
+                root_angular_acceleration_rad_s2: [
+                    root_acceleration[row * 2],
+                    root_acceleration[row * 2 + 1],
+                ],
+                joint_acceleration_rad_s2: &joint_acceleration[joints_start..joints_start + joints],
+                maximum_actuator_effort_utilization: effort[row],
+            }
+        };
+        for candidate in 0..CANDIDATES {
+            for hypothesis in 0..HYPOTHESES {
+                score_terminal_impact_state_box_upper(
+                    state_at(candidate, hypothesis),
+                    candidate_at(candidate, hypothesis),
+                    config,
+                )
+                .map_err(|error| {
+                    PyValueError::new_err(format!(
+                        "invalid terminal state-box hypothesis [{candidate},{hypothesis}]: {error:?}"
+                    ))
+                })?;
+            }
+        }
+
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        for candidate in 0..CANDIDATES {
+            for hypothesis in 0..HYPOTHESES {
+                let score = score_terminal_impact_state_box_upper(
+                    state_at(candidate, hypothesis),
+                    candidate_at(candidate, hypothesis),
+                    config,
+                )
+                .expect("validated terminal state-box hypothesis");
+                let output = (candidate * HYPOTHESES + hypothesis) * 17;
+                write_terminal_impact_score_diagnostics(
+                    score,
+                    &mut diagnostics[output..output + 17],
+                );
+            }
+        }
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "terminal state-box hypothesis batch allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Bound and conservatively select exactly three candidates across four
+    /// shared terminal-state hypotheses. Baseline boxes are indexed only by
+    /// hypothesis; every candidate is `that same baseline + its delta tube`.
+    /// Hypothesis diagnostics and envelopes use `[lower(6), upper(6),
+    /// aggregate_lower, aggregate_upper]`. This query emits no command.
+    #[allow(clippy::too_many_arguments)]
+    fn bound_terminal_impact_paired_state_tubes(
+        &self,
+        baseline_root_lower: PyReadonlyArray2<'_, f64>,
+        baseline_root_upper: PyReadonlyArray2<'_, f64>,
+        candidate_root_delta_lower: PyReadonlyArray3<'_, f64>,
+        candidate_root_delta_upper: PyReadonlyArray3<'_, f64>,
+        baseline_joint_position_lower: PyReadonlyArray2<'_, f64>,
+        baseline_joint_position_upper: PyReadonlyArray2<'_, f64>,
+        candidate_joint_position_delta_lower: PyReadonlyArray3<'_, f64>,
+        candidate_joint_position_delta_upper: PyReadonlyArray3<'_, f64>,
+        baseline_joint_velocity_lower: PyReadonlyArray2<'_, f64>,
+        baseline_joint_velocity_upper: PyReadonlyArray2<'_, f64>,
+        candidate_joint_velocity_delta_lower: PyReadonlyArray3<'_, f64>,
+        candidate_joint_velocity_delta_upper: PyReadonlyArray3<'_, f64>,
+        joint_position_limit_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_limit_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray2<'_, u8>,
+        baseline_effort_utilization: PyReadonlyArray1<'_, f64>,
+        candidate_effort_utilization: PyReadonlyArray2<'_, f64>,
+        baseline_index: usize,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut hypothesis_diagnostics_out: PyReadwriteArray3<'_, f64>,
+        mut envelope_diagnostics_out: PyReadwriteArray2<'_, f64>,
+        mut selection_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        const HYPOTHESES: usize = 4;
+        const COMPONENTS: usize = TERMINAL_IMPACT_PAIRED_COMPONENTS;
+        const DIAGNOSTICS: usize = 2 * COMPONENTS + 2;
+        let baseline_root_lower_shape = baseline_root_lower.as_array().dim();
+        let baseline_root_upper_shape = baseline_root_upper.as_array().dim();
+        let candidate_root_delta_lower_shape = candidate_root_delta_lower.as_array().dim();
+        let candidate_root_delta_upper_shape = candidate_root_delta_upper.as_array().dim();
+        let baseline_position_lower_shape = baseline_joint_position_lower.as_array().dim();
+        let baseline_position_upper_shape = baseline_joint_position_upper.as_array().dim();
+        let candidate_position_delta_lower_shape =
+            candidate_joint_position_delta_lower.as_array().dim();
+        let candidate_position_delta_upper_shape =
+            candidate_joint_position_delta_upper.as_array().dim();
+        let baseline_velocity_lower_shape = baseline_joint_velocity_lower.as_array().dim();
+        let baseline_velocity_upper_shape = baseline_joint_velocity_upper.as_array().dim();
+        let candidate_velocity_delta_lower_shape =
+            candidate_joint_velocity_delta_lower.as_array().dim();
+        let candidate_velocity_delta_upper_shape =
+            candidate_joint_velocity_delta_upper.as_array().dim();
+        let available_shape = candidate_available.as_array().dim();
+        let candidate_effort_shape = candidate_effort_utilization.as_array().dim();
+        let hypothesis_output_shape = hypothesis_diagnostics_out.as_array().dim();
+        let envelope_output_shape = envelope_diagnostics_out.as_array().dim();
+        let baseline_root_lower = baseline_root_lower.as_slice()?;
+        let baseline_root_upper = baseline_root_upper.as_slice()?;
+        let candidate_root_delta_lower = candidate_root_delta_lower.as_slice()?;
+        let candidate_root_delta_upper = candidate_root_delta_upper.as_slice()?;
+        let baseline_position_lower = baseline_joint_position_lower.as_slice()?;
+        let baseline_position_upper = baseline_joint_position_upper.as_slice()?;
+        let candidate_position_delta_lower = candidate_joint_position_delta_lower.as_slice()?;
+        let candidate_position_delta_upper = candidate_joint_position_delta_upper.as_slice()?;
+        let baseline_velocity_lower = baseline_joint_velocity_lower.as_slice()?;
+        let baseline_velocity_upper = baseline_joint_velocity_upper.as_slice()?;
+        let candidate_velocity_delta_lower = candidate_joint_velocity_delta_lower.as_slice()?;
+        let candidate_velocity_delta_upper = candidate_joint_velocity_delta_upper.as_slice()?;
+        let position_limit_lower = joint_position_limit_lower.as_slice()?;
+        let position_limit_upper = joint_position_limit_upper.as_slice()?;
+        let velocity_limit = joint_velocity_limit.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let baseline_effort = baseline_effort_utilization.as_slice()?;
+        let candidate_effort = candidate_effort_utilization.as_slice()?;
+        let hypothesis_output = hypothesis_diagnostics_out.as_slice_mut()?;
+        let envelope_output = envelope_diagnostics_out.as_slice_mut()?;
+        let selection_output = selection_out.as_slice_mut()?;
+        let joints = position_limit_lower.len();
+        if baseline_root_lower_shape != (HYPOTHESES, 4)
+            || baseline_root_upper_shape != (HYPOTHESES, 4)
+            || candidate_root_delta_lower_shape != (CANDIDATES, HYPOTHESES, 4)
+            || candidate_root_delta_upper_shape != (CANDIDATES, HYPOTHESES, 4)
+            || baseline_position_lower_shape != (HYPOTHESES, joints)
+            || baseline_position_upper_shape != (HYPOTHESES, joints)
+            || candidate_position_delta_lower_shape != (CANDIDATES, HYPOTHESES, joints)
+            || candidate_position_delta_upper_shape != (CANDIDATES, HYPOTHESES, joints)
+            || baseline_velocity_lower_shape != (HYPOTHESES, joints)
+            || baseline_velocity_upper_shape != (HYPOTHESES, joints)
+            || candidate_velocity_delta_lower_shape != (CANDIDATES, HYPOTHESES, joints)
+            || candidate_velocity_delta_upper_shape != (CANDIDATES, HYPOTHESES, joints)
+            || position_limit_upper.len() != joints
+            || velocity_limit.len() != joints
+            || available_shape != (CANDIDATES, HYPOTHESES)
+            || available.iter().any(|value| *value > 1)
+            || baseline_effort.len() != HYPOTHESES
+            || candidate_effort_shape != (CANDIDATES, HYPOTHESES)
+            || baseline_index >= CANDIDATES
+            || hypothesis_output_shape != (CANDIDATES, HYPOTHESES, DIAGNOSTICS)
+            || envelope_output_shape != (CANDIDATES, DIAGNOSTICS)
+            || selection_output.len() != 6
+        {
+            return Err(PyValueError::new_err(
+                "paired terminal state tubes expect baseline root[4,4], candidate root deltas[3,4,4], baseline joint state[4,J], candidate joint deltas[3,4,J], limits[J], availability/candidate effort[3,4], baseline effort[4], hypothesis output[3,4,14], envelope output[3,14], and selection[6]",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let build = || -> Result<
+            (
+                [TerminalImpactComponentDeltaBox; CANDIDATES * HYPOTHESES],
+                [TerminalImpactComponentDeltaBox; CANDIDATES],
+                ConservativeTerminalImpactDeltaSelection,
+            ),
+            TerminalImpactError,
+        > {
+            let zero = TerminalImpactComponentDeltaBox {
+                available: false,
+                component_lower: [0.0; COMPONENTS],
+                component_upper: [0.0; COMPONENTS],
+                aggregate_lower: 0.0,
+                aggregate_upper: 0.0,
+            };
+            let mut hypotheses = [zero; CANDIDATES * HYPOTHESES];
+            for candidate in 0..CANDIDATES {
+                for hypothesis in 0..HYPOTHESES {
+                    let row = candidate * HYPOTHESES + hypothesis;
+                    let root = hypothesis * 4;
+                    let candidate_root = row * 4;
+                    let baseline_joint = hypothesis * joints;
+                    let candidate_joint = row * joints;
+                    hypotheses[row] = bound_terminal_impact_paired_state_delta(
+                        TerminalImpactPairedStateTube {
+                            available: available[row] != 0,
+                            baseline_tilt_lower_rad: [
+                                baseline_root_lower[root],
+                                baseline_root_lower[root + 1],
+                            ],
+                            baseline_tilt_upper_rad: [
+                                baseline_root_upper[root],
+                                baseline_root_upper[root + 1],
+                            ],
+                            candidate_tilt_delta_lower_rad: [
+                                candidate_root_delta_lower[candidate_root],
+                                candidate_root_delta_lower[candidate_root + 1],
+                            ],
+                            candidate_tilt_delta_upper_rad: [
+                                candidate_root_delta_upper[candidate_root],
+                                candidate_root_delta_upper[candidate_root + 1],
+                            ],
+                            baseline_angular_rate_lower_rad_s: [
+                                baseline_root_lower[root + 2],
+                                baseline_root_lower[root + 3],
+                            ],
+                            baseline_angular_rate_upper_rad_s: [
+                                baseline_root_upper[root + 2],
+                                baseline_root_upper[root + 3],
+                            ],
+                            candidate_angular_rate_delta_lower_rad_s: [
+                                candidate_root_delta_lower[candidate_root + 2],
+                                candidate_root_delta_lower[candidate_root + 3],
+                            ],
+                            candidate_angular_rate_delta_upper_rad_s: [
+                                candidate_root_delta_upper[candidate_root + 2],
+                                candidate_root_delta_upper[candidate_root + 3],
+                            ],
+                            baseline_joint_position_lower_rad: &baseline_position_lower
+                                [baseline_joint..baseline_joint + joints],
+                            baseline_joint_position_upper_rad: &baseline_position_upper
+                                [baseline_joint..baseline_joint + joints],
+                            candidate_joint_position_delta_lower_rad: &candidate_position_delta_lower
+                                [candidate_joint..candidate_joint + joints],
+                            candidate_joint_position_delta_upper_rad: &candidate_position_delta_upper
+                                [candidate_joint..candidate_joint + joints],
+                            baseline_joint_velocity_lower_rad_s: &baseline_velocity_lower
+                                [baseline_joint..baseline_joint + joints],
+                            baseline_joint_velocity_upper_rad_s: &baseline_velocity_upper
+                                [baseline_joint..baseline_joint + joints],
+                            candidate_joint_velocity_delta_lower_rad_s: &candidate_velocity_delta_lower
+                                [candidate_joint..candidate_joint + joints],
+                            candidate_joint_velocity_delta_upper_rad_s: &candidate_velocity_delta_upper
+                                [candidate_joint..candidate_joint + joints],
+                            joint_position_limit_lower_rad: position_limit_lower,
+                            joint_position_limit_upper_rad: position_limit_upper,
+                            joint_velocity_limit_rad_s: velocity_limit,
+                            baseline_actuator_effort_utilization: baseline_effort[hypothesis],
+                            candidate_actuator_effort_utilization: candidate_effort[row],
+                        },
+                        config,
+                    )?;
+                }
+            }
+            let mut envelopes = [zero; CANDIDATES];
+            for candidate in 0..CANDIDATES {
+                let mut envelope = hypotheses[candidate * HYPOTHESES];
+                for hypothesis in 1..HYPOTHESES {
+                    let value = hypotheses[candidate * HYPOTHESES + hypothesis];
+                    envelope.available &= value.available;
+                    for component in 0..COMPONENTS {
+                        envelope.component_lower[component] = envelope.component_lower[component]
+                            .min(value.component_lower[component]);
+                        envelope.component_upper[component] = envelope.component_upper[component]
+                            .max(value.component_upper[component]);
+                    }
+                    envelope.aggregate_lower = envelope.aggregate_lower.min(value.aggregate_lower);
+                    envelope.aggregate_upper = envelope.aggregate_upper.max(value.aggregate_upper);
+                }
+                envelopes[candidate] = envelope;
+            }
+            let selection = select_conservative_terminal_impact_delta_candidate(
+                &envelopes,
+                baseline_index,
+                maximum_component_regression,
+                minimum_component_improvement,
+            )?;
+            Ok((hypotheses, envelopes, selection))
+        };
+
+        build().map_err(|error| {
+            PyValueError::new_err(format!("invalid paired terminal state tube: {error:?}"))
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        let (hypotheses, envelopes, selection) = build().map_err(|error| {
+            PyValueError::new_err(format!("invalid paired terminal state tube: {error:?}"))
+        })?;
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "paired terminal state tube allocated inside the Rust hot path",
+            ));
+        }
+        let write_box = |value: TerminalImpactComponentDeltaBox, output: &mut [f64]| {
+            output[..COMPONENTS].copy_from_slice(&value.component_lower);
+            output[COMPONENTS..2 * COMPONENTS].copy_from_slice(&value.component_upper);
+            output[2 * COMPONENTS] = value.aggregate_lower;
+            output[2 * COMPONENTS + 1] = value.aggregate_upper;
+        };
+        for (value, output) in hypotheses
+            .into_iter()
+            .zip(hypothesis_output.chunks_exact_mut(DIAGNOSTICS))
+        {
+            write_box(value, output);
+        }
+        for (value, output) in envelopes
+            .into_iter()
+            .zip(envelope_output.chunks_exact_mut(DIAGNOSTICS))
+        {
+            write_box(value, output);
+        }
+        selection_output.copy_from_slice(&[
+            selection.selected_index as f64,
+            selection.baseline_index as f64,
+            selection.maximum_component_delta_upper,
+            selection.maximum_guaranteed_component_improvement,
+            selection.aggregate_delta_lower,
+            selection.aggregate_delta_upper,
+        ]);
         Ok((
             elapsed_ns,
             allocation_after.0 - allocation_before.0,

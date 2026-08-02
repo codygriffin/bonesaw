@@ -106,6 +106,16 @@ policy or physics. This does not resolve transfer by itself: independently
 bounding candidate and baseline loses their shared uncertainty and cannot
 certify a paired improvement. No profile or authority follows.
 
+R256 now closes the correlation-preserving Rust mechanism. Candidate and
+baseline share the same uncertain terminal state and only the candidate delta
+varies; independent consequence uppers are never subtracted. A 3×4 G1 batch is
+exact, allocation-free, below 0.6 ms p99, and contains 384/384 paired samples.
+An authored contact/estimator construction also contains all 288 stored R254
+terminal candidates using 96 kinematic forwards and zero policy/physics steps.
+This removes the missing paired-state implementation complaint, but not the
+calibration gate: the current absolute coverage can be broad and has not frozen
+a useful paired action profile.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -120,10 +130,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- compose R255's complete-state bounds into a causal shared-hypothesis or
-  paired contact-law/estimator-uncertainty state tube that preserves
-  candidate/baseline correlation, then freeze it on spent evidence before any
-  new-law holdout;
+- freeze R256's authored contact/estimator hypothesis widths and q-drift lift
+  on spent evidence, compose them through the direct paired-state delta
+  boundary, and require a useful nonzero profile before any new-law holdout;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 
