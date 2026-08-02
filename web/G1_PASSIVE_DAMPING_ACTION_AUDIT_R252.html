@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw passive damping · r252</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw passive damping action audit · r252</h1>
+<blockquote>Passivity mechanism **PASS** · useful strict action **NOT FOUND** · authority **NOT ADMITTED**.</blockquote>
+<p>R252 evaluates actuator-coordinate `tau_request = -gain * velocity` at every 4 ms plant step behind the R249 25 Hz / 1,000 N·m/s realization and a Rust zero-positive-power cap. The 96 R248 states are spent design evidence; every nonzero branch runs twice for bitwise semantic replay. No policy runs.</p>
+<div class=table-wrap><table><thead><tr><th>gain Nm/(rad/s)</th><th>strict nonregression</th><th>aggregate improved</th><th>kinetic energy reduced</th><th>power clamps</th><th>p99 µs</th><th>action decision</th></tr></thead><tbody><tr><td>1.0</td><td>24 / 96</td><td>89 / 96</td><td>90 / 96</td><td>289</td><td>0.88</td><td>REJECT</td></tr><tr><td>2.0</td><td>23 / 96</td><td>89 / 96</td><td>91 / 96</td><td>546</td><td>0.70</td><td>REJECT</td></tr><tr><td>5.0</td><td>26 / 96</td><td>89 / 96</td><td>94 / 96</td><td>765</td><td>0.84</td><td>REJECT</td></tr><tr><td>10.0</td><td>28 / 96</td><td>87 / 96</td><td>95 / 96</td><td>945</td><td>0.83</td><td>REJECT</td></tr></tbody></table></div>
+<p>The mechanism passes only if every applied actuator coordinate has non-positive observed mechanical power, every repeated plant trace is bitwise exact, timed Rust allocation is zero, and MuJoCo emits no warnings. An action would additionally require zero regression in every terminal component on all 96 states. Passivity is therefore visible evidence, not a substitute for the terminal consequence gate.</p></main></body></html>

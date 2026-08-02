@@ -338,7 +338,18 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r251 isolates shared plant uncertainty
+## Current CPU checkpoint — r252 adds passivity without claiming safety
+
+R252 adds an atomic, allocation-free Rust trace that combines declared
+bandwidth/slew response with a pointwise positive mechanical-power cap. On 96
+spent states, four actuator-coordinate damping gains run twice over 4,320
+MuJoCo steps: all applied power is non-positive, semantic traces repeat
+bitwise, allocation stays zero, and warnings stay zero. Aggregate consequence
+and kinetic energy usually improve, but every gain regresses at least one
+terminal component on some rows. The mechanism is retained; no damping gain,
+fresh action, or authority is selected.
+
+## Prior CPU checkpoint — r251 isolates shared plant uncertainty
 
 R251 performs no policy, physics, or selector query. It reopens only R250's
 spent arrays and measures candidate-vs-zero paired velocity residuals under a

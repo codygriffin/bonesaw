@@ -2373,6 +2373,16 @@ maximum span substantially, but completed labels remain offline-only and the
 existing Rust selector cannot consume a paired delta, so no action or
 authority is frozen. See the [r251 paired-delta audit](benchmarks/results/g1-paired-terminal-delta-audit-r251/G1_PAIRED_TERMINAL_DELTA_AUDIT.md).
 
+R252 adds a separate Rust actuator-coordinate passivity boundary. After the
+declared bandwidth/slew response, realized effort is capped so observed
+`effort * velocity` cannot exceed zero; the applied value also replaces the
+persistent lag state. Four direct damping gains run twice on all 96 spent
+states for 4,320 MuJoCo steps. Every trace is bitwise exact, zero-allocation,
+warning-free, and pointwise non-positive-power; most rows reduce aggregate
+terminal score and kinetic energy. None avoids every terminal-component
+regression, so no gain, fresh action, or authority is selected. See the [r252
+passive damping audit](benchmarks/results/g1-passive-damping-action-audit-r252/G1_PASSIVE_DAMPING_ACTION_AUDIT.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

@@ -83,6 +83,13 @@ when grouped by fixed causal height/tilt/rate signs. It remains spent-data
 design evidence only; a Rust paired-delta bound and a no-refit fresh holdout
 are still required.
 
+R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
+positive observed mechanical power after bandwidth/slew realization, reports
+every clamp, replaces the persistent lag state with the applied effort, and
+preflights a complete trace before mutation. The mechanism is exact-replay,
+zero-allocation, and useful on most spent rows, but strict terminal
+non-regression still rejects every tested damping gain; it has no authority.
+
 ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
 contacts on the spent R241 replay and widens the implicitfast row to 22.719
 rad/s joint width. Historical ABI 0 and Cartesian pyramid ABI 1 remain
