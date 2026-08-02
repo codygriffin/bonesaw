@@ -69,11 +69,11 @@ use bonesaw_core::{
     solve_positive_reference_compliant_contact_impulse, solve_substepped_compliant_contact_impulse,
     solve_whole_body_ik_into, solve_whole_body_kinematic_jets_into, step_actuator_realization,
     step_actuator_resource, step_contact_command_lease, step_contact_observation,
-    step_contact_program_authority_with_inexact_command, step_viability_confirmation,
-    step_viability_execution_monitor, step_viability_hybrid_guard, step_viability_request,
-    support_margin_phase_rate, time_warp_vector_jet, touchdown_phase_retiming,
-    write_contact_transition_acceleration_interval_bounds, write_contact_transition_bounds,
-    write_coupled_contact_hypothesis_velocity_envelope,
+    step_contact_program_authority_with_inexact_command, step_passive_actuator_realization,
+    step_viability_confirmation, step_viability_execution_monitor, step_viability_hybrid_guard,
+    step_viability_request, support_margin_phase_rate, time_warp_vector_jet,
+    touchdown_phase_retiming, write_contact_transition_acceleration_interval_bounds,
+    write_contact_transition_bounds, write_coupled_contact_hypothesis_velocity_envelope,
     write_directional_contact_transition_bounds, write_generalized_momentum_impulse_residuals,
     write_generalized_velocity_bounds_from_kinetic_impulse_ellipsoid,
     write_generalized_velocity_bounds_from_split_kinetic_impulse_ellipsoids,
@@ -10066,6 +10066,114 @@ impl ActuatorRealizationSession {
                 tracking_error_nm_out[[tick, actuator]] = sample.tracking_error_nm;
                 availability_clipped_out[[tick, actuator]] = u8::from(sample.availability_clipped);
                 slew_limited_out[[tick, actuator]] = u8::from(sample.slew_limited);
+            }
+            let after = allocation_snapshot();
+            step_ns_out[tick] = started.elapsed().as_nanos() as u64;
+            allocation_calls_out[tick] = after.0 - before.0;
+            allocated_bytes_out[tick] = after.1 - before.1;
+        }
+        Ok(())
+    }
+
+    /// Advance bandwidth/slew realization and cap pointwise positive
+    /// mechanical power in actuator coordinates. The full input/output shape
+    /// and every input value are preflighted before persistent state or caller
+    /// output can change.
+    #[allow(clippy::too_many_arguments)]
+    fn run_passivity_limited_trace(
+        &mut self,
+        requested_effort_nm: PyReadonlyArray2<'_, f64>,
+        available_effort_limit_nm: PyReadonlyArray2<'_, f64>,
+        actuator_velocity_rad_s: PyReadonlyArray2<'_, f64>,
+        maximum_positive_mechanical_power_w: f64,
+        dt_seconds: f64,
+        mut limited_target_effort_nm_out: PyReadwriteArray2<'_, f64>,
+        mut realized_effort_nm_out: PyReadwriteArray2<'_, f64>,
+        mut tracking_error_nm_out: PyReadwriteArray2<'_, f64>,
+        mut mechanical_power_w_out: PyReadwriteArray2<'_, f64>,
+        mut availability_clipped_out: PyReadwriteArray2<'_, u8>,
+        mut slew_limited_out: PyReadwriteArray2<'_, u8>,
+        mut passivity_clipped_out: PyReadwriteArray2<'_, u8>,
+        mut step_ns_out: PyReadwriteArray1<'_, u64>,
+        mut allocation_calls_out: PyReadwriteArray1<'_, u64>,
+        mut allocated_bytes_out: PyReadwriteArray1<'_, u64>,
+    ) -> PyResult<()> {
+        if !dt_seconds.is_finite()
+            || dt_seconds <= 0.0
+            || !maximum_positive_mechanical_power_w.is_finite()
+            || maximum_positive_mechanical_power_w < 0.0
+        {
+            return Err(PyValueError::new_err(
+                "passivity trace requires positive finite dt and a finite nonnegative power cap",
+            ));
+        }
+        let requested_effort_nm = requested_effort_nm.as_array();
+        let available_effort_limit_nm = available_effort_limit_nm.as_array();
+        let actuator_velocity_rad_s = actuator_velocity_rad_s.as_array();
+        let mut limited_target_effort_nm_out = limited_target_effort_nm_out.as_array_mut();
+        let mut realized_effort_nm_out = realized_effort_nm_out.as_array_mut();
+        let mut tracking_error_nm_out = tracking_error_nm_out.as_array_mut();
+        let mut mechanical_power_w_out = mechanical_power_w_out.as_array_mut();
+        let mut availability_clipped_out = availability_clipped_out.as_array_mut();
+        let mut slew_limited_out = slew_limited_out.as_array_mut();
+        let mut passivity_clipped_out = passivity_clipped_out.as_array_mut();
+        let step_ns_out = step_ns_out.as_slice_mut()?;
+        let allocation_calls_out = allocation_calls_out.as_slice_mut()?;
+        let allocated_bytes_out = allocated_bytes_out.as_slice_mut()?;
+        let shape = [requested_effort_nm.nrows(), self.profiles.len()];
+        if requested_effort_nm.shape() != shape
+            || available_effort_limit_nm.shape() != shape
+            || actuator_velocity_rad_s.shape() != shape
+            || limited_target_effort_nm_out.shape() != shape
+            || realized_effort_nm_out.shape() != shape
+            || tracking_error_nm_out.shape() != shape
+            || mechanical_power_w_out.shape() != shape
+            || availability_clipped_out.shape() != shape
+            || slew_limited_out.shape() != shape
+            || passivity_clipped_out.shape() != shape
+            || step_ns_out.len() != shape[0]
+            || allocation_calls_out.len() != shape[0]
+            || allocated_bytes_out.len() != shape[0]
+        {
+            return Err(PyValueError::new_err(
+                "passivity trace/input and output shapes must agree",
+            ));
+        }
+        if requested_effort_nm.iter().any(|value| !value.is_finite())
+            || available_effort_limit_nm
+                .iter()
+                .any(|value| *value <= 0.0 || value.is_nan())
+            || actuator_velocity_rad_s
+                .iter()
+                .any(|value| !value.is_finite())
+        {
+            return Err(PyValueError::new_err(
+                "passivity trace inputs must be finite with positive available effort",
+            ));
+        }
+        for tick in 0..shape[0] {
+            let before = allocation_snapshot();
+            let started = Instant::now();
+            for actuator in 0..shape[1] {
+                let sample = step_passive_actuator_realization(
+                    self.profiles[actuator],
+                    &mut self.states[actuator],
+                    requested_effort_nm[[tick, actuator]],
+                    available_effort_limit_nm[[tick, actuator]],
+                    actuator_velocity_rad_s[[tick, actuator]],
+                    maximum_positive_mechanical_power_w,
+                    dt_seconds,
+                )
+                .expect("preflighted passive actuator realization input");
+                limited_target_effort_nm_out[[tick, actuator]] =
+                    sample.realization.limited_target_effort_nm;
+                realized_effort_nm_out[[tick, actuator]] = sample.realization.realized_effort_nm;
+                tracking_error_nm_out[[tick, actuator]] = sample.realization.tracking_error_nm;
+                mechanical_power_w_out[[tick, actuator]] = sample.mechanical_power_w;
+                availability_clipped_out[[tick, actuator]] =
+                    u8::from(sample.realization.availability_clipped);
+                slew_limited_out[[tick, actuator]] = u8::from(sample.realization.slew_limited);
+                passivity_clipped_out[[tick, actuator]] = u8::from(sample.passivity_clipped);
             }
             let after = allocation_snapshot();
             step_ns_out[tick] = started.elapsed().as_nanos() as u64;

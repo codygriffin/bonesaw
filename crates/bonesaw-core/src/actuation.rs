@@ -156,6 +156,17 @@ pub struct ActuatorRealizationSample {
     pub slew_limited: bool,
 }
 
+/// Realized effort after a pointwise mechanical-power admission boundary.
+/// The cap is evaluated in actuator coordinates as `effort * velocity`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PassiveActuatorRealizationSample {
+    pub realization: ActuatorRealizationSample,
+    pub actuator_velocity_rad_s: f64,
+    pub mechanical_power_w: f64,
+    pub maximum_positive_mechanical_power_w: f64,
+    pub passivity_clipped: bool,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct WheelCommand {
     pub left_velocity: f64,
@@ -188,6 +199,8 @@ pub enum ActuationError {
     InvalidRealizationProfile,
     #[error("actuator realization sample contains invalid input")]
     InvalidRealizationInput,
+    #[error("passive actuator realization sample contains invalid input")]
+    InvalidPassiveRealizationInput,
 }
 
 impl CompiledActuation {
@@ -485,6 +498,50 @@ pub fn step_actuator_realization(
     })
 }
 
+/// Advance the declared bandwidth/slew response, then cap positive mechanical
+/// power at the observed actuator velocity. With a zero cap, the returned
+/// effort is pointwise dissipative or power-neutral. The persistent response
+/// state follows the applied effort so a rejected lagging command cannot leak
+/// through on the next step.
+pub fn step_passive_actuator_realization(
+    profile: ActuatorRealizationProfile,
+    state: &mut ActuatorRealizationState,
+    requested_effort_nm: f64,
+    available_effort_limit_nm: f64,
+    actuator_velocity_rad_s: f64,
+    maximum_positive_mechanical_power_w: f64,
+    dt_seconds: f64,
+) -> Result<PassiveActuatorRealizationSample, ActuationError> {
+    if !actuator_velocity_rad_s.is_finite()
+        || !maximum_positive_mechanical_power_w.is_finite()
+        || maximum_positive_mechanical_power_w < 0.0
+    {
+        return Err(ActuationError::InvalidPassiveRealizationInput);
+    }
+    let mut realization = step_actuator_realization(
+        profile,
+        state,
+        requested_effort_nm,
+        available_effort_limit_nm,
+        dt_seconds,
+    )?;
+    let proposed_power_w = realization.realized_effort_nm * actuator_velocity_rad_s;
+    let passivity_clipped = proposed_power_w > maximum_positive_mechanical_power_w;
+    if passivity_clipped {
+        realization.realized_effort_nm =
+            maximum_positive_mechanical_power_w / actuator_velocity_rad_s;
+        realization.tracking_error_nm = requested_effort_nm - realization.realized_effort_nm;
+        state.realized_effort_nm = realization.realized_effort_nm;
+    }
+    Ok(PassiveActuatorRealizationSample {
+        realization,
+        actuator_velocity_rad_s,
+        mechanical_power_w: realization.realized_effort_nm * actuator_velocity_rad_s,
+        maximum_positive_mechanical_power_w,
+        passivity_clipped,
+    })
+}
+
 impl DifferentialDriveMap {
     pub fn compile(
         model: &CompiledModel,
@@ -695,6 +752,38 @@ mod tests {
         assert_eq!(availability.realized_effort_nm, 0.25);
         assert!(availability.availability_clipped);
         assert!(!availability.slew_limited);
+    }
+
+    #[test]
+    fn passive_realization_caps_positive_power_and_updates_lag_state() {
+        let profile = ActuatorRealizationProfile {
+            effort_bandwidth_hz: f64::INFINITY,
+            maximum_effort_rate_nm_per_s: f64::INFINITY,
+        };
+        let mut state = ActuatorRealizationState {
+            realized_effort_nm: -3.0,
+        };
+        let clipped =
+            step_passive_actuator_realization(profile, &mut state, 6.0, 10.0, 2.0, 1.0, 0.005)
+                .unwrap();
+        assert!(clipped.passivity_clipped);
+        assert_eq!(clipped.realization.realized_effort_nm, 0.5);
+        assert_eq!(clipped.mechanical_power_w, 1.0);
+        assert_eq!(state.realized_effort_nm, 0.5);
+
+        let dissipative =
+            step_passive_actuator_realization(profile, &mut state, -4.0, 10.0, 2.0, 0.0, 0.005)
+                .unwrap();
+        assert!(!dissipative.passivity_clipped);
+        assert_eq!(dissipative.realization.realized_effort_nm, -4.0);
+        assert_eq!(dissipative.mechanical_power_w, -8.0);
+
+        let before = state;
+        assert_eq!(
+            step_passive_actuator_realization(profile, &mut state, 1.0, 10.0, f64::NAN, 0.0, 0.005,),
+            Err(ActuationError::InvalidPassiveRealizationInput)
+        );
+        assert_eq!(state, before);
     }
 
     #[test]

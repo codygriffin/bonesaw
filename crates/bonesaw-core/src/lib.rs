@@ -42,7 +42,8 @@ pub use actuation::{
     ActuationError, ActuatorId, ActuatorLimits, ActuatorRealizationProfile,
     ActuatorRealizationSample, ActuatorRealizationState, ActuatorResourceModel,
     ActuatorResourceSample, ActuatorResourceState, ActuatorSpec, CompiledActuation,
-    DifferentialDriveMap, WheelCommand, step_actuator_realization, step_actuator_resource,
+    DifferentialDriveMap, PassiveActuatorRealizationSample, WheelCommand,
+    step_actuator_realization, step_actuator_resource, step_passive_actuator_realization,
 };
 pub use authority::{
     ActuatorEffortUtilization, AuthorityEvidenceError, JointPositionHeadroom,
