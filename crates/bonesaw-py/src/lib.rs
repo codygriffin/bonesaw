@@ -155,6 +155,14 @@ fn allocation_snapshot() -> (u64, u64) {
     )
 }
 
+fn intersect_directional_braking_bound(lower: &mut f64, upper: &mut f64, acceleration: f64) {
+    if acceleration > 0.0 {
+        *lower = lower.max(acceleration);
+    } else if acceleration < 0.0 {
+        *upper = upper.min(acceleration);
+    }
+}
+
 fn terminal_impact_score_from_diagnostics(values: &[f64]) -> Option<TerminalImpactScore> {
     if values.len() != 17
         || !matches!(values[0], 0.0 | 1.0)
@@ -16747,19 +16755,15 @@ impl FloatingWbcSession {
                         self.velocity_envelope_accelerations.push(acceleration);
                         if self.joint_velocity_envelope_hard {
                             let generalized_coordinate = 6 + coordinate;
-                            if acceleration > 0.0 {
-                                let lower = self.acceleration_bounds.lower[generalized_coordinate]
-                                    .max(acceleration);
-                                // Do not silently weaken an authored hard
-                                // braking floor when it conflicts with another
-                                // hard bound. A crossed interval is carried to
-                                // the solver and fails closed as InvalidProblem.
-                                self.acceleration_bounds.lower[generalized_coordinate] = lower;
-                            } else {
-                                let upper = self.acceleration_bounds.upper[generalized_coordinate]
-                                    .min(acceleration);
-                                self.acceleration_bounds.upper[generalized_coordinate] = upper;
-                            }
+                            // Do not silently weaken an authored hard braking
+                            // floor when it conflicts with another hard bound.
+                            // A crossed interval is carried to the solver and
+                            // fails closed as InvalidProblem.
+                            intersect_directional_braking_bound(
+                                &mut self.acceleration_bounds.lower[generalized_coordinate],
+                                &mut self.acceleration_bounds.upper[generalized_coordinate],
+                                acceleration,
+                            );
                         }
                     }
                 }
@@ -17567,4 +17571,32 @@ fn _bonesaw(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<FloatingWbcSession>()?;
     module.add_class::<DynamicAdvanceSession>()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::intersect_directional_braking_bound;
+
+    #[test]
+    fn directional_braking_bound_tightens_only_its_direction() {
+        let mut lower = -200.0;
+        let mut upper = 200.0;
+        intersect_directional_braking_bound(&mut lower, &mut upper, 40.0);
+        assert_eq!(lower, 40.0);
+        assert_eq!(upper, 200.0);
+
+        intersect_directional_braking_bound(&mut lower, &mut upper, -25.0);
+        assert_eq!(lower, 40.0);
+        assert_eq!(upper, -25.0);
+    }
+
+    #[test]
+    fn directional_braking_conflict_remains_crossed_for_fail_closed_solver_input() {
+        let mut lower = -10.0;
+        let mut upper = 10.0;
+        intersect_directional_braking_bound(&mut lower, &mut upper, 15.0);
+        assert_eq!(lower, 15.0);
+        assert_eq!(upper, 10.0);
+        assert!(lower > upper);
+    }
 }

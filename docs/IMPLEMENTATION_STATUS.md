@@ -2,28 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r270 lower-body hard velocity envelope
+## Current CPU checkpoint — r270 lower-body velocity-envelope causal split
 
 R270 adds an opt-in safety profile around the persistent floating WBC's
 joint-velocity envelope. The allowlist is derived once from the pinned URDF
 joint names (`hip`, `knee`, `ankle`, `wheel`, or `leg`), so upper-body joints
-cannot be activated by the protective layer. When requested, the braking
-acceleration is also intersected with the existing hard generalized
-acceleration bounds; the task remains absent when its weight is zero, and the
-profile is default-off.
+cannot be activated by the protective layer. The soft viability task and hard
+directional braking bound are independently switchable, enabling a true
+hard-only control with zero soft weight. Conflicting hard intervals fail closed
+at the solver boundary. The profile is default-off, and its tick path reuses
+preallocated coordinate/acceleration storage.
 
 On the policy-free, physics-free low-gain morphology replay, early
-multi-support envelope activity is zero and the critical right-knee coordinate
-is held above -8 rad/s (minimum -4.097 rad/s). First NormalFallback moves from
-tick 863 to 875 and first global release from 869 to 1108. The candidate stays
-within the timing envelope (p99 4.752 ms, zero 20 ms misses), but the complete
-trace remains rejected: full root RMS is 15.514 m, the knee reaches its lower
-position limit, and support force collapses. This is a mechanism result, not a
-walking or authority result; the next slice is continuous support-force/
-position-limit recovery after the protected knee event. A dormant-field
-control is bitwise equal to the r269 trace, while composing the envelope with
-r269 continuation releases at tick 897 and exceeds the 5 ms p99 gate; the two
-profiles therefore remain separate diagnostics. See the
+multi-support envelope activity is zero. Hard-only holds the critical
+right-knee coordinate above -8 rad/s (minimum -4.097 rad/s) and moves first
+NormalFallback 863→888; soft-only moves it only to 864. Soft+hard reaches the
+next support transition at tick 1108, but composition with r269 releases at
+tick 897 and exceeds the 5 ms p99 gate. The standalone combined distribution
+is under that timing gate. The complete trace remains rejected: full root RMS
+is 15.514 m and the knee reaches its lower position limit at tick 874. This is
+a causal mechanism result, not a walking, composition, or authority result;
+the next slice is continuous position-limit/support-transition recovery. See the
 [`G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md`](../benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md)
 report.
 

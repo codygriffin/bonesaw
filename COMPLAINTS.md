@@ -4,11 +4,13 @@ This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
 R270 addresses the specific early upper-body activation/velocity-cap symptom
-without closing the behavior gate. A default-off lower-body-only hard envelope
-keeps the critical knee above -8 rad/s and delays fallback/release, but the
-candidate still reaches a knee position limit and loses support force. The
-remaining complaint is therefore continuous support-force and position-limit
-recovery after the knee event, not an unbounded solver timeout. See the
+without closing the behavior gate. Its causal split shows that the default-off
+hard lower-body bound keeps the critical knee above -8 rad/s and delays first
+fallback, while the much longer release delay requires the soft+hard
+interaction. The candidate still reaches the knee position limit, and that
+interaction does not compose with r269. The remaining complaint is therefore
+continuous position-limit/support-transition recovery and compositional
+authority after the knee event, not an unbounded solver timeout. See the
 [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md).
 
 ## Open browser gate: viewport frame time

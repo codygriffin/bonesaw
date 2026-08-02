@@ -90,14 +90,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   and the control p99 exceeds 5 ms. Defaults and authority remain unchanged.
   See the
   [r269 bounded-continuation report](benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
-- The r270 safety profile adds a default-off, URDF-name-derived lower-body
-  velocity envelope with optional hard acceleration-bound intersection. In the
-  policy/physics-free G1 replay it removes the early upper-body activation and
-  holds the right-knee velocity above -8 rad/s, moving first fallback 863→875
-  and first release 869→1108 at 4.752 ms p99. Full walking remains rejected
-  because support force and the knee position limit still fail later. The
-  dormant-field trace is bitwise equal to r269; composing both mechanisms is
-  rejected at tick 897 with 5.457 ms p99. No authority is admitted. See the
+- The r270 causal split adds a default-off, URDF-name-derived lower-body
+  velocity envelope with independently switchable soft viability and hard
+  directional-braking parts. In the policy/physics-free G1 replay, hard-only
+  holds the right knee above -8 rad/s and moves first fallback 863→888;
+  soft-only moves it only to 864. Their combination reaches the next support
+  transition at tick 1108, but the benefit collapses to tick 897 when composed
+  with r269. The standalone combined distribution is under the 5 ms p99 gate,
+  while the composed distribution is over it. Full walking and composition
+  remain rejected; no authority is admitted. See the
   [r270 lower-body envelope report](benchmarks/results/g1-lower-body-velocity-envelope-r270/G1_LOWER_BODY_VELOCITY_ENVELOPE_R270.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
