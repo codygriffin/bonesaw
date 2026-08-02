@@ -2326,6 +2326,15 @@ wide bound conservatively rejects 10/48 and 2/48 safe completed states. The
 mechanism stays; profile, selector, and authority remain rejected. See the
 [r224 terminal velocity-box audit](benchmarks/results/g1-terminal-velocity-box-audit-r224/G1_TERMINAL_VELOCITY_BOX_AUDIT.md).
 
+R247 adds a Rust-owned `ContactTransitionModelSession` selector over exactly
+three R224 velocity-box candidates. It validates every row before mutating
+diagnostics, repeats the conservative componentwise chooser in the timed
+region, and the Python contract test observes zero timed Rust allocation,
+deterministic selection, and late-row atomic rejection. This is still an
+evaluation candidate boundary: it emits no actuator torque, plant command,
+lease, or authority. The missing gate is a trajectory-conditioned G1 action
+with a fresh MuJoCo baseline/candidate non-regression matrix.
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

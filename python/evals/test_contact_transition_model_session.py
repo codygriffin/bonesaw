@@ -829,6 +829,79 @@ class ContactTransitionModelSessionTests(unittest.TestCase):
             )
         np.testing.assert_array_equal(unchanged, 7.0)
 
+    def test_terminal_velocity_box_selection_is_rust_owned_and_atomic(self) -> None:
+        joints = self.generic.joint_dof()
+        root_state = np.asarray([0.3, 0.25, 0.20], np.float64)
+        root_lower = np.asarray([[-1.0, 2.0, 1.8]] * 3, np.float64)
+        root_upper = np.asarray([[-0.8, 2.2, 2.0]] * 3, np.float64)
+        q = np.zeros(joints, np.float64)
+        joint_lower_velocity = np.full((3, joints), -0.2, np.float64)
+        joint_upper_velocity = np.full((3, joints), 0.2, np.float64)
+        lower = np.full(joints, -1.0, np.float64)
+        upper = np.full(joints, 1.0, np.float64)
+        velocity_limit = np.full(joints, 2.0, np.float64)
+        available = np.asarray([1, 1, 0], np.uint8)
+        root_acceleration = np.asarray(
+            [[0.0, 0.0], [-20.0, -18.0], [0.0, 0.0]], np.float64
+        )
+        joint_acceleration = np.zeros((3, joints), np.float64)
+        effort = np.asarray([0.0, 0.1, 0.0], np.float64)
+        diagnostics = np.empty((3, 17), np.float64)
+        selection = np.empty(6, np.float64)
+        timing = self.generic.select_terminal_impact_velocity_box_candidates(
+            root_state,
+            root_lower,
+            root_upper,
+            q,
+            joint_lower_velocity,
+            joint_upper_velocity,
+            lower,
+            upper,
+            velocity_limit,
+            available,
+            root_acceleration,
+            joint_acceleration,
+            effort,
+            0,
+            0.0,
+            0.01,
+            diagnostics,
+            selection,
+        )
+        self.assertEqual(timing[1:], (0, 0))
+        self.assertEqual(selection[0], 1.0)
+        self.assertEqual(selection[1], 0.0)
+        self.assertLessEqual(selection[4], 0.0)
+        self.assertGreater(selection[5], 0.01)
+
+        invalid_upper = root_upper.copy()
+        invalid_upper[2, 1] = root_lower[2, 1] - 0.1
+        unchanged_diagnostics = np.full((3, 17), 7.0, np.float64)
+        unchanged_selection = np.full(6, 8.0, np.float64)
+        with self.assertRaisesRegex(ValueError, "candidate 2"):
+            self.generic.select_terminal_impact_velocity_box_candidates(
+                root_state,
+                root_lower,
+                invalid_upper,
+                q,
+                joint_lower_velocity,
+                joint_upper_velocity,
+                lower,
+                upper,
+                velocity_limit,
+                available,
+                root_acceleration,
+                joint_acceleration,
+                effort,
+                0,
+                0.0,
+                0.01,
+                unchanged_diagnostics,
+                unchanged_selection,
+            )
+        np.testing.assert_array_equal(unchanged_diagnostics, 7.0)
+        np.testing.assert_array_equal(unchanged_selection, 8.0)
+
     def test_spatial_patch_bound_couples_force_and_moment_to_normal(self) -> None:
         generalized_dof = self.generic.generalized_dof()
         response = np.zeros((generalized_dof, 2, 6), np.float64)

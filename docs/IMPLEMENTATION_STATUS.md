@@ -303,6 +303,17 @@ selector, and command authority remain rejected. The remaining CPU authority
 work is a tighter independently motivated transition set, an untouched
 holdout, and only then plant non-regression for a state-conditioned action.
 
+## Current CPU checkpoint — r247 keeps terminal candidate selection diagnostic
+
+R247 adds an allocation-free PyO3 boundary that scores and conservatively
+selects exactly three R224 componentwise velocity-box candidates. All rows are
+preflighted before diagnostics or selection outputs are written; the timed
+repeat reports zero Rust allocation, and the Python contract covers both the
+improving candidate and a late invalid-row atomic rejection. The selector is
+explicitly evaluation-only and emits no torque, plant command, lease, or
+authority. The remaining gate is a trajectory-conditioned G1 action with a
+fresh MuJoCo baseline/candidate non-regression matrix.
+
 ## Prior CPU checkpoint — r222 terminal consequence exposes point-score optimism
 
 R222 adds a generic arbitrary-joint-count PyO3 batch over Rust's existing

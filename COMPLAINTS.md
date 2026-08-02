@@ -49,6 +49,10 @@ bytes, repeat bitwise, meet five milliseconds, and reproduce all 62 semantic
 arrays in an independent process. The physical-transition evaluator profile
 is promoted; no R224 selection, plant action, or authority follows yet.
 
+R247 now exposes a Rust-owned, allocation-free selector over three R224
+velocity-box candidates with atomic diagnostics, but it remains an evaluation
+candidate boundary and does not emit torque, a plant command, or authority.
+
 ABI 6 predicted-gap activation remains rejected: it produces 19 extra unloaded
 contacts on the spent R241 replay and widens the implicitfast row to 22.719
 rad/s joint width. Historical ABI 0 and Cartesian pyramid ABI 1 remain

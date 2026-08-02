@@ -1688,6 +1688,179 @@ impl ContactTransitionModelSession {
         ))
     }
 
+    /// Score exactly three componentwise terminal velocity boxes and apply
+    /// the existing conservative componentwise selector in the same timed,
+    /// allocation-free Rust boundary. This selects an evaluation candidate;
+    /// it does not admit a plant command or authority.
+    #[allow(clippy::too_many_arguments)]
+    fn select_terminal_impact_velocity_box_candidates(
+        &self,
+        root_state: PyReadonlyArray1<'_, f64>,
+        root_velocity_lower: PyReadonlyArray2<'_, f64>,
+        root_velocity_upper: PyReadonlyArray2<'_, f64>,
+        joint_position: PyReadonlyArray1<'_, f64>,
+        joint_velocity_lower: PyReadonlyArray2<'_, f64>,
+        joint_velocity_upper: PyReadonlyArray2<'_, f64>,
+        joint_position_lower: PyReadonlyArray1<'_, f64>,
+        joint_position_upper: PyReadonlyArray1<'_, f64>,
+        joint_velocity_limit: PyReadonlyArray1<'_, f64>,
+        candidate_available: PyReadonlyArray1<'_, u8>,
+        root_angular_acceleration: PyReadonlyArray2<'_, f64>,
+        joint_acceleration: PyReadonlyArray2<'_, f64>,
+        maximum_actuator_effort_utilization: PyReadonlyArray1<'_, f64>,
+        baseline_index: usize,
+        maximum_component_regression: f64,
+        minimum_component_improvement: f64,
+        mut diagnostics_out: PyReadwriteArray2<'_, f64>,
+        mut selection_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        const CANDIDATES: usize = 3;
+        let root_lower_shape = root_velocity_lower.as_array().dim();
+        let root_upper_shape = root_velocity_upper.as_array().dim();
+        let joint_lower_shape = joint_velocity_lower.as_array().dim();
+        let joint_upper_shape = joint_velocity_upper.as_array().dim();
+        let root_acceleration_shape = root_angular_acceleration.as_array().dim();
+        let joint_acceleration_shape = joint_acceleration.as_array().dim();
+        let diagnostic_shape = diagnostics_out.as_array().dim();
+        let root_state = root_state.as_slice()?;
+        let root_velocity_lower = root_velocity_lower.as_slice()?;
+        let root_velocity_upper = root_velocity_upper.as_slice()?;
+        let joint_position = joint_position.as_slice()?;
+        let joint_velocity_lower = joint_velocity_lower.as_slice()?;
+        let joint_velocity_upper = joint_velocity_upper.as_slice()?;
+        let joint_position_lower = joint_position_lower.as_slice()?;
+        let joint_position_upper = joint_position_upper.as_slice()?;
+        let joint_velocity_limit = joint_velocity_limit.as_slice()?;
+        let available = candidate_available.as_slice()?;
+        let root_acceleration = root_angular_acceleration.as_slice()?;
+        let joint_acceleration = joint_acceleration.as_slice()?;
+        let effort = maximum_actuator_effort_utilization.as_slice()?;
+        let diagnostics = diagnostics_out.as_slice_mut()?;
+        let selection_out = selection_out.as_slice_mut()?;
+        let joints = joint_position.len();
+        if root_state.len() != 3
+            || root_lower_shape != (CANDIDATES, 3)
+            || root_upper_shape != (CANDIDATES, 3)
+            || joint_lower_shape != (CANDIDATES, joints)
+            || joint_upper_shape != (CANDIDATES, joints)
+            || joint_position_lower.len() != joints
+            || joint_position_upper.len() != joints
+            || joint_velocity_limit.len() != joints
+            || available.len() != CANDIDATES
+            || available.iter().any(|value| *value > 1)
+            || root_acceleration_shape != (CANDIDATES, 2)
+            || joint_acceleration_shape != (CANDIDATES, joints)
+            || effort.len() != CANDIDATES
+            || diagnostic_shape != (CANDIDATES, 17)
+            || selection_out.len() != 6
+        {
+            return Err(PyValueError::new_err(
+                "terminal velocity-box selection expects root state[3], lower/upper root velocity[3,3], common joint position/limits[J], lower/upper joint velocity and acceleration[3,J], availability/effort[3], root acceleration[3,2], diagnostics[3,17], and selection[6]",
+            ));
+        }
+        let config = TerminalImpactConfig::default();
+        let state_at = |candidate: usize| TerminalImpactVelocityBoxState {
+            root_clearance_m: root_state[0],
+            root_vertical_velocity_lower_m_s: root_velocity_lower[3 * candidate],
+            root_vertical_velocity_upper_m_s: root_velocity_upper[3 * candidate],
+            root_tilt_rad: [root_state[1], root_state[2]],
+            root_angular_rate_lower_rad_s: [
+                root_velocity_lower[3 * candidate + 1],
+                root_velocity_lower[3 * candidate + 2],
+            ],
+            root_angular_rate_upper_rad_s: [
+                root_velocity_upper[3 * candidate + 1],
+                root_velocity_upper[3 * candidate + 2],
+            ],
+            joint_position_rad: joint_position,
+            joint_velocity_lower_rad_s: &joint_velocity_lower
+                [candidate * joints..(candidate + 1) * joints],
+            joint_velocity_upper_rad_s: &joint_velocity_upper
+                [candidate * joints..(candidate + 1) * joints],
+            joint_position_lower_rad: joint_position_lower,
+            joint_position_upper_rad: joint_position_upper,
+            joint_velocity_limit_rad_s: joint_velocity_limit,
+        };
+        let candidate_at = |candidate: usize| TerminalImpactCandidate {
+            available: available[candidate] != 0,
+            root_angular_acceleration_rad_s2: [
+                root_acceleration[2 * candidate],
+                root_acceleration[2 * candidate + 1],
+            ],
+            joint_acceleration_rad_s2: &joint_acceleration
+                [candidate * joints..(candidate + 1) * joints],
+            maximum_actuator_effort_utilization: effort[candidate],
+        };
+        let mut scores = [TerminalImpactScore::default(); CANDIDATES];
+        for candidate in 0..CANDIDATES {
+            scores[candidate] = score_terminal_impact_velocity_box_upper(
+                state_at(candidate),
+                candidate_at(candidate),
+                config,
+            )
+            .map_err(|error| {
+                PyValueError::new_err(format!(
+                    "invalid terminal-impact velocity box candidate {candidate}: {error:?}"
+                ))
+            })?;
+        }
+        select_conservative_terminal_impact_candidate(
+            &scores,
+            baseline_index,
+            maximum_component_regression,
+            minimum_component_improvement,
+        )
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid terminal-impact velocity box selection: {error:?}"
+            ))
+        })?;
+
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        for candidate in 0..CANDIDATES {
+            scores[candidate] = score_terminal_impact_velocity_box_upper(
+                state_at(candidate),
+                candidate_at(candidate),
+                config,
+            )
+            .expect("validated terminal-impact velocity box candidate");
+        }
+        let selection = select_conservative_terminal_impact_candidate(
+            &scores,
+            baseline_index,
+            maximum_component_regression,
+            minimum_component_improvement,
+        )
+        .expect("validated terminal-impact velocity box selection");
+        for candidate in 0..CANDIDATES {
+            write_terminal_impact_score_diagnostics(
+                scores[candidate],
+                &mut diagnostics[candidate * 17..(candidate + 1) * 17],
+            );
+        }
+        selection_out.copy_from_slice(&[
+            selection.selected_index as f64,
+            selection.baseline_index as f64,
+            selection.selected_score,
+            selection.baseline_score,
+            selection.maximum_component_regression,
+            selection.maximum_component_improvement,
+        ]);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "terminal-impact velocity box selection allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
     /// Envelope generalized velocity jumps over an explicitly enumerated
     /// finite contact-estimator hypothesis set. This is not a continuous-set
     /// certificate between the caller's hypotheses.
