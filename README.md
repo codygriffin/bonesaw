@@ -79,12 +79,24 @@ This is an engineering prototype, not a safety-rated robot controller.
 - A narrow PyO3/NumPy batch API: Python owns corpus generation, statistics,
   plots, and reports while Rust executes the complete tick loop into
   caller-owned fixed-shape arrays.
+- The r268 integrated native-reference bridge preserves independently authored
+  pelvis and CoM jets, accepts an explicitly correlated morphology-witness
+  initial state/root twist, and optionally samples the policy-free q/v/qdd
+  posture jet under the same allocation-free Rust reference cursor. With no
+  policy or physics simulator, initialization-only reaches the first liftoff at
+  0.003 mm root error and extends the earlier native-reference clean prefix
+  from 265 to 501 ticks at 4.884 ms p99 in the regenerated replay. It still releases support before the
+  first touchdown. The exact oracle task stack and direct morphology-posture
+  profile fail earlier and remain rejected/default-off. See the
+  [r268 integration report](benchmarks/results/g1-native-reference-integration-r268/G1_NATIVE_REFERENCE_INTEGRATION.md).
 - A fail-tolerant floating WBC contact boundary: unsolved contact rows are
   retried once as normal-only, then latched out per target; a bounded
   free-body damping/gravity fallback keeps the state advancing without
   granting contact or plant authority. The r263 600-tick regression removes a
   171-tick exact state stall; the latest replay is 4.757 ms p99, while functional walking remains
-  explicitly unadmitted. See the
+  explicitly unadmitted. Release fallback telemetry is fail-closed: rejected
+  contact residuals, effort/margin, collision, and task witnesses are cleared
+  before the unsupported state advances. See the
   [r263 contact-release report](benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 - A policy-free, simulator-free G1 admission pipeline: standalone authored
   root/CoM/foot references, allocation-free whole-body position and analytic
@@ -2478,9 +2490,9 @@ Budget localization finds the full-contact knee at 768 Dykstra sweeps and
 22.9 ms. Equality-first repair retains contact through tick 329 at 16 active-
 set iterations, but its native 600-tick profile has 270 contingency ticks,
 23.264 ms p99, and 51 deadline misses; R165 already rejected the same seed rule
-for earlier plant falls. It remains diagnostic and default-off. The next
-behavior slice must repair single-support reference compatibility before tick
-300, not increase work or pretend a late fall is recovery. See the [r267
+for earlier plant falls. It remains diagnostic and default-off. R268 supersedes
+the old before-tick-300 diagnosis with the admitted native reference: it is
+exact through liftoff and fails in the final first-swing interval. See the [r267
 reacquisition localization](benchmarks/results/g1-floating-reacquisition-localization-r267/G1_FLOATING_REACQUISITION_LOCALIZATION.md).
 
 R264 freezes the first useful correlated profile across all four already-spent

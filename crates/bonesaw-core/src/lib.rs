@@ -183,8 +183,9 @@ pub use support::{
     SupportTransitionConfig, SupportTransitionError, SupportTransitionObservation,
     SupportTransitionState, TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput,
     TouchdownPhaseRetimingOutput, capture_landing_retarget, cubic_precontact_acceleration,
-    sample_quintic_vector_jet, slew_touchdown_phase_rate, support_margin_phase_rate,
-    time_warp_vector_jet, touchdown_phase_retiming,
+    sample_quintic_scalar_jet, sample_quintic_vector_jet, slew_touchdown_phase_rate,
+    support_margin_phase_rate, time_warp_scalar_jet, time_warp_vector_jet,
+    touchdown_phase_retiming,
 };
 pub use support_contingency::{
     SupportContingencyConfig, SupportContingencyEvidence, SupportContingencyMode,

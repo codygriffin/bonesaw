@@ -11,7 +11,11 @@ import unittest
 import numpy as np
 
 from cmu_mocap import retarget_subject_37_walk_floating
-from floating_walk_corpus import center_of_mass_reference, load_standalone_reference
+from floating_walk_corpus import (
+    center_of_mass_reference,
+    load_standalone_initial_state,
+    load_standalone_reference,
+)
 
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -97,6 +101,8 @@ class StandaloneReferenceAdmissionTest(unittest.TestCase):
             np.savez_compressed(
                 artifact,
                 root_targets=root,
+                root_target_velocities=np.zeros_like(root),
+                root_target_accelerations=np.zeros_like(root),
                 center_of_mass_targets=com,
                 center_of_mass_target_velocities=com_velocity,
                 center_of_mass_target_accelerations=com_acceleration,
@@ -130,6 +136,66 @@ class StandaloneReferenceAdmissionTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(loaded.contacts[:, :2], stance)
         self.assertEqual(loaded.walk.metadata["motion_profile"], "standalone-reference")
+
+    def test_morphology_witness_initializes_only_the_first_state(self) -> None:
+        ticks = 3
+        dof = 2
+        root = np.tile([0.0, 0.0, 0.78], (ticks, 1))
+        feet = np.zeros((ticks, 2, 3), dtype=np.float64)
+        feet[:, 0] = [0.0, 0.1, 0.035]
+        feet[:, 1] = [0.0, -0.1, 0.035]
+        com = np.tile([0.02, 0.0, 0.68], (ticks, 1))
+        stance = np.ones((ticks, 2), dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            reference_path = directory / "reference-inputs.npz"
+            np.savez_compressed(
+                reference_path,
+                root_targets=root,
+                root_target_velocities=np.zeros_like(root),
+                root_target_accelerations=np.zeros_like(root),
+                center_of_mass_targets=com,
+                center_of_mass_target_velocities=np.zeros_like(com),
+                center_of_mass_target_accelerations=np.zeros_like(com),
+                target_positions=feet,
+                target_velocities=np.zeros_like(feet),
+                target_accelerations=np.zeros_like(feet),
+                reference_stance=stance,
+            )
+            reference = load_standalone_reference(
+                reference_path,
+                np.vstack((feet[0], np.zeros((2, 3)))),
+                root[0],
+                ticks,
+            )
+            witness_path = directory / "oracle-witness.npz"
+            np.savez_compressed(
+                witness_path,
+                q=np.array([[0.2, -0.3], [9.0, 9.0], [8.0, 8.0]]),
+                v=np.array([[0.4, -0.5], [9.0, 9.0], [8.0, 8.0]]),
+                joint_accelerations=np.array(
+                    [[0.6, -0.7], [8.0, 8.0], [7.0, 7.0]]
+                ),
+                root_positions=np.array([root[0], [9.0, 9.0, 9.0]]),
+                root_velocities=np.array([[0.01, -0.02, 0.03], [9.0, 9.0, 9.0]]),
+                center_of_mass_positions=np.array([com[0], [9.0, 9.0, 9.0]]),
+                target_positions=np.array([feet[0], np.full((2, 3), 9.0)]),
+                point_error=np.array([0.004, 9.0]),
+                center_of_mass_error=np.array([0.02, 9.0]),
+                ik_converged=np.array([1, 0], dtype=np.uint8),
+            )
+            state = load_standalone_initial_state(witness_path, dof, reference)
+        np.testing.assert_array_equal(state.q, [0.2, -0.3])
+        np.testing.assert_array_equal(state.v, [0.4, -0.5])
+        np.testing.assert_array_equal(state.root_translation, root[0])
+        np.testing.assert_array_equal(
+            state.root_twist, [0.0, 0.0, 0.0, 0.01, -0.02, 0.03]
+        )
+        np.testing.assert_array_equal(state.posture_positions[0], [0.2, -0.3])
+        np.testing.assert_array_equal(state.posture_velocities[0], [0.4, -0.5])
+        np.testing.assert_array_equal(
+            state.posture_accelerations[0], [0.6, -0.7]
+        )
 
 
 @unittest.skipUnless(

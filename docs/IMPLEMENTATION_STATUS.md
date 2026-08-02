@@ -2,7 +2,32 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r267 localizes reacquisition without controller promotion
+## Current CPU checkpoint — r268 bridges the native reference into integration
+
+R268 exercises the retained four-step Rust LIPM reference through the bounded
+integrated floating controller with no policy and no physics simulator. The
+standalone boundary now consumes authored root position, velocity, and
+acceleration jets independently instead of substituting the CoM derivatives.
+An optional retained morphology witness initializes q/v, root translation, and
+root twist after exact reference correlation plus the existing 10 mm foot / 30
+mm CoM certificate. Future oracle WBC outputs are neither loaded nor executed.
+
+Initialization-only extends the earlier native-reference clean prefix from 265
+to 501 ticks and reaches the authored liftoff at tick 300 with 0.003 mm root
+error. Its latest replay p99 is 4.884 ms and accepted hard dynamics/contact residuals remain
+below 1e-8, but support still releases before touchdown tick 529. The exact R54
+oracle task stack fails at tick 188. A new allocation-free Rust scalar-jet path
+can sample and time-warp the morphology q/v/qdd trace under the common cursor,
+but that Preference profile fails at tick 439. Both profiles are rejected;
+defaults and authority remain unchanged. Release/free-body fallback now also
+clears rejected contact residuals, force/effort margins, collision witnesses,
+and task residual slots before integrating, so status-5 telemetry is explicitly
+fail-closed rather than stale. The next slice is attitude/support
+retention across the last 90 single-support ticks, not another solver-budget or
+contact-threshold change. See
+[`G1_NATIVE_REFERENCE_INTEGRATION.md`](../benchmarks/results/g1-native-reference-integration-r268/G1_NATIVE_REFERENCE_INTEGRATION.md).
+
+## Prior CPU checkpoint — r267 localizes reacquisition without controller promotion
 
 R267 makes contact release ownership per target: an unsuppressed requested
 target can leave session-level free-body mode even if a different failed target

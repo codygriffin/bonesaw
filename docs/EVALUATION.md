@@ -2823,3 +2823,22 @@ the withheld endpoint advances five. Two process repetitions retain 192–210
 deadline misses, 8.847–9.448 µs selector maxima, 6.134–7.039 ms loop maxima,
 and 5.699–6.645 ms controller maxima. Reproduce with
 `scripts/run-upkie-inexact-hold-improvement-gate-ab.sh`.
+### Revision r268 native-reference integrated bridge
+
+`python/evals/g1_native_reference_integration_r268.py` is a report-only,
+policy-free and physics-free comparison over three retained 2,317-tick
+integrated traces. All consume the same immutable r53 Rust-LIPM reference and
+the first state of the r54 morphology witness; future controller state is
+integrated by Rust. The optional posture row allowlists only q/v/qdd witness
+arrays and never consumes oracle WBC force, status, or solved acceleration.
+
+Initialization-only extends the previous native-reference clean prefix from
+265 to 501 ticks and is exact at liftoff, but remains touchdown-red. The R54
+task-stack row fails at 188 and the morphology-posture row at 439. The report
+pins both source hashes, accepted hard residuals, status/support transitions,
+latency/deadline distributions, finite-state evidence, and explicit zero
+policy/physics counts. It also checks that every status-5 release/fallback tick
+has zero contact/dynamics residual witnesses after the rejected solve is
+cleared; this is diagnostic hygiene, not a physical-support claim. Run
+`scripts/run-g1-native-reference-integration-r268.sh` to rebuild all three
+traces and the hosted report.

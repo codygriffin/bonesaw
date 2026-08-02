@@ -60,6 +60,15 @@ def parse_args() -> argparse.Namespace:
         "--reference-inputs",
         help="immutable standalone reference-inputs.npz admitted by the open-loop contract",
     )
+    parser.add_argument(
+        "--initial-state-inputs",
+        help="optional oracle-witness NPZ used only to initialize an admitted standalone reference",
+    )
+    parser.add_argument(
+        "--morphology-posture-trace",
+        action="store_true",
+        help="opt in to the witness q/v/acceleration jet as the lower-priority posture reference",
+    )
     parser.add_argument("--synthetic-step-length", type=float, default=0.04)
     parser.add_argument("--synthetic-step-clearance", type=float, default=0.03)
     parser.add_argument("--synthetic-swing-ticks", type=int, default=40)
@@ -444,16 +453,130 @@ class StandaloneReference:
     contacts: np.ndarray
 
 
+@dataclasses.dataclass(frozen=True)
+class StandaloneInitialState:
+    q: np.ndarray
+    v: np.ndarray
+    root_translation: np.ndarray
+    root_twist: np.ndarray
+    posture_positions: np.ndarray
+    posture_velocities: np.ndarray
+    posture_accelerations: np.ndarray
+
+
+def load_standalone_initial_state(
+    path: pathlib.Path,
+    dof: int,
+    reference: StandaloneReference,
+    maximum_point_error_m: float = 0.01,
+    maximum_center_of_mass_error_m: float = 0.03,
+) -> StandaloneInitialState:
+    """Load one morphology witness without consuming its future trajectory."""
+    if maximum_point_error_m < 0.0 or maximum_center_of_mass_error_m < 0.0:
+        raise ValueError("initial witness error limits must be nonnegative")
+    with np.load(path, allow_pickle=False) as source:
+        required = (
+            "q",
+            "v",
+            "joint_accelerations",
+            "root_positions",
+            "root_velocities",
+            "center_of_mass_positions",
+            "target_positions",
+            "point_error",
+            "center_of_mass_error",
+            "ik_converged",
+        )
+        missing = [key for key in required if key not in source.files]
+        if missing:
+            raise ValueError(f"initial-state witness is missing arrays: {missing}")
+        arrays = {key: np.asarray(source[key]) for key in required}
+        if any(len(value) == 0 for value in arrays.values()):
+            raise ValueError("initial-state witness contains an empty array")
+        posture_positions = np.asarray(arrays["q"], dtype=np.float64).copy()
+        posture_velocities = np.asarray(arrays["v"], dtype=np.float64).copy()
+        posture_accelerations = np.asarray(
+            arrays["joint_accelerations"], dtype=np.float64
+        ).copy()
+        q = posture_positions[0].copy()
+        v = posture_velocities[0].copy()
+        root_translation = np.asarray(
+            arrays["root_positions"][0], dtype=np.float64
+        ).copy()
+        root_velocity = np.asarray(
+            arrays["root_velocities"][0], dtype=np.float64
+        ).copy()
+        center_of_mass = np.asarray(
+            arrays["center_of_mass_positions"][0], dtype=np.float64
+        )
+        target_positions = np.asarray(arrays["target_positions"][0], dtype=np.float64)
+        point_error = float(arrays["point_error"][0])
+        center_of_mass_error = float(arrays["center_of_mass_error"][0])
+        ik_converged = bool(arrays["ik_converged"][0])
+    if q.shape != (dof,) or v.shape != (dof,):
+        raise ValueError("initial-state witness q/v dimension mismatch")
+    expected_posture_shape = (len(reference.walk.root_targets), dof)
+    if (
+        posture_positions.shape != expected_posture_shape
+        or posture_velocities.shape != expected_posture_shape
+        or posture_accelerations.shape != expected_posture_shape
+    ):
+        raise ValueError("initial-state witness posture-jet shape mismatch")
+    if root_translation.shape != (3,) or root_velocity.shape != (3,):
+        raise ValueError("initial-state witness root arrays must have three coordinates")
+    if center_of_mass.shape != (3,) or target_positions.shape != (2, 3):
+        raise ValueError("initial-state witness geometry has an invalid shape")
+    if not all(
+        np.all(np.isfinite(value))
+        for value in (
+            posture_positions,
+            posture_velocities,
+            posture_accelerations,
+            root_translation,
+            root_velocity,
+            center_of_mass,
+            target_positions,
+        )
+    ):
+        raise ValueError("initial-state witness contains NaN or infinity")
+    if not np.array_equal(root_translation, reference.walk.root_targets[0]):
+        raise ValueError("initial-state witness root does not match the reference")
+    if not ik_converged:
+        raise ValueError("initial-state witness did not converge")
+    if not np.array_equal(target_positions, reference.target_positions[0, :2]):
+        raise ValueError("initial-state witness foot targets do not match the reference")
+    if not np.array_equal(center_of_mass, reference.center_of_mass_targets[0]):
+        raise ValueError("initial-state witness CoM target does not match the reference")
+    if point_error > maximum_point_error_m:
+        raise ValueError("initial-state witness exceeds the foot-position contract")
+    if center_of_mass_error > maximum_center_of_mass_error_m:
+        raise ValueError("initial-state witness exceeds the CoM-position contract")
+    root_twist = np.zeros(6, dtype=np.float64)
+    root_twist[3:] = root_velocity
+    return StandaloneInitialState(
+        q,
+        v,
+        root_translation,
+        root_twist,
+        posture_positions,
+        posture_velocities,
+        posture_accelerations,
+    )
+
+
 def load_standalone_reference(
     path: pathlib.Path,
     initial_positions: np.ndarray,
     root_translation: np.ndarray,
     ticks: int,
+    maximum_initial_root_error_m: float = 0.0,
 ) -> StandaloneReference:
     """Load an already-admitted authored trace without rebuilding any jet."""
     raw = np.load(path)
     required = (
         "root_targets",
+        "root_target_velocities",
+        "root_target_accelerations",
         "center_of_mass_targets",
         "center_of_mass_target_velocities",
         "center_of_mass_target_accelerations",
@@ -470,6 +593,8 @@ def load_standalone_reference(
             "--ticks must exactly match the standalone reference; slicing or padding is forbidden"
         )
     root_targets = np.asarray(raw["root_targets"], dtype=np.float64)
+    root_velocities = np.asarray(raw["root_target_velocities"], dtype=np.float64)
+    root_accelerations = np.asarray(raw["root_target_accelerations"], dtype=np.float64)
     center_of_mass_targets = np.asarray(
         raw["center_of_mass_targets"], dtype=np.float64
     )
@@ -485,6 +610,8 @@ def load_standalone_reference(
     stance = np.asarray(raw["reference_stance"], dtype=np.uint8)
     expected_shapes = {
         "root_targets": (ticks, 3),
+        "root_target_velocities": (ticks, 3),
+        "root_target_accelerations": (ticks, 3),
         "center_of_mass_targets": (ticks, 3),
         "center_of_mass_target_velocities": (ticks, 3),
         "center_of_mass_target_accelerations": (ticks, 3),
@@ -495,6 +622,8 @@ def load_standalone_reference(
     }
     arrays = {
         "root_targets": root_targets,
+        "root_target_velocities": root_velocities,
+        "root_target_accelerations": root_accelerations,
         "center_of_mass_targets": center_of_mass_targets,
         "center_of_mass_target_velocities": center_of_mass_velocities,
         "center_of_mass_target_accelerations": center_of_mass_accelerations,
@@ -514,7 +643,12 @@ def load_standalone_reference(
         raise ValueError("standalone reference contains NaN or infinity")
     if not np.all(np.any(stance.astype(bool), axis=1)):
         raise ValueError("standalone reference contains a flight tick")
-    if np.max(np.abs(root_targets[0] - root_translation)) > 1.0e-9:
+    if maximum_initial_root_error_m < 0.0:
+        raise ValueError("maximum initial root error must be nonnegative")
+    if (
+        np.linalg.norm(root_targets[0] - root_translation)
+        > maximum_initial_root_error_m + 1.0e-9
+    ):
         raise ValueError("standalone root does not match the initialized G1 root")
     if np.max(np.abs(feet[0] - initial_positions[:2])) > 1.0e-9:
         raise ValueError("standalone soles do not match the initialized G1 frames")
@@ -568,12 +702,10 @@ def load_standalone_reference(
         source_phase_frames=np.arange(ticks, dtype=np.float64),
         metadata=metadata,
     )
-    # The planner keeps a constant CoM-to-root offset, so the authored CoM jet
-    # is also the exact root-translation jet.
     return StandaloneReference(
         walk=walk,
-        root_velocities=center_of_mass_velocities.copy(),
-        root_accelerations=center_of_mass_accelerations.copy(),
+        root_velocities=root_velocities,
+        root_accelerations=root_accelerations,
         center_of_mass_targets=center_of_mass_targets,
         center_of_mass_velocities=center_of_mass_velocities,
         center_of_mass_accelerations=center_of_mass_accelerations,
@@ -2068,7 +2200,8 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"`{metadata['root_height_task_weight']:.3f}` / "
         f"`{metadata['root_horizontal_task_weight']:.3f}`.",
         f"- Whole-body posture: `{metadata['joint_posture_priority']}` priority "
-        f"with weight `{metadata['joint_posture_weight']:.3f}`.",
+        f"with weight `{metadata['joint_posture_weight']:.3f}`; morphology jet "
+        f"`{'enabled' if metadata['morphology_posture_trace'] else 'disabled'}`.",
         f"- Protected upper-body posture: "
         f"`{metadata['upper_body_posture_priority']}` priority with weight "
         f"`{metadata['upper_body_posture_weight']:.3f}` over "
@@ -2728,14 +2861,65 @@ def main() -> None:
         [0.0, 0.0, -float(np.min(foot_z)) - args.contact_patch_z]
     )
     world_origins = origins[frame_ids] + root_translation[None, :]
+    initial_v = np.zeros_like(q)
     standalone_reference: StandaloneReference | None = None
+    standalone_initial_state: StandaloneInitialState | None = None
+    if args.initial_state_inputs and not args.reference_inputs:
+        raise ValueError("--initial-state-inputs requires --reference-inputs")
+    if args.morphology_posture_trace and not args.initial_state_inputs:
+        raise ValueError("--morphology-posture-trace requires --initial-state-inputs")
     if args.reference_inputs:
         standalone_reference = load_standalone_reference(
             pathlib.Path(args.reference_inputs),
             world_origins,
             root_translation,
             args.ticks,
+            maximum_initial_root_error_m=(0.03 if args.initial_state_inputs else 0.0),
         )
+        if args.initial_state_inputs:
+            standalone_initial_state = load_standalone_initial_state(
+                pathlib.Path(args.initial_state_inputs),
+                len(q),
+                standalone_reference,
+            )
+            q = standalone_initial_state.q.copy()
+            initial_v = standalone_initial_state.v.copy()
+            root_translation = standalone_initial_state.root_translation.copy()
+            query.frame_positions(q, origins)
+            world_origins = origins[frame_ids] + root_translation[None, :]
+            initial_foot_error = float(
+                np.max(
+                    np.linalg.norm(
+                        world_origins[:2]
+                        - standalone_reference.target_positions[0, :2],
+                        axis=1,
+                    )
+                )
+            )
+            center_of_mass_at_root = np.empty(3, dtype=np.float64)
+            query.center_of_mass(q, center_of_mass_at_root)
+            initial_center_of_mass_error = float(
+                np.linalg.norm(
+                    center_of_mass_at_root
+                    + root_translation
+                    - standalone_reference.center_of_mass_targets[0]
+                )
+            )
+            if initial_foot_error > 0.01:
+                raise ValueError("initial-state FK exceeds the 1 cm foot contract")
+            if initial_center_of_mass_error > 0.03:
+                raise ValueError("initial-state FK exceeds the 3 cm CoM contract")
+            standalone_reference.walk.metadata.update(
+                {
+                    "standalone_initial_state_inputs": args.initial_state_inputs,
+                    "standalone_initial_foot_error_m": initial_foot_error,
+                    "standalone_initial_center_of_mass_error_m": (
+                        initial_center_of_mass_error
+                    ),
+                }
+            )
+        else:
+            initial_v = np.zeros_like(q)
         walk = standalone_reference.walk
     elif args.motion_profile == "synthetic-step":
         walk = synthetic_g1_step(
@@ -2767,6 +2951,7 @@ def main() -> None:
             lateral_motion_scale=args.lateral_motion_scale,
             cadence_multiplier=args.cadence_multiplier,
         )
+        initial_v = np.zeros_like(q)
     walk = insert_first_liftoff_hold(walk, args.first_liftoff_hold_ticks)
     target_positions, target_velocities, target_accelerations, contacts = (
         anchored_contact_targets(
@@ -2989,7 +3174,24 @@ def main() -> None:
         contact_patch_z=args.contact_patch_z,
         minimum_contact_cop_margin_m=args.minimum_contact_cop_margin,
     )
-    session.reset(q, np.zeros_like(q), root_translation)
+    session.reset(
+        q,
+        initial_v,
+        root_translation,
+        (
+            standalone_initial_state.root_twist
+            if standalone_initial_state is not None
+            else None
+        ),
+    )
+    if standalone_initial_state is not None and args.morphology_posture_trace:
+        posture_positions = standalone_initial_state.posture_positions
+        posture_velocities = standalone_initial_state.posture_velocities
+        posture_accelerations = standalone_initial_state.posture_accelerations
+    else:
+        posture_positions = np.broadcast_to(q, (args.ticks, len(q)))
+        posture_velocities = np.zeros((args.ticks, len(q)), dtype=np.float64)
+        posture_accelerations = np.zeros_like(posture_velocities)
     root_out = np.empty((args.ticks, 3), dtype=np.float64)
     root_quaternion = np.empty((args.ticks, 4), dtype=np.float64)
     center_of_mass_tracked = np.empty((args.ticks, 3), dtype=np.float64)
@@ -3107,6 +3309,9 @@ def main() -> None:
         priorities,
         weights,
         q,
+        posture_positions,
+        posture_velocities,
+        posture_accelerations,
         upper_body_coordinates,
         root_out,
         root_quaternion,
@@ -3285,6 +3490,7 @@ def main() -> None:
         ],
         "point_frequency_hz": args.point_frequency_hz,
         "joint_posture_weight": args.joint_posture_weight,
+        "morphology_posture_trace": args.morphology_posture_trace,
         "joint_posture_priority": PRIORITY_NAMES[args.joint_posture_priority],
         "center_of_mass_task_weight": args.center_of_mass_task_weight,
         "center_of_mass_task_priority": PRIORITY_NAMES[

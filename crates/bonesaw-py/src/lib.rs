@@ -44,7 +44,7 @@ use bonesaw_core::{
     RobotObservationHistory, RobotObservationLimits, RobotObservationQueryError,
     RobotObservationQueryPolicy, RobotObservationRef, RobotObservationStamp, RobotState,
     RootPredictionErrorGrowth, SPATIAL_IMPULSE_WIDTH, SPATIAL_PATCH_TRANSITION_WITNESS_WIDTH,
-    SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
+    ScalarJet, SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
     SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
     SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
     TERMINAL_IMPACT_PAIRED_COMPONENTS, TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES,
@@ -65,7 +65,7 @@ use bonesaw_core::{
     cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
     joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
     minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
-    sample_quintic_vector_jet, score_terminal_impact,
+    sample_quintic_scalar_jet, sample_quintic_vector_jet, score_terminal_impact,
     score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
     score_terminal_impact_velocity_box_upper, score_viability_forecast,
     select_conservative_terminal_impact_candidate,
@@ -78,7 +78,7 @@ use bonesaw_core::{
     step_actuator_resource, step_contact_command_lease, step_contact_observation,
     step_contact_program_authority_with_inexact_command, step_passive_actuator_realization,
     step_viability_confirmation, step_viability_execution_monitor, step_viability_hybrid_guard,
-    step_viability_request, support_margin_phase_rate, time_warp_vector_jet,
+    step_viability_request, support_margin_phase_rate, time_warp_scalar_jet, time_warp_vector_jet,
     touchdown_phase_retiming, write_contact_transition_acceleration_interval_bounds,
     write_contact_transition_bounds, write_coupled_contact_hypothesis_velocity_envelope,
     write_directional_contact_transition_bounds, write_generalized_momentum_impulse_residuals,
@@ -14237,11 +14237,13 @@ impl FloatingWbcSession {
             .collect()
     }
 
+    #[pyo3(signature = (q, v, root_translation_world, root_twist_world=None))]
     fn reset(
         &mut self,
         q: PyReadonlyArray1<'_, f64>,
         v: PyReadonlyArray1<'_, f64>,
         root_translation_world: PyReadonlyArray1<'_, f64>,
+        root_twist_world: Option<PyReadonlyArray1<'_, f64>>,
     ) -> PyResult<()> {
         let q = q.as_slice()?;
         let v = v.as_slice()?;
@@ -14256,6 +14258,19 @@ impl FloatingWbcSession {
         state.robot.v.as_mut_slice().copy_from_slice(v);
         state.robot.control_world_from_root.translation.vector =
             Vec3::from_row_slice(root_translation_world);
+        if let Some(root_twist_world) = root_twist_world {
+            let root_twist_world = root_twist_world.as_slice()?;
+            if root_twist_world.len() != 6 {
+                return Err(PyValueError::new_err(
+                    "floating reset root twist must have six coordinates",
+                ));
+            }
+            state
+                .root_twist_world
+                .0
+                .as_mut_slice()
+                .copy_from_slice(root_twist_world);
+        }
         state.validate(&self.program.model).map_err(value_error)?;
         self.state = state;
         self.program
@@ -15329,6 +15344,9 @@ impl FloatingWbcSession {
         priorities: PyReadonlyArray1<'_, u8>,
         weights: PyReadonlyArray1<'_, f64>,
         posture: PyReadonlyArray1<'_, f64>,
+        posture_positions: PyReadonlyArray2<'_, f64>,
+        posture_velocities: PyReadonlyArray2<'_, f64>,
+        posture_accelerations: PyReadonlyArray2<'_, f64>,
         protected_joint_coordinates: PyReadonlyArray1<'_, i64>,
         mut root_translation_out: PyReadwriteArray2<'_, f64>,
         mut root_quaternion_wxyz_out: PyReadwriteArray2<'_, f64>,
@@ -15409,6 +15427,9 @@ impl FloatingWbcSession {
         let priorities = priorities.as_slice()?;
         let weights = weights.as_slice()?;
         let posture = posture.as_slice()?;
+        let posture_positions = posture_positions.as_array();
+        let posture_velocities = posture_velocities.as_array();
+        let posture_accelerations = posture_accelerations.as_array();
         let protected_joint_coordinates = protected_joint_coordinates.as_slice()?;
         let mut root_translation_out = root_translation_out.as_array_mut();
         let mut root_quaternion_wxyz_out = root_quaternion_wxyz_out.as_array_mut();
@@ -15500,6 +15521,9 @@ impl FloatingWbcSession {
             && priorities.len() == target_count
             && weights.len() == target_count
             && posture.len() == dof
+            && posture_positions.shape() == [ticks, dof]
+            && posture_velocities.shape() == [ticks, dof]
+            && posture_accelerations.shape() == [ticks, dof]
             && root_translation_out.shape() == [ticks, 3]
             && root_quaternion_wxyz_out.shape() == [ticks, 4]
             && center_of_mass_tracked_out.shape() == [ticks, 3]
@@ -15797,11 +15821,31 @@ impl FloatingWbcSession {
             };
             self.desired_acceleration.as_mut_slice()[3..6]
                 .copy_from_slice(desired_root_linear.as_slice());
-            for (coordinate, &posture_target) in posture.iter().enumerate() {
-                self.desired_acceleration[6 + coordinate] = (posture_omega
-                    * posture_omega
-                    * (posture_target - self.state.robot.q[coordinate])
-                    - 2.0 * posture_omega * self.state.robot.v[coordinate])
+            for (coordinate, &fallback_posture_target) in posture.iter().enumerate() {
+                let posture_target = sample_array2_scalar_jet(
+                    &posture_positions,
+                    &posture_velocities,
+                    &posture_accelerations,
+                    coordinate,
+                    reference_tick,
+                    reference_next_tick,
+                    reference_fraction,
+                    dt_seconds,
+                    phase_rate,
+                    phase_acceleration,
+                )?;
+                let target_position = if posture_target.value.is_finite() {
+                    posture_target.value
+                } else {
+                    fallback_posture_target
+                };
+                self.desired_acceleration[6 + coordinate] = (posture_target.acceleration
+                    + posture_omega
+                        * posture_omega
+                        * (target_position - self.state.robot.q[coordinate])
+                    + 2.0
+                        * posture_omega
+                        * (posture_target.velocity - self.state.robot.v[coordinate]))
                     .clamp(-100.0, 100.0);
             }
             for (slot, &coordinate) in self.protected_joint_coordinates.iter().enumerate() {
@@ -16804,6 +16848,24 @@ impl FloatingWbcSession {
                 self.output.contact_force_basis.fill(0.0);
                 self.output.contact_force_world.fill(0.0);
                 self.output.active_contacts = 0;
+                // The rejected contact solve may have left diagnostic values
+                // from its hard rows in the reusable output workspace.  The
+                // fallback has no contact, torque, support, or collision
+                // witness; never expose those stale values as if they were
+                // measured authority in the next browser/plant snapshot.
+                self.output.actuator_torque.fill(0.0);
+                self.output.dynamics_residual_linf = 0.0;
+                self.output.contact_acceleration_residual_linf = 0.0;
+                self.output.minimum_friction_margin = f64::INFINITY;
+                self.output.minimum_support_margin_m = f64::INFINITY;
+                self.output.limiting_support_patch = None;
+                self.output.minimum_torque_margin = f64::INFINITY;
+                self.output.minimum_actuator_effort_margin = f64::INFINITY;
+                self.output.limiting_actuator = None;
+                self.output.collision_barrier =
+                    bonesaw_core::CollisionAccelerationBarrierEvidence::disabled();
+                self.output.world_collision_barrier =
+                    bonesaw_core::WorldCollisionBarrierEvidence::disabled();
                 self.output.solve.status = SolveStatus::MaxIterations;
                 self.output.solve.level_residuals.clear();
                 self.output.solve.clipped_levels.clear();
@@ -17030,6 +17092,35 @@ fn sample_array2_vector_jet(
         .ok_or_else(|| PyValueError::new_err("authored vector jet is invalid"))?;
     time_warp_vector_jet(authored, phase_rate, phase_acceleration)
         .ok_or_else(|| PyValueError::new_err("reference time warp is invalid"))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_array2_scalar_jet(
+    positions: &ArrayView2<'_, f64>,
+    velocities: &ArrayView2<'_, f64>,
+    accelerations: &ArrayView2<'_, f64>,
+    coordinate: usize,
+    tick: usize,
+    next_tick: usize,
+    fraction: f64,
+    dt_seconds: f64,
+    phase_rate: f64,
+    phase_acceleration: f64,
+) -> PyResult<ScalarJet> {
+    let start = ScalarJet {
+        value: positions[[tick, coordinate]],
+        velocity: velocities[[tick, coordinate]],
+        acceleration: accelerations[[tick, coordinate]],
+    };
+    let end = ScalarJet {
+        value: positions[[next_tick, coordinate]],
+        velocity: velocities[[next_tick, coordinate]],
+        acceleration: accelerations[[next_tick, coordinate]],
+    };
+    let authored = sample_quintic_scalar_jet(start, end, dt_seconds, fraction)
+        .ok_or_else(|| PyValueError::new_err("authored scalar jet is invalid"))?;
+    time_warp_scalar_jet(authored, phase_rate, phase_acceleration)
+        .ok_or_else(|| PyValueError::new_err("reference scalar time warp is invalid"))
 }
 
 #[allow(clippy::too_many_arguments)]

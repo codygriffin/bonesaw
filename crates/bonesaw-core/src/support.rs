@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{math::Vec3, signal::VectorJet};
+use crate::{
+    math::Vec3,
+    signal::{ScalarJet, VectorJet},
+};
 
 /// Contact-side state owned by the controller rather than inferred from solve
 /// status codes after the fact.
@@ -532,6 +535,60 @@ pub fn sample_quintic_vector_jet(
     })
 }
 
+/// Interpolate one scalar jet between adjacent authored samples without heap
+/// traffic. Endpoint velocity and acceleration are expressed per second.
+pub fn sample_quintic_scalar_jet(
+    start: ScalarJet,
+    end: ScalarJet,
+    duration_seconds: f64,
+    phase: f64,
+) -> Option<ScalarJet> {
+    if ![
+        start.value,
+        start.velocity,
+        start.acceleration,
+        end.value,
+        end.velocity,
+        end.acceleration,
+        duration_seconds,
+        phase,
+    ]
+    .iter()
+    .all(|value| value.is_finite())
+        || duration_seconds <= 0.0
+        || !(0.0..=1.0).contains(&phase)
+    {
+        return None;
+    }
+    if phase == 0.0 {
+        return Some(start);
+    }
+    if phase == 1.0 {
+        return Some(end);
+    }
+    let duration_squared = duration_seconds * duration_seconds;
+    let c0 = start.value;
+    let c1 = start.velocity * duration_seconds;
+    let c2 = start.acceleration * (0.5 * duration_squared);
+    let position_residual = end.value - (c0 + c1 + c2);
+    let velocity_residual = end.velocity * duration_seconds - (c1 + 2.0 * c2);
+    let acceleration_residual = end.acceleration * duration_squared - 2.0 * c2;
+    let c3 = 10.0 * position_residual - 4.0 * velocity_residual + 0.5 * acceleration_residual;
+    let c4 = -15.0 * position_residual + 7.0 * velocity_residual - acceleration_residual;
+    let c5 = 6.0 * position_residual - 3.0 * velocity_residual + 0.5 * acceleration_residual;
+    let value = ((((c5 * phase + c4) * phase + c3) * phase + c2) * phase + c1) * phase + c0;
+    let velocity =
+        ((((5.0 * c5 * phase + 4.0 * c4) * phase + 3.0 * c3) * phase + 2.0 * c2) * phase + c1)
+            / duration_seconds;
+    let acceleration = (((20.0 * c5 * phase + 12.0 * c4) * phase + 6.0 * c3) * phase + 2.0 * c2)
+        / duration_squared;
+    Some(ScalarJet {
+        value,
+        velocity,
+        acceleration,
+    })
+}
+
 /// Apply the chain rule for a dimensionless authored phase rate.
 pub fn time_warp_vector_jet(
     authored: VectorJet,
@@ -551,6 +608,33 @@ pub fn time_warp_vector_jet(
         return None;
     }
     Some(VectorJet {
+        value: authored.value,
+        velocity: authored.velocity * phase_rate,
+        acceleration: authored.acceleration * phase_rate.powi(2)
+            + authored.velocity * phase_acceleration_per_second,
+    })
+}
+
+/// Apply the same reference-cursor chain rule to a scalar authored jet.
+pub fn time_warp_scalar_jet(
+    authored: ScalarJet,
+    phase_rate: f64,
+    phase_acceleration_per_second: f64,
+) -> Option<ScalarJet> {
+    if ![
+        authored.value,
+        authored.velocity,
+        authored.acceleration,
+        phase_rate,
+        phase_acceleration_per_second,
+    ]
+    .iter()
+    .all(|value| value.is_finite())
+        || phase_rate < 0.0
+    {
+        return None;
+    }
+    Some(ScalarJet {
         value: authored.value,
         velocity: authored.velocity * phase_rate,
         acceleration: authored.acceleration * phase_rate.powi(2)
@@ -928,5 +1012,40 @@ mod tests {
             warped.acceleration,
             authored.acceleration * 0.25 + authored.velocity * -2.0
         );
+    }
+
+    #[test]
+    fn quintic_scalar_jet_preserves_both_boundary_jets() {
+        let start = ScalarJet {
+            value: 0.2,
+            velocity: 0.7,
+            acceleration: -0.3,
+        };
+        let end = ScalarJet {
+            value: 0.8,
+            velocity: -0.2,
+            acceleration: 0.1,
+        };
+        assert_eq!(
+            sample_quintic_scalar_jet(start, end, 0.005, 0.0),
+            Some(start)
+        );
+        let sampled_end = sample_quintic_scalar_jet(start, end, 0.005, 1.0).unwrap();
+        assert!((sampled_end.value - end.value).abs() <= 1e-12);
+        assert!((sampled_end.velocity - end.velocity).abs() <= 1e-12);
+        assert!((sampled_end.acceleration - end.acceleration).abs() <= 1e-12);
+    }
+
+    #[test]
+    fn time_warp_scalar_jet_applies_the_full_chain_rule() {
+        let authored = ScalarJet {
+            value: 1.0,
+            velocity: 2.0,
+            acceleration: 4.0,
+        };
+        let warped = time_warp_scalar_jet(authored, 0.5, -2.0).unwrap();
+        assert_eq!(warped.value, 1.0);
+        assert_eq!(warped.velocity, 1.0);
+        assert_eq!(warped.acceleration, -3.0);
     }
 }
