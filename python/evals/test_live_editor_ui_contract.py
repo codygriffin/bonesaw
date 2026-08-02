@@ -101,6 +101,19 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("message.center_of_mass_world", self.javascript)
         self.assertIn("solver_forward_inverse", self.javascript)
 
+    def test_mujoco_pause_resume_reset_controls_are_explicit(self) -> None:
+        for selector in ('#pause-button', '#resume-button', '#reset-button'):
+            self.assertIn(f'id="{selector[1:]}"', self.html)
+        self.assertIn('type: "plant_pause"', self.javascript)
+        self.assertIn('type: "plant_resume"', self.javascript)
+        self.assertIn('if (plantConnected) sendPlant({ type: "plant_reset" });', self.javascript)
+        self.assertIn('if (interactionMode !== "push") send({ type: "reset" });', self.javascript)
+        self.assertIn('plantPaused = Boolean(message.paused', self.javascript)
+        self.assertIn('pauseButton.disabled = !robotControlsEnabled', self.javascript)
+        self.assertIn('resumeButton.disabled = !robotControlsEnabled', self.javascript)
+        self.assertIn('pushTool.disabled = !robotControlsEnabled || !plantGateway?.available || plantPaused', self.javascript)
+        self.assertIn('"paused": self.paused', (ROOT / 'python/evals/upkie_live_plant_worker.py').read_text())
+
     def test_plant_state_owns_rendering_and_authority_in_push_mode(self) -> None:
         self.assertIn('source: "plant"', self.javascript)
         self.assertIn('latestSnapshot.message.source === "plant"', self.javascript)

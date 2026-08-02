@@ -36,6 +36,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.worker.reset()
+        self.worker.paused = False
 
     def test_offset_force_streams_its_physical_moment(self) -> None:
         body = "base"
@@ -150,6 +151,65 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             "maximum_abs_constraint_force",
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
+
+    def test_pause_freezes_mujoco_time_but_keeps_stream_heartbeat(self) -> None:
+        running = self.worker.step({"type": "step", "command_id": 10})
+        time_before = float(self.worker.data.time)
+        tick_before = int(running["tick"])
+        qpos_before = self.worker.data.qpos.copy()
+        qvel_before = self.worker.data.qvel.copy()
+
+        paused = self.worker.step(
+            {"type": "step", "command_id": 11, "paused": True}
+        )
+        self.assertEqual(paused["type"], "plant_state")
+        self.assertTrue(paused["paused"])
+        self.assertTrue(paused["simulator"]["paused"])
+        self.assertTrue(paused["metrics"]["paused"])
+        self.assertEqual(paused["metrics"]["wbc_status"], "paused")
+        self.assertEqual(int(paused["tick"]), tick_before + 1)
+        self.assertEqual(float(self.worker.data.time), time_before)
+        np.testing.assert_array_equal(self.worker.data.qpos, qpos_before)
+        np.testing.assert_array_equal(self.worker.data.qvel, qvel_before)
+
+        resumed = self.worker.step(
+            {"type": "step", "command_id": 12, "paused": False}
+        )
+        self.assertFalse(resumed["paused"])
+        self.assertGreater(float(self.worker.data.time), time_before)
+        self.assertNotEqual(resumed["metrics"]["wbc_status"], "paused")
+
+    def test_reset_while_paused_rebuilds_pose_and_stays_paused(self) -> None:
+        self.worker.step({"type": "step", "paused": True})
+        epoch_before = self.worker.reset_epoch
+        reset = self.worker.step(
+            {"type": "step", "command_id": 13, "reset": True, "paused": True}
+        )
+        self.assertEqual(reset["reset_epoch"], epoch_before + 1)
+        self.assertTrue(reset["paused"])
+        self.assertEqual(float(reset["simulator"]["time_s"]), 0.0)
+        self.assertEqual(reset["metrics"]["wbc_status"], "paused")
+
+    def test_paused_worker_rejects_active_external_load(self) -> None:
+        self.worker.step({"type": "step", "paused": True})
+        body_id = self.worker.body_by_name["base"]
+        point = self.worker.data.xipos[body_id].copy()
+        result = self.worker.step(
+            {
+                "type": "step",
+                "paused": True,
+                "external_load": {
+                    "active": True,
+                    "body": "base",
+                    "force_world": [1.0, 0.0, 0.0],
+                    "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
+                    "request_id": 14,
+                },
+            }
+        )
+        self.assertEqual(result["type"], "plant_error")
+        self.assertIn("disabled while MuJoCo is paused", result["message"])
 
     def test_wrench_accepts_a_non_base_mesh_body(self) -> None:
         body = "left_femur"

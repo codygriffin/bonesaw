@@ -975,6 +975,13 @@ pub enum CompliantStepIntegrator {
     ImplicitEuler,
     /// Exact scalar tangent decay and trapezoidal gap update.
     ExponentialTrapezoidal,
+    /// Four-stage generalized Runge--Kutta state/contact evolution.
+    ///
+    /// This integrator is only valid for the model-coupled solver. The
+    /// scalar/contact-space solvers retain [`Self::ExponentialTrapezoidal`]
+    /// as their exact tangent-decay/trapezoidal-gap scheme and reject this
+    /// model-owned variant.
+    GeneralizedRk4,
 }
 
 /// Positive time-constant/damping-ratio compliant-contact law.
@@ -1082,6 +1089,9 @@ pub struct ModelCoupledPositiveReferenceCompliantContactImpulseInput<'a> {
     pub compliance_substeps: usize,
     pub projection_sweeps: usize,
     pub friction_cone: CompliantFrictionCone,
+    /// `ExplicitEuler`, `ImplicitEuler`, and `ExponentialTrapezoidal` keep
+    /// their legacy single-event behavior; `GeneralizedRk4` enables the
+    /// four-stage state/contact evolution below.
     pub integrator: CompliantStepIntegrator,
 }
 
@@ -1089,6 +1099,7 @@ pub struct ModelCoupledPositiveReferenceCompliantContactImpulseInput<'a> {
 #[derive(Clone, Debug)]
 pub struct ModelCoupledPositiveReferenceContactScratch {
     state: FloatingRobotState,
+    rk4_base_state: FloatingRobotState,
     response_scratch: ContactTransitionResponseScratch,
     local_points: Vec<crate::math::Vec3>,
     contact_surface_radius_m: Vec<f64>,
@@ -1109,6 +1120,11 @@ pub struct ModelCoupledPositiveReferenceContactScratch {
     total_impulse: Vec<f64>,
     generalized_velocity_delta: DVector<f64>,
     generalized_free_acceleration: DVector<f64>,
+    held_generalized_force: DVector<f64>,
+    zero_generalized_acceleration: DVector<f64>,
+    rk4_stage_velocity: [DVector<f64>; 4],
+    rk4_stage_acceleration: [DVector<f64>; 4],
+    rk4_stage_impulse: [DVector<f64>; 4],
 }
 
 impl ModelCoupledPositiveReferenceContactScratch {
@@ -1122,6 +1138,7 @@ impl ModelCoupledPositiveReferenceContactScratch {
         ];
         Self {
             state: FloatingRobotState::zeros(model),
+            rk4_base_state: FloatingRobotState::zeros(model),
             response_scratch: ContactTransitionResponseScratch::new(model),
             local_points: vec![crate::math::Vec3::zeros(); contact_count],
             contact_surface_radius_m: vec![0.0; contact_count],
@@ -1149,6 +1166,11 @@ impl ModelCoupledPositiveReferenceContactScratch {
             total_impulse: vec![0.0; axes],
             generalized_velocity_delta: DVector::zeros(generalized_dof),
             generalized_free_acceleration: DVector::zeros(generalized_dof),
+            held_generalized_force: DVector::zeros(generalized_dof),
+            zero_generalized_acceleration: DVector::zeros(generalized_dof),
+            rk4_stage_velocity: std::array::from_fn(|_| DVector::zeros(generalized_dof)),
+            rk4_stage_acceleration: std::array::from_fn(|_| DVector::zeros(generalized_dof)),
+            rk4_stage_impulse: std::array::from_fn(|_| DVector::zeros(axes)),
         }
     }
 }
@@ -1613,6 +1635,9 @@ pub fn solve_positive_reference_compliant_contact_impulse(
     contact_velocity_after_out: &mut [f64],
     contact_gap_after_out: &mut [f64],
 ) -> Result<(), CoupledContactImpulseError> {
+    if input.integrator == CompliantStepIntegrator::GeneralizedRk4 {
+        return Err(CoupledContactImpulseError::InvalidConfig);
+    }
     let axes = input.contact_velocity.len();
     if axes == 0 || !axes.is_multiple_of(CONTACT_TRANSITION_IMPULSE_WIDTH) {
         return Err(CoupledContactImpulseError::Dimension);
@@ -1759,6 +1784,9 @@ pub fn solve_positive_reference_compliant_contact_impulse(
                             / decay_rate
                         - input.contact_free_acceleration[axis] * substep_s
                 }
+                CompliantStepIntegrator::GeneralizedRk4 => {
+                    unreachable!("generalized RK4 is model-coupled only")
+                }
             };
             let desired_total_x =
                 (impulse_out[tangent_x] + contact_velocity_delta(tangent_x) / diagonal_x).clamp(
@@ -1835,6 +1863,9 @@ fn validate_coupled_positive_reference_compliant_contact(
     contact_velocity_after_out_len: usize,
     contact_gap_after_out_len: usize,
 ) -> Result<usize, CoupledContactImpulseError> {
+    if input.integrator == CompliantStepIntegrator::GeneralizedRk4 {
+        return Err(CoupledContactImpulseError::InvalidConfig);
+    }
     let axes = input.contact_velocity.len();
     if axes == 0 || !axes.is_multiple_of(CONTACT_TRANSITION_IMPULSE_WIDTH) {
         return Err(CoupledContactImpulseError::Dimension);
@@ -2058,6 +2089,9 @@ pub fn solve_coupled_positive_reference_compliant_contact_impulse(
                             / decay_rate
                         - input.contact_free_acceleration[axis] * substep_s
                 }
+                CompliantStepIntegrator::GeneralizedRk4 => {
+                    unreachable!("generalized RK4 is model-coupled only")
+                }
             };
             desired_velocity_delta_scratch[tangent_x] = tangent_delta(tangent_x);
             desired_velocity_delta_scratch[tangent_y] = tangent_delta(tangent_y);
@@ -2138,6 +2172,21 @@ fn refresh_model_contact_snapshot(
     apply_acceleration_bias: bool,
     scratch: &mut ModelCoupledPositiveReferenceContactScratch,
 ) -> Result<(), ModelCoupledPositiveReferenceContactError> {
+    refresh_model_contact_geometry_and_response(
+        model,
+        plane_normal_world,
+        plane_offset_m,
+        scratch,
+    )?;
+    write_model_contact_motion(apply_acceleration_bias, model, scratch)
+}
+
+fn refresh_model_contact_geometry_and_response(
+    model: &CompiledModel,
+    plane_normal_world: crate::math::Vec3,
+    plane_offset_m: f64,
+    scratch: &mut ModelCoupledPositiveReferenceContactScratch,
+) -> Result<(), ModelCoupledPositiveReferenceContactError> {
     let generalized_dof = model.dof + 6;
     let contacts = scratch.live_contacts.len();
     let axes = contacts * CONTACT_TRANSITION_IMPULSE_WIDTH;
@@ -2164,6 +2213,19 @@ fn refresh_model_contact_snapshot(
         &mut scratch.delassus,
     )
     .map_err(ModelCoupledPositiveReferenceContactError::Response)?;
+    if scratch.response.len() != generalized_dof * axes {
+        return Err(ModelCoupledPositiveReferenceContactError::Dimension);
+    }
+    Ok(())
+}
+
+fn write_model_contact_motion(
+    apply_acceleration_bias: bool,
+    model: &CompiledModel,
+    scratch: &mut ModelCoupledPositiveReferenceContactScratch,
+) -> Result<(), ModelCoupledPositiveReferenceContactError> {
+    let generalized_dof = model.dof + 6;
+    let contacts = scratch.live_contacts.len();
     model
         .floating_inverse_dynamics_into(
             &scratch.state.robot,
@@ -2221,10 +2283,113 @@ fn refresh_model_contact_snapshot(
                 };
         }
     }
-    if scratch.response.len() != generalized_dof * axes {
-        return Err(ModelCoupledPositiveReferenceContactError::Dimension);
-    }
     Ok(())
+}
+
+/// Reconstruct stage-local free acceleration under the generalized force
+/// identified at the authored initial state. The response writer has already
+/// factored the current floating mass matrix, so this is one allocation-free
+/// triangular solve followed by inverse dynamics to populate point motion.
+fn refresh_model_free_acceleration_from_held_force(
+    model: &CompiledModel,
+    scratch: &mut ModelCoupledPositiveReferenceContactScratch,
+) -> Result<(), ModelCoupledPositiveReferenceContactError> {
+    model
+        .floating_bias_forces_into(
+            &scratch.state.robot,
+            scratch.state.root_twist_world,
+            crate::math::Vec3::zeros(),
+            &scratch.response_scratch.model,
+            &mut scratch.response_scratch.dynamics,
+            &mut scratch.response_scratch.rhs,
+        )
+        .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+    for coordinate in 0..scratch.held_generalized_force.len() {
+        scratch.response_scratch.partition_rhs[coordinate] =
+            scratch.held_generalized_force[coordinate] - scratch.response_scratch.rhs[coordinate];
+    }
+    if !solve_spd_factor_into(
+        &scratch.response_scratch.mass_factor,
+        &scratch.response_scratch.partition_rhs,
+        &mut scratch.generalized_free_acceleration,
+    ) {
+        return Err(ModelCoupledPositiveReferenceContactError::Response(
+            ContactTransitionResponseError::SingularMassMatrix,
+        ));
+    }
+    write_model_contact_motion(true, model, scratch)
+}
+
+fn write_floating_velocity(state: &FloatingRobotState, velocity: &mut DVector<f64>) {
+    velocity.as_mut_slice()[..6].copy_from_slice(state.root_twist_world.0.as_slice());
+    velocity.as_mut_slice()[6..].copy_from_slice(state.robot.v.as_slice());
+}
+
+fn overwrite_floating_velocity(state: &mut FloatingRobotState, velocity: &DVector<f64>) {
+    state
+        .root_twist_world
+        .0
+        .as_mut_slice()
+        .copy_from_slice(&velocity.as_slice()[..6]);
+    state
+        .robot
+        .v
+        .as_mut_slice()
+        .copy_from_slice(&velocity.as_slice()[6..]);
+}
+
+fn solve_model_contact_stage(
+    input: ModelCoupledPositiveReferenceCompliantContactImpulseInput<'_>,
+    state_step_s: f64,
+    local_integrator: CompliantStepIntegrator,
+    scratch: &mut ModelCoupledPositiveReferenceContactScratch,
+) -> Result<(), ModelCoupledPositiveReferenceContactError> {
+    for contact in 0..scratch.live_contacts.len() {
+        let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
+        let tangent_y = tangent_x + 1;
+        let normal = tangent_x + 2;
+        if scratch.contact_gap[contact] > 0.0 {
+            scratch.remaining_impulse_upper[tangent_x] = 0.0;
+            scratch.remaining_impulse_upper[tangent_y] = 0.0;
+            scratch.remaining_impulse_upper[normal] = 0.0;
+            continue;
+        }
+        scratch.remaining_impulse_upper[tangent_x] =
+            (input.impulse_upper[tangent_x] - scratch.total_impulse[tangent_x].abs()).max(0.0);
+        scratch.remaining_impulse_upper[tangent_y] =
+            (input.impulse_upper[tangent_y] - scratch.total_impulse[tangent_y].abs()).max(0.0);
+        scratch.remaining_impulse_upper[normal] =
+            (input.impulse_upper[normal] - scratch.total_impulse[normal]).max(0.0);
+    }
+    solve_coupled_positive_reference_compliant_contact_impulse(
+        CoupledPositiveReferenceCompliantContactImpulseInput {
+            contact_gap: &scratch.contact_gap,
+            contact_velocity: &scratch.contact_velocity,
+            contact_free_acceleration: &scratch.contact_free_acceleration,
+            delassus: &scratch.delassus,
+            impulse_upper: &scratch.remaining_impulse_upper,
+            friction: input.friction,
+            time_constant_s: input.time_constant_s,
+            damping_ratio: input.damping_ratio,
+            impedance_min: input.impedance_min,
+            impedance_max: input.impedance_max,
+            impedance_width_m: input.impedance_width_m,
+            impedance_midpoint: input.impedance_midpoint,
+            impedance_power: input.impedance_power,
+            minimum_time_constant_s: input.minimum_time_constant_s,
+            time_step_s: state_step_s,
+            substeps: input.compliance_substeps,
+            projection_sweeps: input.projection_sweeps,
+            friction_cone: input.friction_cone,
+            integrator: local_integrator,
+        },
+        &mut scratch.desired_velocity_delta,
+        &mut scratch.step_impulse,
+        &mut scratch.outer_impulse,
+        &mut scratch.step_velocity_after,
+        &mut scratch.step_gap_after,
+    )
+    .map_err(ModelCoupledPositiveReferenceContactError::Contact)
 }
 
 /// Advance a floating model through a bounded sequence of causal contact
@@ -2281,6 +2446,20 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
         || scratch.total_impulse.len() != axes
         || scratch.generalized_velocity_delta.len() != generalized_dof
         || scratch.generalized_free_acceleration.len() != generalized_dof
+        || scratch.held_generalized_force.len() != generalized_dof
+        || scratch.zero_generalized_acceleration.len() != generalized_dof
+        || scratch
+            .rk4_stage_velocity
+            .iter()
+            .any(|value| value.len() != generalized_dof)
+        || scratch
+            .rk4_stage_acceleration
+            .iter()
+            .any(|value| value.len() != generalized_dof)
+        || scratch
+            .rk4_stage_impulse
+            .iter()
+            .any(|value| value.len() != axes)
         || state_after_out.robot.q.len() != model.dof
         || state_after_out.robot.v.len() != model.dof
     {
@@ -2360,81 +2539,151 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
             input.initial_contact_free_acceleration[axis] - scratch.contact_free_acceleration[axis];
         scratch.contact_free_acceleration[axis] = input.initial_contact_free_acceleration[axis];
     }
+    scratch
+        .held_generalized_force
+        .copy_from(&scratch.response_scratch.rhs);
     scratch.total_impulse.fill(0.0);
     let state_step_s = input.time_step_s / input.state_steps as f64;
-    for _ in 0..input.state_steps {
-        for contact in 0..contacts {
-            let tangent_x = contact * CONTACT_TRANSITION_IMPULSE_WIDTH;
-            let tangent_y = tangent_x + 1;
-            let normal = tangent_x + 2;
-            // Collision membership is sampled at the beginning of the
-            // authored state step. A separated point may cross during this
-            // step, but it cannot receive an impulse until the next refresh.
-            // This keeps event detection on the declared outer clock instead
-            // of silently promoting compliant inner iterations to collision
-            // detector calls.
-            if scratch.contact_gap[contact] > 0.0 {
-                scratch.remaining_impulse_upper[tangent_x] = 0.0;
-                scratch.remaining_impulse_upper[tangent_y] = 0.0;
-                scratch.remaining_impulse_upper[normal] = 0.0;
-                continue;
+    if input.integrator == CompliantStepIntegrator::GeneralizedRk4 {
+        let stage_scale = [0.0, 0.5, 0.5, 1.0];
+        let stage_source = [0, 0, 1, 2];
+        let rk4_weight = [1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0];
+        for _ in 0..input.state_steps {
+            scratch.rk4_base_state.clone_from(&scratch.state);
+            for stage in 0..4 {
+                if stage > 0 {
+                    let source = stage_source[stage];
+                    let stage_dt = stage_scale[stage] * state_step_s;
+                    scratch.state.clone_from(&scratch.rk4_base_state);
+                    overwrite_floating_velocity(
+                        &mut scratch.state,
+                        &scratch.rk4_stage_velocity[source],
+                    );
+                    model
+                        .integrate_floating(
+                            &mut scratch.state,
+                            &scratch.zero_generalized_acceleration,
+                            stage_dt,
+                        )
+                        .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+                    for coordinate in 0..generalized_dof {
+                        scratch.generalized_velocity_delta[coordinate] = scratch.rk4_stage_velocity
+                            [0][coordinate]
+                            + stage_dt * scratch.rk4_stage_acceleration[source][coordinate];
+                    }
+                    overwrite_floating_velocity(
+                        &mut scratch.state,
+                        &scratch.generalized_velocity_delta,
+                    );
+                    model
+                        .integrate_floating(
+                            &mut scratch.state,
+                            &scratch.zero_generalized_acceleration,
+                            0.0,
+                        )
+                        .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+                }
+                refresh_model_contact_geometry_and_response(
+                    model,
+                    input.plane_normal_world,
+                    input.plane_offset_m,
+                    scratch,
+                )?;
+                refresh_model_free_acceleration_from_held_force(model, scratch)?;
+                write_floating_velocity(&scratch.state, &mut scratch.rk4_stage_velocity[stage]);
+                // The local explicit solve evaluates the compliant-contact
+                // right-hand side at this RK stage. The four generalized
+                // state evaluations, rather than the former point-only
+                // exponential/trapezoidal update, now own the global clock.
+                solve_model_contact_stage(
+                    input,
+                    state_step_s,
+                    CompliantStepIntegrator::ExplicitEuler,
+                    scratch,
+                )?;
+                scratch.rk4_stage_impulse[stage]
+                    .as_mut_slice()
+                    .copy_from_slice(&scratch.outer_impulse);
+                for coordinate in 0..generalized_dof {
+                    let contact_acceleration = (0..axes)
+                        .map(|axis| {
+                            scratch.response[coordinate * axes + axis] * scratch.outer_impulse[axis]
+                                / state_step_s
+                        })
+                        .sum::<f64>();
+                    scratch.rk4_stage_acceleration[stage][coordinate] =
+                        scratch.generalized_free_acceleration[coordinate] + contact_acceleration;
+                }
             }
-            scratch.remaining_impulse_upper[tangent_x] =
-                (input.impulse_upper[tangent_x] - scratch.total_impulse[tangent_x].abs()).max(0.0);
-            scratch.remaining_impulse_upper[tangent_y] =
-                (input.impulse_upper[tangent_y] - scratch.total_impulse[tangent_y].abs()).max(0.0);
-            scratch.remaining_impulse_upper[normal] =
-                (input.impulse_upper[normal] - scratch.total_impulse[normal]).max(0.0);
+
+            for axis in 0..axes {
+                scratch.outer_impulse[axis] = (0..4)
+                    .map(|stage| rk4_weight[stage] * scratch.rk4_stage_impulse[stage][axis])
+                    .sum();
+                scratch.total_impulse[axis] += scratch.outer_impulse[axis];
+            }
+            for coordinate in 0..generalized_dof {
+                scratch.generalized_velocity_delta[coordinate] = (0..4)
+                    .map(|stage| rk4_weight[stage] * scratch.rk4_stage_velocity[stage][coordinate])
+                    .sum();
+            }
+            scratch.state.clone_from(&scratch.rk4_base_state);
+            overwrite_floating_velocity(&mut scratch.state, &scratch.generalized_velocity_delta);
+            model
+                .integrate_floating(
+                    &mut scratch.state,
+                    &scratch.zero_generalized_acceleration,
+                    state_step_s,
+                )
+                .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+            for coordinate in 0..generalized_dof {
+                scratch.generalized_velocity_delta[coordinate] = scratch.rk4_stage_velocity[0]
+                    [coordinate]
+                    + state_step_s
+                        * (0..4)
+                            .map(|stage| {
+                                rk4_weight[stage]
+                                    * scratch.rk4_stage_acceleration[stage][coordinate]
+                            })
+                            .sum::<f64>();
+            }
+            overwrite_floating_velocity(&mut scratch.state, &scratch.generalized_velocity_delta);
+            model
+                .integrate_floating(
+                    &mut scratch.state,
+                    &scratch.zero_generalized_acceleration,
+                    0.0,
+                )
+                .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+            refresh_model_contact_geometry_and_response(
+                model,
+                input.plane_normal_world,
+                input.plane_offset_m,
+                scratch,
+            )?;
+            refresh_model_free_acceleration_from_held_force(model, scratch)?;
         }
-        solve_coupled_positive_reference_compliant_contact_impulse(
-            CoupledPositiveReferenceCompliantContactImpulseInput {
-                contact_gap: &scratch.contact_gap,
-                contact_velocity: &scratch.contact_velocity,
-                contact_free_acceleration: &scratch.contact_free_acceleration,
-                delassus: &scratch.delassus,
-                impulse_upper: &scratch.remaining_impulse_upper,
-                friction: input.friction,
-                time_constant_s: input.time_constant_s,
-                damping_ratio: input.damping_ratio,
-                impedance_min: input.impedance_min,
-                impedance_max: input.impedance_max,
-                impedance_width_m: input.impedance_width_m,
-                impedance_midpoint: input.impedance_midpoint,
-                impedance_power: input.impedance_power,
-                minimum_time_constant_s: input.minimum_time_constant_s,
-                time_step_s: state_step_s,
-                substeps: input.compliance_substeps,
-                projection_sweeps: input.projection_sweeps,
-                friction_cone: input.friction_cone,
-                integrator: input.integrator,
-            },
-            &mut scratch.desired_velocity_delta,
-            &mut scratch.step_impulse,
-            &mut scratch.outer_impulse,
-            &mut scratch.step_velocity_after,
-            &mut scratch.step_gap_after,
-        )
-        .map_err(ModelCoupledPositiveReferenceContactError::Contact)?;
-        for axis in 0..axes {
-            scratch.total_impulse[axis] += scratch.outer_impulse[axis];
-        }
-        for coordinate in 0..generalized_dof {
-            scratch.generalized_velocity_delta[coordinate] = (0..axes)
-                .map(|axis| {
-                    scratch.response[coordinate * axes + axis] * scratch.outer_impulse[axis]
-                })
-                .sum();
-        }
-        for axis in 0..6 {
-            scratch.state.root_twist_world.0[axis] += scratch.generalized_velocity_delta[axis];
-        }
-        for joint in 0..model.dof {
-            scratch.state.robot.v[joint] += scratch.generalized_velocity_delta[6 + joint];
-        }
-        if matches!(
-            input.integrator,
-            CompliantStepIntegrator::ExplicitEuler | CompliantStepIntegrator::ImplicitEuler
-        ) {
+    } else {
+        for _ in 0..input.state_steps {
+            // Euler collision membership is sampled once at the authored
+            // state-step boundary. RK4 instead samples each declared stage.
+            solve_model_contact_stage(input, state_step_s, input.integrator, scratch)?;
+            for axis in 0..axes {
+                scratch.total_impulse[axis] += scratch.outer_impulse[axis];
+            }
+            for coordinate in 0..generalized_dof {
+                scratch.generalized_velocity_delta[coordinate] = (0..axes)
+                    .map(|axis| {
+                        scratch.response[coordinate * axes + axis] * scratch.outer_impulse[axis]
+                    })
+                    .sum();
+            }
+            for axis in 0..6 {
+                scratch.state.root_twist_world.0[axis] += scratch.generalized_velocity_delta[axis];
+            }
+            for joint in 0..model.dof {
+                scratch.state.robot.v[joint] += scratch.generalized_velocity_delta[6 + joint];
+            }
             // The authored Euler families are velocity-first: apply free
             // acceleration to the tangent, then advance configuration with
             // that updated tangent. Do not replace this with midpoint
@@ -2456,22 +2705,14 @@ pub fn solve_model_coupled_positive_reference_compliant_contact_impulse(
                     state_step_s,
                 )
                 .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
-        } else {
-            model
-                .integrate_floating(
-                    &mut scratch.state,
-                    &scratch.generalized_free_acceleration,
-                    state_step_s,
-                )
-                .map_err(|_| ModelCoupledPositiveReferenceContactError::Model)?;
+            refresh_model_contact_snapshot(
+                model,
+                input.plane_normal_world,
+                input.plane_offset_m,
+                true,
+                scratch,
+            )?;
         }
-        refresh_model_contact_snapshot(
-            model,
-            input.plane_normal_world,
-            input.plane_offset_m,
-            true,
-            scratch,
-        )?;
     }
 
     impulse_out.copy_from_slice(&scratch.total_impulse);
@@ -3845,6 +4086,167 @@ mod tests {
     }
 
     #[test]
+    fn model_coupled_rk4_integrates_generalized_constant_force() {
+        let source = include_str!("../../../models/toy_humanoid.urdf");
+        let model = crate::urdf::load_urdf(source).unwrap();
+        let mut initial = FloatingRobotState::zeros(&model);
+        initial.robot.control_world_from_root.translation.vector.z = 1.0;
+        let contacts = [PointImpulseResponseSpec {
+            frame: FrameId(model.root.0),
+            point_world: crate::math::Vec3::new(0.0, 0.0, 1.0),
+            basis_world: [
+                crate::math::Vec3::x(),
+                crate::math::Vec3::y(),
+                crate::math::Vec3::z(),
+            ],
+        }];
+        let mut acceleration = vec![0.0; model.dof + 6];
+        acceleration[5] = 2.0;
+        let mut scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut impulse = [0.0; 3];
+        let mut velocity = [0.0; 3];
+        let mut gap = [0.0];
+        let mut after = FloatingRobotState::zeros(&model);
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &model,
+            ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+                initial_state: &initial,
+                contacts: &contacts,
+                contact_surface_radius_m: &[0.0],
+                plane_normal_world: crate::math::Vec3::z(),
+                plane_offset_m: 0.0,
+                generalized_free_acceleration: &acceleration,
+                initial_contact_free_acceleration: &[0.0, 0.0, 2.0],
+                impulse_upper: &[0.0; 3],
+                friction: &[0.5],
+                time_constant_s: &[0.02],
+                damping_ratio: &[1.0],
+                impedance_min: &[0.8],
+                impedance_max: &[0.9],
+                impedance_width_m: &[0.001],
+                impedance_midpoint: &[0.5],
+                impedance_power: &[2.0],
+                minimum_time_constant_s: 0.002,
+                time_step_s: 0.01,
+                state_steps: 1,
+                compliance_substeps: 1,
+                projection_sweeps: 1,
+                friction_cone: CompliantFrictionCone::Circular,
+                integrator: CompliantStepIntegrator::GeneralizedRk4,
+            },
+            &mut scratch,
+            &mut impulse,
+            &mut velocity,
+            &mut gap,
+            &mut after,
+        )
+        .unwrap();
+        assert_eq!(impulse, [0.0; 3]);
+        assert!((after.root_twist_world.0[5] - 0.02).abs() < 1.0e-12);
+        assert!(
+            (after.robot.control_world_from_root.translation.vector.z - 1.0001).abs() < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn model_coupled_rk4_detects_contact_at_intermediate_stage() {
+        let source = include_str!("../../../models/toy_humanoid.urdf");
+        let model = crate::urdf::load_urdf(source).unwrap();
+        let mut initial = FloatingRobotState::zeros(&model);
+        initial.robot.control_world_from_root.translation.vector.z = 0.0004;
+        initial.root_twist_world.0[5] = -1.0;
+        let contacts = [PointImpulseResponseSpec {
+            frame: FrameId(model.root.0),
+            point_world: crate::math::Vec3::new(0.0, 0.0, 0.0004),
+            basis_world: [
+                crate::math::Vec3::x(),
+                crate::math::Vec3::y(),
+                crate::math::Vec3::z(),
+            ],
+        }];
+        let acceleration = vec![0.0; model.dof + 6];
+        let base_input = ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+            initial_state: &initial,
+            contacts: &contacts,
+            contact_surface_radius_m: &[0.0],
+            plane_normal_world: crate::math::Vec3::z(),
+            plane_offset_m: 0.0,
+            generalized_free_acceleration: &acceleration,
+            initial_contact_free_acceleration: &[0.0; 3],
+            impulse_upper: &[0.0, 0.0, 10.0],
+            friction: &[0.5],
+            time_constant_s: &[0.02],
+            damping_ratio: &[1.0],
+            impedance_min: &[0.8],
+            impedance_max: &[0.9],
+            impedance_width_m: &[0.001],
+            impedance_midpoint: &[0.5],
+            impedance_power: &[2.0],
+            minimum_time_constant_s: 0.002,
+            time_step_s: 0.001,
+            state_steps: 1,
+            compliance_substeps: 1,
+            projection_sweeps: 1,
+            friction_cone: CompliantFrictionCone::Circular,
+            integrator: CompliantStepIntegrator::ExplicitEuler,
+        };
+        let mut explicit_scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut explicit_impulse = [0.0; 3];
+        let mut velocity = [0.0; 3];
+        let mut gap = [0.0];
+        let mut after = FloatingRobotState::zeros(&model);
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &model,
+            base_input,
+            &mut explicit_scratch,
+            &mut explicit_impulse,
+            &mut velocity,
+            &mut gap,
+            &mut after,
+        )
+        .unwrap();
+        assert_eq!(explicit_impulse, [0.0; 3]);
+
+        // Exponential-trapezoidal remains the legacy single-event model
+        // integrator. It samples the initial separated witness only, so this
+        // crossing is intentionally not promoted to a contact event.
+        let mut exponential_scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut exponential_impulse = [0.0; 3];
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &model,
+            ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+                integrator: CompliantStepIntegrator::ExponentialTrapezoidal,
+                ..base_input
+            },
+            &mut exponential_scratch,
+            &mut exponential_impulse,
+            &mut velocity,
+            &mut gap,
+            &mut after,
+        )
+        .unwrap();
+        assert_eq!(exponential_impulse, [0.0; 3]);
+
+        let mut rk4_scratch = ModelCoupledPositiveReferenceContactScratch::new(&model, 1);
+        let mut rk4_impulse = [0.0; 3];
+        solve_model_coupled_positive_reference_compliant_contact_impulse(
+            &model,
+            ModelCoupledPositiveReferenceCompliantContactImpulseInput {
+                integrator: CompliantStepIntegrator::GeneralizedRk4,
+                ..base_input
+            },
+            &mut rk4_scratch,
+            &mut rk4_impulse,
+            &mut velocity,
+            &mut gap,
+            &mut after,
+        )
+        .unwrap();
+        assert!(rk4_impulse[2] > 0.0);
+        assert!(after.root_twist_world.0[5] > initial.root_twist_world.0[5]);
+    }
+
+    #[test]
     fn model_coupled_contact_refreshes_convective_point_acceleration() {
         let source = include_str!("../../../models/toy_humanoid.urdf");
         let model = crate::urdf::load_urdf(source).unwrap();
@@ -4257,6 +4659,100 @@ mod tests {
         assert_eq!(impulse, [7.0; 3]);
         assert_eq!(after, [8.0; 3]);
         assert_eq!(gap_after, [9.0]);
+    }
+
+    #[test]
+    fn scalar_exponential_trapezoidal_is_distinct_from_model_rk4() {
+        let delassus = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let gap = [-0.001];
+        let velocity = [0.1, -0.2, -0.3];
+        let acceleration = [0.0, 0.0, -0.4];
+        let upper = [10.0; 3];
+        let friction = [0.5];
+        let effective_mass = [1.0];
+        let time_constant = [0.02];
+        let damping_ratio = [1.0];
+        let impedance_min = [0.8];
+        let impedance_max = [0.96];
+        let impedance_width = [0.001];
+        let impedance_midpoint = [0.5];
+        let impedance_power = [2.0];
+        let run = |integrator| {
+            let mut scratch = [0.0; 3];
+            let mut impulse = [0.0; 3];
+            let mut after = [0.0; 3];
+            let mut gap_after = [0.0];
+            solve_positive_reference_compliant_contact_impulse(
+                PositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &gap,
+                    contact_velocity: &velocity,
+                    contact_free_acceleration: &acceleration,
+                    delassus: &delassus,
+                    impulse_upper: &upper,
+                    friction: &friction,
+                    effective_normal_mass: &effective_mass,
+                    time_constant_s: &time_constant,
+                    damping_ratio: &damping_ratio,
+                    impedance_min: &impedance_min,
+                    impedance_max: &impedance_max,
+                    impedance_width_m: &impedance_width,
+                    impedance_midpoint: &impedance_midpoint,
+                    impedance_power: &impedance_power,
+                    minimum_time_constant_s: 0.002,
+                    time_step_s: 0.001,
+                    substeps: 4,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator,
+                },
+                &mut scratch,
+                &mut impulse,
+                &mut after,
+                &mut gap_after,
+            )
+            .map(|()| (impulse, after, gap_after))
+        };
+
+        let first = run(CompliantStepIntegrator::ExponentialTrapezoidal).unwrap();
+        let repeat = run(CompliantStepIntegrator::ExponentialTrapezoidal).unwrap();
+        assert_eq!(repeat, first);
+
+        let mut rejected_impulse = [7.0; 3];
+        let mut rejected_after = [8.0; 3];
+        let mut rejected_gap_after = [9.0];
+        let mut rejected_scratch = [0.0; 3];
+        assert_eq!(
+            solve_positive_reference_compliant_contact_impulse(
+                PositiveReferenceCompliantContactImpulseInput {
+                    contact_gap: &gap,
+                    contact_velocity: &velocity,
+                    contact_free_acceleration: &acceleration,
+                    delassus: &delassus,
+                    impulse_upper: &upper,
+                    friction: &friction,
+                    effective_normal_mass: &effective_mass,
+                    time_constant_s: &time_constant,
+                    damping_ratio: &damping_ratio,
+                    impedance_min: &impedance_min,
+                    impedance_max: &impedance_max,
+                    impedance_width_m: &impedance_width,
+                    impedance_midpoint: &impedance_midpoint,
+                    impedance_power: &impedance_power,
+                    minimum_time_constant_s: 0.002,
+                    time_step_s: 0.001,
+                    substeps: 4,
+                    friction_cone: CompliantFrictionCone::Circular,
+                    integrator: CompliantStepIntegrator::GeneralizedRk4,
+                },
+                &mut rejected_scratch,
+                &mut rejected_impulse,
+                &mut rejected_after,
+                &mut rejected_gap_after,
+            ),
+            Err(CoupledContactImpulseError::InvalidConfig)
+        );
+        assert_eq!(rejected_impulse, [7.0; 3]);
+        assert_eq!(rejected_after, [8.0; 3]);
+        assert_eq!(rejected_gap_after, [9.0]);
     }
 
     #[test]

@@ -197,6 +197,29 @@ def law_reduced_integrator_id(law: Any) -> int:
     return 0
 
 
+MODEL_INTEGRATOR_IDS = {
+    "explicit": 0,
+    "implicit": 1,
+    "exponential_trapezoidal": 2,
+    "generalized_rk4": 3,
+}
+
+
+def law_model_integrator_id(law: Any) -> int:
+    """Map the authored integrator for model-owned state evolution.
+
+    IDs retain the stable PyO3 ABI. IDs 0/1/2 remain explicit, implicit, and
+    scalar exponential-trapezoidal. Model ID 3 selects four generalized RK
+    stages with stage-local dynamics/contact refresh; ID 1 remains the
+    velocity-first implicit-family construction.
+    """
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_IMPLICITFAST):
+        return MODEL_INTEGRATOR_IDS["implicit"]
+    if law.integrator == int(mujoco.mjtIntegrator.mjINT_RK4):
+        return MODEL_INTEGRATOR_IDS["generalized_rk4"]
+    return MODEL_INTEGRATOR_IDS["explicit"]
+
+
 def law_cone_id(law: Any) -> int:
     return 0 if law.cone == int(mujoco.mjtCone.mjCONE_ELLIPTIC) else 1
 

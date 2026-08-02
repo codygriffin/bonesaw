@@ -69,6 +69,34 @@ def grouped_width(values: np.ndarray) -> dict[str, float]:
     return {name: 2.0 * value for name, value in group_maximum_absolute(values).items()}
 
 
+def model_state_tracking_residual(
+    initial_velocity: np.ndarray,
+    generalized_free_acceleration: np.ndarray,
+    response: np.ndarray,
+    actual_impulse: np.ndarray,
+    raw_velocity_error: np.ndarray,
+    predicted_final_velocity: np.ndarray,
+) -> np.ndarray:
+    """Compare the model-owned final tangent with the reference final tangent.
+
+    `raw_velocity_error` was archived against the causal initial-state linear
+    response. Reconstructing the observed reference delta is valid; scoring a
+    state-evolving solver by substituting only its final impulse into that
+    initial response is not.
+    """
+    reference_delta = (
+        raw_velocity_error
+        + generalized_free_acceleration * CONTROL_DT
+        + np.einsum("sdca,sca->sd", response, actual_impulse, optimize=True)
+    )
+    if (
+        initial_velocity.shape != reference_delta.shape
+        or predicted_final_velocity.shape != reference_delta.shape
+    ):
+        raise ValueError("model state tracking tangent shape mismatch")
+    return initial_velocity + reference_delta - predicted_final_velocity
+
+
 def execute_law(
     session: Any,
     replay: Any,
@@ -77,7 +105,15 @@ def execute_law(
     offset: int,
     q_nominal: np.ndarray,
     projection_sweeps: int,
+    model_integrator_id_fn=law_reduced_integrator_id,
 ) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
+    """Run one model-coupled law with an explicit ABI mapper.
+
+    Historical R230/R231 replays default to the legacy scalar mapping so an
+    RK4-labelled row remains reproducible. New generalized-RK4 audits pass
+    ``law_model_integrator_id`` explicitly, where model id 3 selects the
+    stage-local generalized implementation.
+    """
     prefix = law.name
     samples = len(replay[f"{prefix}_root_height"])
     joint_dof = int(session.joint_dof())
@@ -141,7 +177,7 @@ def execute_law(
             1,
             projection_sweeps,
             law_cone_id(law),
-            law_reduced_integrator_id(law),
+            model_integrator_id_fn(law),
             impulse[sample],
             contact_velocity_after[sample],
             contact_gap_after[sample],

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw RK4 final-tangent localization · r236</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw RK4 final-tangent localization · r236</h1>
+<blockquote>SPENT-LABEL DIAGNOSTIC ONLY · construction/selection/authority **INELIGIBLE** · new MuJoCo/policy/controller/selector/plant steps **0 / 0 / 0 / 0 / 0**.</blockquote>
+<p>R233&#x27;s original scorer projected the model&#x27;s final impulse through the initial mass response. That is invalid once Rust evolves state, geometry, dynamics, and response. R233 now scores the returned final generalized tangent directly; the old proxy remains named diagnostic evidence only.</p>
+<div class=table-wrap><table><thead><tr><th>law</th><th>exact sets</th><th>direct width · ang / lin / joint</th><th>joint width on exact sets</th><th>normal-impulse RMSE L / R</th><th>pitch-moment RMSE L / R</th></tr></thead><tbody><tr><td>medium_elliptic_rk4</td><td>47/48</td><td>0.285 / 0.043 / 10.446</td><td>10.446</td><td>0.195 / 0.730</td><td>0.0141 / 0.0311</td></tr><tr><td>hard_pyramidal_rk4</td><td>44/48</td><td>0.699 / 0.110 / 11.248</td><td>10.618</td><td>0.747 / 1.957</td><td>0.0344 / 0.0802</td></tr></tbody></table></div>
+<h2>Worst joint rows</h2>
+<ul><li>`medium_elliptic_rk4`: s22 left_ankle_roll_joint +5.223 rad/s (exact), s7 right_ankle_roll_joint -4.422 rad/s (exact), s23 left_ankle_roll_joint +4.316 rad/s (exact), s36 left_ankle_pitch_joint -2.355 rad/s (exact).</li><li>`hard_pyramidal_rk4`: s1 right_ankle_pitch_joint -5.624 rad/s (set mismatch), s3 right_ankle_roll_joint +5.309 rad/s (exact), s14 right_ankle_roll_joint -3.491 rad/s (set mismatch), s4 right_ankle_roll_joint +2.979 rad/s (exact).</li></ul>
+<h2>Localization</h2>
+<p>Medium&#x27;s worst 10.446 rad/s joint width occurs entirely inside rows whose contact sets are already exact; hard still has both exact-set and set-mismatch tails. The largest coordinates are ankle pitch/roll. The official fixture already uses the same four 5 mm sphere contacts per foot, so primitive count/radius is not the missing mechanism. Remaining work is stage-local force and within-foot wrench distribution plus reference constraint-solver semantics—not another scalar activation mask.</p>
+<p>No coefficient, sweep count, residual box, selector, or command authority is changed from this spent-label diagnostic.</p>
+<p>An independent retained rerun reproduces all six NPZ arrays exactly.</p></main></body></html>

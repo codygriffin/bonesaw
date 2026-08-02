@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw generalized RK4 holdout · r233</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw generalized RK4 fresh holdout · r233</h1>
+<blockquote>Mechanism **PASS** · frozen profile **REJECTED** · authority **NOT ADMITTED**.</blockquote>
+<p>Two previously unused RK4 contact laws and disjoint state offsets were generated only after R232 froze 64 projected sweeps. There are no policy, controller, selector, or plant actions in the prediction path. The model-coupled PyO3 ABI uses generalized-rk4 id 3; ids 0/1/2 remain explicit, implicit, and scalar exponential-trapezoidal.</p>
+<p>Tracking error is the reference final generalized tangent minus Rust&#x27;s returned evolved tangent. The legacy impulse-through-initial-response proxy is retained under an explicit diagnostic name but cannot score a state-evolving integrator.</p>
+<div class=table-wrap><table><thead><tr><th>law</th><th>frozen coverage</th><th>exact active sets</th><th>pred-only / missed</th><th>fitted width · ang / lin / joint</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>medium_elliptic_rk4</td><td>95.833%</td><td>47/48</td><td>0 / 1</td><td>0.285 / 0.043 / 10.446</td><td>3.382</td><td>REJECT</td></tr><tr><td>hard_pyramidal_rk4</td><td>91.667%</td><td>44/48</td><td>4 / 0</td><td>0.699 / 0.110 / 11.248</td><td>3.320</td><td>REJECT</td></tr></tbody></table></div>
+<p>Promotion requires strict per-sample coverage, the frozen 5 ms query deadline, bitwise repeat, and zero timed Rust allocation for both laws. Failure retains the RK4 mechanism as a diagnostic predictor but grants no command authority.</p>
+<p>An independent retained rerun reproduces all 62 non-timing NPZ arrays exactly. Timing arrays remain measured evidence and are excluded from semantic equality.</p></main></body></html>

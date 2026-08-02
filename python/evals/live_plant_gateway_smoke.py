@@ -40,6 +40,24 @@ def receive_plant(
     raise AssertionError(f"did not receive {kind!r} within {attempts} messages")
 
 
+def receive_correlated_state(
+    websocket: RawWebSocket,
+    request_id: int,
+    *,
+    paused: bool | None = None,
+    attempts: int = 120,
+) -> dict[str, Any]:
+    """Wait for a plant heartbeat carrying one lifecycle command id."""
+    for _ in range(attempts):
+        state = receive_plant(websocket, "plant_state")
+        if state.get("command_id") != request_id:
+            continue
+        if paused is not None and bool(state.get("paused")) != paused:
+            continue
+        return state
+    raise AssertionError(f"did not receive correlated plant state {request_id}")
+
+
 def body_position(state: dict[str, Any], name: str) -> list[float]:
     return next(frame["translation"] for frame in state["frames"] if frame["name"] == name)
 
@@ -133,6 +151,49 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         initial_epoch = initial["reset_epoch"]
         initial_base = body_position(initial, "base")
         initial_root = initial["root_position"]
+
+        # Lifecycle commands are explicit and measured-state based. Pause must
+        # freeze MuJoCo time/q/v while continuing heartbeats; resume must start
+        # from that state; reset while paused must clear the lease and preserve
+        # paused ownership. These are intentionally exercised over the real
+        # WebSocket gateway, not just the in-process worker.
+        before_pause = receive_plant(websocket, "plant_state")
+        pause_tick = before_pause["tick"]
+        websocket.send_json({"type": "plant_pause", "request_id": 240})
+        paused = receive_correlated_state(websocket, 240, paused=True)
+        # The command may arrive between two 50 Hz ticks, so the first
+        # acknowledged paused frame is the freeze point. Subsequent heartbeats
+        # must retain it exactly.
+        pause_time = paused["simulator"]["time_s"]
+        heartbeat = receive_plant(websocket, "plant_state")
+        assert heartbeat["tick"] > pause_tick
+        assert heartbeat["simulator"]["time_s"] == pause_time
+        assert heartbeat["metrics"]["wbc_status"] == "paused"
+        websocket.send_json(
+            {
+                "type": "plant_push",
+                "body": "base",
+                "force_world": [1.0, 0.0, 0.0],
+                "application_point_world": body_position(paused, "base"),
+                "provenance": EVALUATION_PROVENANCE,
+                "request_id": 241,
+            }
+        )
+        paused_push_error = receive_plant(websocket, "plant_error")
+        assert "paused" in paused_push_error["message"]
+        websocket.send_json({"type": "plant_resume", "request_id": 242})
+        resumed = receive_correlated_state(websocket, 242, paused=False)
+        assert resumed["simulator"]["time_s"] > pause_time
+
+        websocket.send_json({"type": "plant_pause", "request_id": 243})
+        receive_correlated_state(websocket, 243, paused=True)
+        websocket.send_json({"type": "plant_reset", "request_id": 244})
+        reset_paused = receive_correlated_state(websocket, 244, paused=True)
+        assert reset_paused["reset_epoch"] > initial_epoch
+        assert reset_paused["simulator"]["time_s"] == 0.0
+        initial_epoch = reset_paused["reset_epoch"]
+        websocket.send_json({"type": "plant_resume", "request_id": 245})
+        receive_correlated_state(websocket, 245, paused=False)
 
         # Evidence-only load classes may be reported but cannot be executed
         # through the declared external-wrench command path.
@@ -321,6 +382,8 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
                 == EVALUATION_PROVENANCE,
                 "release_acknowledged": True,
                 "reset_acknowledged": True,
+                "pause_resume_reset_lifecycle": True,
+                "paused_wrench_rejected": True,
             },
             "external_load_accounting": {
                 "protocol": hello["protocol"],

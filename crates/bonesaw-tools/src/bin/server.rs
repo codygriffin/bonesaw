@@ -280,6 +280,17 @@ enum PlantClientCommand {
     PlantRelease {
         request_id: u64,
     },
+    /// Stop advancing MuJoCo while keeping the plant stream alive.  Pause is
+    /// deliberately a typed plant command instead of an overloaded release:
+    /// a release drops the wrench lease, whereas pause freezes measured state
+    /// and can be resumed without rebuilding the worker.
+    PlantPause {
+        request_id: u64,
+    },
+    /// Resume the worker's 250 Hz physics / 50 Hz WBC loop after a pause.
+    PlantResume {
+        request_id: u64,
+    },
     PlantReset {
         request_id: u64,
     },
@@ -1553,6 +1564,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
     let mut body_positions = HashMap::new();
     let mut command_id: Option<u64> = None;
     let mut reset_requested = false;
+    let mut paused = false;
     let mut ticker = tokio::time::interval(Duration::from_millis(20));
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -1584,6 +1596,14 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                                 provenance,
                                 request_id,
                             }) => {
+                                if paused {
+                                    let message = serde_json::json!({
+                                        "type": "plant_error",
+                                        "message": "plant push is disabled while MuJoCo is paused",
+                                    });
+                                    let _ = sender.send(Message::Text(message.to_string().into())).await;
+                                    continue;
+                                }
                                 command_id = Some(request_id);
                                 active_push = Some(ActivePlantPush {
                                     body,
@@ -1598,6 +1618,18 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                             Ok(PlantClientCommand::PlantRelease { request_id }) => {
                                 command_id = Some(request_id);
                                 active_push = None;
+                            }
+                            Ok(PlantClientCommand::PlantPause { request_id }) => {
+                                command_id = Some(request_id);
+                                // A paused simulation must not retain an
+                                // operator wrench that can be applied on the
+                                // first resumed tick.
+                                active_push = None;
+                                paused = true;
+                            }
+                            Ok(PlantClientCommand::PlantResume { request_id }) => {
+                                command_id = Some(request_id);
+                                paused = false;
                             }
                             Ok(PlantClientCommand::PlantReset { request_id }) => {
                                 command_id = Some(request_id);
@@ -1642,6 +1674,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     "reset": reset_requested,
                     "command_id": command_id,
                     "command_expired": command_expired,
+                    "paused": paused,
                     "external_load": push,
                 });
                 reset_requested = false;
@@ -4818,6 +4851,16 @@ mod tests {
         )
         .expect("typed plant release parses");
         assert_eq!(release, PlantClientCommand::PlantRelease { request_id: 47 });
+
+        let pause =
+            serde_json::from_str::<PlantClientCommand>(r#"{"type":"plant_pause","request_id":49}"#)
+                .expect("typed plant pause parses");
+        assert_eq!(pause, PlantClientCommand::PlantPause { request_id: 49 });
+        let resume = serde_json::from_str::<PlantClientCommand>(
+            r#"{"type":"plant_resume","request_id":50}"#,
+        )
+        .expect("typed plant resume parses");
+        assert_eq!(resume, PlantClientCommand::PlantResume { request_id: 50 });
 
         for load_class in [
             PlantExternalLoadClass::MeasuredImpactImpulse,

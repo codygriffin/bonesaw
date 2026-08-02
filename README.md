@@ -789,6 +789,16 @@ streams at 50 Hz. Contact points, normals, normal force, ground-contact count,
 penetration, sim time, solver iterations, backend/version, wrench force and
 moment are rendered separately from the diagnostic TARGET state.
 
+The live plant lifecycle is explicit: `plant_pause` releases the wrench and
+freezes MuJoCo while keeping a heartbeat, `plant_resume` restarts from the
+measured frozen state without resurrecting the wrench, and `plant_reset`
+rebuilds standing state, clears the wrench, increments `reset_epoch`, and keeps
+the paused state when reset was requested while paused. The WBC reads measured
+MuJoCo qpos/qvel/root at 50 Hz; it does not integrate a private plant proxy.
+The full intent/wrench/feedback contract is in
+[`docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md`](docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md)
+and the hosted [r235 lifecycle report](/LIVE_MUJOCO_FEEDBACK_LIFECYCLE_R235.html).
+
 For public inspection, `scripts/manage-live-upkie.sh` runs exactly one server,
 `bonesaw-public`, on port 8777 and one `bonesaw-tunnel`; it also stops the old
 `bonesaw-local` unit on every replacement. `start` clears only those exact
@@ -2412,6 +2422,48 @@ localizes the next mechanism to a real four-stage generalized RK4
 dynamics/contact integrator; the reduced trapezoidal point update is not one.
 All 60 non-timing arrays replay exactly.
 See the [r231 fresh model-coupled holdout](benchmarks/results/g1-model-coupled-positive-reference-compliance-holdout-r231/G1_MODEL_COUPLED_POSITIVE_REFERENCE_COMPLIANCE_HOLDOUT.md).
+
+R232 replaces the model path's reduced point-only RK4 proxy with four genuine
+generalized state/contact stages. The authored initial acceleration is mapped
+to a held generalized force; every stage refreshes floating bias/inverse
+dynamics, the factored mass matrix, complete Delassus response, sphere support
+geometry, point motion, and collision membership. Classical RK4 weights
+advance pose, tangent, and contact impulse without hot-path storage growth.
+Direct Rust tests cover analytic constant-force motion and a contact that
+crosses the plane between Euler event ticks. On spent R231 data, hard-RK4 exact
+active sets improve 24/48→45/48 and missed actual contacts fall 22→1.
+
+R232's selection view contains causal predictions only. The old 32 sweeps miss
+the predeclared 2% refinement gate at 2.496%; 64→128 changes only 0.600% of the
+useful-width gate, so 64 sweeps freeze at 4.34 ms p99 with bitwise repeat and
+zero timed Rust allocation. Completed R231 impulses and residuals are opened
+only after that choice. The spent score compares the returned evolved tangent
+directly with the reference final tangent, reaching 46/48 coverage and
+0.669/0.125/8.262 fitted width; the obsolete final-impulse-through-initial-
+response proxy had 28.584 joint width. An independent rerun reproduces all 59 non-timing
+arrays exactly. See the [r232 generalized RK4 convergence audit](benchmarks/results/g1-generalized-rk4-convergence-audit-r232/G1_GENERALIZED_RK4_CONVERGENCE_AUDIT.md).
+
+R233 then spends two new RK4 law/state families at offsets 130,000/140,000.
+Medium/elliptic achieves 46/48 frozen coverage and 47/48 exact active sets;
+hard/pyramidal achieves 44/48 and 44/48. Both pass repeat, zero-allocation, and
+the 5 ms deadline at 3.32–3.38 ms p99, but fitted angular/linear/joint widths
+remain 0.285/0.043/10.446 and 0.699/0.110/11.248. The mechanism is retained,
+while the profile and authority are rejected without retuning. Because strict
+coverage fails, this profile does not enter R224 terminal selection or plant
+non-regression. An independent rerun reproduces all 62 non-timing arrays
+exactly. See the [r233 fresh generalized RK4 holdout](benchmarks/results/g1-generalized-rk4-holdout-r233/G1_GENERALIZED_RK4_HOLDOUT.md).
+
+R236 opens those completed labels for localization only. Direct final-tangent
+error remains 10.446 rad/s on the medium law even when restricted to its 47/48
+exact-active-set rows; the hard law's exact-set subset still needs 10.618
+rad/s. Worst coordinates are exclusively ankle pitch/roll. The fixture and
+predictor already use the same four 5 mm spheres per foot, while right-foot
+normal-impulse RMSE reaches 0.730/1.957 N·s and pitch-moment RMSE reaches
+0.0311/0.0802 N·m·s for medium/hard. This localizes the next construction to
+stage-local force and within-foot wrench distribution/reference constraint-
+solver semantics, not another scalar contact mask. R236 is ineligible for
+construction selection or authority and runs zero new physics/policy/
+controller/selector/plant steps. See the [r236 final-tangent localization](benchmarks/results/g1-rk4-final-tangent-localization-r236/G1_RK4_FINAL_TANGENT_LOCALIZATION.md).
 
 R199 tests a broader causal pre-step boundary against the measured impulse and
 velocity-jump targets localized by r197. Features contain only current root

@@ -2,6 +2,28 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current live feedback checkpoint — r235 measured-state lifecycle
+
+The live plant now has an explicit ownership contract. Green `TARGET` remains a
+state-local WBC preview query; orange Ctrl-drag is a bounded, provenance-carrying
+world-frame wrench; and the orange wireframe/dashed rig are measured MuJoCo
+state. The persistent Rust WBC consumes the latest MuJoCo qpos/qvel/root state
+at 50 Hz while MuJoCo advances five 4 ms physics steps between commands. It
+does not integrate a private plant proxy or overwrite measured state.
+
+`plant_pause` releases the wrench, freezes MuJoCo time and state, skips WBC and
+physics, and keeps a heartbeat. `plant_resume` starts from the frozen measured
+state without resurrecting a wrench. `plant_reset` clears the wrench, rebuilds
+balanced standing, increments `reset_epoch`, and preserves paused ownership
+when requested while paused. Worker, protocol, and UI-contract tests cover
+freeze/heartbeat, resume, reset-while-paused, and paused-load rejection; the
+same lifecycle passes localhost and the single public Cloudflare WebSocket
+end-to-end smoke. This admits state ownership and fail-safe lifecycle semantics, not green-target
+plant realization, policy recovery, authentication, thermal calibration, or
+hardware authority. See
+[`docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md`](LIVE_PLANT_INTENT_WRENCH_CONTRACT.md)
+and the hosted [r235 lifecycle report](/LIVE_MUJOCO_FEEDBACK_LIFECYCLE_R235.html).
+
 ## Current live editor checkpoint — r234 measured MuJoCo geometry/state
 
 The ground grid now comes from MuJoCo's streamed plane point and normal rather
@@ -19,30 +41,47 @@ live WebSocket regressions pass. A one-metre-down preview still retains
 ground/state observability, not green-target plant realization, and the browser
 frame-time gate remains unrun because no in-app browser is attached.
 
-## Current CPU checkpoint — r231 rejects generalized RK4 transfer
+## Current CPU checkpoint — r233 retains generalized RK4 but rejects transfer
 
-R230 adds a model-owned, allocation-free contact evolution query. Rust retains
-the floating state and returns its evolved pose/tangent, samples collision
-membership on five authored 1 ms ticks, represents each foot sphere as
-`center - plane_normal * radius`, refreshes rigid point velocity and convective
-acceleration, recomputes floating inverse dynamics and the complete Delassus
-operator, and re-solves the active set. One compliant update belongs to each
-physics tick; projection sweeps are the only inner convergence knob.
+Rust now implements a genuine four-stage generalized RK4 path inside the
+model-owned contact query. The initial free acceleration is converted to a
+held generalized force. Each RK stage owns its floating pose/tangent, rebuilds
+sphere support geometry, floating bias and inverse dynamics, the factored mass
+matrix and complete Delassus operator, point velocity/free acceleration, and
+stage-local collision membership. The final pose, tangent, and contact impulse
+use classical RK4 weights. Scratch is construction-owned; the hot query does
+not grow storage. Analytic constant-force motion and a mid-tick crossing that
+Euler intentionally misses both have direct Rust regressions.
 
-Prediction-only double-sweep convergence selects 32 sweeps at 1.619% of the
-useful-width gate and about 0.70 ms p99, with bitwise repeat and zero timed Rust
-allocation. Only after selection, the spent R228 labels show 48/48 exact stiff
-active sets and a combined fitted width of 0.168/0.023/9.893, so R230 freezes
-that profile for a new holdout. All 106 non-timing arrays replay exactly.
+On spent R231 data, the equation-driven change improves hard-RK4 exact active
+sets from 24/48 to 45/48 and missed actual points from 22 to 1. R232 then uses
+prediction change only: 32 sweeps fail the frozen 2% refinement gate at
+2.496%, while 64→128 refinement is 0.600%. It freezes 64 sweeps at 4.34 ms p99,
+bitwise repeat, and zero timed Rust allocation. Completed R231 labels are
+opened only after selection and cannot tune the result. Direct final-tangent
+scoring gives the spent hard law 46/48 coverage and 0.669/0.125/8.262 fitted
+width; the old final-impulse-through-initial-response proxy is retained only as
+a named diagnostic.
 
-R231 spends untouched offsets 110,000/120,000. Medium/pyramidal/implicit-fast
-retains 48/48 exact active sets but covers 47/48 under the frozen residual box;
-its fitted width is 0.054/0.012/13.211. Hard/elliptic/RK4 covers only 24/48,
-misses 22 actual contact points, and requires 1.894/0.247/62.325. Both remain
-below the 5 ms deadline and preserve repeat/allocation gates. The profile is
-rejected without retuning; all 60 non-timing arrays replay exactly. The next CPU construction is a genuine four-stage
-generalized RK4 dynamics/contact evolution; the existing exponential-
-trapezoidal point update is not an RK4 substitute.
+R233 spends two new RK4 laws at disjoint offsets 130,000/140,000. The
+medium/elliptic law has 46/48 frozen sample coverage and 47/48 exact active
+sets; the hard/pyramidal law has 44/48 coverage and 44/48 exact active sets.
+Both meet the 5 ms deadline at 3.32–3.38 ms p99 with repeat and allocation
+gates intact, but fitted angular/linear/joint widths remain
+0.285/0.043/10.446 and 0.699/0.110/11.248. The generic RK4 mechanism stays;
+the accuracy profile and authority are rejected without fitting the spent
+R233 labels.
+
+R236 performs that spent-label localization without changing any profile.
+Medium's 10.446 rad/s joint width is unchanged on its exact-active-set subset;
+hard's exact-set subset still requires 10.618 rad/s. Worst coordinates are all
+ankle pitch/roll. Both implementations already share four authored 5 mm sphere
+contacts per foot, while the right-foot normal-impulse RMSE is 0.730/1.957 N·s
+and pitch-moment RMSE is 0.0311/0.0802 N·m·s. The next construction is
+stage-local force and within-foot wrench distribution/reference solver
+semantics, not primitive geometry or a scalar activation mask. R236 takes zero
+new physics, policy, controller, selector, or plant steps and is ineligible for
+selection or authority.
 
 ## Current CPU checkpoint — r229 localizes stiff activation without promotion
 

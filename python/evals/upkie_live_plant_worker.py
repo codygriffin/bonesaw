@@ -48,6 +48,8 @@ class LiveUpkiePlant:
         self.numeric_resets = 0
         self.fall_resets = 0
         self.pending_automatic_reset: str | None = None
+        # Keep the worker alive while freezing MuJoCo time and WBC updates.
+        self.paused = False
         self._build()
 
     def _build(self) -> None:
@@ -140,7 +142,11 @@ class LiveUpkiePlant:
             self.numeric_resets += 1
         if fall:
             self.fall_resets += 1
+        was_paused = self.paused
         self._build()
+        # Resetting a paused simulation resets pose but does not implicitly
+        # resume it. Running or automatic resets remain running.
+        self.paused = was_paused
 
     def hello(self) -> dict[str, Any]:
         return {
@@ -151,6 +157,7 @@ class LiveUpkiePlant:
             "control_hz": int(round(1.0 / CONTROL_DT)),
             "physics_hz": int(round(1.0 / PHYSICS_DT)),
             "physics_substeps_per_control": PHYSICS_STEPS_PER_CONTROL,
+            "paused": self.paused,
             "maximum_force_n": MAX_FORCE_N,
             "maximum_application_offset_m": MAX_APPLICATION_OFFSET_M,
             "command_ttl_ms": 140,
@@ -233,6 +240,10 @@ class LiveUpkiePlant:
         return contacts
 
     def step(self, request: dict[str, Any]) -> dict[str, Any]:
+        # Rust includes the desired state on every stream request, making the
+        # worker's reported state authoritative even if a command arrives
+        # between two 50 Hz ticks.
+        requested_paused = bool(request.get("paused", self.paused))
         requested_reset = bool(request.get("reset", False))
         automatic_reset_reason = (
             None if requested_reset else self.pending_automatic_reset
@@ -242,8 +253,14 @@ class LiveUpkiePlant:
             self.reset(fall=True)
         if requested_reset:
             self.reset()
+        self.paused = requested_paused
         command = request.get("external_load")
         active = isinstance(command, dict) and bool(command.get("active", False))
+        if self.paused and active:
+            return {
+                "type": "plant_error",
+                "message": "active external load is disabled while MuJoCo is paused",
+            }
         request_id = command.get("request_id") if active else None
         body_name = str(command.get("body", "base")) if active else "base"
         force = finite_vector(command.get("force_world"), 3) if active else None
@@ -303,11 +320,17 @@ class LiveUpkiePlant:
         maximum_fall_safe_mode = 0
         fall_safe_reason_flags = 0
         maximum_controller_step_ns = 0
-        latest_result: dict[str, Any] | None = None
+        # A paused frame keeps the last WBC diagnostics while explicitly
+        # labelling the solve as paused below; no controller call occurs.
+        latest_result: dict[str, Any] | None = self.last_result
         applied_moment_world = np.zeros(3, np.float64)
         application_offset_m = 0.0
         maximum_moment_nm = 0.0
         for _ in range(CONTROL_TICKS_PER_STREAM):
+            if self.paused:
+                # Stream heartbeats still carry a frozen state while the
+                # underlying simulator and WBC do no work.
+                break
             root_position, root_quaternion, root_twist, q, v = plant.read_state(
                 self.model, self.data
             )
@@ -437,6 +460,7 @@ class LiveUpkiePlant:
             "type": "plant_state",
             "tick": self.tick,
             "reset_epoch": self.reset_epoch,
+            "paused": self.paused,
             "numeric_reset": numeric_reset,
             "automatic_reset_reason": automatic_reset_reason,
             "automatic_reset_pending": self.pending_automatic_reset,
@@ -462,6 +486,7 @@ class LiveUpkiePlant:
             "contacts": contacts,
             "simulator": {
                 "backend": "MuJoCo",
+                "paused": self.paused,
                 "time_s": float(self.data.time),
                 "physics_dt_s": PHYSICS_DT,
                 "control_dt_s": CONTROL_DT,
@@ -500,10 +525,13 @@ class LiveUpkiePlant:
                 "reason": "live gateway does not estimate an unobserved-model reserve",
             },
             "metrics": {
-                "wbc_status": "unavailable"
+                "paused": self.paused,
+                "wbc_status": "paused"
+                if self.paused
+                else ("unavailable"
                 if latest_result is None
-                else plant.STATUS_NAMES[int(latest_result["status"])],
-                "wbc_admitted": latest_result is not None
+                else plant.STATUS_NAMES[int(latest_result["status"])]),
+                "wbc_admitted": not self.paused and latest_result is not None
                 and int(latest_result["status"]) in (0, 1),
                 "capture_pressure": peak_capture_pressure,
                 "capture_error_m": 0.0

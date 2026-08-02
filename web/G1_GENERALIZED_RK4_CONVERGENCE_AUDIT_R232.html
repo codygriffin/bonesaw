@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw generalized RK4 convergence audit · r232</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Bonesaw generalized RK4 convergence audit · r232</h1>
+<blockquote>Prediction-only profile **FROZEN** · authority **NOT ADMITTED**.</blockquote>
+<p>The selection pass can reach only causal state/geometry inputs. Completed R231 impulses and residuals are reopened after the sweep count is frozen, so the spent diagnostic cannot tune the profile.</p>
+<div class=table-wrap><table><thead><tr><th>sweeps</th><th>2× refinement width · ang / lin / joint</th><th>% gate</th><th>p99 ms</th><th>decision</th></tr></thead><tbody><tr><td>1</td><td>0.9010 / 0.1466 / 5.8381</td><td>58.381%</td><td>3.915</td><td>—</td></tr><tr><td>2</td><td>0.7140 / 0.1165 / 5.1282</td><td>51.282%</td><td>3.935</td><td>—</td></tr><tr><td>4</td><td>0.4345 / 0.0672 / 2.7385</td><td>27.385%</td><td>3.455</td><td>—</td></tr><tr><td>8</td><td>0.3451 / 0.0491 / 2.6982</td><td>26.982%</td><td>3.980</td><td>—</td></tr><tr><td>16</td><td>0.1137 / 0.0193 / 0.9407</td><td>9.407%</td><td>3.116</td><td>—</td></tr><tr><td>32</td><td>0.0225 / 0.0038 / 0.2496</td><td>2.496%</td><td>3.184</td><td>—</td></tr><tr><td>64</td><td>0.0025 / 0.0007 / 0.0600</td><td>0.600%</td><td>4.344</td><td>FREEZE</td></tr><tr><td>128</td><td>—</td><td>—</td><td>3.954</td><td>—</td></tr></tbody></table></div>
+<p>The smallest stable profile is **64 projected sweeps**.</p>
+<p>The global step is now classical four-stage generalized RK4: each stage refreshes support geometry, floating inverse dynamics, the mass factor, complete Delassus response, point motion, and collision membership. The local explicit contact solve evaluates that stage&#x27;s right-hand side; weighted stage impulses and accelerations advance the final tangent and pose. The PyO3 model-coupled ABI keeps ids 0/1/2 stable for explicit, implicit, and exponential-trapezoidal; generalized RK4 is id 3. Scalar id 2 therefore remains the legacy exponential-trapezoidal scheme.</p>
+<p>The R231 label diagnostic remains evidence only. A separate untouched law/state-offset corpus is required before any promotion decision.</p>
+<p>The spent-label tracking diagnostic compares Rust&#x27;s returned evolved tangent directly with the reference final tangent. The legacy impulse-through-initial-response proxy is retained under an explicit name and cannot score a state-evolving integrator.</p>
+<p>An independent retained rerun reproduces all 59 non-timing NPZ arrays exactly. Timing arrays remain measured evidence and are excluded from semantic equality.</p></main></body></html>

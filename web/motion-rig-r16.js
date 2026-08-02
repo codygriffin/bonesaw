@@ -1,4 +1,4 @@
-// Browser adapter for architecture revision r234.
+// Browser adapter for architecture revision r235.
 const canvas = document.querySelector("#rig-canvas");
 const context = canvas.getContext("2d");
 const viewport = document.querySelector(".viewport");
@@ -30,6 +30,8 @@ const observationTransportButtons = [...document.querySelectorAll("[data-observa
 const observationTransportDetail = document.querySelector("#observation-transport-detail");
 const targetTool = document.querySelector("#target-tool");
 const pushTool = document.querySelector("#push-tool");
+const pauseButton = document.querySelector("#pause-button");
+const resumeButton = document.querySelector("#resume-button");
 const viewportInstruction = document.querySelector("#viewport-instruction");
 const targetGuide = document.querySelector("#target-guide");
 const plantStatus = document.querySelector("#plant-status");
@@ -53,6 +55,7 @@ let plantConnected = false;
 let plantGateway = null;
 let plantHello = null;
 let plantState = null;
+let plantPaused = false;
 let interactionMode = "target";
 let pushReturnMode = null;
 let pushDrag = null;
@@ -178,10 +181,12 @@ function updateInteractionUi() {
     ? "WRENCH: Ctrl+drag any body · empty drag orbits · Shift+drag pans · wheel zooms"
     : "TARGET: drag green controls · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
   targetTool.disabled = !robotControlsEnabled;
-  pushTool.disabled = !robotControlsEnabled || !plantGateway?.available;
+  pushTool.disabled = !robotControlsEnabled || !plantGateway?.available || plantPaused;
   observationTransportButtons.forEach((button) => {
     button.disabled = !robotControlsEnabled || pushing;
   });
+  pauseButton.disabled = !robotControlsEnabled || !plantConnected || plantPaused;
+  resumeButton.disabled = !robotControlsEnabled || !plantConnected || !plantPaused;
 }
 
 function sendPlant(message) {
@@ -196,6 +201,7 @@ function disconnectPlant() {
   plantHello = null;
   plantContacts = [];
   plantState = null;
+  plantPaused = false;
   measuredPlantFrames = [];
   measuredPlantMinimumGroundClearanceM = Number.NaN;
   simulatorGroundPlane = {
@@ -211,6 +217,7 @@ function disconnectPlant() {
     plantSocket.close();
     plantSocket = null;
   }
+  updateInteractionUi();
 }
 
 function plantFrames(message) {
@@ -244,6 +251,7 @@ function plantFrames(message) {
 function enqueuePlantState(message) {
   const firstPlantState = plantState === null;
   plantState = message;
+  plantPaused = Boolean(message.paused ?? message.simulator?.paused ?? message.metrics?.paused);
   plantContacts = message.contacts || [];
   measuredPlantFrames = plantFrames(message);
   const simulator = message.simulator || {};
@@ -285,7 +293,9 @@ function enqueuePlantState(message) {
       },
     });
   }
-  const stateLabel = metrics.fallen
+  const stateLabel = plantPaused
+    ? "MuJoCo · paused"
+    : metrics.fallen
     ? "FALL · RESET ARMED"
     : metrics.wbc_admitted ? "MuJoCo · admitted" : `MuJoCo · ${metrics.wbc_status}`;
   plantStatus.textContent = stateLabel;
@@ -308,6 +318,7 @@ function enqueuePlantState(message) {
     activeForceArrow = null;
   }
   scheduleRender();
+  updateInteractionUi();
 }
 
 function connectPlant() {
@@ -324,6 +335,7 @@ function connectPlant() {
     if (message.type === "plant_hello") {
       plantHello = message;
       plantConnected = true;
+      plantPaused = Boolean(message.paused);
       const simulator = message.simulator || {};
       if (Array.isArray(simulator.ground_plane_point_world)
           && Array.isArray(simulator.ground_plane_normal_world)) {
@@ -338,6 +350,7 @@ function connectPlant() {
       runtimeRates.textContent = `${message.control_hz} / ${message.physics_hz} Hz · ${message.physics_substeps_per_control} substeps`;
       connectionLabel.textContent = interactionMode === "push" ? "Streaming · plant" : "Streaming";
       setRobotControlsEnabled(true);
+      updateInteractionUi();
     } else if (message.type === "plant_state") {
       enqueuePlantState(message);
     } else if (message.type === "plant_error") {
@@ -655,13 +668,15 @@ function setArchitectureOpen(open) {
 function updatePlantTelemetry(message) {
   const metrics = message.metrics || {};
   const simulator = message.simulator || {};
-  plantStatus.textContent = `${metrics.wbc_status || "unknown"} · ${Number(metrics.controller_step_us || 0).toFixed(1)} µs`;
+  plantStatus.textContent = plantPaused
+    ? "MuJoCo · paused"
+    : `${metrics.wbc_status || "unknown"} · ${Number(metrics.controller_step_us || 0).toFixed(1)} µs`;
   const forwardInverse = simulator.solver_forward_inverse || [];
   const solverResidual = Math.max(
     ...forwardInverse.map((value) => Math.abs(Number(value))),
     0,
   );
-  simulatorState.textContent = `t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter / ${Number(simulator.constraint_count || 0)} rows · fwd/inv ${solverResidual.toExponential(1)} · E=${(Number(simulator.kinetic_energy_j || 0) + Number(simulator.potential_energy_j || 0)).toFixed(2)} J · warnings ${Number(simulator.warning_count || 0)}`;
+  simulatorState.textContent = `${plantPaused ? "PAUSED · " : ""}t=${Number(simulator.time_s || 0).toFixed(3)} s · solver ${Number(simulator.solver_iterations || 0)} iter / ${Number(simulator.constraint_count || 0)} rows · fwd/inv ${solverResidual.toExponential(1)} · E=${(Number(simulator.kinetic_energy_j || 0) + Number(simulator.potential_energy_j || 0)).toFixed(2)} J · warnings ${Number(simulator.warning_count || 0)}`;
   const root = message.root_position || [0, 0, 0];
   const centerOfMass = message.center_of_mass_world || root;
   const twist = message.root_twist_world || [0, 0, 0, 0, 0, 0];
@@ -821,6 +836,8 @@ function setRobotControlsEnabled(enabled) {
   disconnectOverlay.hidden = enabled;
   [
     document.querySelector("#reset-button"),
+    pauseButton,
+    resumeButton,
     targetTool,
     document.querySelector("#geometry-toggle"),
     document.querySelector("#rig-toggle"),
@@ -3442,12 +3459,29 @@ function reset() {
   document.querySelector("#selection-empty").classList.remove("hidden");
   document.querySelector("#selection-detail").classList.add("hidden");
   updateObservationTransport({ robot_observation_transport_mode: "exact" });
-  if (interactionMode === "push" && plantConnected) {
-    sendPlant({ type: "plant_reset" });
-  } else {
-    send({ type: "reset" });
-  }
+  // The measured ghost is live even in TARGET mode, so the reset button
+  // always resets both state owners when the plant socket is connected.
+  // TARGET keeps its independent Rust preview reset as well; PUSH is owned
+  // entirely by the MuJoCo stream.
+  if (plantConnected) sendPlant({ type: "plant_reset" });
+  if (interactionMode !== "push") send({ type: "reset" });
   scheduleRender();
+}
+
+function pauseSimulation() {
+  if (!plantConnected) return;
+  plantPaused = true;
+  sendPlant({ type: "plant_pause" });
+  showToast("MuJoCo paused · measured state held");
+  updateInteractionUi();
+}
+
+function resumeSimulation() {
+  if (!plantConnected) return;
+  plantPaused = false;
+  sendPlant({ type: "plant_resume" });
+  showToast("MuJoCo resumed · WBC tracking measured state");
+  updateInteractionUi();
 }
 
 function showToast(message) {
@@ -3457,6 +3491,8 @@ function showToast(message) {
 }
 
 document.querySelector("#reset-button").addEventListener("click", reset);
+pauseButton.addEventListener("click", pauseSimulation);
+resumeButton.addEventListener("click", resumeSimulation);
 [targetTool, pushTool].forEach((button) => {
   button.addEventListener("click", () => setInteractionMode(button.dataset.interactionMode));
 });

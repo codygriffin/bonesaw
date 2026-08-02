@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bonesaw R235 · measured MuJoCo feedback lifecycle</title>
+  <style>
+    :root{color-scheme:dark;background:#0d1115;color:#d6ddd9;font:15px/1.55 system-ui,sans-serif}
+    body{max-width:920px;margin:auto;padding:clamp(16px,4vw,36px)}
+    h1,h2{color:#f1f5f2;line-height:1.2} h1{font-size:clamp(1.6rem,5vw,2.4rem)}
+    blockquote{border-left:3px solid #77d4ae;margin:0 0 24px;padding:12px 16px;background:#121a1c}
+    code{color:#9cebc9;overflow-wrap:anywhere}.note{color:#aeb9b5}
+    table{width:100%;border-collapse:collapse;margin:12px 0 24px}
+    th,td{text-align:left;vertical-align:top;border-bottom:1px solid #273136;padding:9px 8px}
+    th{color:#9cebc9;font-weight:650} td:first-child{white-space:nowrap;color:#f1f5f2}
+    pre{white-space:pre-wrap;overflow:auto;padding:14px;background:#10181b;border:1px solid #263237;border-radius:8px}
+  </style>
+</head>
+<body>
+  <h1>Measured MuJoCo feedback and lifecycle · R235</h1>
+  <blockquote><strong>ADMITTED</strong> for state ownership and fail-safe lifecycle semantics. This does not admit green TARGET realization, policy recovery, authentication, thermal calibration, or hardware authority.</blockquote>
+
+  <h2>Ownership boundary</h2>
+  <table>
+    <thead><tr><th>Surface</th><th>Owner</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Green TARGET</td><td>Rust <code>/ws</code></td><td>Desired pose/end-effector intent and state-local WBC query. It does not overwrite or integrate MuJoCo state.</td></tr>
+      <tr><td>Orange Ctrl-drag</td><td>Rust gateway → Python MuJoCo</td><td>Finite world-frame external wrench on a rendered body/point, with explicit provenance and an expiring lease.</td></tr>
+      <tr><td>Orange wireframe / dashed rig</td><td>MuJoCo measurement</td><td>Measured qpos/qvel/root, contacts, CoM, forces, constraints, energy, solver witnesses, and ground plane.</td></tr>
+      <tr><td>Rust WBC</td><td>50 Hz measured feedback</td><td>Each solve consumes the latest measured MuJoCo state; torque is held across five 4 ms physics steps at 250 Hz.</td></tr>
+    </tbody>
+  </table>
+
+  <pre>MuJoCo qpos/qvel/root → Rust WBC observation (50 Hz)
+                         ↓ torque
+                 MuJoCo × 5 physics steps (4 ms)
+                         ↓ measured state/witnesses
+                    next WBC solve</pre>
+
+  <h2>Lifecycle contract</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Guaranteed behavior</th></tr></thead>
+    <tbody>
+      <tr><td><code>plant_pause</code></td><td>Clears the active wrench lease, freezes MuJoCo time/qpos/qvel, skips WBC and physics, and continues a heartbeat/state stream. Push is rejected while paused.</td></tr>
+      <tr><td><code>plant_resume</code></td><td>Restarts from the frozen measured state. No previous wrench is resurrected.</td></tr>
+      <tr><td><code>plant_reset</code></td><td>Rebuilds authored balanced standing, clears the wrench, increments <code>reset_epoch</code>, and preserves paused ownership if reset was requested while paused.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Evidence</h2>
+  <ul>
+    <li>Worker tests cover 250 Hz physics / 50 Hz WBC cadence, pause time freeze with heartbeat, resume advancement, reset-while-paused, and active-load rejection.</li>
+    <li>Rust protocol tests cover typed <code>plant_pause</code> and <code>plant_resume</code> commands.</li>
+    <li>UI contract tests cover pause/resume controls, disabled wrench interaction, and reset wiring.</li>
+    <li>The dependency-free gateway smoke passes both localhost and the single public Cloudflare tunnel, including lifecycle correlation, provenance rejection, wrench expiry/release, fall reset, and reconnect.</li>
+    <li>Browser frame-time and visual inspection remain <strong>NOT RUN</strong> because no in-app browser target is attached.</li>
+  </ul>
+
+  <p class="note">An eventual intent-to-plant path must be a third typed command that enters the same authority stack. It cannot be encoded as a wrench or replace measured state.</p>
+</body>
+</html>

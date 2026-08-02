@@ -18,6 +18,7 @@ from g1_positive_reference_compliance_audit import (
     REFERENCE_DOCUMENTATION,
     SOLVER_FAMILIES,
     law_cone_id,
+    law_model_integrator_id,
     law_reduced_integrator_id,
     reference_contact_acceleration,
 )
@@ -41,6 +42,8 @@ class G1PositiveReferenceComplianceAuditTests(unittest.TestCase):
         self.assertEqual(law_cone_id(FRESH_CONTACT_LAWS[1]), 1)
         self.assertEqual(law_reduced_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
         self.assertEqual(law_reduced_integrator_id(FRESH_CONTACT_LAWS[1]), 2)
+        self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[0]), 1)
+        self.assertEqual(law_model_integrator_id(FRESH_CONTACT_LAWS[1]), 3)
 
     def test_reference_free_acceleration_is_finite_and_state_local(self) -> None:
         law = FRESH_CONTACT_LAWS[0]
