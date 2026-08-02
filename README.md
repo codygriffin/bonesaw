@@ -2365,6 +2365,14 @@ WBC and MuJoCo, but finds no useful safe profile, so no fresh action or
 authority follows. See the [r249 realization audit](benchmarks/results/g1-actuator-realization-profile-audit-r249/G1_ACTUATOR_REALIZATION_PROFILE_AUDIT.md)
 and [r250 action rejection](benchmarks/results/g1-actuator-bandwidth-action-freeze-r250/G1_ACTUATOR_BANDWIDTH_ACTION_FREEZE.md).
 
+R251 isolates why R250's global boxes collapse to zero: candidate and baseline
+plant error is strongly correlated. A policy-free replay forms paired
+candidate-vs-zero velocity residuals and partitions them only by fixed causal
+height, tilt, and root-rate signs. Coarse paired tubes reduce the independent
+maximum span substantially, but completed labels remain offline-only and the
+existing Rust selector cannot consume a paired delta, so no action or
+authority is frozen. See the [r251 paired-delta audit](benchmarks/results/g1-paired-terminal-delta-audit-r251/G1_PAIRED_TERMINAL_DELTA_AUDIT.md).
+
 R225 closes the online external-load provenance gap without conflating command,
 impact evidence, and model uncertainty. A generic allocation-free Rust type
 distinguishes declared continuous wrench, measured impact impulse, and

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "actuator-bandwidth-action-freeze-r250",
+  "revision": "paired-terminal-delta-audit-r251",
   "updated": "2026-08-02",
-  "stage": "R250 rejects the frozen R249 actuator reference on spent 250/50 plant evidence; no fresh action or authority is admitted · r250/r249",
-  "checkpoint": "R249 proves Rust's resettable first-order bandwidth/slew mechanism is bitwise repeatable, zero-allocation, and sub-5 ms at 20 ms / 50 Hz; its 25 Hz / 1,000 N·m/s row is a diagnostic reference, not a selected command. R250 passes that reference through fixed-effort WBC and rolls zero, zero-WBC, and recovery traces for five 4 ms MuJoCo steps on all 96 spent R248 states. A global componentwise plant-residual tube makes the conservative Rust selector choose zero effort on every row. Mechanism passes, useful action freeze fails, and authority remains closed.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns current-stage-force RK4 ABI 4, current-boundary non-RK ABI 0, evaluator-only pyramid-edge cone ABI 2, R247's allocation-free terminal-box selector, exact floating WBC, and R249's atomic actuator-realization reset/trace state. Python owns immutable corpus orchestration and replaceable plant integration. R246 promotes the physical-transition evaluator; R247 freezes a spent-state candidate family; R248 rejects held torque on fresh plant evidence; R249 validates actuator realization without physics; R250 rejects its diagnostic reference as a useful global-tube action. The next CPU design gate is a state-conditioned score/residual action boundary on spent evidence, followed by a no-retuning fresh holdout only if it freezes a nonzero action. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "R251 isolates correlated candidate-vs-zero plant uncertainty without policy or physics; a Rust paired-delta bound is the next CPU gate · r251/r250",
+  "checkpoint": "R250's independent global candidate boxes select zero effort on all 96 spent states. R251 reopens only those immutable arrays and measures paired candidate-vs-zero velocity residuals. Fixed causal groups use observed root height, tilt signs, and root angular-rate signs—never completed contact labels, sample indices, policy output, or selector results. Paired spans are materially narrower than independent candidate-plus-baseline spans, but coverage is fitted on spent rows and the current Rust selector cannot consume paired uncertainty. No action is frozen and authority remains closed.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns current-stage-force RK4 ABI 4, current-boundary non-RK ABI 0, evaluator-only pyramid-edge cone ABI 2, R247's allocation-free terminal-box selector, exact floating WBC, and R249's atomic actuator-realization reset/trace state. Python owns immutable corpus orchestration and replaceable plant integration. R246 promotes the physical-transition evaluator; R247 freezes a spent-state candidate family; R248 rejects held torque on fresh plant evidence; R249 validates actuator realization without physics; R250 rejects its diagnostic reference as a useful global-tube action; R251 demonstrates that shared candidate/baseline uncertainty is the next useful representation. The next CPU gate is a Rust-owned paired terminal-delta bound and selector, followed by a no-refit fresh holdout only if it freezes a nonzero action. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -94,6 +94,12 @@
         }
   ],
   "decisions": [
+    {
+      "status": "diagnostic",
+      "title": "R251 isolates paired candidate-vs-zero uncertainty",
+      "detail": "A policy-free, physics-free replay groups only causal height, tilt, and root-rate observations, then measures paired candidate-vs-zero velocity residuals on spent R250 arrays. The paired tubes narrow independent uncertainty while covering their source rows by construction. The result cannot select an action until an allocation-free Rust paired-delta bound exists and passes a new no-refit law/offset holdout.",
+      "evidence": "/G1_PAIRED_TERMINAL_DELTA_AUDIT_R251.html"
+    },
     {
       "status": "rejected",
       "title": "R250 rejects the global-tube actuator action",

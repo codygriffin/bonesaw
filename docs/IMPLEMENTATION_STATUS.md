@@ -338,7 +338,17 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r250 rejects the spent actuator action family
+## Current CPU checkpoint — r251 isolates shared plant uncertainty
+
+R251 performs no policy, physics, or selector query. It reopens only R250's
+spent arrays and measures candidate-vs-zero paired velocity residuals under a
+fixed causal partition of observed height, tilt, and root angular-rate signs.
+The paired construction materially narrows the independent candidate/baseline
+span while covering every source row by construction. That is design evidence,
+not transferable coverage: Rust has no paired terminal-delta bound yet, no
+action is frozen, and authority remains closed.
+
+## Prior CPU checkpoint — r250 rejects the spent actuator action family
 
 R249 replays the 96 selected R248 effort rows through Rust's persistent
 first-order bandwidth/slew session at 20 ms / 50 Hz. Four declared profiles
