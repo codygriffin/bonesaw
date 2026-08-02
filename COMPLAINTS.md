@@ -135,6 +135,17 @@ exactly. This is spent design evidence only: R259 must fit a causal paired tube
 from these immutable states and still demonstrate a useful nonzero profile;
 profile and authority remain closed.
 
+R259 performs that zero-policy/zero-physics fit over the complete retained
+state. Component and aggregate coverage both reach 100% on the source corpus,
+and the paired Rust query remains exact, allocation-free, and below 0.41 ms p99.
+The smallest nonzero worst-component and aggregate uppers remain 18.486 and
+9.451. The profile is still rejected: every one of 96 selectors chooses the exact-zero
+baseline, so there is no useful nonzero action to transfer. The unchanged
+spent R254 rehearsal reaches 98.553% component and 97.917% aggregate coverage
+and also selects zero throughout. This closes the data-retention and complete
+state-composition complaints, but not the physical transition gate; a causal
+nonzero construction or a certified within-step action profile is still needed.
+
 R252 also makes actuator lag failure tolerant at a lower layer: Rust can cap
 positive observed mechanical power after bandwidth/slew realization, reports
 every clamp, replaces the persistent lag state with the applied effort, and
@@ -149,9 +160,9 @@ unchanged; edge ABI 2 is evaluator-only and is not an authority mapping.
 
 Acceptance still requires all of the following independent witnesses:
 
-- fit R256's paired contact/estimator tube from the retained R258 terminal state
-  corpus (or certify complete within-step trajectory bounds) and require a
-  useful nonzero profile before any new-law holdout;
+- derive a causal, useful nonzero paired profile from the retained terminal
+  state (or certify complete within-step action bounds), then require one
+  untouched new-law/offset holdout before any authority;
 - return the complete ordinary-process 200 Hz path to zero five-millisecond
   overruns and retain allocation/GC and exact-replay witnesses.
 

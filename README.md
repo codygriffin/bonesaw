@@ -2435,6 +2435,18 @@ tube width/profile is not frozen and authority stays closed. See the [r256
 paired state-tube boundary](benchmarks/results/g1-paired-terminal-state-tube-boundary-r256/G1_PAIRED_TERMINAL_STATE_TUBE_BOUNDARY.md)
 and [causal contact-tube replay](benchmarks/results/g1-causal-contact-terminal-tube-r256/G1_CAUSAL_CONTACT_TERMINAL_TUBE.md).
 
+R259 completes the state-aware paired composition on the immutable R258 corpus.
+It fits baseline and candidate-minus-baseline residual boxes over terminal
+attitude/angular rate, joint position, and joint velocity while preserving the
+shared-baseline correlation in Rust. With zero policy, physics, and plant
+actions, source component and aggregate coverage reach 100%; the exact,
+allocation-free paired query records 0.409 ms p99. The profile is rejected,
+however: the smallest nonzero worst-component and aggregate uppers are still
+18.486 and 9.451, all 96 rows select the exact-zero baseline, and the unchanged spent
+R254 rehearsal reaches 98.553%/97.917% component/aggregate coverage with zero
+nonzero selections. No profile, holdout, or authority follows. See the [r259
+complete terminal-state tube](benchmarks/results/g1-terminal-state-tube-freeze-r259/G1_TERMINAL_STATE_TUBE_FREEZE.md).
+
 R258 retains the missing terminal-state corpus on immutable spent evidence.
 The already-spent R250 reset-every-sample traces now include terminal
 clearance/vertical speed, roll/pitch and roll/pitch angular rates, every joint

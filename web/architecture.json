@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "spent-terminal-state-corpus-r258",
+  "revision": "terminal-state-tube-freeze-r259",
   "updated": "2026-08-02",
-  "stage": "R258 retains the missing spent terminal-state corpus; the causal paired tube and useful nonzero profile remain open · r258",
-  "checkpoint": "R258 extends immutable spent R250 traces with terminal clearance/vertical speed, roll/pitch and roll/pitch angular rates, every joint position, and every generalized velocity for 96 × 3 branches. It executes 480 historical WBC queries and 1,440 MuJoCo steps with zero warnings; an independent allocation-free Rust rescore reproduces 4,896 diagnostics exactly (recorded p99 0.524 ms). This is corpus evidence only: no policy, plant action, profile, or authority is admitted. R259 must fit the causal paired tube from these states and prove a useful nonzero profile before any new-law holdout. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns current-stage-force RK4 ABI 4, current-boundary non-RK ABI 0, evaluator-only pyramid-edge cone ABI 2, exact floating WBC, R249 actuator realization, R252 pointwise passivity, R253's six-delta selector, R255's complete terminal-state interval composition, and R256's direct shared-state consequence delta bound. Python owns immutable corpus orchestration, causal tube construction, fresh plant integration, and rejection reports. R254 rejects state-only transfer; R255 supplies complete-state composition; R256 preserves paired correlation; R257 rejects endpoint-only fitting; R258 now retains true terminal state. The next CPU gate is a causal paired tube with a useful nonzero profile, followed by one untouched new-law holdout. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "R259 completes state composition but rejects a useful nonzero profile; causal transfer and authority remain open · r259",
+  "checkpoint": "R259 fits baseline and candidate-minus-baseline residual boxes over complete terminal attitude/angular-rate, joint-position, and joint-velocity coordinates from immutable R258 states. Source component and aggregate coverage reach 100%, the exact paired query is allocation-free at 0.409 ms p99, and zero policy/physics/plant actions are taken. The smallest nonzero worst-component and aggregate uppers remain 18.486 and 9.451, so every one of 96 source rows selects the exact-zero baseline; the spent R254 rehearsal reaches 98.553%/97.917% component/aggregate coverage with zero nonzero selections. No profile or authority is admitted. The next CPU gate must derive a causal nonzero profile or certify a complete within-step action tube before one untouched new-law holdout. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns current-stage-force RK4 ABI 4, current-boundary non-RK ABI 0, evaluator-only pyramid-edge cone ABI 2, exact floating WBC, R249 actuator realization, R252 pointwise passivity, R253's six-delta selector, R255's complete terminal-state interval composition, and R256's direct shared-state consequence delta bound. Python owns immutable corpus orchestration, causal tube construction, fresh plant integration, and rejection reports. R254 rejects state-only transfer; R255 supplies complete-state composition; R256 preserves paired correlation; R257 rejects endpoint-only fitting; R258 retains true terminal state; R259 proves complete source coverage still yields no useful nonzero selection. The next CPU gate is a causal nonzero action tube followed by one untouched new-law holdout. Browser frame time, authenticated transport, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -94,6 +94,12 @@
         }
   ],
   "decisions": [
+    {
+      "status": "rejected",
+      "title": "R259 completes state composition but rejects the profile",
+      "detail": "From immutable R258 terminal states, complete baseline and paired terminal-state residual boxes reach 100% source component and aggregate coverage with exact, zero-allocation Rust queries at 0.409 ms p99. The smallest nonzero worst-component and aggregate uppers remain 18.486 and 9.451, so the selector chooses the exact-zero baseline on all 96 rows. The unchanged spent R254 rehearsal reaches 98.553%/97.917% component/aggregate coverage and also selects zero. No profile, holdout, or authority follows.",
+      "evidence": "/G1_TERMINAL_STATE_TUBE_FREEZE_R259.html"
+    },
     {
       "status": "diagnostic",
       "title": "R258 retains the spent terminal-state corpus",

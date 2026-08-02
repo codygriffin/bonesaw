@@ -338,7 +338,26 @@ profile and keeps authority closed. A bounded actuator bandwidth/slew
 realization must be designed on this now-spent evidence and frozen before a
 new no-retuning plant holdout.
 
-## Current CPU checkpoint — r258 retains the spent terminal-state corpus
+## Current CPU checkpoint — r259 completes state composition but rejects the profile
+
+R259 consumes the immutable R258 terminal-state corpus and fits baseline plus
+candidate-minus-baseline residual boxes over complete terminal root
+attitude/angular-rate, joint-position, and joint-velocity coordinates. The
+R256 Rust boundary preserves shared baseline correlation; the evaluator runs
+zero policy steps, physics steps, and plant actions. Source component and
+aggregate coverage are both 100%, the paired selector is exact and
+allocation-free at 0.409 ms p99. The smallest nonzero worst-component and
+aggregate uppers remain 18.486 and 9.451, so every source row remains selected
+as the exact-zero baseline. The unchanged spent R254 rehearsal reaches 98.553%
+component and 97.917% aggregate coverage, with no nonzero selections.
+
+The complete-state data seam is therefore closed, but the profile is rejected:
+coverage alone cannot certify a useful action. No authority or new-law holdout
+follows. The next construction must derive a causal nonzero paired profile (or
+certify a complete within-step action tube) before spending one untouched law
+and offset set.
+
+## Prior CPU checkpoint — r258 retains the spent terminal-state corpus
 
 R258 extends the already-spent R250 reset-every-sample replay so the terminal
 state needed by the paired consequence boundary is retained rather than
@@ -350,9 +369,9 @@ allocation-free Rust state rescore reproduces all 4,896 diagnostics exactly
 (p99 0.524 ms in the recorded host run).
 
 This is spent design evidence, not a holdout: no policy step, plant action, or
-authority is emitted. R259 must construct a causal paired state tube from the
-immutable corpus, require complete component/aggregate coverage and a useful
-nonzero selection, and only then earn one new-law/offset holdout.
+authority is emitted. R259's complete-state fit is recorded above; it has
+complete source coverage but no useful nonzero selection, so the profile and
+authority remain closed.
 
 ## Prior CPU checkpoint — r257 rejects endpoint-only state-tube freeze
 
