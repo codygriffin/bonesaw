@@ -140,6 +140,13 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             hello["external_load_contract"]["executable_class"]
             == "declared_continuous_wrench"
         ), hello
+        feedforward = hello["external_load_contract"][
+            "wbc_external_wrench_feedforward"
+        ]
+        assert feedforward["axis_order"] == "root_moment_xyz_then_root_force_xyz", hello
+        # The hosted production worker must not silently enable the exploratory
+        # R318 vector; evaluation-only profiles opt into it explicitly.
+        assert feedforward["axis_scales"] is None, hello
 
         initial = receive_plant(websocket, "plant_state")
         assert initial["simulator"]["physics_dt_s"] == 0.004, initial["simulator"]
