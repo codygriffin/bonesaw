@@ -2,6 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current force-backed relock — r313 bounded mechanism, recovery rejected
+
+R313 fixes the action/evidence gap exposed by R312. Rust now remembers the
+single relocking leg and keeps its bounded normal request active after geometric
+recontact, through the existing three-sample measured-load debounce, until the
+transition locks. The private request mask never becomes WBC support authority:
+raw/stable/hard measured masks still own contact rows, and a relocking leg stays
+`NormalPoint` until force-backed qualification. The hot path remains fixed-size,
+finite, deterministic, and allocation-free.
+
+A frozen nine-depth screen selects exactly one profile: the 50 mm model radius
+minus 0.9 mm preload. On the current R310 controller plus R311 repeated
+upper-base holdout, both `±6 N` cases force-qualify at ticks `57`, `137`, and
+`154`, moving their R312 terminal boundaries from `84/83` to `236`. The `±8 N`
+boundaries remain at `79/69`; no active row adds a nonadmission or reset;
+controller/worker p99 stay below `0.172/2.694 ms`; and exact replay passes.
+Falls remain four of eight, so R313 is a qualified default-off relock mechanism,
+not public recovery authority. The next slice is continuous body-moment
+rejection before the third loss. See
+[`UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md`](../benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
+
 ## Current measured-landing boundary — r312 qualified mechanism, rejected recovery
 
 R312 adds a persistent Rust phase boundary for measured wheel-contact loss and

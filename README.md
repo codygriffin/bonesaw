@@ -369,6 +369,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   rejected. The PyO3 query is opt-in and diagnostic only: it emits no command,
   does not change the public 250/50 worker, and does not claim physical
   recovery. See the [r305 contact-reacquisition observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+- R313 keeps the bounded Rust normal request active through geometric
+  recontact and measured-load debounce without authoring WBC support. A frozen
+  nine-depth screen selects a 0.9 mm preload below the 50 mm model radius.
+  Mirrored `±6 N` repeated upper-base cases each force-qualify three relocks and
+  move their R312 terminal boundaries from `84/83` to `236`; `±8 N` guardrails
+  do not move earlier, active rows remain admitted, and allocation stays zero.
+  All four terminal cases still fall, so the mechanism remains default-off.
+  See the [r313 force-backed relock report](benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
 - R312 qualifies the causal phase boundary without promoting its recovery
   action. Persistent Rust consumes the prior contact window and measured load,
   keeps a missing/relocking wheel in `NormalPoint`, and requires the existing

@@ -3,19 +3,20 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R312 closes the missing phase-boundary mechanism without closing physical
-recovery. Persistent Rust now detects measured contact loss, keeps missing
-wheels in `NormalPoint`, emits a bounded precontact/relock request, and requires
-the existing measured-load observer before `RollingWheel` can return. All
-causality, mode-firewall, finite, zero-allocation, deadline, and replay gates
-pass. On the current public R310 controller plus R311 upper-base holdout,
-however, candidate and baseline both fall in four of eight cases, no activated
-case reaches force-backed bilateral requalification, and the `-6 N` terminal
-boundary moves 80 ticks earlier. The mechanism remains default-off. The largest
-remaining behavior chunk is now narrower: design continuous landing/moment
-rejection that sustains measured wheel load, reduces the four terminal cases,
-and never moves a terminal boundary earlier. See the
-[R312 report](benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
+R313 closes the force-backed relock-persistence seam without closing recovery.
+Persistent Rust remembers the one relocking leg and continues its bounded
+normal request through geometric recontact and positive debounce; measured
+raw/stable/hard masks still own WBC contact rows and `RollingWheel` promotion.
+A frozen nine-depth screen uniquely selects a model-radius-minus-0.9 mm target.
+Both `±6 N` repeated upper-base cases now force-qualify three relocks and move
+their R312 terminal boundaries from ticks `84/83` to `236`; the `±8 N`
+guardrails do not move earlier, active rows have zero nonadmission, and all
+causality, allocation, deadline, and replay gates pass. All four terminal cases
+still fall, however. The largest remaining behavior chunk is no longer contact
+reacquisition: it is continuous body-moment rejection that prevents the third
+loss after successful relock, reduces the four falls, and preserves the frozen
+guardrails. See the
+[R313 report](benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
 
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated

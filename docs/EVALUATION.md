@@ -4,6 +4,19 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r313 force-backed relock persistence
+
+`python/evals/upkie_live_force_backed_relock_r313.py` keeps the controller and
+phase logic in Rust while Python declares a finite nine-depth preload screen
+and sequences the public 50 Hz WBC / 250 Hz MuJoCo consequence. The selected
+target is the 50 mm model radius minus 0.9 mm. It is the only screened profile
+that force-qualifies both mirrored `6 N` cases, never moves the frozen R312
+terminal guardrails earlier, and adds no nonadmission. Both signs qualify at
+ticks `57`, `137`, and `154`; their terminal boundaries move to tick `236`.
+The Rust unit is policy- and physics-free; MuJoCo is used only for replaceable
+physical consequence. Four falls remain, so recovery promotion stays red. See
+[`UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md`](../benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
+
 ### Revision r312 measured landing/reload phase boundary
 
 `python/evals/upkie_live_measured_landing_r312.py` compares an explicit

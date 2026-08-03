@@ -261,17 +261,29 @@ pub fn step_upkie_measured_landing(
         let _ = transition;
     }
 
-    let lost_support_index = match physics_support_mask {
+    // A geometric recontact is not yet support authority. Remember the one
+    // leg that still needs force-backed relock so its bounded normal request
+    // survives contact chatter and the positive debounce interval. This mask
+    // is private input to the request author; the ordinary WBC continues to
+    // receive the caller's measured contact masks unchanged.
+    let remembered_relock_index = match state.needs_relock {
+        [true, false] => Some(0usize),
+        [false, true] => Some(1usize),
+        _ => None,
+    };
+    let lost_support_index = remembered_relock_index.unwrap_or(match physics_support_mask {
         1 => 1,
         2 => 0,
         _ => 0,
-    };
+    });
     let mut vertical_jacobian = [0.0; 6];
     for joint in 0..6 {
         vertical_jacobian[joint] = wheel_joint_jacobians[lost_support_index][2][joint];
     }
     let request_support_mask = if landing_window_active {
         physics_support_mask
+    } else if let Some(index) = remembered_relock_index {
+        config.target_support_mask & !(1u8 << index)
     } else {
         3
     };
@@ -471,6 +483,10 @@ mod tests {
             .unwrap();
             if tick < 7 {
                 assert_eq!(output.contact_modes[1], 2);
+                assert!(output.request.active);
+            } else {
+                assert!(output.reacquisition.qualified);
+                assert!(output.request.active);
             }
         }
         let qualified = step_upkie_measured_landing(
@@ -494,6 +510,7 @@ mod tests {
         .unwrap();
         assert!(qualified.reacquisition.qualified);
         assert_eq!(qualified.contact_modes, [3, 3]);
+        assert!(!qualified.request.active);
     }
     #[test]
     fn flight_clears_stale_rolling_modes() {
