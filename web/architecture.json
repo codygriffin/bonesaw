@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "live-inner-rate-r304",
+  "revision": "live-support-reserve-r303",
   "updated": "2026-08-03",
-  "stage": "R304 qualifies the 250 Hz WBC / 1 kHz plant inner loop · lateral recovery remains red",
-  "checkpoint": "R304 keeps the browser/WebSocket stream at 50 Hz but executes five 250 Hz Rust WBC ticks per stream frame and four 1 kHz MuJoCo substeps per WBC tick. The Rust-balanced initialization is also the nominal joint target. The frozen 50 Hz-WBC baseline falls at 1.640 s; the public-rate zero-wrench case holds measured bilateral support for 20.000 s with 0.005983 rad peak tilt, 2.197e-11 maximum hard residual, zero Rust allocations, 0.147 ms controller p99, and 7.268 ms worker p99. The 8 N lateral holdout still falls at tick 56, so R304 promotes execution cadence only, not recovery authority.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, and the 250 Hz live inner control loop. Python owns immutable corpus orchestration, 1 kHz MuJoCo consequence integration, and qualification. R303 localizes pre-loss load reserve without authority; R304 qualifies nominal rate separation while retaining the 50 Hz public stream. Browser frame time, authenticated transport, portable exact solver p99, successful lateral recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
+  "stage": "R303 measures pre-loss wheel reserve · recovery action unpromoted",
+  "checkpoint": "R303 adds fixed-capacity MuJoCo wheel normal-force telemetry and a fail-closed Python evaluation witness over the existing 250 Hz physics / 50 Hz WBC boundary. On the same 8 N lateral-wrench trace the weaker wheel crosses 0.45 of total measured load at tick 28 (28.958/23.426 N), three control ticks before MuJoCo contact loss at tick 31 and WBC observation at tick 32; the undisturbed control has no false trigger. The witness emits no actuator authority. R302's strict wheel-supported recovery gate remains red, and a future reserve action must be generated and admitted in Rust. The public 8777 worker remains production_default.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the live-rate dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, and R303 localizes pre-loss load reserve without promoting an action. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -12,11 +12,11 @@
     },
     {
       "name": "Live plant authority boundary",
-      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, pause/resume, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever · each 50 Hz stream frame executes five Rust WBC ticks at 250 Hz; each returned torque is integrated through four 1 ms MuJoCo substeps at 1 kHz · plant_pause clears the lease and skips WBC/physics but keeps a heartbeat; plant_resume starts from the frozen state; plant_reset clears wrench and increments reset_epoch · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
+      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, pause/resume, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever · MuJoCo advances five 4 ms soft-contact steps per held command, while Rust reads measured qpos/qvel/root and runs WBC at 50 Hz · plant_pause clears the lease and skips WBC/physics but keeps a heartbeat; plant_resume starts from the frozen state; plant_reset clears wrench and increments reset_epoch · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
     },
     {
       "name": "Measured contact admission",
-      "detail": "MuJoCo named wheel subtrees are resolved once; collision and per-wheel normal load are refreshed after every completed 1 ms integration step into a fixed caller-owned four-frame control window · each 250 Hz WBC tick consumes exactly the preceding window's final completed sample, never a future or stale internal-solve contact · public frame indices and per-substep loss/gain edges make causality testable · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · no authored nominal stance becomes authority · successful lateral recovery remains a separate gate"
+      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · the default-off R301 flight contingency may be queried only from measured flight and selected only after a finite, hard-feasible admission; its mode, request, candidate, residual, timing, and power stay separate from primary authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
     },
     {
       "name": "Explicit tick input",
@@ -68,11 +68,11 @@
     },
     {
       "name": "Optional physical plant gateway",
-      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · protocol-2 interactive_operator / declared_continuous_wrench / world-frame provenance · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · independent Python provenance validation and 1 kHz MuJoCo contact/integration · measured q/v/root into persistent 250 Hz Rust capture/WBC · five control ticks per 50 Hz stream frame and four physics substeps per control tick · explicit pause/resume/reset lifecycle · automatic fall report then next-step reset"
+      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · protocol-2 interactive_operator / declared_continuous_wrench / world-frame provenance · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · independent Python provenance validation, MuJoCo contact, and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · explicit pause/resume/reset lifecycle · automatic fall report then next-step reset"
     },
     {
       "name": "Outputs",
-      "detail": "1 kHz compiled trajectory block · typed authority/resource diagnostics · canonical frame snapshot · 250 Hz live WBC state aggregated into a 50 Hz public frame · 1 kHz external plant consequence · WebSocket local, sampled-world, continuous-world, self-geometry, contact, simulator, and selection witnesses"
+      "detail": "1 kHz compiled trajectory block · typed authority/resource diagnostics · canonical frame snapshot · 50 Hz live WBC state · 250 Hz external plant contract · WebSocket local, sampled-world, continuous-world, self-geometry, contact, simulator, and selection witnesses"
     }
   ],
   "modules": [
@@ -89,7 +89,7 @@
     {
       "name": "bonesaw-tools",
       "role": "Compiler, native eval sentinel, Pinocchio fixtures, and local WebSocket editor adapter.",
-      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over the MuJoCo plane, and searches back to a collision-envelope-safe pose. A continuously connected 50/250/1000 Hz stream/control/plant pipeline supplies plane point/normal, orange measured collision geometry and dashed rig, physical CoM, contacts and per-wheel load, root motion, actual/generalized actuator/passive/bias force, acceleration, generalized/scalar constraint state, energy, warnings, solver work/residual, accepted provenance, and force/moment evidence; PUSH makes measured transforms primary."
+      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over the MuJoCo plane, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies plane point/normal, orange measured collision geometry and dashed rig, physical CoM, contacts and summed ground load, root motion, actual/generalized actuator/passive/bias force, acceleration, generalized/scalar constraint state, energy, warnings, solver work/residual, accepted provenance, and force/moment evidence; PUSH makes measured transforms primary."
     },
         {
             "name": "bonesaw-cuda",
@@ -98,12 +98,6 @@
         }
   ],
   "decisions": [
-    {
-      "id": "r304-live-inner-rate",
-      "title": "Separate public stream cadence from control and plant cadence",
-      "status": "nominal execution qualified · lateral recovery rejected · authority unchanged",
-      "detail": "The public worker retains a 50 Hz WebSocket stream but runs five 250 Hz Rust WBC ticks per frame and four 1 kHz MuJoCo substeps per control tick. The Rust-balanced initialization is also the nominal joint target. Against the frozen 50 Hz-WBC baseline fall at 1.640 s, the R304 nominal case holds measured bilateral support for 20.000 s with 0.005983 rad peak tilt, 2.197e-11 maximum hard residual, zero Rust allocations, 0.147 ms controller p99, and 7.268 ms worker p99. The 8 N lateral holdout still falls at tick 56 and has non-admitted MaxIterations at ticks 25/33, so no recovery action is promoted."
-    },
     {
       "id": "r302-support-recovery-rejection",
       "title": "Use a strict wheel-supported recovery predicate",
@@ -114,7 +108,7 @@
       "id": "r303-support-reserve-witness",
       "title": "Measure wheel-load reserve before contact loss without granting authority",
       "status": "telemetry gate passed · reserve action unpromoted · recovery open",
-      "detail": "The frozen R303 fixture records per-wheel MuJoCo ground-normal force at each 250 Hz substep and exposes the exact five-sample window to the 50 Hz boundary. A bilateral, finite, strictly falling weaker-wheel fraction at or below 0.45 triggers at tick 28 on the 8 N lateral trace (28.958/23.426 N), before physics loss at tick 31 and WBC-observed loss at tick 32; the nominal control has no trigger. Rust's opt-in minimum-support-load floor maps to one-point rolling contacts; the public profile remains zero-floor. This is a causal reserve witness only (`actuator_authority_emitted=false`), and the separate default-off guard probe still never satisfies strict recovery."
+      "detail": "The live worker records per-wheel MuJoCo ground-normal force at each 250 Hz substep and exposes the exact five-sample window to the 50 Hz boundary. A bilateral, finite, strictly falling weaker-wheel fraction at or below 0.45 triggers at tick 28 on the 8 N lateral trace (28.958/23.426 N), before physics loss at tick 31 and WBC-observed loss at tick 32; the nominal control has no trigger. Rust's existing opt-in minimum-support-load floor now also maps to one-point rolling contacts; the public profile remains zero-floor. This is a causal reserve witness only (`actuator_authority_emitted=false`); the separate default-off load-guard probe moves physics loss to tick 32 and the fall boundary to tick 76 but hits bounded `MaxIterations` at ticks 61, 67, and 68, with no strict recovery. It remains unpromoted. The next action must be Rust-generated, ordinary-WBC-admitted, residual/timing-clean, and physically recovery-positive."
     },
     {
       "id": "r301-support-contingency-handoff",
@@ -1151,7 +1145,7 @@
     {
       "status": "provisional",
       "title": "The hosted editor separates TARGET preview from physical PUSH",
-      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, reserves 0.25 mm over z=0, searches back along an unsafe request, and renders WBC authority without claiming realization. /plant-ws stays connected while the page is open: TARGET labels the green pose as WBC TARGET PREVIEW and overlays a dashed orange MUJOCO MEASURED rig plus contacts; PUSH makes measured transforms primary and permits a bounded ray-hit wrench on any body. Each 50 Hz stream frame runs five 250 Hz Rust WBC ticks, each followed by four 1 ms MuJoCo steps, and streams root motion, effort, acceleration, generalized constraint force, wheel load, energy, warning, penetration, clock, and capture/station/resource evidence. A plant disconnect ghosts state and disables physical controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
+      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, reserves 0.25 mm over z=0, searches back along an unsafe request, and renders WBC authority without claiming realization. /plant-ws stays connected while the page is open: TARGET labels the green pose as WBC TARGET PREVIEW and overlays a dashed orange MUJOCO MEASURED rig plus contacts; PUSH makes measured transforms primary and permits a bounded ray-hit wrench on any body. MuJoCo advances five 4 ms steps under each 50 Hz held WBC command and streams root motion, effort, acceleration, generalized constraint force, energy, warning, penetration, clock, and capture/station/resource evidence. A plant disconnect ghosts state and disables physical controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
     },
     {
       "status": "provisional",
@@ -1165,12 +1159,6 @@
     }
   ],
   "evidence": [
-    {
-      "name": "R304 live inner-rate qualification",
-      "result": "12/12 qualification gates · 20.000 s bilateral nominal hold · 0.147 ms WBC p99 · zero allocation · recovery rejected",
-      "detail": "A frozen 50 Hz-WBC / 250 Hz-MuJoCo control falls at 1.640 s. The same model and WBC at 250 Hz over a 1 kHz plant, aggregated into the unchanged 50 Hz stream, holds measured 11 for 20.000 s with all solves admitted, 2.197e-11 maximum hard residual, and 7.268 ms worker p99. The 8 N lateral holdout still loses support at tick 34 and falls at tick 56; its recovery gates stay red.",
-      "report": "/UPKIE_LIVE_INNER_RATE_R304.html"
-    },
     {
       "name": "R302 live support recovery calibration",
       "result": "mechanism PASS · recovery REJECTED · 160-profile screen · boundary tick 644 · 494 body-ground/no-wheel stall ticks",
@@ -2737,8 +2725,8 @@
     "layers": [
     {
       "name": "Measured plant contact / executable WBC boundary · R300",
-      "detail": "MuJoCo integrates four 1 ms substeps per 250 Hz WBC tick, refreshing collision and per-wheel normal load after each step into a fixed contact window. Each solve consumes the prior window's terminal sample; five control ticks are aggregated into one 50 Hz public frame. Raw, debounced, diagnostic hard, executable-hard, solver status, residual, and contact-edge witnesses are independent; a paused or non-admitted solve cannot advertise retained hard rows as executable.",
-      "signal": "1 kHz contact/load window · 250 Hz control boundary · terminal mask/frame · loss/gain edges · raw/debounced/hard/executable masks · raw/admitted status · residual · p99 · 20 ms stream deadline",
+      "detail": "MuJoCo integrates five 4 ms substeps, refreshing collision data after each step into a fixed contact window. The next 50 Hz solve consumes the prior window's terminal mask. Raw, debounced, diagnostic hard, executable-hard, solver status, residual, and contact-edge witnesses are independent; a paused or non-admitted solve cannot advertise retained hard rows as executable.",
+      "signal": "250 Hz contact window · terminal mask/frame · loss/gain edges · raw/debounced/hard/executable masks · raw/admitted status · residual · p99 · worker deadline",
       "value": "FIXTURE PASS · 11/10/01/00 · EXECUTABLE HARD FAIL-CLOSED · 0 RUST ALLOC · BEHAVIOR REJECTED",
       "pressure": 1.0,
       "state": "critical"
@@ -3273,7 +3261,7 @@
       },
       {
         "name": "Live consequence · r131 typed PUSH gateway",
-        "detail": "A Ctrl+drag triangle hit, or touch-accessible orange PUSH drag, becomes a finite world wrench at the picked surface point on any mapped rendered body. Rust owns schema validation, the 8 N cap, correlation, a 140 ms refresh deadline, invalid-command survival, worker supervision, and stream serialization. Python owns only the replaceable 1 kHz MuJoCo integration; five 250 Hz control ticks cross the persistent Rust capture and WBC sessions inside each 50 Hz public frame, with four physics substeps per returned torque. TARGET commands cannot enter this path, and plant transforms/contact state cannot masquerade as guided target preview.",
+        "detail": "A Ctrl+drag triangle hit, or touch-accessible orange PUSH drag, becomes a finite world wrench at the picked surface point on any mapped rendered body. Rust owns schema validation, the 8 N cap, correlation, a 140 ms refresh deadline, invalid-command survival, worker supervision, and stream serialization. Python owns only the replaceable 250 Hz MuJoCo integration; every 50 Hz control tick still crosses the persistent Rust capture and WBC sessions and holds the returned torque for five physics substeps. TARGET commands cannot enter this path, and plant transforms/contact state cannot masquerade as guided target preview.",
         "signal": "root travel · peak tilt · capture pressure · release/expiry/reset · controller/worker/stream p99 · numerical resets",
         "value": "107.6 mm · 25.09° · 1.000 · ≤21.7/162.4/40.6 ms · 458.3 µs/4.236 ms/41.5 ms · 0",
         "pressure": 1.0,

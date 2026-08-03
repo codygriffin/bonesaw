@@ -5,8 +5,10 @@
 <h1 class="pass">Upkie measured support reserve · R303</h1>
 <pre>Telemetry gate PASS · reserve action UNPROMOTED · no actuator authority.
 
-This frozen fixture measures wheel normal load at 250 Hz and supplies the
-completed five-sample window to the 50 Hz WBC boundary:
+The live worker measures per-wheel MuJoCo ground-normal force at 250 Hz and
+passes the completed five-sample window to the 50 Hz WBC boundary. A witness
+requires bilateral finite loads, a weaker-wheel fraction at or below 0.45,
+and a strictly falling fraction from the previous sample.
 
 | event | tick |
 |---|---:|
@@ -15,9 +17,14 @@ completed five-sample window to the 50 Hz WBC boundary:
 | weaker-wheel fraction | 0.4472 |
 | first MuJoCo physics loss | 31 |
 | first WBC-observed loss | 32 |
-| lead before physics loss | 3 stream ticks / 60 ms |
+| lead before physics loss | 3 control ticks / 12 ms |
 
 The undisturbed trace has no false trigger. The witness emits no command or
-actuator authority. The default-off guard probe reaches a later fall boundary
-at tick 76 but still has non-admitted MaxIterations and no strict
-wheel-supported recovery, so it remains rejected.</pre>
+actuator authority; a future reserve action must be generated and admitted by
+Rust's ordinary floating WBC and pass the strict wheel-supported recovery
+predicate.
+
+The separate default-off load-guard probe moves first physics loss to tick 32
+and the fall boundary to tick 76 with zero Rust allocation, but reports
+non-admitted MaxIterations at ticks 61, 67, and 68 and never recovers. It
+remains evaluation-only and rejected.</pre>

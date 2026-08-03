@@ -98,9 +98,6 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
     def test_live_rate_split_and_ground_contact_state_are_explicit(self) -> None:
         hello = self.worker.hello()
         self.assertEqual(hello["controller_profile"], "production_default")
-        self.assertEqual(
-            hello["nominal_joint_target"], "rust_balanced_initial_pose"
-        )
         self.assertEqual(hello["control_hz"], 50)
         self.assertEqual(hello["physics_hz"], 250)
         self.assertEqual(hello["physics_substeps_per_control"], 5)
@@ -261,7 +258,6 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             {"stream_dt": 0.0},
             {"control_dt": float("nan")},
             {"physics_dt": -0.001},
-            {"balanced_nominal_joint_target": "yes"},
             {"stream_dt": 0.020, "control_dt": 0.003},
             {"control_dt": 0.004, "physics_dt": 0.0015},
         )

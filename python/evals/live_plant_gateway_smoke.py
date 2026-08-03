@@ -97,7 +97,6 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         hello = receive_plant(websocket, "plant_hello")
         worker_startup_ms = (time.perf_counter() - websocket_started) * 1.0e3
         assert hello["protocol"] == 2, hello
-        assert hello["nominal_joint_target"] == "rust_balanced_initial_pose", hello
         assert hello["physics_hz"] == 250, hello
         assert hello["control_hz"] == 50, hello
         assert hello["stream_hz"] == 50, hello

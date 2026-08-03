@@ -2,29 +2,15 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current live execution cadence — r304 nominally qualified
-
-R304 keeps the browser/WebSocket transport at 50 Hz while running five 250 Hz
-Rust WBC ticks per stream frame and four 1 kHz MuJoCo substeps per WBC tick.
-The Rust-balanced initialization is passed back as the nominal joint target,
-removing a persistent posture mismatch. The frozen 50 Hz-WBC baseline falls at
-`1.640 s`; the public-rate zero-wrench case holds bilateral measured wheel
-contact for `20.000 s`, with `0.005983 rad` maximum tilt, `2.197e-11` maximum
-hard residual, zero Rust allocations, `0.147 ms` controller p99, and `7.268 ms`
-worker p99. The 8 N lateral holdout still reaches a fall boundary at stream
-tick 56 and has non-admitted `MaxIterations` at ticks 25 and 33, so no lateral
-recovery action is promoted. See
-[`UPKIE_LIVE_INNER_RATE_R304.md`](../benchmarks/results/upkie-live-inner-rate-r304/UPKIE_LIVE_INNER_RATE_R304.md).
-
 ## Current pre-loss support evidence — r303 measured wheel reserve
 
 R303 evaluates a bounded, fail-closed witness over the actual MuJoCo wheel
-normal forces consumed by the frozen 50 Hz WBC fixture. It requires bilateral finite load,
+normal forces consumed by the 50 Hz WBC. It requires bilateral finite load,
 the weaker wheel at or below `0.45` of total load, and a strictly falling
 fraction from the preceding sample. On the 8 N lateral-wrench trace the
 witness fires at tick 28 with `28.958/23.426 N` left/right load and a `0.4472`
-weaker-wheel fraction; MuJoCo loses contact three stream ticks later at tick 31
-and the WBC observes that loss at tick 32. The nominal control has no false trigger. The witness is
+weaker-wheel fraction; MuJoCo loses contact at tick 31 and the WBC observes
+that loss at tick 32. The nominal control has no false trigger. The witness is
 telemetry-only (`actuator_authority_emitted=false`); no reserve action has
 been promoted, so the R302 wheel-supported recovery gate remains red. See
 [`UPKIE_LIVE_SUPPORT_RESERVE_R303.md`](../benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
