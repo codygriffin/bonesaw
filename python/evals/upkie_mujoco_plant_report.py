@@ -2525,9 +2525,6 @@ class RustWbcAdapter:
                 self.single_support_reacquisition_diagnostics,
                 self.single_support_reacquisition_joint_acceleration,
             )
-            self.joint_acceleration[0] += (
-                self.single_support_reacquisition_joint_acceleration
-            )
         else:
             self.single_support_reacquisition_diagnostics.fill(0.0)
             self.single_support_reacquisition_joint_acceleration.fill(0.0)
@@ -2765,6 +2762,27 @@ class RustWbcAdapter:
             self.support_load_reserve_allocation_calls = 0
             self.support_load_reserve_allocated_bytes = 0
         self.joint_acceleration[0, ROLLING_COORDINATES] = self.wheel_acceleration
+        if self.single_support_reacquisition_enabled and bool(
+            self.single_support_reacquisition_diagnostics[
+                self.single_support_reacquisition_index["active"]
+            ]
+        ):
+            # The primary wheel law owns both rolling coordinates. Compose the
+            # touchdown candidate after that write, and only on the measured
+            # free leg; the supporting leg must remain untouched by a
+            # single-support request.
+            lost_support_index = int(
+                self.single_support_reacquisition_diagnostics[
+                    self.single_support_reacquisition_index["lost_support_index"]
+                ]
+            )
+            free_leg_start = 3 * lost_support_index
+            free_leg_end = free_leg_start + 3
+            self.joint_acceleration[0, free_leg_start:free_leg_end] += (
+                self.single_support_reacquisition_joint_acceleration[
+                    free_leg_start:free_leg_end
+                ]
+            )
         primary_authority = self.fall_safe_diagnostics[
             self.fall_safe_index["primary_authority"]
         ]

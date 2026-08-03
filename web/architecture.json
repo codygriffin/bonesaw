@@ -110,7 +110,7 @@
       "id": "r308-single-support-touchdown-request",
       "title": "Bound touchdown requests by measured single support",
       "status": "causal/hot-path gates passed · physical recovery rejected · default-off",
-      "detail": "R308 adds a persistent Rust request author that accepts only exact measured one-wheel support. It computes free-wheel height/velocity error through a caller-owned Upkie Jacobian, slews authority, caps vertical and joint accelerations, and sends the candidate through the ordinary floating WBC. The nominal 20 s hold is dormant; the disturbed request activates at measured tick 40, reaches authority 1.0, runs at 3.402 microseconds p99 with zero allocations, and still falls at tick 56 with no ten-tick bilateral/upright tail. The mechanism is retained as negative evidence until a phase-aware landing/reload policy produces physically sustained recontact."
+      "detail": "R308 adds a persistent Rust request author that accepts only exact measured one-wheel support. It computes free-wheel height/velocity error through a caller-owned Upkie Jacobian, slews authority, caps vertical and joint accelerations, and sends the candidate through the ordinary floating WBC. The nominal 20 s hold is dormant; the disturbed request activates at measured tick 40, reaches authority 1.0, runs at 2.202 microseconds p99 with zero allocations, and still falls at tick 56 with no ten-tick bilateral/upright tail. The mechanism is retained as negative evidence until a phase-aware landing/reload policy produces physically sustained recontact."
     },
     {
       "id": "r306-contact-authority-firewall",
@@ -1200,7 +1200,7 @@
     {
       "name": "R308 measured single-support touchdown request",
       "result": "causal activation PASS · nominal dormant PASS · zero allocation PASS · physical recovery REJECTED",
-      "detail": "The default-off Rust request consumes exact measured one-wheel support, the free wheel's height/velocity, and a preallocated Jacobian. It activates on the first measured single-support sample (tick 40), reaches authority 1.0, and runs at 3.402 microseconds p99 with zero calls/bytes. The frozen 8 N disturbance still has non-admitted ticks and no ten-tick bilateral/upright tail, so no recovery or public authority follows.",
+      "detail": "The default-off Rust request consumes exact measured one-wheel support, the free wheel's height/velocity, and a preallocated Jacobian. It activates on the first measured single-support sample (tick 40), reaches authority 1.0, and runs at 2.202 microseconds p99 with zero calls/bytes. The frozen 8 N disturbance still has non-admitted ticks and no ten-tick bilateral/upright tail, so no recovery or public authority follows.",
       "report": "/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.html"
     },
     {
@@ -2795,7 +2795,7 @@
       "name": "Measured single-support touchdown request · R308",
       "detail": "An exact one-wheel measured mask enables a Rust-owned free-leg height/velocity request through the compiled wheel Jacobian. Authority slew, Jacobian damping, joint/vertical acceleration caps, and transition diagnostics are caller-buffered and allocation-free; the ordinary WBC still admits the candidate. Causal activation passes, but the frozen physical trace has no sustained bilateral/upright tail, so this layer is default-off.",
       "signal": "exact support mask · free-wheel height/velocity · Jacobian gain · target error · requested/commanded vertical acceleration · authority · saturation · transition count",
-      "value": "ACTIVATION TICK 40 · P99 3.402 µS · 0 B · RECOVERY RED",
+      "value": "ACTIVATION TICK 40 · P99 2.202 µS · 0 B · RECOVERY RED",
       "pressure": 0.82,
       "state": "critical"
     },

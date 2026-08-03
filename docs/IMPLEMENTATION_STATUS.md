@@ -11,7 +11,7 @@ request in fixed six-joint storage; the ordinary floating WBC still owns
 measured contact rows, effort limits, hard residuals, and executable authority.
 The 20 s nominal hold remains exactly dormant. On the frozen 8 N lateral trace,
 the request activates at the first measured single-support tick (`40`), reaches
-authority `1.0`, runs at `3.402 µs` p99, and allocates `0` calls/bytes. Causal
+authority `1.0`, runs at `2.202 µs` p99, and allocates `0` calls/bytes. Causal
 activation, finite output, and hot-path gates pass, but the candidate still
 falls at tick `56`, has no ten-tick bilateral/upright tail, and retains two
 non-admitted `MaxIterations` ticks. It is therefore retained as negative

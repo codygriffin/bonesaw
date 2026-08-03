@@ -18,7 +18,7 @@ residuals, and executable command authority.
 | maximum authority | 1.000000 |
 | maximum vertical request | 2.774038 m/s² |
 | maximum commanded vertical request | 2.774038 m/s² |
-| Rust request p99 | 3.402 µs |
+| Rust request p99 | 2.202 µs |
 | Rust allocations / bytes | 0 / 0 |
 
 ## Bounded-experiment qualification

@@ -8,7 +8,7 @@ consumes only an exact measured one-wheel mask, the free wheel's measured
 height/velocity, and a preallocated Jacobian; its capped vertical request then
 passes through the ordinary floating WBC. The nominal hold stays dormant, the
 request activates exactly at measured single support, and the Rust path is
-allocation-free (`3.402 µs` p99, `0` calls/bytes). The causal trigger and
+allocation-free (`2.202 µs` p99, `0` calls/bytes). The causal trigger and
 authority boundary are therefore green, but the frozen 8 N MuJoCo trace still
 has no ten-tick bilateral/upright tail and retains non-admitted solves. The
 request remains evaluation-only/default-off. The largest remaining behavior
