@@ -237,7 +237,10 @@ def task_levels(desired: np.ndarray, normal_target: float) -> list[tuple[np.ndar
     )
     # No declared Preference task is active in the R123/R317 session.
     preference = (np.zeros((0, variables)), np.zeros(0))
-    style_matrix = np.zeros((12, variables), dtype=np.float64)
+    # Match FloatingWbcSession's terminal Style stack exactly: contact-force
+    # regularization followed by the small actuator-torque regularizer. Joint
+    # acceleration is the Intent level above, not a hidden Style row.
+    style_matrix = np.zeros((6 + dof, variables), dtype=np.float64)
     style_matrix[:6, force_base:] = np.eye(6)
     style_matrix[6:, generalized_dof:force_base] = np.sqrt(1.0e-3) * np.eye(dof)
     style_target = np.asarray(

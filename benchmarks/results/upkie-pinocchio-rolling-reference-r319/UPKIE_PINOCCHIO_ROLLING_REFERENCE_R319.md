@@ -52,22 +52,22 @@ Near-active hard-bound states: reference `166/256`; Bonesaw `154/256`; mask agre
 | implementation | solve p50 / p99 / max µs | jitter p99 µs | queries/s | peak RSS MiB | GC |
 |---|---|---|---|---|---|
 | Bonesaw R317 | 118.8 / 131.2 / 147.4 | 15.0 | 8384 | 88.71 | 0 |
-| Pinocchio + generic QP | 2622.0 / 2761.5 / 3219.9 | 140.0 | 380 | 97.69 | 0 |
+| Pinocchio + generic QP | 2657.7 / 2943.4 / 4046.5 | 275.7 | 371 | 98.29 | 0 |
 
-The reference timing includes construction and solution of the independent constrained hierarchy through PlaCo's generic QP API. Its one-time Pinocchio product build costs `28.079 ms` for all 256 states; that cost is retained separately because Bonesaw emits products inside each query.
+The reference timing includes construction and solution of the independent constrained hierarchy through PlaCo's generic QP API. Its one-time Pinocchio product build costs `28.547 ms` for all 256 states; that cost is retained separately because Bonesaw emits products inside each query.
 
 ## Execution windows
 
 | states | active | max solution delta | qdd RMS | torque RMS | force RMS | reference p99 µs |
 |---|---|---|---|---|---|---|
-| 0–31 | 32 | 6.036e+01 | 4.630e+00 | 1.317e-02 | 2.111e+00 | 2779.3 |
-| 32–63 | 29 | 2.104e+01 | 1.180e+00 | 3.563e-03 | 5.200e+00 | 2748.7 |
-| 64–95 | 17 | 2.960e-02 | 3.191e-03 | 1.236e-05 | 1.531e-04 | 2745.1 |
-| 96–127 | 32 | 6.736e-02 | 4.133e-03 | 3.441e-05 | 2.733e-04 | 2697.0 |
-| 128–159 | 13 | 1.486e-01 | 1.242e-02 | 7.835e-05 | 6.942e-04 | 2745.4 |
-| 160–191 | 9 | 2.004e+01 | 1.885e-02 | 5.429e-05 | 2.046e+00 | 2748.0 |
-| 192–223 | 2 | 6.749e-02 | 1.046e-02 | 2.965e-05 | 4.532e-04 | 2784.3 |
-| 224–255 | 32 | 2.042e+01 | 1.272e-02 | 7.124e-05 | 2.084e+00 | 2782.0 |
+| 0–31 | 32 | 6.036e+01 | 4.630e+00 | 1.317e-02 | 2.111e+00 | 2944.5 |
+| 32–63 | 29 | 2.104e+01 | 1.180e+00 | 3.563e-03 | 5.200e+00 | 2934.4 |
+| 64–95 | 17 | 2.960e-02 | 3.191e-03 | 1.236e-05 | 1.531e-04 | 2929.5 |
+| 96–127 | 32 | 6.736e-02 | 4.133e-03 | 3.441e-05 | 2.733e-04 | 2940.8 |
+| 128–159 | 13 | 1.486e-01 | 1.242e-02 | 7.835e-05 | 6.942e-04 | 3032.5 |
+| 160–191 | 9 | 2.004e+01 | 1.885e-02 | 5.429e-05 | 2.046e+00 | 2911.3 |
+| 192–223 | 2 | 6.749e-02 | 1.046e-02 | 2.965e-05 | 4.532e-04 | 2943.9 |
+| 224–255 | 32 | 2.042e+01 | 1.272e-02 | 7.124e-05 | 2.084e+00 | 2945.0 |
 
 ## Gates
 
@@ -95,4 +95,4 @@ R319 closes independent nonholonomic row and hard-bound reconstruction, but not 
 | input | f31c69dd9b1f8bab7f58a8870b53e390b45bae848c348668009440e24c1e1e3e |
 | bonesaw | 3574846fab8ac26935cd722aa497b89bd8d4f259841d9cb14db35fa2e89232d5 |
 | bonesaw_metrics | 9d3f854ed90be8ced310f028636fabb8e2cca65d8cb54220177493f18ace2ad7 |
-| evaluator | 35e9ff4629916e1f1c37884ec3581a026810266bc7824095cf1dc2645abadf38 |
+| evaluator | bbc534d0c1a8622d6c4be622aca4bd646d6b4fed785dcce4fcc9dfd6d003baa5 |
