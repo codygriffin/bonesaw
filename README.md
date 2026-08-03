@@ -389,6 +389,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   no activated case force-qualifies bilateral support, and two terminal
   boundaries move earlier. R312 remains default-off negative evidence. See the
   [r312 measured-landing report](benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
+- R313 adds a Rust-owned continuous landing-request envelope driven by measured
+  root tilt, horizontal speed, and height. The full eight-force holdout passes
+  every causal, mode, finite, deadline, allocation, and replay gate, but still
+  has four terminal falls and moves three boundaries earlier. It remains
+  explicitly opt-in: the dormant Rust path bypasses scaling bit-exactly rather
+  than approximating “off” with large finite limits. It is default-off negative
+  evidence; the remaining behavior gap is continuous
+  support-sustaining moment/landing rejection. See the
+  [r313 envelope report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

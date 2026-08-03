@@ -1,0 +1,5391 @@
+{
+  "candidate_default_enabled": false,
+  "envelope_config": [
+    0.2,
+    2.0,
+    0.34,
+    0.08
+  ],
+  "finding": "R313 supplies a Rust-owned continuous landing-request envelope, but the measured holdout remains negative: attenuation does not remove the terminal cases and still moves at least one boundary earlier. The envelope remains default-off safety/research evidence.",
+  "forces_y_n": [
+    -8.0,
+    -6.0,
+    -4.0,
+    -2.0,
+    2.0,
+    4.0,
+    6.0,
+    8.0
+  ],
+  "generated_at": "2026-08-03T10:07:19.860722+00:00",
+  "harness_gates": {
+    "candidate_replay_exact": true,
+    "causal_measured_window": true,
+    "complete_r311_force_holdout": true,
+    "controller_and_worker_deadlines": true,
+    "finite_outputs": true,
+    "landing_deadline": true,
+    "mode_firewall": true,
+    "zero_landing_allocations": true
+  },
+  "harness_valid": true,
+  "promotion_gates": {
+    "candidate_completes_every_case": false,
+    "candidate_never_moves_terminal_boundary_earlier": false,
+    "candidate_reduces_terminal_fall_count": false
+  },
+  "qualified_for_public_default": false,
+  "rates_hz": {
+    "physics": 250,
+    "stream": 50,
+    "wbc": 50
+  },
+  "revision": "upkie-live-landing-envelope-r313",
+  "rows": [
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.028932204490104592,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.704999999999984,
+          "maximum": 57.46800000000002,
+          "mean": 7.631810810810809,
+          "minimum": 0.030000000000001137,
+          "p50": 3.536999999999992,
+          "p95": 22.863699999999994,
+          "p99": 45.44416999999994,
+          "p99_9": 56.26561700000013,
+          "stddev": 9.97603201011856
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 6.6129999999999995,
+          "maximum": 178.116,
+          "mean": 133.06389333333334,
+          "minimum": 97.203,
+          "p50": 141.697,
+          "p95": 149.96329999999998,
+          "p99": 165.37912000000009,
+          "p99_9": 176.84231200000005,
+          "stddev": 17.129570997214792
+        },
+        "duration_s": 1.500000000000001,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 53,
+        "first_non_double_tick": 47,
+        "force_y_n": -8.0,
+        "ground_normal_force_n": {
+          "mad": 2.5359004188269694,
+          "maximum": 98.12052722191959,
+          "mean": 51.654368554444645,
+          "minimum": 9.182753737105172,
+          "p50": 52.2965235858765,
+          "p95": 73.34284290538818,
+          "p99": 90.63288961268309,
+          "p99_9": 97.37176346099595,
+          "stddev": 14.979877463393176
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 74,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 74,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.655140670284794,
+          "maximum_abs_lateral_dcm_m": 0.0505341549789617,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.24365103941203325,
+          "step_us_p99": 5.639640000000039
+        },
+        "loss_tick_count": 26,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 1,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 49,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.08733580327852282,
+        "maximum_root_tilt_rad": 1.040989072875871,
+        "maximum_torque_utilization": 0.36238135284744716,
+        "minimum_root_height_m": 0.299901686086518,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.03806059545371852,
+        "root_position_rms_m": 0.05261473676535308,
+        "sampled_ground_normal_impulse_ns": 77.48155283166696,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 74,
+        "ticks": 75,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 47
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 54
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 56
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 59
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 60
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 61
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 63
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 69
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 70
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 73,
+          "SolvedWithSlack": 2
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 15.062999999999874,
+          "maximum": 476.6400000000003,
+          "mean": 51.42247297297299,
+          "minimum": 0.1899999999998272,
+          "p50": 22.317000000000007,
+          "p95": 190.4064999999999,
+          "p99": 309.9364699999992,
+          "p99_9": 459.9696470000018,
+          "stddev": 72.94065725017228
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 33.2829999999999,
+          "maximum": 2589.972,
+          "mean": 1997.370306666667,
+          "minimum": 1841.93,
+          "p50": 1987.916,
+          "p95": 2128.9638999999997,
+          "p99": 2320.436620000002,
+          "p99_9": 2563.018462000001,
+          "stddev": 98.10530284505161
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.02368896607606005,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.576999999999984,
+          "maximum": 61.265,
+          "mean": 6.827860759493672,
+          "minimum": 0.09000000000000341,
+          "p50": 3.216000000000008,
+          "p95": 29.021399999999964,
+          "p99": 53.32537999999999,
+          "p99_9": 60.471038000000114,
+          "stddev": 10.734218402013772
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 10.283500000000018,
+          "maximum": 169.119,
+          "mean": 134.282575,
+          "minimum": 101.552,
+          "p50": 142.57999999999998,
+          "p95": 154.44299999999998,
+          "p99": 158.9327399999999,
+          "p99_9": 168.10037400000007,
+          "stddev": 16.755215248374906
+        },
+        "duration_s": 1.6000000000000012,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 66,
+        "first_non_double_tick": 47,
+        "force_y_n": -8.0,
+        "ground_normal_force_n": {
+          "mad": 4.358503198441987,
+          "maximum": 120.4846509688146,
+          "mean": 50.56175365703636,
+          "minimum": 0.0,
+          "p50": 52.09489453536742,
+          "p95": 99.4009185731552,
+          "p99": 110.64894296254631,
+          "p99_9": 119.50108016818787,
+          "stddev": 21.636555103403424
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 79,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 79,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.9600093992667883,
+          "maximum_abs_lateral_dcm_m": 0.04199764710609269,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.23968534402149005,
+          "step_us_p99": 3.68443999999999
+        },
+        "loss_tick_count": 28,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 3,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 65,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.09986388068447548,
+        "maximum_root_tilt_rad": 0.5979275020209691,
+        "maximum_torque_utilization": 0.3733432445811774,
+        "minimum_root_height_m": 0.29584846627886974,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.03323544362769229,
+        "root_position_rms_m": 0.04296605715011832,
+        "sampled_ground_normal_impulse_ns": 80.89880585125819,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 79,
+        "ticks": 80,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 47
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 63
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 65
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 66
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 67
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 74
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 78
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 79
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 77,
+          "SolvedWithSlack": 3
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 24.896999999999935,
+          "maximum": 322.77,
+          "mean": 59.30267088607595,
+          "minimum": 0.009999999999990905,
+          "p50": 35.996999999999844,
+          "p95": 192.9718999999999,
+          "p99": 272.55203999999986,
+          "p99_9": 317.7482040000007,
+          "stddev": 66.07423398881095
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 48.611999999999966,
+          "maximum": 2348.176,
+          "mean": 1979.4542625000001,
+          "minimum": 1813.215,
+          "p50": 1990.2045,
+          "p95": 2142.39565,
+          "p99": 2246.0811399999993,
+          "p99_9": 2337.9665140000006,
+          "stddev": 94.68940387534707
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 6,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 47,
+        "last_active_tick": 54,
+        "maximum_effective_authority": 0.4,
+        "partial_authority_ticks": 8,
+        "step_us_p99": 7.980719999999994
+      },
+      "force_y_n": -8.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.024845177736429306,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.7579999999999956,
+          "maximum": 49.19099999999999,
+          "mean": 5.754679487179486,
+          "minimum": 0.019000000000005457,
+          "p50": 2.7994999999999948,
+          "p95": 25.1158,
+          "p99": 37.567080000000054,
+          "p99_9": 48.02860800000002,
+          "stddev": 8.497957900236656
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 7.672999999999973,
+          "maximum": 179.77,
+          "mean": 133.32596202531647,
+          "minimum": 104.948,
+          "p50": 142.961,
+          "p95": 153.7413,
+          "p99": 169.74231999999998,
+          "p99_9": 178.76723200000015,
+          "stddev": 16.9587823866141
+        },
+        "duration_s": 1.5800000000000012,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 60,
+        "first_non_double_tick": 47,
+        "force_y_n": -8.0,
+        "ground_normal_force_n": {
+          "mad": 2.97886214205986,
+          "maximum": 203.5529310645352,
+          "mean": 50.99829512110736,
+          "minimum": 0.0,
+          "p50": 52.023552130335084,
+          "p95": 65.83327779554298,
+          "p99": 147.98146898592285,
+          "p99_9": 197.99578485667476,
+          "stddev": 24.970038697127208
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 78,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 78,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.9600093992667883,
+          "maximum_abs_lateral_dcm_m": 0.06167412232694558,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.20889624364898196,
+          "step_us_p99": 4.884939999999995
+        },
+        "loss_tick_count": 29,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 3,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 9,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.09171625819602351,
+        "maximum_root_tilt_rad": 0.5811785248199755,
+        "maximum_torque_utilization": 0.24782895787977896,
+        "minimum_root_height_m": 0.29069863122113476,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.03101086943318103,
+        "root_position_rms_m": 0.044374427714475084,
+        "sampled_ground_normal_impulse_ns": 80.57730629134963,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 78,
+        "ticks": 79,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 47
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 60
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 61
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 63
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 64
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 65
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 73
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 74
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 76
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 76,
+          "SolvedWithSlack": 3
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 29.285499999999843,
+          "maximum": 634.479,
+          "mean": 78.33105128205128,
+          "minimum": 0.30100000000015825,
+          "p50": 36.68400000000008,
+          "p95": 219.01474999999922,
+          "p99": 629.7180900000001,
+          "p99_9": 634.002909,
+          "stddev": 113.68946767501438
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 51.807000000000016,
+          "maximum": 2605.552,
+          "mean": 1988.9831898734176,
+          "minimum": 1819.177,
+          "p50": 1980.952,
+          "p95": 2184.5537,
+          "p99": 2519.40178,
+          "p99_9": 2596.9369780000015,
+          "stddev": 124.38294451808603
+        }
+      },
+      "r312_request": {
+        "active_ticks": 23,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 47,
+        "last_active_tick": 75,
+        "maximum_effective_authority": 0.9962148779817424,
+        "partial_authority_ticks": 28,
+        "step_us_p99": 4.1898
+      },
+      "terminal_delta_vs_baseline": 5,
+      "terminal_delta_vs_r312": 1
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.022390853735512247,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.0489999999999924,
+          "maximum": 72.33699999999999,
+          "mean": 6.885756097560976,
+          "minimum": 0.03900000000001569,
+          "p50": 3.216000000000008,
+          "p95": 27.72515000000001,
+          "p99": 39.91954000000003,
+          "p99_9": 67.76582800000048,
+          "stddev": 9.856281274520468
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 5.61099999999999,
+          "maximum": 181.683,
+          "mean": 134.32546666666664,
+          "minimum": 103.645,
+          "p50": 137.5,
+          "p95": 150.59239999999997,
+          "p99": 179.86847999999998,
+          "p99_9": 181.589356,
+          "stddev": 15.019244747397329
+        },
+        "duration_s": 3.3000000000000025,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 146,
+        "first_non_double_tick": 48,
+        "force_y_n": -6.0,
+        "ground_normal_force_n": {
+          "mad": 0.6962398966115018,
+          "maximum": 125.06751399235485,
+          "mean": 50.007622092482016,
+          "minimum": 0.0,
+          "p50": 52.32457313533787,
+          "p95": 63.46987261637152,
+          "p99": 92.28913471553061,
+          "p99_9": 119.89880622104668,
+          "stddev": 14.856319030563437
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 164,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 164,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.1201633235979178,
+          "maximum_abs_lateral_dcm_m": 0.0872643753515815,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2144903535503978,
+          "step_us_p99": 4.616279999999974
+        },
+        "loss_tick_count": 40,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 6,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 130,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.18862424518812568,
+        "maximum_root_tilt_rad": 1.0501489471929981,
+        "maximum_torque_utilization": 0.4002773498759885,
+        "minimum_root_height_m": 0.2912781676360076,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.04794566470227384,
+        "root_position_rms_m": 0.04556901113099394,
+        "sampled_ground_normal_impulse_ns": 165.02515290519065,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 164,
+        "ticks": 165,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 56
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 61
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 63
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 126
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 127
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 131
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 143
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 144
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 146
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 147
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 152
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 154
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 155
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 160,
+          "SolvedWithSlack": 5
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 26.345000000000027,
+          "maximum": 633.6280000000002,
+          "mean": 69.7099024390244,
+          "minimum": 0.2599999999999909,
+          "p50": 34.75599999999997,
+          "p95": 227.44245000000006,
+          "p99": 592.7987400000003,
+          "p99_9": 629.1500640000006,
+          "stddev": 112.44496338920763
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 43.833000000000084,
+          "maximum": 2514.039,
+          "mean": 1960.3540909090912,
+          "minimum": 1774.432,
+          "p50": 1966.224,
+          "p95": 2101.3175999999994,
+          "p99": 2478.9154399999993,
+          "p99_9": 2512.6376200000004,
+          "stddev": 112.84003796309601
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.025696168305541826,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.9140000000000015,
+          "maximum": 36.708,
+          "mean": 5.232170731707314,
+          "minimum": 0.03999999999999204,
+          "p50": 2.8160000000000025,
+          "p95": 18.519249999999992,
+          "p99": 26.970989999999972,
+          "p99_9": 35.734299000000135,
+          "stddev": 6.3411750811560985
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 10.920000000000016,
+          "maximum": 164.891,
+          "mean": 132.65203614457832,
+          "minimum": 99.779,
+          "p50": 142.189,
+          "p95": 152.9446,
+          "p99": 161.80287999999996,
+          "p99_9": 164.582188,
+          "stddev": 16.77360571150278
+        },
+        "duration_s": 1.6600000000000013,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 70,
+        "first_non_double_tick": 48,
+        "force_y_n": -6.0,
+        "ground_normal_force_n": {
+          "mad": 2.552974522747725,
+          "maximum": 226.27818154248217,
+          "mean": 49.793189652988325,
+          "minimum": 0.0,
+          "p50": 52.075276622829335,
+          "p95": 63.45272347946909,
+          "p99": 115.16021666442661,
+          "p99_9": 215.1663850546776,
+          "stddev": 25.77914870000234
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 82,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 82,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.1999906007332115,
+          "maximum_abs_lateral_dcm_m": 0.08939941503613788,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.17113820968157967,
+          "step_us_p99": 4.592179999999958
+        },
+        "loss_tick_count": 31,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 6,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 41,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.15950329601857452,
+        "maximum_root_tilt_rad": 0.9904020576466444,
+        "maximum_torque_utilization": 0.15378616866937098,
+        "minimum_root_height_m": 0.2876597094134184,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.05899182964238808,
+        "root_position_rms_m": 0.056303147289399294,
+        "sampled_ground_normal_impulse_ns": 82.65669482396062,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 82,
+        "ticks": 83,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 70
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 82
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 82,
+          "SolvedWithSlack": 1
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 16.404999999999973,
+          "maximum": 611.5249999999999,
+          "mean": 69.73462195121954,
+          "minimum": 0.459999999999809,
+          "p50": 26.13900000000001,
+          "p95": 365.2389500000002,
+          "p99": 596.0896400000001,
+          "p99_9": 609.9814640000001,
+          "stddev": 129.42301322950976
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 31.95900000000006,
+          "maximum": 2589.281,
+          "mean": 1989.8760120481927,
+          "minimum": 1823.796,
+          "p50": 1988.076,
+          "p95": 2211.8037,
+          "p99": 2448.5165199999988,
+          "p99_9": 2575.204552000001,
+          "stddev": 120.25058647678979
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 7,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 48,
+        "last_active_tick": 58,
+        "maximum_effective_authority": 0.767138492025125,
+        "partial_authority_ticks": 11,
+        "step_us_p99": 3.4627799999999973
+      },
+      "force_y_n": -6.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.025283365728972516,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.655000000000001,
+          "maximum": 37.540000000000006,
+          "mean": 6.690132530120484,
+          "minimum": 0.09999999999999432,
+          "p50": 3.6470000000000056,
+          "p95": 22.4298,
+          "p99": 33.62203999999996,
+          "p99_9": 37.148204000000035,
+          "stddev": 7.631487264878455
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 12.373500000000007,
+          "maximum": 177.445,
+          "mean": 134.95734523809526,
+          "minimum": 103.155,
+          "p50": 142.8,
+          "p95": 158.4919,
+          "p99": 167.40698000000003,
+          "p99_9": 176.44119800000018,
+          "stddev": 17.673524400244812
+        },
+        "duration_s": 1.6800000000000013,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 72,
+        "first_non_double_tick": 48,
+        "force_y_n": -6.0,
+        "ground_normal_force_n": {
+          "mad": 2.5342643743685755,
+          "maximum": 122.61859035560039,
+          "mean": 50.238463215380264,
+          "minimum": 0.0,
+          "p50": 52.14778804590876,
+          "p95": 69.89180679714931,
+          "p99": 104.0771582168607,
+          "p99_9": 120.76444714172676,
+          "stddev": 17.98903512836953
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 83,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 83,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.3599906007332117,
+          "maximum_abs_lateral_dcm_m": 0.08037244119897638,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.16820457891334506,
+          "step_us_p99": 3.7009400000000006
+        },
+        "loss_tick_count": 31,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 5,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 25,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.14740945675996264,
+        "maximum_root_tilt_rad": 0.8654039796527817,
+        "maximum_torque_utilization": 0.342413235350038,
+        "minimum_root_height_m": 0.2966948178954462,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.055924327147235976,
+        "root_position_rms_m": 0.05364228649499744,
+        "sampled_ground_normal_impulse_ns": 84.40061820183884,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 83,
+        "ticks": 84,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 59
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 72
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 83
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 83,
+          "SolvedWithSlack": 1
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 25.358000000000175,
+          "maximum": 760.5169999999998,
+          "mean": 77.1668674698795,
+          "minimum": 0.1799999999998363,
+          "p50": 35.277000000000044,
+          "p95": 209.87499999999983,
+          "p99": 667.2378999999991,
+          "p99_9": 751.1890900000005,
+          "stddev": 132.82992249170033
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 51.446500000000015,
+          "maximum": 2672.709,
+          "mean": 2008.700904761905,
+          "minimum": 1804.238,
+          "p50": 1991.903,
+          "p95": 2153.853,
+          "p99": 2571.5154,
+          "p99_9": 2662.589640000002,
+          "stddev": 120.58393694540261
+        }
+      },
+      "r312_request": {
+        "active_ticks": 20,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 48,
+        "last_active_tick": 83,
+        "maximum_effective_authority": 0.9777762618389229,
+        "partial_authority_ticks": 24,
+        "step_us_p99": 6.623790000000006
+      },
+      "terminal_delta_vs_baseline": -82,
+      "terminal_delta_vs_r312": -1
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.00595141323294781,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.8319999999999936,
+          "maximum": 42.241000000000014,
+          "mean": 4.253233853006681,
+          "minimum": 0.0010000000000047748,
+          "p50": 2.9650000000000034,
+          "p95": 11.18259999999998,
+          "p99": 25.13811999999996,
+          "p99_9": 37.29015200000024,
+          "stddev": 4.558634939188173
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 2.860500000000002,
+          "maximum": 174.19,
+          "mean": 139.57326666666668,
+          "minimum": 107.202,
+          "p50": 138.8725,
+          "p95": 146.88099999999997,
+          "p99": 154.93605999999997,
+          "p99_9": 172.24134000000018,
+          "stddev": 5.157782922492527
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11341771772821829,
+          "maximum": 63.46063436001327,
+          "mean": 52.408340170886014,
+          "minimum": 24.967362228918685,
+          "p50": 52.38641885308107,
+          "p95": 52.71701676919934,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6973506968357688
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200234636808153,
+          "maximum_abs_lateral_dcm_m": 0.0165510761050726,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2970771761766424,
+          "step_us_p99": 3.964299999999998
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 5,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028068328289592413,
+        "maximum_root_tilt_rad": 0.3219418642338336,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00946496864249977,
+        "root_position_rms_m": 0.011553382525122845,
+        "sampled_ground_normal_impulse_ns": 471.6750615379741,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 22.07199999999989,
+          "maximum": 13368.594,
+          "mean": 114.91908685968819,
+          "minimum": 0.12099999999986721,
+          "p50": 27.37200000000007,
+          "p95": 205.62059999999994,
+          "p99": 568.8019999999995,
+          "p99_9": 13174.76366400001,
+          "stddev": 875.9950445489847
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 45.480500000000006,
+          "maximum": 15375.926,
+          "mean": 2011.464697777778,
+          "minimum": 1850.476,
+          "p50": 1979.359,
+          "p95": 2142.5216999999993,
+          "p99": 2353.6214399999985,
+          "p99_9": 9640.980108000569,
+          "stddev": 636.908842775404
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.00595141323294781,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.711999999999989,
+          "maximum": 35.496999999999986,
+          "mean": 4.015403118040089,
+          "minimum": 0.0,
+          "p50": 2.664999999999992,
+          "p95": 12.277000000000012,
+          "p99": 22.26292,
+          "p99_9": 32.40490400000014,
+          "stddev": 4.360206164297691
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 2.630499999999998,
+          "maximum": 169.941,
+          "mean": 141.82301555555557,
+          "minimum": 109.757,
+          "p50": 140.892,
+          "p95": 150.48805,
+          "p99": 155.94921999999997,
+          "p99_9": 166.32879500000035,
+          "stddev": 5.111320789274444
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11341771772821829,
+          "maximum": 63.46063436001327,
+          "mean": 52.408340170886014,
+          "minimum": 24.967362228918685,
+          "p50": 52.38641885308107,
+          "p95": 52.71701676919934,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6973506968357688
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200234636808153,
+          "maximum_abs_lateral_dcm_m": 0.0165510761050726,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2970771761766424,
+          "step_us_p99": 3.286
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 141,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028068328289592413,
+        "maximum_root_tilt_rad": 0.3219418642338336,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00946496864249977,
+        "root_position_rms_m": 0.011553382525122845,
+        "sampled_ground_normal_impulse_ns": 471.6750615379741,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 15.379000000000133,
+          "maximum": 701.144,
+          "mean": 53.544839643652566,
+          "minimum": 0.09100000000012187,
+          "p50": 20.15800000000013,
+          "p95": 219.18639999999985,
+          "p99": 466.36716,
+          "p99_9": 690.3494400000005,
+          "stddev": 87.95485239366394
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 41.222499999999854,
+          "maximum": 2600.422,
+          "mean": 1978.2772911111113,
+          "minimum": 1871.906,
+          "p50": 1980.5214999999998,
+          "p95": 2119.23955,
+          "p99": 2250.47097,
+          "p99_9": 2581.460730000002,
+          "stddev": 81.91927066074616
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 3.80311999999999
+      },
+      "force_y_n": -4.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.00595141323294781,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.9230000000000018,
+          "maximum": 35.08699999999999,
+          "mean": 4.164913140311806,
+          "minimum": 0.010000000000019327,
+          "p50": 2.906000000000006,
+          "p95": 11.716599999999982,
+          "p99": 16.974399999999992,
+          "p99_9": 28.412696000000317,
+          "stddev": 3.9480993949113095
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 2.8400000000000034,
+          "maximum": 157.357,
+          "mean": 141.71369555555555,
+          "minimum": 109.536,
+          "p50": 141.0765,
+          "p95": 149.402,
+          "p99": 156.10789,
+          "p99_9": 157.18682900000002,
+          "stddev": 4.882484231820953
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11341771772821829,
+          "maximum": 63.46063436001327,
+          "mean": 52.408340170886014,
+          "minimum": 24.967362228918685,
+          "p50": 52.38641885308107,
+          "p95": 52.71701676919934,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6973506968357688
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200234636808153,
+          "maximum_abs_lateral_dcm_m": 0.0165510761050726,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2970771761766424,
+          "step_us_p99": 3.383299999999999
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 4,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028068328289592413,
+        "maximum_root_tilt_rad": 0.3219418642338336,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00946496864249977,
+        "root_position_rms_m": 0.011553382525122845,
+        "sampled_ground_normal_impulse_ns": 471.6750615379741,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 17.161000000000058,
+          "maximum": 758.3530000000001,
+          "mean": 55.08580178173718,
+          "minimum": 0.029999999999972715,
+          "p50": 23.414999999999964,
+          "p95": 201.43899999999994,
+          "p99": 475.6486799999974,
+          "p99_9": 743.3342480000007,
+          "stddev": 86.20745929878316
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 44.23350000000005,
+          "maximum": 2635.799,
+          "mean": 1978.3335466666665,
+          "minimum": 1860.023,
+          "p50": 1979.134,
+          "p95": 2119.6612999999998,
+          "p99": 2220.16146,
+          "p99_9": 2591.0345980000043,
+          "stddev": 84.47440517244814
+        }
+      },
+      "r312_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 3.3024999999999984
+      },
+      "terminal_delta_vs_baseline": null,
+      "terminal_delta_vs_r312": null
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010059083031802946,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.394999999999982,
+          "maximum": 7164.895,
+          "mean": 36.952138084632516,
+          "minimum": 0.0010000000000047748,
+          "p50": 3.495999999999981,
+          "p95": 15.811400000000013,
+          "p99": 30.69755999999979,
+          "p99_9": 7163.965848,
+          "stddev": 476.7534031844401
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 3.2964999999999947,
+          "maximum": 7302.425,
+          "mean": 155.77969111111113,
+          "minimum": 107.543,
+          "p50": 138.176,
+          "p95": 152.19359999999998,
+          "p99": 160.99202,
+          "p99_9": 4112.539971000317,
+          "stddev": 337.34167507161067
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -2.0,
+        "ground_normal_force_n": {
+          "mad": 0.09836969436158682,
+          "maximum": 63.46063436001327,
+          "mean": 52.433542259769766,
+          "minimum": 24.967362228918685,
+          "p50": 52.37718521890584,
+          "p95": 52.5955615145636,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6775340432238912
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 49,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4921155666547601,
+          "maximum_abs_lateral_dcm_m": 0.013248096531747652,
+          "maximum_authority": 0.31176877993281404,
+          "minimum_filtered_weaker_load_fraction": 0.4368307837999046,
+          "step_us_p99": 3.42181
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.009307507571538342,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07056683446017999,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.536418321931514,
+        "maximum_root_lateral_displacement_m": 0.012307289513690792,
+        "maximum_root_tilt_rad": 0.11607355028325393,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003692877942971449,
+        "root_position_rms_m": 0.011357016486675035,
+        "sampled_ground_normal_impulse_ns": 471.9018803379278,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 18.31399999999985,
+          "maximum": 7233.384999999999,
+          "mean": 88.0288307349666,
+          "minimum": 0.01999999999998181,
+          "p50": 22.151999999999816,
+          "p95": 214.26659999999993,
+          "p99": 456.0972399999999,
+          "p99_9": 7226.665448,
+          "stddev": 483.8918882170672
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 44.509500000000116,
+          "maximum": 9123.746,
+          "mean": 1999.0302177777778,
+          "minimum": 1861.317,
+          "p50": 1980.982,
+          "p95": 2148.08655,
+          "p99": 2266.2035099999994,
+          "p99_9": 6159.087453000294,
+          "stddev": 346.2791567573405
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010059083031802946,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.2549999999999955,
+          "maximum": 7071.92,
+          "mean": 36.046915367483294,
+          "minimum": 0.0,
+          "p50": 3.195999999999998,
+          "p95": 15.472999999999995,
+          "p99": 22.640479999999954,
+          "p99_9": 7067.25632,
+          "stddev": 470.3059551743815
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 3.3465000000000202,
+          "maximum": 7210.782,
+          "mean": 157.18206444444445,
+          "minimum": 110.259,
+          "p50": 140.27550000000002,
+          "p95": 152.22899999999998,
+          "p99": 159.94513999999998,
+          "p99_9": 4047.5954090003142,
+          "stddev": 332.92939428471124
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -2.0,
+        "ground_normal_force_n": {
+          "mad": 0.09836969436158682,
+          "maximum": 63.46063436001327,
+          "mean": 52.433542259769766,
+          "minimum": 24.967362228918685,
+          "p50": 52.37718521890584,
+          "p95": 52.5955615145636,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6775340432238912
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 49,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4921155666547601,
+          "maximum_abs_lateral_dcm_m": 0.013248096531747652,
+          "maximum_authority": 0.31176877993281404,
+          "minimum_filtered_weaker_load_fraction": 0.4368307837999046,
+          "step_us_p99": 3.26159
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.009307507571538342,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07056683446017999,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.536418321931514,
+        "maximum_root_lateral_displacement_m": 0.012307289513690792,
+        "maximum_root_tilt_rad": 0.11607355028325393,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003692877942971449,
+        "root_position_rms_m": 0.011357016486675035,
+        "sampled_ground_normal_impulse_ns": 471.9018803379278,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 16.360999999999876,
+          "maximum": 7115.241,
+          "mean": 85.9296837416481,
+          "minimum": 0.13000000000010914,
+          "p50": 20.198000000000093,
+          "p95": 219.8547999999999,
+          "p99": 473.0145599999995,
+          "p99_9": 7085.442280000001,
+          "stddev": 474.7321414035561
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 32.787000000000035,
+          "maximum": 9028.105,
+          "mean": 2004.8481511111113,
+          "minimum": 1874.712,
+          "p50": 1988.3165,
+          "p95": 2169.69555,
+          "p99": 2294.819249999999,
+          "p99_9": 6093.865305000291,
+          "stddev": 341.02325058345514
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 3.8098099999999935
+      },
+      "force_y_n": -2.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010059083031802946,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.437000000000012,
+          "maximum": 7425.286,
+          "mean": 38.04549220489979,
+          "minimum": 0.010000000000019327,
+          "p50": 3.3870000000000005,
+          "p95": 15.990399999999998,
+          "p99": 27.522399999999973,
+          "p99_9": 7422.673712,
+          "stddev": 493.96473637044113
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 4.021499999999989,
+          "maximum": 7565.832,
+          "mean": 158.96884444444444,
+          "minimum": 110.317,
+          "p50": 141.236,
+          "p95": 154.416,
+          "p99": 162.34881,
+          "p99_9": 4246.61970500033,
+          "stddev": 349.61043413832016
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": -2.0,
+        "ground_normal_force_n": {
+          "mad": 0.09836969436158682,
+          "maximum": 63.46063436001327,
+          "mean": 52.433542259769766,
+          "minimum": 24.967362228918685,
+          "p50": 52.37718521890584,
+          "p95": 52.5955615145636,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6775340432238912
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 49,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4921155666547601,
+          "maximum_abs_lateral_dcm_m": 0.013248096531747652,
+          "maximum_authority": 0.31176877993281404,
+          "minimum_filtered_weaker_load_fraction": 0.4368307837999046,
+          "step_us_p99": 3.8589099999999985
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.009307507571538342,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07056683446017999,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.536418321931514,
+        "maximum_root_lateral_displacement_m": 0.012307289513690792,
+        "maximum_root_tilt_rad": 0.11607355028325393,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003692877942971449,
+        "root_position_rms_m": 0.011357016486675035,
+        "sampled_ground_normal_impulse_ns": 471.9018803379278,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 19.25799999999981,
+          "maximum": 36420.530999999995,
+          "mean": 248.54340534521154,
+          "minimum": 0.17000000000007276,
+          "p50": 24.33699999999999,
+          "p95": 204.24199999999982,
+          "p99": 612.8271999999995,
+          "p99_9": 36200.03884000001,
+          "stddev": 2454.9797309544156
+        },
+        "worker_over_20ms_ticks": 1,
+        "worker_step_us": {
+          "mad": 38.83749999999998,
+          "maximum": 38315.541,
+          "mean": 2088.8094288888888,
+          "minimum": 1863.551,
+          "p50": 1990.085,
+          "p95": 2154.2051,
+          "p99": 2411.711,
+          "p99_9": 25329.731375001287,
+          "stddev": 1746.8252087612505
+        }
+      },
+      "r312_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 4.979009999999996
+      },
+      "terminal_delta_vs_baseline": null,
+      "terminal_delta_vs_r312": null
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010729188070961957,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.9739999999999895,
+          "maximum": 7114.950999999999,
+          "mean": 35.71477951002227,
+          "minimum": 0.03100000000000591,
+          "p50": 2.8160000000000025,
+          "p95": 12.187,
+          "p99": 19.512719999999945,
+          "p99_9": 7111.899223999999,
+          "stddev": 473.3185299724452
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 2.6899999999999977,
+          "maximum": 7254.114,
+          "mean": 155.45377555555555,
+          "minimum": 109.006,
+          "p50": 138.71699999999998,
+          "p95": 148.902,
+          "p99": 154.19823,
+          "p99_9": 4067.575817000316,
+          "stddev": 335.0420362608726
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 2.0,
+        "ground_normal_force_n": {
+          "mad": 0.1037371594803389,
+          "maximum": 63.46063436001327,
+          "mean": 52.43843189415725,
+          "minimum": 24.967362228918685,
+          "p50": 52.37719742712753,
+          "p95": 52.612546114776244,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6809337579383266
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 50,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4964412481894305,
+          "maximum_abs_lateral_dcm_m": 0.01338607346653708,
+          "maximum_authority": 0.31498833949097915,
+          "minimum_filtered_weaker_load_fraction": 0.4366143894016393,
+          "step_us_p99": 3.4021
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.012267632264571643,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07160615875605013,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.53869190799298,
+        "maximum_root_lateral_displacement_m": 0.012647187312288777,
+        "maximum_root_tilt_rad": 0.12407398393971632,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003783901183414128,
+        "root_position_rms_m": 0.01210565985418798,
+        "sampled_ground_normal_impulse_ns": 471.9458870474152,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 17.253000000000156,
+          "maximum": 7156.589999999999,
+          "mean": 82.03718930957683,
+          "minimum": 0.06899999999995998,
+          "p50": 22.12200000000007,
+          "p95": 199.24639999999997,
+          "p99": 459.8451199999997,
+          "p99_9": 7083.126960000003,
+          "stddev": 473.7899122324486
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 35.577,
+          "maximum": 9064.694,
+          "mean": 2001.3076022222222,
+          "minimum": 1863.931,
+          "p50": 1983.132,
+          "p95": 2138.3960500000003,
+          "p99": 2336.1165799999994,
+          "p99_9": 6175.933964000287,
+          "stddev": 343.398332745004
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010729188070961957,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.9540000000000077,
+          "maximum": 7285.663,
+          "mean": 36.60317817371937,
+          "minimum": 0.011000000000024102,
+          "p50": 2.9960000000000093,
+          "p95": 12.7918,
+          "p99": 21.03935999999998,
+          "p99_9": 7285.631192,
+          "stddev": 484.9054180649448
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 2.4345,
+          "maximum": 7429.254,
+          "mean": 160.0521977777778,
+          "minimum": 112.132,
+          "p50": 143.0005,
+          "p95": 152.4185,
+          "p99": 159.99581999999998,
+          "p99_9": 4170.5916000003235,
+          "stddev": 343.0902976910999
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 2.0,
+        "ground_normal_force_n": {
+          "mad": 0.1037371594803389,
+          "maximum": 63.46063436001327,
+          "mean": 52.43843189415725,
+          "minimum": 24.967362228918685,
+          "p50": 52.37719742712753,
+          "p95": 52.612546114776244,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6809337579383266
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 50,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4964412481894305,
+          "maximum_abs_lateral_dcm_m": 0.01338607346653708,
+          "maximum_authority": 0.31498833949097915,
+          "minimum_filtered_weaker_load_fraction": 0.4366143894016393,
+          "step_us_p99": 3.600109999999997
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.012267632264571643,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07160615875605013,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.53869190799298,
+        "maximum_root_lateral_displacement_m": 0.012647187312288777,
+        "maximum_root_tilt_rad": 0.12407398393971632,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003783901183414128,
+        "root_position_rms_m": 0.01210565985418798,
+        "sampled_ground_normal_impulse_ns": 471.9458870474152,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 16.138999999999896,
+          "maximum": 7461.635,
+          "mean": 87.73395991091316,
+          "minimum": 0.01999999999998181,
+          "p50": 20.176999999999907,
+          "p95": 199.56999999999994,
+          "p99": 620.85904,
+          "p99_9": 7459.740856,
+          "stddev": 501.12794859015906
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 46.021999999999935,
+          "maximum": 9375.922,
+          "mean": 2024.7737733333336,
+          "minimum": 1894.459,
+          "p50": 2006.33,
+          "p95": 2184.97525,
+          "p99": 2307.489059999999,
+          "p99_9": 6362.9268070003,
+          "stddev": 358.44472055013466
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 4.3652999999999995
+      },
+      "force_y_n": 2.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.010729188070961957,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.0219999999999914,
+          "maximum": 7293.096,
+          "mean": 36.99614476614699,
+          "minimum": 0.010000000000019327,
+          "p50": 2.8070000000000164,
+          "p95": 14.658199999999994,
+          "p99": 36.801999999999936,
+          "p99_9": 7289.981056,
+          "stddev": 485.16174005847245
+        },
+        "controller_over_5ms_ticks": 1,
+        "controller_step_us": {
+          "mad": 2.986000000000004,
+          "maximum": 7434.714,
+          "mean": 160.16541999999998,
+          "minimum": 110.017,
+          "p50": 143.0155,
+          "p95": 154.15944999999996,
+          "p99": 169.72329999999997,
+          "p99_9": 4180.837940000323,
+          "stddev": 343.36469107755005
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 2.0,
+        "ground_normal_force_n": {
+          "mad": 0.1037371594803389,
+          "maximum": 63.46063436001327,
+          "mean": 52.43843189415725,
+          "minimum": 24.967362228918685,
+          "p50": 52.37719742712753,
+          "p95": 52.612546114776244,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6809337579383266
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 50,
+          "last_active_tick": 317,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.4964412481894305,
+          "maximum_abs_lateral_dcm_m": 0.01338607346653708,
+          "maximum_authority": 0.31498833949097915,
+          "minimum_filtered_weaker_load_fraction": 0.4366143894016393,
+          "step_us_p99": 3.569509999999997
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [
+          68
+        ],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 0.012267632264571643,
+        "maximum_constraint_violation_tick": 68,
+        "maximum_contact_residual": 0.07160615875605013,
+        "maximum_controller_step_tick": 68,
+        "maximum_dynamics_residual": 52.53869190799298,
+        "maximum_root_lateral_displacement_m": 0.012647187312288777,
+        "maximum_root_tilt_rad": 0.12407398393971632,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [
+          68
+        ],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.003783901183414128,
+        "root_position_rms_m": 0.01210565985418798,
+        "sampled_ground_normal_impulse_ns": 471.9458870474152,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "MaxIterations": 1,
+          "Solved": 449
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 18.585000000000264,
+          "maximum": 67410.363,
+          "mean": 387.68783073496655,
+          "minimum": 0.01999999999998181,
+          "p50": 23.03300000000013,
+          "p95": 221.08619999999974,
+          "p99": 700.6443599999988,
+          "p99_9": 67252.638328,
+          "stddev": 4498.824345831257
+        },
+        "worker_over_20ms_ticks": 1,
+        "worker_step_us": {
+          "mad": 37.62099999999975,
+          "maximum": 69425.36,
+          "mean": 2176.613077777778,
+          "minimum": 1875.302,
+          "p50": 2005.8290000000002,
+          "p95": 2169.4148999999993,
+          "p99": 2550.9662899999985,
+          "p99_9": 42411.68134500268,
+          "stddev": 3193.3892013617774
+        }
+      },
+      "r312_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 4.703909999999995
+      },
+      "terminal_delta_vs_baseline": null,
+      "terminal_delta_vs_r312": null
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.005946214202672023,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.2329999999999757,
+          "maximum": 46.78899999999999,
+          "mean": 4.5942271714922045,
+          "minimum": 0.0,
+          "p50": 3.437000000000012,
+          "p95": 12.688400000000012,
+          "p99": 17.339399999999994,
+          "p99_9": 45.42887200000005,
+          "stddev": 4.931805964665957
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 3.341000000000008,
+          "maximum": 183.196,
+          "mean": 141.7013777777778,
+          "minimum": 108.665,
+          "p50": 140.41,
+          "p95": 151.6875,
+          "p99": 155.49401,
+          "p99_9": 172.44918500000105,
+          "stddev": 5.902673637857824
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11325058190712411,
+          "maximum": 63.46063436001327,
+          "mean": 52.406132688335376,
+          "minimum": 24.967362228918685,
+          "p50": 52.38643214827353,
+          "p95": 52.71631175199096,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6947092142075288
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200050394930374,
+          "maximum_abs_lateral_dcm_m": 0.016549947570838275,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.29708055597681327,
+          "step_us_p99": 3.5222099999999994
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 430,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028062027711803297,
+        "maximum_root_tilt_rad": 0.3215973810749265,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00945965128189119,
+        "root_position_rms_m": 0.01154086415660946,
+        "sampled_ground_normal_impulse_ns": 471.6551941950184,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 14.718000000000075,
+          "maximum": 662.5820000000001,
+          "mean": 52.3859710467706,
+          "minimum": 0.028999999999996362,
+          "p50": 18.94600000000014,
+          "p95": 204.73460000000006,
+          "p99": 537.4913999999995,
+          "p99_9": 645.332656000001,
+          "stddev": 86.48941892283361
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 44.07800000000009,
+          "maximum": 2676.717,
+          "mean": 1999.9457288888889,
+          "minimum": 1890.421,
+          "p50": 1999.1264999999999,
+          "p95": 2156.1592499999997,
+          "p99": 2259.6848099999993,
+          "p99_9": 2648.952187000003,
+          "stddev": 87.63839758929775
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.005946214202672023,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.194999999999993,
+          "maximum": 72.48600000000002,
+          "mean": 4.694198218262805,
+          "minimum": 0.0009999999999763531,
+          "p50": 3.1359999999999957,
+          "p95": 13.464399999999973,
+          "p99": 23.845599999999898,
+          "p99_9": 63.953392000000406,
+          "stddev": 6.092939588333304
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 2.835499999999996,
+          "maximum": 219.704,
+          "mean": 143.79656,
+          "minimum": 112.212,
+          "p50": 142.35399999999998,
+          "p95": 153.751,
+          "p99": 159.87873,
+          "p99_9": 197.5674020000022,
+          "stddev": 6.74316154812991
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11325058190712411,
+          "maximum": 63.46063436001327,
+          "mean": 52.406132688335376,
+          "minimum": 24.967362228918685,
+          "p50": 52.38643214827353,
+          "p95": 52.71631175199096,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6947092142075288
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200050394930374,
+          "maximum_abs_lateral_dcm_m": 0.016549947570838275,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.29708055597681327,
+          "step_us_p99": 3.6397999999999975
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 238,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028062027711803297,
+        "maximum_root_tilt_rad": 0.3215973810749265,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00945965128189119,
+        "root_position_rms_m": 0.01154086415660946,
+        "sampled_ground_normal_impulse_ns": 471.6551941950184,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 14.166999999999916,
+          "maximum": 92926.88500000001,
+          "mean": 454.52994209354114,
+          "minimum": 0.1009999999998854,
+          "p50": 17.291999999999916,
+          "p95": 144.52699999999993,
+          "p99": 599.7718799999992,
+          "p99_9": 92783.06087200002,
+          "stddev": 6175.269212244543
+        },
+        "worker_over_20ms_ticks": 1,
+        "worker_step_us": {
+          "mad": 41.94400000000019,
+          "maximum": 94957.301,
+          "mean": 2198.0680044444443,
+          "minimum": 1893.887,
+          "p50": 1998.1145000000001,
+          "p95": 2094.0081499999997,
+          "p99": 2400.509919999999,
+          "p99_9": 53511.93753200412,
+          "stddev": 4378.376720352622
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 3.5501099999999965
+      },
+      "force_y_n": 4.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.005946214202672023,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.252999999999986,
+          "maximum": 26.418999999999997,
+          "mean": 4.970737193763919,
+          "minimum": 0.009999999999990905,
+          "p50": 3.484999999999985,
+          "p95": 14.816399999999996,
+          "p99": 23.884239999999963,
+          "p99_9": 26.033720000000017,
+          "stddev": 4.891745800601609
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 3.031000000000006,
+          "maximum": 165.171,
+          "mean": 144.46966,
+          "minimum": 119.156,
+          "p50": 143.19150000000002,
+          "p95": 154.8675,
+          "p99": 161.05551,
+          "p99_9": 164.90160000000003,
+          "stddev": 5.517758150831428
+        },
+        "duration_s": 8.999999999999453,
+        "final_100_bilateral_upright": true,
+        "first_flight_tick": null,
+        "first_non_double_tick": null,
+        "force_y_n": 4.0,
+        "ground_normal_force_n": {
+          "mad": 0.11325058190712411,
+          "maximum": 63.46063436001327,
+          "mean": 52.406132688335376,
+          "minimum": 24.967362228918685,
+          "p50": 52.38643214827353,
+          "p95": 52.71631175199096,
+          "p99": 58.73781762541559,
+          "p99_9": 63.095228983289196,
+          "stddev": 1.6947092142075288
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": null,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 42,
+          "last_active_tick": 331,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 0.7200050394930374,
+          "maximum_abs_lateral_dcm_m": 0.016549947570838275,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.29708055597681327,
+          "step_us_p99": 3.3512999999999997
+        },
+        "loss_tick_count": 0,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 0,
+        "maximum_capture_pressure": 0.45352952139175673,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 150,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.028062027711803297,
+        "maximum_root_tilt_rad": 0.3215973810749265,
+        "maximum_torque_utilization": 0.15200452417088886,
+        "minimum_root_height_m": 0.5209741058762347,
+        "minimum_station_authority": 0.7260883535575511,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.00945965128189119,
+        "root_position_rms_m": 0.01154086415660946,
+        "sampled_ground_normal_impulse_ns": 471.6551941950184,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": null,
+        "terminal_tick": null,
+        "ticks": 450,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 450
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 17.001000000000204,
+          "maximum": 610.9939999999999,
+          "mean": 49.25869933184855,
+          "minimum": 0.12100000000009459,
+          "p50": 21.43000000000029,
+          "p95": 175.88779999999986,
+          "p99": 324.47339999999855,
+          "p99_9": 594.0949920000007,
+          "stddev": 72.61047528028259
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 44.72449999999992,
+          "maximum": 2608.888,
+          "mean": 2003.4505666666666,
+          "minimum": 1888.878,
+          "p50": 2006.8965,
+          "p95": 2141.17215,
+          "p99": 2246.59921,
+          "p99_9": 2579.4726630000027,
+          "stddev": 83.66941456399172
+        }
+      },
+      "r312_request": {
+        "active_ticks": 0,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": null,
+        "last_active_tick": null,
+        "maximum_effective_authority": 0.0,
+        "partial_authority_ticks": 0,
+        "step_us_p99": 3.3216099999999997
+      },
+      "terminal_delta_vs_baseline": null,
+      "terminal_delta_vs_r312": null
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.023704247927347048,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.954999999999984,
+          "maximum": 36.86,
+          "mean": 6.1099195402298845,
+          "minimum": 0.01999999999999602,
+          "p50": 2.6539999999999964,
+          "p95": 28.412,
+          "p99": 32.41294,
+          "p99_9": 36.41529400000008,
+          "stddev": 8.623342678309218
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 6.091500000000011,
+          "maximum": 158.56,
+          "mean": 132.295625,
+          "minimum": 102.393,
+          "p50": 141.15699999999998,
+          "p95": 149.897,
+          "p99": 157.14712,
+          "p99_9": 158.41871200000003,
+          "stddev": 16.230621577824948
+        },
+        "duration_s": 1.7600000000000013,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 73,
+        "first_non_double_tick": 48,
+        "force_y_n": 6.0,
+        "ground_normal_force_n": {
+          "mad": 3.117741916519794,
+          "maximum": 171.71836334755122,
+          "mean": 48.25896130202136,
+          "minimum": 0.0,
+          "p50": 52.11958619616537,
+          "p95": 62.01830042992797,
+          "p99": 160.18810708046146,
+          "p99_9": 170.5653377208424,
+          "stddev": 23.785162236643053
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 87,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 87,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.243635165398717,
+          "maximum_abs_lateral_dcm_m": 0.07876749724755792,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.21447316543547118,
+          "step_us_p99": 3.839549999999988
+        },
+        "loss_tick_count": 30,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 3,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 35,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.1398042528975105,
+        "maximum_root_tilt_rad": 0.9068790253428771,
+        "maximum_torque_utilization": 0.31354843330754584,
+        "minimum_root_height_m": 0.28202500396137037,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.05077002444125294,
+        "root_position_rms_m": 0.05005297564024592,
+        "sampled_ground_normal_impulse_ns": 84.9357718915576,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 87,
+        "ticks": 88,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 56
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 63
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 65
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 67
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 73
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 76
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 77
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 80
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 81
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 82
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 83
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 86
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 88
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 14.406999999999698,
+          "maximum": 299.3169999999998,
+          "mean": 33.87436781609194,
+          "minimum": 0.07100000000014006,
+          "p50": 19.20600000000013,
+          "p95": 86.57279999999999,
+          "p99": 162.8934800000002,
+          "p99_9": 285.6746480000023,
+          "stddev": 40.77549432136987
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 31.403999999999996,
+          "maximum": 2346.343,
+          "mean": 1971.5715795454546,
+          "minimum": 1846.428,
+          "p50": 1990.9505,
+          "p95": 2045.6095500000001,
+          "p99": 2126.7576099999987,
+          "p99_9": 2324.384461000003,
+          "stddev": 69.68761893340384
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.02568062265699449,
+        "controller_adjacent_jitter_us": {
+          "mad": 1.6584999999999894,
+          "maximum": 29.62599999999999,
+          "mean": 4.102475609756098,
+          "minimum": 0.10099999999999909,
+          "p50": 2.4394999999999953,
+          "p95": 10.659050000000015,
+          "p99": 23.46594999999997,
+          "p99_9": 29.009995000000075,
+          "stddev": 4.843000486559932
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 6.219999999999999,
+          "maximum": 153.15,
+          "mean": 133.39210843373493,
+          "minimum": 106.0,
+          "p50": 144.764,
+          "p95": 150.9801,
+          "p99": 153.03356,
+          "p99_9": 153.13835600000002,
+          "stddev": 16.079860976900108
+        },
+        "duration_s": 1.6600000000000013,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 70,
+        "first_non_double_tick": 48,
+        "force_y_n": 6.0,
+        "ground_normal_force_n": {
+          "mad": 2.6068400987944003,
+          "maximum": 153.52312313784574,
+          "mean": 48.021804518529,
+          "minimum": 0.0,
+          "p50": 52.023552130335084,
+          "p95": 63.38274402289745,
+          "p99": 96.54521351636832,
+          "p99_9": 147.8253321756985,
+          "stddev": 20.29183398500119
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 82,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 82,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.1200093992667883,
+          "maximum_abs_lateral_dcm_m": 0.0889313982557958,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.16442114738858932,
+          "step_us_p99": 3.715799999999999
+        },
+        "loss_tick_count": 30,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 2,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 23,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.15831454239590445,
+        "maximum_root_tilt_rad": 0.9653992786162606,
+        "maximum_torque_utilization": 0.1537487351694504,
+        "minimum_root_height_m": 0.2887867837490542,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.05852798032809812,
+        "root_position_rms_m": 0.05598893011773509,
+        "sampled_ground_normal_impulse_ns": 79.71619550075815,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 82,
+        "ticks": 83,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 59
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 70
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 73
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 74
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 78
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 79
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 81
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 82
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 83
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 23.05399999999986,
+          "maximum": 364.70899999999983,
+          "mean": 50.86756097560975,
+          "minimum": 0.09999999999990905,
+          "p50": 26.074499999999944,
+          "p95": 187.93575,
+          "p99": 273.5823799999996,
+          "p99_9": 355.5963380000011,
+          "stddev": 65.24602279180485
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 45.335000000000036,
+          "maximum": 2401.446,
+          "mean": 1994.0294939759037,
+          "minimum": 1789.921,
+          "p50": 2000.99,
+          "p95": 2142.9278,
+          "p99": 2222.824579999998,
+          "p99_9": 2383.5838580000013,
+          "stddev": 84.93929286790986
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 6,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 48,
+        "last_active_tick": 56,
+        "maximum_effective_authority": 0.758130328433855,
+        "partial_authority_ticks": 10,
+        "step_us_p99": 3.830979999999997
+      },
+      "force_y_n": 6.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.024027181049520552,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.02500000000002,
+          "maximum": 35.60799999999999,
+          "mean": 4.637292682926829,
+          "minimum": 0.060000000000002274,
+          "p50": 3.217000000000013,
+          "p95": 11.700000000000001,
+          "p99": 29.23572999999997,
+          "p99_9": 34.97077300000008,
+          "stddev": 5.392240704639928
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 11.030000000000001,
+          "maximum": 165.333,
+          "mean": 133.76015662650602,
+          "minimum": 105.299,
+          "p50": 143.271,
+          "p95": 154.295,
+          "p99": 159.95953999999995,
+          "p99_9": 164.79565400000004,
+          "stddev": 16.831367268647387
+        },
+        "duration_s": 1.6600000000000013,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 70,
+        "first_non_double_tick": 48,
+        "force_y_n": 6.0,
+        "ground_normal_force_n": {
+          "mad": 2.4035514404887834,
+          "maximum": 132.73152942843012,
+          "mean": 49.143018907630335,
+          "minimum": 0.0,
+          "p50": 52.11451244790551,
+          "p95": 63.379252316199434,
+          "p99": 107.19658774420583,
+          "p99_9": 130.1780352600079,
+          "stddev": 19.78088020514973
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 82,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 82,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.2197274324291802,
+          "maximum_abs_lateral_dcm_m": 0.07682869112237745,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.1681882097785528,
+          "step_us_p99": 2.802379999999996
+        },
+        "loss_tick_count": 30,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 3,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 12,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.12933257090407635,
+        "maximum_root_tilt_rad": 0.8010143298677451,
+        "maximum_torque_utilization": 0.15260568649429554,
+        "minimum_root_height_m": 0.29266883174817715,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.0491159864690482,
+        "root_position_rms_m": 0.05084828232934764,
+        "sampled_ground_normal_impulse_ns": 81.57741138666636,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 82,
+        "ticks": 83,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 48
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 50
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 59
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 70
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 74
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 76
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 77
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 80
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 81
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 83
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 16.32549999999992,
+          "maximum": 559.4369999999999,
+          "mean": 51.13313414634149,
+          "minimum": 0.10999999999989996,
+          "p50": 22.13149999999996,
+          "p95": 187.04285000000004,
+          "p99": 541.6396799999999,
+          "p99_9": 557.6572680000002,
+          "stddev": 91.62387943942772
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 32.771999999999935,
+          "maximum": 2577.529,
+          "mean": 1993.6783614457831,
+          "minimum": 1832.522,
+          "p50": 2005.208,
+          "p95": 2130.7836,
+          "p99": 2319.1756999999975,
+          "p99_9": 2551.693670000002,
+          "stddev": 103.02788808236696
+        }
+      },
+      "r312_request": {
+        "active_ticks": 21,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 48,
+        "last_active_tick": 80,
+        "maximum_effective_authority": 0.977436919403486,
+        "partial_authority_ticks": 26,
+        "step_us_p99": 3.8559599999999903
+      },
+      "terminal_delta_vs_baseline": -5,
+      "terminal_delta_vs_r312": 0
+    },
+    {
+      "baseline": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.025929479373266427,
+        "controller_adjacent_jitter_us": {
+          "mad": 3.216000000000008,
+          "maximum": 49.26299999999999,
+          "mean": 6.977666666666669,
+          "minimum": 0.06999999999999318,
+          "p50": 4.388000000000005,
+          "p95": 21.268399999999964,
+          "p99": 40.473999999999904,
+          "p99_9": 48.38410000000002,
+          "stddev": 8.481185208510823
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 7.489000000000004,
+          "maximum": 163.499,
+          "mean": 136.07067142857142,
+          "minimum": 102.594,
+          "p50": 143.36599999999999,
+          "p95": 155.7331,
+          "p99": 161.95754,
+          "p99_9": 163.34485400000003,
+          "stddev": 17.07025407102026
+        },
+        "duration_s": 1.400000000000001,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 51,
+        "first_non_double_tick": 49,
+        "force_y_n": 8.0,
+        "ground_normal_force_n": {
+          "mad": 0.8748178256815038,
+          "maximum": 99.22789808583619,
+          "mean": 49.425925915572506,
+          "minimum": 0.0,
+          "p50": 52.19217288176934,
+          "p95": 71.19674050249718,
+          "p99": 91.89011760446236,
+          "p99_9": 98.49412003769892,
+          "stddev": 17.751904087287862
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 69,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 69,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.9199906007332121,
+          "maximum_abs_lateral_dcm_m": 0.08718746510067464,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2130591552398643,
+          "step_us_p99": 3.301120000000002
+        },
+        "loss_tick_count": 21,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 4,
+        "maximum_capture_pressure": 0.9687478338328669,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 48,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.14600432097582286,
+        "maximum_root_tilt_rad": 0.9905444356100332,
+        "maximum_torque_utilization": 0.28516967535267257,
+        "minimum_root_height_m": 0.2980061160063864,
+        "minimum_station_authority": 0.004113844201434014,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.054796281988962824,
+        "root_position_rms_m": 0.05331108735741572,
+        "sampled_ground_normal_impulse_ns": 69.19629628180151,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 69,
+        "ticks": 70,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 52
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 56
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 60
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 61
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 62
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 67
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 69
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 67,
+          "SolvedWithSlack": 3
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 27.672000000000253,
+          "maximum": 229.7449999999999,
+          "mean": 51.97208695652174,
+          "minimum": 0.11900000000014188,
+          "p50": 31.129000000000133,
+          "p95": 183.53000000000003,
+          "p99": 216.97663999999975,
+          "p99_9": 228.46816399999992,
+          "stddev": 57.40945923692796
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 25.894000000000005,
+          "maximum": 2255.171,
+          "mean": 2000.266028571429,
+          "minimum": 1841.378,
+          "p50": 1998.475,
+          "p95": 2145.4021999999995,
+          "p99": 2237.3621,
+          "p99_9": 2253.3901100000003,
+          "stddev": 73.21474451521192
+        }
+      },
+      "candidate": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.025345821492367287,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.98599999999999,
+          "maximum": 53.14,
+          "mean": 7.6158529411764695,
+          "minimum": 0.09999999999999432,
+          "p50": 3.897999999999996,
+          "p95": 34.254449999999984,
+          "p99": 46.23899999999997,
+          "p99_9": 52.44990000000007,
+          "stddev": 10.915082630530785
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 6.091000000000008,
+          "maximum": 187.253,
+          "mean": 138.08891304347827,
+          "minimum": 104.577,
+          "p50": 145.535,
+          "p95": 154.91819999999998,
+          "p99": 175.7603199999999,
+          "p99_9": 186.10373200000004,
+          "stddev": 18.283129341394968
+        },
+        "duration_s": 1.380000000000001,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 51,
+        "first_non_double_tick": 49,
+        "force_y_n": 8.0,
+        "ground_normal_force_n": {
+          "mad": 0.7723836597033085,
+          "maximum": 151.84834989057342,
+          "mean": 49.52130649948526,
+          "minimum": 0.0,
+          "p50": 52.21342961614639,
+          "p95": 63.38343855441943,
+          "p99": 97.31690504075465,
+          "p99_9": 146.39520540559175,
+          "stddev": 19.69190384746732
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 68,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 68,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.839990600733212,
+          "maximum_abs_lateral_dcm_m": 0.07500759615276047,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2130591552398643,
+          "step_us_p99": 3.596519999999993
+        },
+        "loss_tick_count": 20,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 3,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 32,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.12934472345788797,
+        "maximum_root_tilt_rad": 0.9177177499092952,
+        "maximum_torque_utilization": 0.17468786915613949,
+        "minimum_root_height_m": 0.2999764245142695,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.049214960176365764,
+        "root_position_rms_m": 0.05014720896050106,
+        "sampled_ground_normal_impulse_ns": 68.33940296928967,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 68,
+        "ticks": 69,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 54
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 55
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 60
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 64
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 67
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 68
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 64,
+          "SolvedWithSlack": 5
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 21.886500000000183,
+          "maximum": 248.74900000000002,
+          "mean": 56.90208823529414,
+          "minimum": 0.4010000000000673,
+          "p50": 25.903500000000008,
+          "p95": 203.0517499999999,
+          "p99": 240.3378200000001,
+          "p99_9": 247.90788200000011,
+          "stddev": 70.6960707991144
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 23.46400000000017,
+          "maximum": 2368.023,
+          "mean": 2015.3430869565218,
+          "minimum": 1884.921,
+          "p50": 2009.186,
+          "p95": 2198.6558,
+          "p99": 2296.4604799999993,
+          "p99_9": 2360.8667480000004,
+          "stddev": 85.09346518766654
+        }
+      },
+      "candidate_request": {
+        "active_ticks": 3,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 49,
+        "last_active_tick": 53,
+        "maximum_effective_authority": 0.5546859754161462,
+        "partial_authority_ticks": 6,
+        "step_us_p99": 3.5598799999999997
+      },
+      "force_y_n": 8.0,
+      "r312": {
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "com_position_rms_m": 0.026209609669881537,
+        "controller_adjacent_jitter_us": {
+          "mad": 2.1750000000000114,
+          "maximum": 59.634,
+          "mean": 6.82023188405797,
+          "minimum": 0.23099999999999454,
+          "p50": 3.2460000000000093,
+          "p95": 22.60659999999998,
+          "p99": 51.80447999999993,
+          "p99_9": 58.85104800000003,
+          "stddev": 10.362584955537036
+        },
+        "controller_over_5ms_ticks": 0,
+        "controller_step_us": {
+          "mad": 5.260499999999993,
+          "maximum": 167.838,
+          "mean": 138.25347142857143,
+          "minimum": 105.239,
+          "p50": 146.186,
+          "p95": 157.4183,
+          "p99": 166.80024,
+          "p99_9": 167.734224,
+          "stddev": 17.92051668636612
+        },
+        "duration_s": 1.400000000000001,
+        "final_100_bilateral_upright": false,
+        "first_flight_tick": 51,
+        "first_non_double_tick": 49,
+        "force_y_n": 8.0,
+        "ground_normal_force_n": {
+          "mad": 0.8040454678310063,
+          "maximum": 155.75839569500434,
+          "mean": 53.86715142524192,
+          "minimum": 0.0,
+          "p50": 52.234278576142884,
+          "p95": 91.88884481613347,
+          "p99": 130.5934835135485,
+          "p99_9": 153.24190447685916,
+          "stddev": 22.35788745880721
+        },
+        "hard_subset_raw": true,
+        "last_non_double_tick": 69,
+        "load_reserve": {
+          "allocated_bytes": 0,
+          "allocation_calls": 0,
+          "first_active_tick": 41,
+          "last_active_tick": 69,
+          "maximum_abs_commanded_lateral_acceleration_m_s2": 1.839990600733212,
+          "maximum_abs_lateral_dcm_m": 0.07345712430848925,
+          "maximum_authority": 1.0,
+          "minimum_filtered_weaker_load_fraction": 0.2130591552398643,
+          "step_us_p99": 3.4025200000000018
+        },
+        "loss_tick_count": 21,
+        "max_iterations_ticks": [],
+        "maximum_body_ground_stall_ticks": 2,
+        "maximum_capture_pressure": 1.0,
+        "maximum_constraint_violation": 3.1198524319542287e-10,
+        "maximum_constraint_violation_tick": 2,
+        "maximum_contact_residual": 1.717583852922644e-10,
+        "maximum_controller_step_tick": 60,
+        "maximum_dynamics_residual": 3.1198524319542287e-10,
+        "maximum_root_lateral_displacement_m": 0.13001805445185532,
+        "maximum_root_tilt_rad": 0.942666648629673,
+        "maximum_torque_utilization": 0.18709269029365733,
+        "minimum_root_height_m": 0.28887853717243744,
+        "minimum_station_authority": 0.0,
+        "nonadmitted_ticks": [],
+        "numeric_reset": false,
+        "observed_patterns": [
+          "00",
+          "01",
+          "10",
+          "11"
+        ],
+        "push_duration_s": 0.2,
+        "push_ticks": 10,
+        "reset_epochs": [
+          0
+        ],
+        "root_lateral_rms_m": 0.05022767927557962,
+        "root_position_rms_m": 0.05261863638163127,
+        "sampled_ground_normal_impulse_ns": 75.4140119953387,
+        "strict_recovery_tick": null,
+        "supported_upright_recovery_tick": 35,
+        "terminal_pending": "fall",
+        "terminal_tick": 69,
+        "ticks": 70,
+        "transitions": [
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 0
+          },
+          {
+            "hard": [
+              1,
+              1
+            ],
+            "observed": [
+              1,
+              1
+            ],
+            "tick": 2
+          },
+          {
+            "hard": [
+              1,
+              0
+            ],
+            "observed": [
+              1,
+              0
+            ],
+            "tick": 49
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 51
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 53
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 54
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 56
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 57
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 58
+          },
+          {
+            "hard": [
+              0,
+              1
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 60
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 65
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              1
+            ],
+            "tick": 67
+          },
+          {
+            "hard": [
+              0,
+              0
+            ],
+            "observed": [
+              0,
+              0
+            ],
+            "tick": 69
+          }
+        ],
+        "warning_count": 0,
+        "wbc_status_counts": {
+          "Solved": 65,
+          "SolvedWithSlack": 5
+        },
+        "worker_adjacent_jitter_us": {
+          "mad": 22.714999999999918,
+          "maximum": 222.6809999999998,
+          "mean": 50.94088405797103,
+          "minimum": 0.25,
+          "p50": 30.73700000000008,
+          "p95": 191.62979999999976,
+          "p99": 217.78159999999983,
+          "p99_9": 222.19105999999982,
+          "stddev": 57.40389709603907
+        },
+        "worker_over_20ms_ticks": 0,
+        "worker_step_us": {
+          "mad": 23.68450000000007,
+          "maximum": 2253.598,
+          "mean": 2014.1872714285714,
+          "minimum": 1840.857,
+          "p50": 2014.841,
+          "p95": 2164.59725,
+          "p99": 2249.52562,
+          "p99_9": 2253.190762,
+          "stddev": 74.01343348568969
+        }
+      },
+      "r312_request": {
+        "active_ticks": 13,
+        "allocated_bytes": 0,
+        "allocation_calls": 0,
+        "first_active_tick": 49,
+        "last_active_tick": 68,
+        "maximum_effective_authority": 0.9861449288650161,
+        "partial_authority_ticks": 16,
+        "step_us_p99": 5.209110000000001
+      },
+      "terminal_delta_vs_baseline": -1,
+      "terminal_delta_vs_r312": -1
+    }
+  ],
+  "ticks": 450
+}

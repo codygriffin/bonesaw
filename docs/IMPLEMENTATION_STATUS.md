@@ -2,6 +2,28 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
+
+R313 keeps the R312 measured-contact phase boundary and adds a fixed-size Rust
+request envelope. It continuously scales the already bounded landing request
+using root tilt, horizontal speed, and root height; at the declared
+`[0.20 rad, 2.0 m/s, 0.34 m, 0.08 m]` limits it fails closed, without changing
+contact promotion, reset policy, solver iteration budget, or public authority.
+An explicit opt-in bit makes the dormant path bit-exact; finite high limits are
+not treated as disabled because sub-ulp scaling can diverge later contacts.
+The mechanism is causal, finite, deterministic, allocation-free, and replay
+exact; landing p99 remains below `9 µs` and the 50 Hz WBC / 250 Hz worker
+deadlines pass.
+
+Physical promotion is rejected. On the eight-force R311 upper-base holdout,
+candidate terminal ticks are `79/82/—/—/—/—/82/68` for `-8/-6/-4/-2/+2/+4/+6/+8 N`
+versus R310 `74/164/—/—/—/—/87/69`; the candidate still has four falls and
+moves three terminal boundaries earlier. The envelope remains default-off
+research evidence. The largest remaining behavior slice is a continuous
+support-sustaining landing/moment action that improves this holdout
+monotonically. See
+[`UPKIE_LIVE_LANDING_ENVELOPE_R313.md`](../benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+
 ## Current force-backed relock — r313 bounded mechanism, recovery rejected
 
 R313 fixes the action/evidence gap exposed by R312. Rust now remembers the

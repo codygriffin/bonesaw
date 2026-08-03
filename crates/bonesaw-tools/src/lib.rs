@@ -7,7 +7,8 @@ use bonesaw_core::{
 mod upkie_landing;
 pub use upkie_landing::{
     UPKIE_MEASURED_LANDING_DIAGNOSTIC_WIDTH, UpkieMeasuredLandingConfig,
-    UpkieMeasuredLandingOutput, UpkieMeasuredLandingState, step_upkie_measured_landing,
+    UpkieMeasuredLandingOutput, UpkieMeasuredLandingState,
+    apply_upkie_measured_landing_request_envelope, step_upkie_measured_landing,
 };
 
 #[derive(Clone, Copy, Debug)]

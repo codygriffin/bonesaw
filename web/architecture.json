@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "force-backed-relock-r313",
+  "revision": "landing-relock-boundaries-r313",
   "updated": "2026-08-03",
-  "stage": "R313 qualifies repeated force-backed relock in the ±6 N class · full recovery remains rejected · R310 remains public",
-  "checkpoint": "R313 keeps the bounded Rust normal request active through geometric recontact and the measured-load debounce without granting synthetic support authority. A frozen nine-depth screen uniquely selects a 0.9 mm preload below the 50 mm model radius. Mirrored ±6 N repeated upper-base cases each force-qualify three relocks and move their R312 terminal boundaries from 84/83 to 236; ±8 N guardrails do not move earlier. All mechanism, allocation, deadline, admission-continuity, and replay gates pass. All four terminal cases still fall, so R313 remains default-off and the next slice is continuous body-moment rejection before the third loss.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's default-off persistent force-backed relock request, strict lexicographic support authority, the continuous wheel-load reserve request, bounded fail-closed feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask never becomes contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo consequence; it does not compute actions. R311 maps the moment envelope; R312 qualified phase ownership; R313 qualifies repeated measured-load relock without claiming recovery. Continuous body-moment rejection, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
+  "stage": "R313 qualifies repeated force-backed relock and a fail-closed landing envelope mechanism · both physical recovery candidates remain default-off · R310 remains public",
+  "checkpoint": "R313 closes two mechanism boundaries while keeping physical promotion separate. The bounded Rust normal request now survives geometric recontact until measured-load debounce, force-qualifying three mirrored ±6 N relocks and delaying those terminal boundaries to tick 236 without moving ±8 N guardrails earlier. A separate fixed-size tilt/speed/height envelope is causal, finite, allocation-free, deadline-safe, and replay exact, but still yields four falls and moves three terminal boundaries earlier. The relock mechanism is qualified; the attenuation policy is rejected; neither grants public authority. The next slice is continuous support-sustaining body-moment rejection before the third loss.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's persistent force-backed relock request and fail-closed landing envelope, strict lexicographic support authority, the continuous wheel-load reserve request, bounded feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask never becomes contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo 3.3.7 consequence; it does not compute actions. Continuous body-moment rejection, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -21,6 +21,10 @@
     {
       "name": "Persistent force-backed relock",
       "detail": "prior-window raw/stable/hard contact + finite measured normal loads + monotonic sample identity → persistent Rust precontact, touchdown-normal, and locked states · the one relocking leg retains a bounded normal request through geometric recontact and positive debounce · the private request mask cannot author WBC support · RollingWheel still requires the three-sample force-backed witness · 0.9 mm preload below the 50 mm model radius · mirrored ±6 N traces each qualify three relocks · R313 remains default-off because all four terminal cases still fall"
+    },
+    {
+      "name": "Continuous landing-request envelope",
+      "detail": "R312's bounded request → Rust-owned smoothstep attenuation from measured root tilt, horizontal speed, and height · fail-closed at declared limits · fixed caller-owned authority/qdd scaling and diagnostic witness · no contact promotion, reset, timeout, or solver-budget change · R313 passes causal, mode-firewall, finite, deadline, zero-allocation, and exact-replay gates but remains default-off because the eight-force R311 holdout still has four terminal falls and three earlier boundaries"
     },
     {
       "name": "Measured contact admission",
@@ -1240,6 +1244,12 @@
       "result": "14/14 mechanism gates · ±6 N qualify 3× each · terminal 84/83→236 · falls 4→4 · recovery rejected",
       "scope": "policy-free Rust request/observer · MuJoCo 3.3.7 frozen public 50/250/50 consequence · simulator-version gate · nine-depth 0–1.4 mm screen · selected 0.9 mm preload below 50 mm model radius · private request mask · measured hard-row and RollingWheel authority · no new nonadmission/reset · controller/worker p99 ≤0.207/2.830 ms · zero hot allocation · exact replay · ±8 N guardrails unchanged · no public or hardware claim",
       "href": "/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.html"
+    },
+    {
+      "metric": "R313 continuous landing-request envelope",
+      "result": "8/8 mechanism gates · falls 4→4 · three terminal boundaries earlier · physical promotion rejected",
+      "scope": "default-off Rust tilt/speed/height authority envelope · explicit opt-in for bit-exact dormant traces · full R311 eight-force upper-base holdout · causal measured window · contact-mode firewall · finite output · landing/controller/worker deadlines · zero landing allocation · exact replay · no reset, solver-budget, public-authority, or hardware claim",
+      "href": "/UPKIE_LIVE_LANDING_ENVELOPE_R313.html"
     },
     {
       "metric": "R312 measured landing phase boundary",
@@ -2866,6 +2876,14 @@
         "signal": "raw/stable/hard mask · normal loads · relock bit · private request · preload · contact mode · qualification edges · body moment · terminal tick · allocation/p99",
         "value": "14/14 MECHANISM · ±6 N RELOCK 3× · TERMINAL 236 · FALLS 4→4 · DEFAULT-OFF",
         "pressure": 0.82,
+        "state": "warning"
+      },
+      {
+        "name": "Continuous landing envelope · R313 qualified mechanism, policy rejected",
+        "detail": "An explicit opt-in Rust layer smoothly attenuates the already bounded landing request from measured root tilt, horizontal speed, and height. Dormant configuration is bit-exact and cannot perturb legacy contact traces. The full eight-force holdout passes all mechanism gates but keeps four falls and moves -6 N, +6 N, and +8 N terminal boundaries earlier, so the policy remains default-off.",
+        "signal": "opt-in bit · root tilt · horizontal speed · height · authority scale · contact mode · terminal delta · landing/controller/worker p99 · allocation",
+        "value": "8/8 MECHANISM · FALLS 4→4 · 3 EARLIER BOUNDARIES · POLICY REJECTED",
+        "pressure": 0.91,
         "state": "warning"
       },
       {

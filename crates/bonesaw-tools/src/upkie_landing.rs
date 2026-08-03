@@ -34,6 +34,17 @@ pub struct UpkieMeasuredLandingConfig {
     /// immediate: a single measured loss is enough to protect the free leg,
     /// while contact-mode promotion remains force-backed and debounced.
     pub minimum_precontact_ticks: u8,
+    /// Continuous request envelope limits.  These are deliberately inert at
+    /// their defaults so the R309/R312 phase boundary remains unchanged until
+    /// an evaluation profile opts into the landing/moment safety envelope.
+    pub maximum_request_tilt_rad: f64,
+    pub maximum_request_horizontal_speed_m_s: f64,
+    pub minimum_request_height_m: f64,
+    pub request_height_blend_m: f64,
+    /// Explicit opt-in keeps legacy request traces bit-exact. Merely choosing
+    /// very large limits is not inert because smoothstep still changes finite
+    /// nonzero inputs at sub-ulp scale before contact dynamics amplify them.
+    pub request_envelope_enabled: bool,
 }
 
 impl Default for UpkieMeasuredLandingConfig {
@@ -45,6 +56,11 @@ impl Default for UpkieMeasuredLandingConfig {
             target_support_mask: 3,
             precontact_horizon_seconds: 0.20,
             minimum_precontact_ticks: 1,
+            maximum_request_tilt_rad: std::f64::consts::PI,
+            maximum_request_horizontal_speed_m_s: 1.0e6,
+            minimum_request_height_m: 0.0,
+            request_height_blend_m: 0.10,
+            request_envelope_enabled: false,
         }
     }
 }
@@ -83,9 +99,71 @@ fn valid_config(config: UpkieMeasuredLandingConfig) -> bool {
         && config.precontact_horizon_seconds.is_finite()
         && config.precontact_horizon_seconds > 0.0
         && config.minimum_precontact_ticks > 0
+        && config.maximum_request_tilt_rad.is_finite()
+        && config.maximum_request_tilt_rad > 0.0
+        && config.maximum_request_horizontal_speed_m_s.is_finite()
+        && config.maximum_request_horizontal_speed_m_s > 0.0
+        && config.minimum_request_height_m.is_finite()
+        && config.minimum_request_height_m >= 0.0
+        && config.request_height_blend_m.is_finite()
+        && config.request_height_blend_m > 0.0
         && config.transition.validate().is_ok()
         && config.request.target_wheel_height_m.is_finite()
         && config.reacquisition.required_samples > 0
+}
+
+fn smoothstep_unit(value: f64) -> f64 {
+    let phase = value.clamp(0.0, 1.0);
+    phase * phase * (3.0 - 2.0 * phase)
+}
+
+/// Apply a continuous, fail-closed envelope to a free-leg landing request.
+///
+/// The phase observer and force-backed contact witness remain unchanged.  The
+/// envelope only scales the already-bounded request as the measured root gets
+/// too tilted, too fast, or too close to the ground.  This prevents a stale
+/// landing action from spending the remaining support margin during a moment
+/// rejection event while retaining a smooth authority signal for telemetry.
+pub fn apply_upkie_measured_landing_request_envelope(
+    root_height_m: f64,
+    root_tilt_rad: f64,
+    root_horizontal_speed_m_s: f64,
+    config: UpkieMeasuredLandingConfig,
+    request: &mut UpkieSingleSupportReacquisitionOutput,
+    joint_acceleration_out: &mut [f64; 6],
+) -> Option<f64> {
+    if !root_height_m.is_finite()
+        || !root_tilt_rad.is_finite()
+        || !root_horizontal_speed_m_s.is_finite()
+        || root_height_m < 0.0
+        || root_tilt_rad < 0.0
+        || root_horizontal_speed_m_s < 0.0
+        || !valid_config(config)
+    {
+        return None;
+    }
+    if !request.active {
+        return Some(0.0);
+    }
+    if !config.request_envelope_enabled {
+        return Some(1.0);
+    }
+    let tilt_pressure = root_tilt_rad / config.maximum_request_tilt_rad;
+    let speed_pressure = root_horizontal_speed_m_s / config.maximum_request_horizontal_speed_m_s;
+    let height_pressure = (config.minimum_request_height_m + config.request_height_blend_m
+        - root_height_m)
+        / config.request_height_blend_m;
+    let scale = (1.0 - smoothstep_unit(tilt_pressure))
+        .min(1.0 - smoothstep_unit(speed_pressure))
+        .min(1.0 - smoothstep_unit(height_pressure))
+        .clamp(0.0, 1.0);
+    request.authority *= scale;
+    request.commanded_vertical_acceleration_m_s2 *= scale;
+    request.active = scale > 0.0 && request.authority > 0.0;
+    for acceleration in joint_acceleration_out.iter_mut() {
+        *acceleration *= scale;
+    }
+    Some(scale)
 }
 
 fn mask_is_binary(mask: u8) -> bool {
@@ -557,5 +635,78 @@ mod tests {
         )
         .unwrap();
         assert_eq!(flight.contact_modes, [2, 2]);
+    }
+
+    #[test]
+    fn request_envelope_scales_continuously_and_fails_closed_at_limits() {
+        let mut config = UpkieMeasuredLandingConfig::default();
+        config.maximum_request_tilt_rad = 0.5;
+        config.maximum_request_horizontal_speed_m_s = 2.0;
+        config.minimum_request_height_m = 0.30;
+        config.request_height_blend_m = 0.10;
+        let mut request_state = UpkieSingleSupportReacquisitionState::default();
+        let mut qdd = [1.0; 6];
+        let mut request = step_upkie_single_support_reacquisition(
+            0.02,
+            true,
+            1,
+            0.04,
+            0.0,
+            &[0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+            &[0.0; 6],
+            config.request,
+            &mut request_state,
+            &mut qdd,
+        )
+        .unwrap();
+        let request_before_disabled_envelope = request;
+        let qdd_before_disabled_envelope = qdd;
+        let disabled = apply_upkie_measured_landing_request_envelope(
+            0.20,
+            0.50,
+            2.0,
+            config,
+            &mut request,
+            &mut qdd,
+        )
+        .unwrap();
+        assert_eq!(disabled, 1.0);
+        assert_eq!(request, request_before_disabled_envelope);
+        assert_eq!(qdd, qdd_before_disabled_envelope);
+        config.request_envelope_enabled = true;
+        let full = apply_upkie_measured_landing_request_envelope(
+            0.41,
+            0.0,
+            0.0,
+            config,
+            &mut request,
+            &mut qdd,
+        )
+        .unwrap();
+        assert_eq!(full, 1.0);
+        let before = request.authority;
+        let partial = apply_upkie_measured_landing_request_envelope(
+            0.39,
+            0.25,
+            0.5,
+            config,
+            &mut request,
+            &mut qdd,
+        )
+        .unwrap();
+        assert!(partial > 0.0 && partial < 1.0);
+        assert!(request.authority < before);
+        let zero = apply_upkie_measured_landing_request_envelope(
+            0.39,
+            0.5,
+            0.0,
+            config,
+            &mut request,
+            &mut qdd,
+        )
+        .unwrap();
+        assert_eq!(zero, 0.0);
+        assert!(!request.active);
+        assert_eq!(qdd, [0.0; 6]);
     }
 }

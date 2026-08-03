@@ -112,7 +112,8 @@ use bonesaw_tools::{
     UpkieMeasuredLandingConfig, UpkieMeasuredLandingState, UpkiePlanarCaptureConfig,
     UpkiePlanarCaptureState, UpkieSingleSupportReacquisitionConfig,
     UpkieSingleSupportReacquisitionState, UpkieWheelBalancer, UpkieWheelBalancerState,
-    UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState, step_upkie_fall_safe,
+    UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState,
+    apply_upkie_measured_landing_request_envelope, step_upkie_fall_safe,
     step_upkie_lateral_viability, step_upkie_measured_landing,
     step_upkie_single_support_reacquisition, step_upkie_wheel_load_reserve,
     write_upkie_fall_safe_contingency,
@@ -4409,6 +4410,43 @@ impl UpkieBalanceSession {
         Ok(())
     }
 
+    /// Configure the optional continuous landing-request envelope.  This is
+    /// separate from the nine-value phase/request configuration so existing
+    /// R309/R312 fixtures retain their exact semantics unless a candidate
+    /// explicitly opts into the envelope.
+    fn configure_measured_landing_envelope(
+        &mut self,
+        maximum_request_tilt_rad: f64,
+        maximum_request_horizontal_speed_m_s: f64,
+        minimum_request_height_m: f64,
+        request_height_blend_m: f64,
+    ) -> PyResult<()> {
+        let values = [
+            maximum_request_tilt_rad,
+            maximum_request_horizontal_speed_m_s,
+            minimum_request_height_m,
+            request_height_blend_m,
+        ];
+        if values.iter().any(|value| !value.is_finite())
+            || maximum_request_tilt_rad <= 0.0
+            || maximum_request_horizontal_speed_m_s <= 0.0
+            || minimum_request_height_m < 0.0
+            || request_height_blend_m <= 0.0
+        {
+            return Err(PyValueError::new_err(
+                "measured landing envelope expects finite positive tilt/speed/blend and nonnegative minimum height",
+            ));
+        }
+        self.measured_landing_config.maximum_request_tilt_rad = maximum_request_tilt_rad;
+        self.measured_landing_config
+            .maximum_request_horizontal_speed_m_s = maximum_request_horizontal_speed_m_s;
+        self.measured_landing_config.minimum_request_height_m = minimum_request_height_m;
+        self.measured_landing_config.request_height_blend_m = request_height_blend_m;
+        self.measured_landing_config.request_envelope_enabled = true;
+        self.measured_landing_state = UpkieMeasuredLandingState::default();
+        Ok(())
+    }
+
     #[getter]
     fn capture_diagnostic_names(&self) -> [&'static str; 16] {
         [
@@ -7923,7 +7961,7 @@ impl UpkieBalanceSession {
         let joint_velocity: &[f64; 6] = joint_velocity
             .try_into()
             .expect("joint velocity length was validated");
-        let output = step_upkie_measured_landing(
+        let mut output = step_upkie_measured_landing(
             timestep_seconds,
             tick_sequence,
             physics_observation_exact,
@@ -7944,6 +7982,22 @@ impl UpkieBalanceSession {
                 .expect("joint output length was validated"),
         )
         .ok_or_else(|| PyValueError::new_err("measured landing request is invalid"))?;
+        let scaled_axis = rotation.scaled_axis();
+        let root_tilt_rad = (scaled_axis.x * scaled_axis.x + scaled_axis.y * scaled_axis.y).sqrt();
+        let root_horizontal_speed_m_s = (root_twist_world[3] * root_twist_world[3]
+            + root_twist_world[4] * root_twist_world[4])
+            .sqrt();
+        apply_upkie_measured_landing_request_envelope(
+            root_position[2],
+            root_tilt_rad,
+            root_horizontal_speed_m_s,
+            self.measured_landing_config,
+            &mut output.request,
+            joint_acceleration_out
+                .try_into()
+                .expect("joint output length was validated"),
+        )
+        .ok_or_else(|| PyValueError::new_err("measured landing envelope is invalid"))?;
         diagnostics_out.copy_from_slice(&[
             f64::from(physics_observation_exact),
             f64::from(output.physics_support_mask),

@@ -18,6 +18,19 @@ loss after successful relock, reduces the four falls, and preserves the frozen
 guardrails. See the
 [R313 report](benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
 
+R313 adds the next bounded mechanism: a Rust-owned, allocation-free continuous
+landing-request envelope that attenuates authority as measured root tilt,
+horizontal speed, or height approaches declared limits. Its causal, mode-
+firewall, finite, deadline, zero-allocation, and replay gates all pass, but the
+envelope is explicitly opt-in and its dormant path is bit-exact. Large finite
+limits are not used as a fake disabled state. The
+same eight-force R311 holdout remains negative: terminal falls are not removed,
+the `-6 N`, `+6 N`, and `+8 N` boundaries move earlier, and no public authority
+is promoted. The envelope is retained as default-off safety evidence. The open
+behavior complaint is still continuous support-sustaining landing/moment
+rejection, not a larger timeout or solver budget. See the
+[R313 report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated
 pulls finish with an upright tail and all tested moments at or below `1 N·m`
