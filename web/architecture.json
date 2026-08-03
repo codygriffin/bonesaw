@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "measured-mujoco-contact-r295",
+  "revision": "measured-mujoco-contact-r295-r296-cpu-rejection",
   "updated": "2026-08-03",
-  "stage": "R295 feeds measured MuJoCo wheel contact into the Rust WBC boundary; R293 remains the CPU default · r295",
-  "checkpoint": "R295 derives the Upkie wheel subtrees once, writes exact wheel-to-ground activity into caller-owned scratch at every 50 Hz observation, and passes it to Rust with an explicit fresh-observation flag. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss; raw, debounced, hard, status, provenance, and support-count witnesses stream beside measured plant state. The 9/9 worker suite and 317/317 core suite pass, including a lifted-root [0,0] support regression. This closes stale authored-contact state ownership, not floating walking, tracking, thermal, or authority gates.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R295 closes stale live-contact authority without closing the ordinary p99 deadline or WBC-achievable transfer gate. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
+  "stage": "R295 measured-contact admission is stable; R296 rejects the next exact CPU specialization · R293 remains the CPU default",
+  "checkpoint": "R295 derives the Upkie wheel subtrees once, writes exact wheel-to-ground activity into caller-owned scratch at every 50 Hz observation, and passes it to Rust with an explicit fresh-observation flag. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss; raw, debounced, hard, status, provenance, and support-count witnesses stream beside measured plant state. R296 then tests a fixed 58-element Jacobi dot: five CPU-4-pinned pairs stay 56-array exact and allocation-free, but every pair retires more instructions (+0.30754%–+0.30968%), so the feature is removed. The 9/9 worker suite and 317/317 core suite pass, including a lifted-root [0,0] support regression. This closes stale authored-contact state ownership and rejects one CPU shortcut, not floating walking, tracking, thermal, or authority gates.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R296's rejected fixed-shape Jacobi-dot experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R295 closes stale live-contact authority and R296 rejects one CPU shortcut without closing the ordinary p99 deadline or WBC-achievable transfer gate. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -103,6 +103,12 @@
       "title": "Make live WBC support follow measured MuJoCo contact",
       "status": "implemented mechanism · transfer profile open",
       "detail": "The live worker resolves wheel subtrees once and passes a caller-owned raw wheel/ground mask into the persistent Rust adapter on every 50 Hz solve with explicit fresh-observation availability. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss. Raw, debounced, hard, status, provenance, and support-count telemetry remain separate; reset and paused frames fail closed. A lifted-root regression reaches raw/hard [0,0] without a reset. This closes stale authored-contact state ownership but does not admit floating walking, tracking, thermal, or hardware authority."
+    },
+    {
+      "id": "r296-fixed-shape-jacobi-dot",
+      "title": "Reject fixed-shape Jacobi dot specialization",
+      "status": "rejected · negative CPU evidence",
+      "detail": "A default-off 58-element scalar Jacobi coupling-dot specialization preserves all 56 retained non-timing arrays and zero hot-loop allocations, but five CPU-4-pinned alternating pairs increase retired instructions in every pair (+0.30754%–+0.30968%, median +0.30950%). The feature is removed and R293 remains the production default. The ordinary p99 and floating support-transfer gates stay open."
     },
     {
       "id": "r277-dcm-transition-gate",
@@ -1115,6 +1121,12 @@
       "name": "R295 measured MuJoCo contact admission",
       "result": "9/9 worker tests · raw/hard support loss without reset · core unchanged",
       "detail": "The live Upkie worker resolves named wheel subtrees once, writes exact world-ground contact activity into caller-owned scratch, and passes it to Rust with fresh-observation availability. The adapter's debounce and hard eligibility now consume measured plant state; a root lifted by 0.5 m reports raw and hard [0,0], support count zero, and no automatic reset."
+    },
+    {
+      "name": "R296 rejected fixed-shape Jacobi dot",
+      "result": "56-array exact · zero allocations · instructions +0.30950% · removed",
+      "detail": "The opt-in 58-element coupling-dot loop preserves every retained non-timing field in five CPU-4-pinned control/candidate pairs and keeps the Rust hot loop allocation-free. Retired instructions rise in every pair, so mixed host timing cannot justify promotion; R293 remains the exact CPU default.",
+      "report": "/G1_JACOBI_FIXED_58_DOT_R296.html"
     },
     {
       "name": "R294 rejected Jacobi-pair cache",
@@ -3680,6 +3692,7 @@
     ]
   },
   "gaps": [
+    "R296 rejects a fixed 58-element Jacobi dot after five pinned pairs preserve 56-array semantics and zero allocations but increase retired instructions in every pair. R293 remains the CPU default; ordinary Preference/Style work, the sub-5 ms p99 gate, and floating walking/contact transfer remain open.",
     "R294 rejects a generation-checked Jacobi rejected-pair cache after every pinned pair increases instructions 1.55537% and branches 6.81245%. R293 therefore remains the exact dense-matvec production default at a 5.175 ms median p99, still above target; ordinary Preference/Style work, walking/contact transfer, and authority gates remain open.",
     "R291's guarded row-Gram task pseudoinverse lowers one observed p99 below 5 ms but diverges from the control at tick 0 and regresses long-horizon tracking. The ordinary CPU complaint therefore remains an exact, semantically preserving Preference/Style work reduction or an explicitly supervised continuous progress budget; the faster factorization is not authority evidence.",
     "R290 delays the Style ceiling until support-tube clipping and preserves the nominal prefix exactly, but Style-2 still misses the 5 ms p99 gate and regresses long-horizon tracking after one exhaustion. The next low-authority design needs explicit progress/tracking debt across ticks or an exact incremental factorization; a delayed static cap is not a walking supervisor.",
@@ -3743,6 +3756,7 @@
     "The editor adapter has no authentication. The current Cloudflare Quick Tunnel is intentionally temporary and publicly reachable; it must not carry private robot state or hardware authority until access control and origin policy are added."
   ],
   "feedback_questions": [
+    "R296 rejects another exact fixed-shape kernel after instructions rise despite byte-exact output. The next behavior step should build the deterministic 250 Hz MuJoCo source trace and 50 Hz WBC replay with sequential raw masks, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule cannot close both gates.",
     "R294 shows that exact cross-sweep rejection memoization adds more branch and bookkeeping work than it removes. Should the next exact CPU slice specialize a measured fixed matrix shape, fuse a downstream consumer into the pseudoinverse output pass, or pause kernel work and prototype the continuous cross-tick Style progress/tracking-debt supervisor?",
     "R290 delays a terminal Style cap until the support tube clips and preserves the nominal prefix exactly, but one later exhaustion still worsens tracking and misses p99. Should a continuous supervisor carry task-error/progress debt across ticks, or should the solver expose an exact incremental Style factorization before any cap is reconsidered?",
     "R287 separates a strict allocation-stable workspace API from the older convenience API that allocates a workspace per scalar call. Should the compatibility surface remain indefinitely, be renamed to make allocation explicit, or be deprecated once browser/Python callers migrate to persistent workspaces?",

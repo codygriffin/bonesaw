@@ -279,6 +279,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   every pair. R293 remains the production default and the 5 ms p99/authority
   gates remain open. See the
   [r294 rejected-pair cache report](benchmarks/results/g1-jacobi-rejected-pair-cache-r294/G1_JACOBI_REJECTED_PAIR_CACHE_R294.md).
+- R296 rejects a fixed-shape 58-element Jacobi dot specialization. Five
+  CPU-4-pinned pairs preserve all 56 retained non-timing arrays and zero Rust
+  hot-loop allocations, but every candidate retires more instructions
+  (+0.30754%–+0.30968%, median +0.30950%). The feature was removed; R293 stays
+  the CPU default. The next behavior gate is a measured 250 Hz MuJoCo source
+  trace replayed through the 50 Hz WBC with sequential raw/debounced/hard
+  masks; the authored G1 schedule is not sufficient for that claim. See the
+  [r296 fixed-dot report](benchmarks/results/g1-jacobi-fixed-58-dot-r296/G1_JACOBI_FIXED_58_DOT_R296.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

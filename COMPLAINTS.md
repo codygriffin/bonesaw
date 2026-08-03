@@ -3,6 +3,13 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R296 closes the adjacent fixed-shape CPU experiment as negative evidence: the
+58-element Jacobi dot stayed semantically exact and allocation-free, but
+retired instructions rose in every pinned pair. The solver default is unchanged
+and this does not close the p99 or floating-transfer complaint. The remaining
+behavior work must be measured-contact, not another authored contact schedule.
+See the [R296 report](benchmarks/results/g1-jacobi-fixed-58-dot-r296/G1_JACOBI_FIXED_58_DOT_R296.md).
+
 The open WBC complaint is now explicit support-feasible transfer, not recovery
 state plumbing or another scalar gain. R273–R276 completed bounded relock,
 stopping-headroom, hard-row localization, and automatic per-target contact

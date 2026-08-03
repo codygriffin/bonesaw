@@ -2,6 +2,20 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU optimization audit — r296 rejected fixed-shape Jacobi dot
+
+R296 tested a default-off 58-element scalar Jacobi coupling-dot
+specialization against the R293 default on the policy-free, physics-free G1
+admission corpus. All 56 retained non-timing arrays stayed byte-exact in five
+CPU-4-pinned alternating pairs and the Rust hot loop remained allocation-free,
+but retired instructions increased in every pair by 0.30754%–0.30968%
+(median +0.30950%). The feature was removed before checkpointing; R293 remains
+the production default. The ordinary sub-5 ms p99 and floating support-transfer
+gates remain open. The next behavior gate needs a deterministic 250 Hz MuJoCo
+source trace and 50 Hz WBC replay with sequential measured masks, debounce,
+state evolution, and fail-closed timing/reset witnesses. See
+[`G1_JACOBI_FIXED_58_DOT_R296.md`](../benchmarks/results/g1-jacobi-fixed-58-dot-r296/G1_JACOBI_FIXED_58_DOT_R296.md).
+
 ## Current CPU optimization audit — r294 rejected Jacobi-pair cache
 
 R294 tests a default-off, allocation-free cache for Jacobi pairs that were

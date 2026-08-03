@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "revision": "r296",
+  "decision": "REJECT",
+  "candidate": "jacobi-fixed-58-dot-experiment",
+  "control": "R293 default dense matvec row-slice build",
+  "evaluation": {
+    "corpus": "policy-free physics-free G1 oracle admission",
+    "cpu": 4,
+    "repeats": 5,
+    "process_order": "alternating control/candidate",
+    "semantic_field_count": 56,
+    "semantic_differences": {},
+    "rust_hot_loop_allocations": 0,
+    "rust_hot_loop_allocated_bytes": 0
+  },
+  "checks": {
+    "all_non_timing_arrays_bit_exact": true,
+    "candidate_reduces_median_retired_instructions": false,
+    "candidate_reduces_retired_instructions_in_every_pair": false,
+    "candidate_keeps_zero_measured_rust_allocations": true
+  },
+  "candidate_relative_deltas": {
+    "retired_instructions": 0.0030949575809040564,
+    "cycles": -0.011326200284908161,
+    "task_clock": -0.0162262543244156,
+    "branches": 0.008540264843602818,
+    "branch_misses": -0.019068726861606544,
+    "cache_misses": 0.018218725365642285,
+    "process_cpu_seconds": -0.03878086355329746,
+    "wall_seconds": 0.5945549031199049,
+    "maximum_rss_bytes": 0.0007762769756249899,
+    "p50_tick_us": 0.666852373373078,
+    "p99_tick_us": 0.7243567430776368,
+    "maximum_tick_us": 0.7297639730215697
+  },
+  "paired_instruction_relative_deltas": [
+    0.0030754173135509877,
+    0.0030944011274478544,
+    0.003095578584285663,
+    0.0030967856848316266,
+    0.0030863047262517096
+  ],
+  "authority": "closed",
+  "next_gate": "250Hz MuJoCo source trace + 50Hz WBC sequential measured-contact replay"
+}

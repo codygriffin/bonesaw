@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 fixed-58 Jacobi dot experiment · R296</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 fixed-58 Jacobi dot experiment · R296</h1>
+<blockquote>Arithmetic candidate **REJECTED** · semantic replay **PASS** · allocation gate</blockquote>
+<blockquote>**PASS** · pinned CPU-work gate **FAIL** · authority **CLOSED**.</blockquote>
+<p>R296 tested an opt-in specialization of the measured G1 Jacobi coupling dot. The candidate used a fixed 58-element scalar loop when the decision-space row count was 58, preserving the existing multiply/add order. It was evaluated against the current R293 default with the policy-free, physics-free G1 oracle admission corpus; no plant action, policy query, or authority decision was introduced.</p>
+<h2>Acceptance gates</h2>
+<div class=table-wrap><table><thead><tr><th>gate</th><th>result</th></tr></thead><tbody><tr><td>56 retained non-timing arrays exact in all five control/candidate pairs</td><td>PASS</td></tr><tr><td>zero measured Rust hot-loop allocations</td><td>PASS</td></tr><tr><td>lower median retired instructions</td><td>FAIL</td></tr><tr><td>lower retired instructions in every pinned pair</td><td>FAIL</td></tr><tr><td>default behavior or authority change</td><td>NONE</td></tr></tbody></table></div>
+<p>All five CPU-4-pinned alternating-process pairs increased retired instructions. The candidate median delta was **+0.30950%**; pair deltas were `+0.30754%`, `+0.30944%`, `+0.30956%`, `+0.30968%`, and `+0.30863%`. The candidate therefore fails the exact-work promotion rule even though host cycles and wall time varied in both directions. The result is deterministic enough to reject the specialization rather than attribute the mixed timing to the dot loop.</p>
+<h2>Timing context</h2>
+<p>The complete process was the existing G1 admission run (two 2,317-tick Rust passes plus Python orchestration and artifact serialization). Median candidate latency deltas were `-2.55%` p50 and `-12.97%` p99 in the shorter three-pair rerun, but those host timing signals cannot override a stable retired-work regression. RSS remained effectively unchanged and the Rust allocation gate stayed zero.</p>
+<h2>Decision and next gate</h2>
+<p>The feature was removed before checkpointing. R293&#x27;s exact dense matvec row-slice path remains the production CPU default. The ordinary sub-5 ms p99 gate and floating support-transfer behavior gate remain open. The next behavior experiment must use a deterministic 250 Hz MuJoCo source trace and 50 Hz WBC replay with sequential raw masks (`11`, `10`, `01`, `00`), debounce, fail-closed hard eligibility, state evolution, and reset/timing witnesses; the current authored G1 contact schedule is not sufficient evidence for that claim.</p>
+<p>No policy, physics, walking, contact-transfer, thermal, CUDA, or hardware authority claim follows from R296.</p></main></body></html>
