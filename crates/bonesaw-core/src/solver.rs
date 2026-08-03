@@ -16,6 +16,8 @@ const FUSE_INITIAL_JACOBI_ENERGY_SCAN: bool = cfg!(feature = "jacobi-energy-scan
 const USE_JACOBI_COLUMN_SLICES: bool = !cfg!(feature = "jacobi-column-slice-control")
     || cfg!(feature = "jacobi-column-slice-experiment");
 const USE_JACOBI_COLUMN_ITERATORS: bool = cfg!(feature = "jacobi-column-iterator-experiment");
+const USE_JACOBI_COLUMN_POINTERS: bool = !cfg!(feature = "jacobi-column-pointer-control")
+    || cfg!(feature = "jacobi-column-pointer-experiment");
 const USE_DENSE_MULTIPLY_ROW_SLICES: bool = !cfg!(feature = "dense-multiply-row-slice-control")
     || cfg!(feature = "dense-multiply-row-slice-experiment");
 
@@ -2565,7 +2567,9 @@ fn one_sided_jacobi_flat(
                 if use_column_slices {
                     let p_column = &matrix[p * rows..(p + 1) * rows];
                     let q_column = &matrix[q * rows..(q + 1) * rows];
-                    if use_column_iterators {
+                    if USE_JACOBI_COLUMN_POINTERS {
+                        coupling = scalar_dot_raw(p_column, q_column);
+                    } else if use_column_iterators {
                         for (p_value, q_value) in p_column.iter().zip(q_column) {
                             coupling += p_value * q_value;
                         }
@@ -2630,7 +2634,9 @@ fn one_sided_jacobi_flat(
                     let (before_q, q_and_after) = matrix.split_at_mut(q * rows);
                     let p_column = &mut before_q[p * rows..(p + 1) * rows];
                     let q_column = &mut q_and_after[..rows];
-                    if use_column_iterators {
+                    if USE_JACOBI_COLUMN_POINTERS {
+                        rotate_column_pair_raw(p_column, q_column, cosine, sine);
+                    } else if use_column_iterators {
                         for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
                             let previous_p = *p_value;
                             let previous_q = *q_value;
@@ -2657,7 +2663,9 @@ fn one_sided_jacobi_flat(
                     let (before_q, q_and_after) = right_vectors.split_at_mut(q * columns);
                     let p_column = &mut before_q[p * columns..(p + 1) * columns];
                     let q_column = &mut q_and_after[..columns];
-                    if use_column_iterators {
+                    if USE_JACOBI_COLUMN_POINTERS {
+                        rotate_column_pair_raw(p_column, q_column, cosine, sine);
+                    } else if use_column_iterators {
                         for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
                             let previous_p = *p_value;
                             let previous_q = *q_value;
@@ -2716,6 +2724,39 @@ fn one_sided_jacobi_flat(
         }
     }
     sweeps
+}
+
+#[inline(always)]
+fn scalar_dot_raw(left: &[f64], right: &[f64]) -> f64 {
+    debug_assert_eq!(left.len(), right.len());
+    let mut value = 0.0;
+    let mut index = 0;
+    unsafe {
+        let left_ptr = left.as_ptr();
+        let right_ptr = right.as_ptr();
+        while index < left.len() {
+            value += *left_ptr.add(index) * *right_ptr.add(index);
+            index += 1;
+        }
+    }
+    value
+}
+
+#[inline(always)]
+fn rotate_column_pair_raw(left: &mut [f64], right: &mut [f64], cosine: f64, sine: f64) {
+    debug_assert_eq!(left.len(), right.len());
+    let mut index = 0;
+    unsafe {
+        let left_ptr = left.as_mut_ptr();
+        let right_ptr = right.as_mut_ptr();
+        while index < left.len() {
+            let previous_left = *left_ptr.add(index);
+            let previous_right = *right_ptr.add(index);
+            *left_ptr.add(index) = cosine * previous_left - sine * previous_right;
+            *right_ptr.add(index) = sine * previous_left + cosine * previous_right;
+            index += 1;
+        }
+    }
 }
 
 fn maximum_feasible_step_flat(

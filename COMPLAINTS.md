@@ -66,10 +66,18 @@ ticks 1694/2296 from 195/184 ms to at most 7.94 ms; dense polish inverses fall
 126→12 per tail. Budgets below seven changed behavior and are rejected. Every
 repeat still misses the 5 ms p99 gate at 5.204–5.517 ms, so ordinary
 Preference/Style projected-task work—not the release retry—is now the immediate
-CPU complaint. No authority is admitted. See the
+CPU complaint. R284 reduces that kernel's pinned retired instructions by 2.26%
+with an exact replay, but p99 remains above 5 ms. No authority is admitted. See the
 [r283 bounded-polish report](benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md).
 
 ## Open browser gate: viewport frame time
+
+R284 closes the next exact CPU work slice without closing the deadline: the
+Jacobi column-pointer kernel is now the default and retains the 89-array
+semantic digest while reducing pinned retired instructions by 2.26%. The p99
+mean remains 5.265 ms, so the 5 ms gate is still open. `?perf=1` browser
+measurement is still **NOT RUN** because this CLI session has no in-app browser
+target.
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible
 green controls, orbit/pan/wheel zoom, coalesced drag, the MuJoCo-derived filled

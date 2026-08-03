@@ -50,6 +50,11 @@ jacobi-column-slice-control = []
 # through paired slice iterators, retaining the exact scalar arithmetic and
 # store order while avoiding two indexed slice accesses per row.
 jacobi-column-iterator-experiment = []
+# Promoted r284 optimization: retain the production scalar dot/store order
+# while using validated raw pointers for contiguous Jacobi columns.
+jacobi-column-pointer-experiment = []
+# Explicit r284 A/B control. This restores the pre-r284 slice/indexed kernel.
+jacobi-column-pointer-control = []
 # Promoted r74 optimization: retain the row/shared/column accumulation order of
 # dense products while addressing each matrix row through validated slices.
 dense-multiply-row-slice-experiment = []

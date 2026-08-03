@@ -4,6 +4,14 @@ This file separates demonstrated behavior from architectural intent.
 
 ## Current CPU checkpoint — r283 bounded feasibility polish
 
+R284 promotes an arithmetic-identical Jacobi column-pointer kernel. Five
+CPU-4-pinned, policy-free/physics-free repeats preserve all 89 established
+non-timing arrays and reduce the pinned three-repeat average by 2.26% retired
+instructions, 1.17% cycles, and 3.06% cache misses. The timing p99 mean moves
+5299.6→5264.8 µs but remains above the 5 ms gate; no authority or physics
+claim follows. `jacobi-column-pointer-control` restores the pre-R284 kernel.
+See [`G1_JACOBI_COLUMN_POINTER_R284.md`](../benchmarks/results/g1-jacobi-column-pointer-r284/G1_JACOBI_COLUMN_POINTER_R284.md).
+
 R279 adds an exact discrete backward preimage of the authored support schedule.
 The fixed-size Rust fold produces a time-varying DCM box; a moving-boundary
 barrier includes measured CoM velocity, reference-phase boundary velocity, and

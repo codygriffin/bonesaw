@@ -192,6 +192,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   64; all five p99 values still miss 5 ms at 5.204–5.517 ms and authority
   remains closed. See the
   [r283 bounded-polish profile](benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md).
+- R284 promotes an arithmetic-identical Jacobi column-pointer kernel. Five
+  CPU-4-pinned policy-free/physics-free repeats preserve all 89 established
+  non-timing arrays; pinned hardware counters reduce retired instructions by
+  2.26%, cycles by 1.17%, and cache misses by 3.06%. The p99 mean improves
+  5.300→5.265 ms but remains above the 5 ms gate, so no authority follows.
+  The `jacobi-column-pointer-control` feature restores the pre-R284 kernel.
+  See the
+  [r284 Jacobi pointer report](benchmarks/results/g1-jacobi-column-pointer-r284/G1_JACOBI_COLUMN_POINTER_R284.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd
