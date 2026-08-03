@@ -60,13 +60,29 @@ def run_condition(
     websocket = RawWebSocket.connect(base_url, connect_address, "/plant-ws")
     try:
         hello = receive_plant(websocket, "plant_hello")
-        initial = receive_plant(websocket, "plant_state")
+        receive_plant(websocket, "plant_state")
+        condition_key = round((offset_z_m + 1.0) * 1000)
+        websocket.send_json(
+            {"type": "plant_resume", "request_id": 10_000 + condition_key}
+        )
+        receive_correlated(websocket, 10_000 + condition_key, active=False)
+        websocket.send_json(
+            {"type": "plant_reset", "request_id": 20_000 + condition_key}
+        )
+        initial = receive_correlated(websocket, 20_000 + condition_key, active=False)
+        assert not initial["simulator"]["paused"]
+        # A public worker outlives individual WebSocket clients. Isolate each
+        # application-point comparison from prior probes, then let measured
+        # contact debounce and the standing state settle before sampling the
+        # initial pose. This keeps retries from changing the next condition.
+        for _ in range(4):
+            initial = receive_plant(websocket, "plant_state")
         initial_pitch = rotation_vector(initial["root_quaternion_wxyz"])[1]
         initial_pitch_rate = initial["root_twist_world"][1]
         point = body_position(initial, "base")
         point[2] += offset_z_m
         states = []
-        request_id = 100 + round((offset_z_m + 1.0) * 1000)
+        request_id = 100 + condition_key
         for _ in range(push_frames):
             websocket.send_json(
                 {
