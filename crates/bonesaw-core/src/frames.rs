@@ -171,6 +171,27 @@ pub struct HistoricalAtlasEstimate {
     pub support_interval_ns: (i64, i64),
 }
 
+impl HistoricalAtlasEstimate {
+    /// Caller-owned workspace for one historical query. The external
+    /// provenance vector is allocated once and can be reused across ticks.
+    pub fn with_external_capacity(external_slot_count: usize) -> Self {
+        Self {
+            estimate: AtlasFrameEstimate {
+                from_to: Transform3::identity(),
+                from: AtlasFrameId(0),
+                to: AtlasFrameId(0),
+            },
+            robot_provenance: ReconstructionProvenance::ExactSample,
+            external_provenance: Vec::with_capacity(external_slot_count),
+            support_interval_ns: (0, 0),
+        }
+    }
+
+    pub fn external_capacity(&self) -> usize {
+        self.external_provenance.capacity()
+    }
+}
+
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum FrameAtlasError {
     #[error("frame atlas external slot {0} is unavailable")]
@@ -447,6 +468,35 @@ impl CompiledFrameAtlas {
         external_inputs: &mut ExternalFrameInputs,
         snapshot: &mut FrameAtlasSnapshot,
     ) -> Result<HistoricalAtlasEstimate, HistoricalFrameQueryError> {
+        let mut output = HistoricalAtlasEstimate::with_external_capacity(self.external_slot_count);
+        self.query_history_into(
+            model,
+            robot_history,
+            external_histories,
+            query,
+            model_cache,
+            external_inputs,
+            snapshot,
+            &mut output,
+        )?;
+        Ok(output)
+    }
+
+    /// Reuse caller-owned output storage for one historical query. This is the
+    /// scalar primitive used by the batch API and avoids rebuilding the
+    /// external-provenance vector in a hot editor/query loop.
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_history_into(
+        &self,
+        model: &CompiledModel,
+        robot_history: &RobotHistory,
+        external_histories: &ExternalFrameHistories,
+        query: HistoricalFrameQuery,
+        model_cache: &mut ModelCache,
+        external_inputs: &mut ExternalFrameInputs,
+        snapshot: &mut FrameAtlasSnapshot,
+        output: &mut HistoricalAtlasEstimate,
+    ) -> Result<(), HistoricalFrameQueryError> {
         if external_histories.len() < self.external_slot_count {
             return Err(HistoricalFrameQueryError::ExternalSlotCount {
                 required: self.external_slot_count,
@@ -463,7 +513,12 @@ impl CompiledFrameAtlas {
                 .anchor_from_frame
                 .resize(self.external_slot_count, None);
         }
-        let mut external_provenance = Vec::with_capacity(self.external_slot_count);
+        output.external_provenance.clear();
+        if output.external_provenance.capacity() < self.external_slot_count {
+            output
+                .external_provenance
+                .reserve(self.external_slot_count - output.external_provenance.capacity());
+        }
         let mut support_start = robot.source_interval_ns.0;
         let mut support_end = robot.source_interval_ns.1;
         for slot in 0..self.external_slot_count {
@@ -473,18 +528,67 @@ impl CompiledFrameAtlas {
                 .reconstruct(query.time_ns, query.policy)
                 .map_err(|source| HistoricalFrameQueryError::ExternalHistory { slot, source })?;
             external_inputs.anchor_from_frame[slot] = Some(reconstructed.sample.anchor_from_frame);
-            external_provenance.push(reconstructed.provenance);
+            output.external_provenance.push(reconstructed.provenance);
             support_start = support_start.min(reconstructed.source_interval_ns.0);
             support_end = support_end.max(reconstructed.source_interval_ns.1);
         }
         self.evaluate_into(model_cache, external_inputs, snapshot)?;
-        Ok(HistoricalAtlasEstimate {
-            estimate: self.query(snapshot, query.from, query.to)?,
-            robot_provenance: robot.provenance,
-            external_provenance,
-            support_interval_ns: (support_start, support_end),
-        })
+        output.estimate = self.query(snapshot, query.from, query.to)?;
+        output.robot_provenance = robot.provenance;
+        output.support_interval_ns = (support_start, support_end);
+        Ok(())
     }
+
+    /// Evaluate a bounded batch of historical pairwise queries into caller-
+    /// supplied workspaces. The atlas/model/history semantics are identical
+    /// to `query_history`; only output allocation is moved to construction
+    /// time. Each output's external provenance vector must be pre-sized (or it
+    /// will grow once on first use).
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_history_batch(
+        &self,
+        model: &CompiledModel,
+        robot_history: &RobotHistory,
+        external_histories: &ExternalFrameHistories,
+        queries: &[HistoricalFrameQuery],
+        model_cache: &mut ModelCache,
+        external_inputs: &mut ExternalFrameInputs,
+        snapshot: &mut FrameAtlasSnapshot,
+        outputs: &mut [HistoricalAtlasEstimate],
+    ) -> Result<(), HistoricalFrameQueryBatchError> {
+        if queries.len() != outputs.len() {
+            return Err(HistoricalFrameQueryBatchError::OutputLength {
+                queries: queries.len(),
+                outputs: outputs.len(),
+            });
+        }
+        for (index, (query, output)) in queries.iter().zip(outputs.iter_mut()).enumerate() {
+            self.query_history_into(
+                model,
+                robot_history,
+                external_histories,
+                *query,
+                model_cache,
+                external_inputs,
+                snapshot,
+                output,
+            )
+            .map_err(|source| HistoricalFrameQueryBatchError::Query { index, source })?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum HistoricalFrameQueryBatchError {
+    #[error("historical frame query batch has {queries} queries but {outputs} outputs")]
+    OutputLength { queries: usize, outputs: usize },
+    #[error("historical frame query {index} failed: {source}")]
+    Query {
+        index: usize,
+        #[source]
+        source: HistoricalFrameQueryError,
+    },
 }
 
 #[cfg(test)]
@@ -642,5 +746,162 @@ mod tests {
         );
         assert!((estimate.estimate.from_to.translation.x - 1.0).abs() < 1e-12);
         assert_eq!(estimate.support_interval_ns, (0, 20_000_000));
+    }
+
+    #[test]
+    fn historical_query_batch_reuses_output_provenance_storage() {
+        let source = r#"
+        <robot name="batch-history">
+          <link name="base"><inertial><mass value="1"/><inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/></inertial></link>
+        </robot>"#;
+        let model = load_urdf(source).unwrap();
+        let atlas = CompiledFrameAtlas::standard(&model);
+        let base = atlas.frame_id("base").unwrap();
+        let mut robot_history = RobotHistory::new(4);
+        for (time_ns, x) in [(0, 0.0), (20_000_000, 2.0)] {
+            let mut state = RobotState::zeros(&model);
+            state.control_world_from_root = Transform3::translation(x, 0.0, 0.0);
+            robot_history.push(TimedRobotState {
+                time_ns,
+                sequence: 1,
+                state,
+            });
+        }
+        let mut external_histories = ExternalFrameHistories::new([4, 4]);
+        for slot in 0..2 {
+            let history = external_histories.slot_mut(slot).unwrap();
+            for time_ns in [0, 20_000_000] {
+                history.push(ExternalFrameSample {
+                    time_ns,
+                    anchor_from_frame: Transform3::identity(),
+                    twist: None,
+                    acceleration: None,
+                    covariance: None,
+                    sequence: 1,
+                });
+            }
+        }
+        let policy = HistoryQueryPolicy::default();
+        let queries = [
+            HistoricalFrameQuery {
+                from: atlas.map,
+                to: base,
+                time_ns: 5_000_000,
+                policy,
+            },
+            HistoricalFrameQuery {
+                from: atlas.odom,
+                to: base,
+                time_ns: 15_000_000,
+                policy,
+            },
+        ];
+        let mut outputs = vec![
+            HistoricalAtlasEstimate::with_external_capacity(atlas.external_slot_count),
+            HistoricalAtlasEstimate::with_external_capacity(atlas.external_slot_count),
+        ];
+        let capacities = outputs
+            .iter()
+            .map(HistoricalAtlasEstimate::external_capacity)
+            .collect::<Vec<_>>();
+        let mut model_cache = ModelCache::new(&model);
+        let mut external_inputs = ExternalFrameInputs::new(&atlas);
+        let mut snapshot = FrameAtlasSnapshot::new(&atlas);
+        atlas
+            .query_history_batch(
+                &model,
+                &robot_history,
+                &external_histories,
+                &queries,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs,
+            )
+            .unwrap();
+        assert_eq!(
+            outputs[0].external_provenance.len(),
+            atlas.external_slot_count
+        );
+        assert_eq!(
+            outputs[1].external_provenance.len(),
+            atlas.external_slot_count
+        );
+        assert!((outputs[0].estimate.from_to.translation.x - 0.5).abs() < 1e-12);
+        assert!((outputs[1].estimate.from_to.translation.x - 1.5).abs() < 1e-12);
+        let first_results = outputs
+            .iter()
+            .map(|output| output.estimate.from_to)
+            .collect::<Vec<_>>();
+        atlas
+            .query_history_batch(
+                &model,
+                &robot_history,
+                &external_histories,
+                &queries,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs,
+            )
+            .unwrap();
+        assert_eq!(
+            outputs
+                .iter()
+                .map(HistoricalAtlasEstimate::external_capacity)
+                .collect::<Vec<_>>(),
+            capacities
+        );
+        assert_eq!(
+            outputs
+                .iter()
+                .map(|output| output.estimate.from_to)
+                .collect::<Vec<_>>(),
+            first_results
+        );
+
+        let length_error = atlas
+            .query_history_batch(
+                &model,
+                &robot_history,
+                &external_histories,
+                &queries,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs[..1],
+            )
+            .unwrap_err();
+        assert!(matches!(
+            length_error,
+            HistoricalFrameQueryBatchError::OutputLength {
+                queries: 2,
+                outputs: 1
+            }
+        ));
+
+        let bad_queries = [
+            queries[0],
+            HistoricalFrameQuery {
+                time_ns: 200_000_000,
+                ..queries[1]
+            },
+        ];
+        let query_error = atlas
+            .query_history_batch(
+                &model,
+                &robot_history,
+                &external_histories,
+                &bad_queries,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs,
+            )
+            .unwrap_err();
+        assert!(matches!(
+            query_error,
+            HistoricalFrameQueryBatchError::Query { index: 1, .. }
+        ));
     }
 }

@@ -138,7 +138,8 @@ pub use external_load::{
 pub use frames::{
     AtlasFrameEstimate, AtlasFrameId, CompiledFrameAtlas, DerivedFrameOp, ExternalFrameInputs,
     ExternalFrameSlotId, FrameAtlasError, FrameAtlasSnapshot, HistoricalAtlasEstimate,
-    HistoricalFrameQuery, HistoricalFrameQueryError, RootedFrameInput,
+    HistoricalFrameQuery, HistoricalFrameQueryBatchError, HistoricalFrameQueryError,
+    RootedFrameInput,
 };
 pub use history::{
     ExternalFrameHistories, ExternalFrameHistory, ExternalFrameSample, HistoryInsert,

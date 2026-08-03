@@ -200,6 +200,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   The `jacobi-column-pointer-control` feature restores the pre-R284 kernel.
   See the
   [r284 Jacobi pointer report](benchmarks/results/g1-jacobi-column-pointer-r284/G1_JACOBI_COLUMN_POINTER_R284.md).
+- R286 adds caller-owned scalar and bounded batch historical frame queries.
+  The Upkie audit runs 64 queries per batch for 32 measured batches with
+  bitwise-stable results and no growth in external-provenance output capacity.
+  This is a query/dataflow improvement only: reconstruction allocation,
+  browser frame-time, WBC transfer, and authority remain separate open gates.
+  See the
+  [r286 frame-query report](benchmarks/results/frame-query-batch-r286/FRAME_QUERY_BATCH_R286.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

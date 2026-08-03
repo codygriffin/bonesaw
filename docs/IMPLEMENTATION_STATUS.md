@@ -2,6 +2,17 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU architecture slice — r286 historical frame-query batching
+
+R286 adds caller-owned `CompiledFrameAtlas::query_history_into` and
+`query_history_batch` workspaces. The batch surface preserves scalar query
+semantics, returns an indexed typed error on failure, and reuses each output's
+external-provenance capacity across repeated batches. The Upkie audit runs 64
+queries per batch for 32 measured batches with bitwise-stable results and
+stable provenance capacity; it does not claim the legacy state reconstruction
+path is allocation-free and makes no WBC, physics, or authority claim. See
+[`FRAME_QUERY_BATCH_R286.md`](../benchmarks/results/frame-query-batch-r286/FRAME_QUERY_BATCH_R286.md).
+
 ## Current CPU checkpoint — r285 typed low-authority degradation
 
 R285 adds independent, default-off Preference and Style projected-solve
