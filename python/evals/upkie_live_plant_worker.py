@@ -582,13 +582,13 @@ class LiveUpkiePlant:
                 "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
                 "wbc_hard_contact_active": published_hard_contact_active.tolist(),
                 "wbc_support_active_count": 0
-                if latest_result is None
+                if not published_contact_state
                 else int(latest_result["support_active_count"]),
                 "wbc_support_active_left": 0
-                if latest_result is None
+                if not published_contact_state
                 else int(latest_result["support_active_left"]),
                 "wbc_support_active_right": 0
-                if latest_result is None
+                if not published_contact_state
                 else int(latest_result["support_active_right"]),
                 "wbc_contact_observation_status": 0
                 if latest_result is None

@@ -223,6 +223,12 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         np.testing.assert_array_equal(self.worker.data.qpos, qpos_before)
         np.testing.assert_array_equal(self.worker.data.qvel, qvel_before)
 
+        heartbeat = self.worker.step({"type": "step"})
+        self.assertTrue(heartbeat["paused"])
+        self.assertFalse(heartbeat["metrics"]["wbc_observed_contact_available"])
+        np.testing.assert_array_equal(heartbeat["wbc_hard_contact_active"], [0, 0])
+        self.assertEqual(heartbeat["metrics"]["wbc_support_active_count"], 0)
+
         resumed = self.worker.step(
             {"type": "step", "command_id": 12, "paused": False}
         )
