@@ -16123,7 +16123,8 @@ impl FloatingWbcSession {
         root_angular_accelerations_world=None,
         contact_bases_world=None,
         feasibility_seed_reused_out=None,
-        feasibility_prefix_resumed_out=None
+        feasibility_prefix_resumed_out=None,
+        centroidal_angular_momentum_rate_world=None
     ))]
     fn run_oracle_trace(
         &mut self,
@@ -16189,6 +16190,7 @@ impl FloatingWbcSession {
         contact_bases_world: Option<PyReadonlyArray4<'_, f64>>,
         mut feasibility_seed_reused_out: Option<PyReadwriteArray1<'_, u8>>,
         mut feasibility_prefix_resumed_out: Option<PyReadwriteArray1<'_, u8>>,
+        centroidal_angular_momentum_rate_world: Option<PyReadonlyArray2<'_, f64>>,
     ) -> PyResult<()> {
         // Every call begins from the configured nominal authority. This also
         // self-heals a session after any model error returned from the middle
@@ -16307,6 +16309,9 @@ impl FloatingWbcSession {
             .as_ref()
             .map(PyReadonlyArray2::as_array);
         let contact_bases_world = contact_bases_world.as_ref().map(PyReadonlyArray4::as_array);
+        let centroidal_angular_momentum_rate_world = centroidal_angular_momentum_rate_world
+            .as_ref()
+            .map(PyReadonlyArray2::as_array);
         let mut feasibility_seed_reused_out = feasibility_seed_reused_out
             .as_mut()
             .map(|values| values.as_slice_mut())
@@ -16405,6 +16410,9 @@ impl FloatingWbcSession {
             || contact_bases_world
                 .as_ref()
                 .is_some_and(|bases| bases.shape() != [ticks, target_count, 3, 3])
+            || centroidal_angular_momentum_rate_world
+                .as_ref()
+                .is_some_and(|rates| rates.shape() != [ticks, 3])
             || rolling_coordinates.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_coefficients.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_stabilization_gains
@@ -16444,6 +16452,9 @@ impl FloatingWbcSession {
             || root_angular_accelerations_world
                 .as_ref()
                 .is_some_and(|accelerations| accelerations.iter().any(|value| !value.is_finite()))
+            || centroidal_angular_momentum_rate_world
+                .as_ref()
+                .is_some_and(|rates| rates.iter().any(|value| !value.is_finite()))
             || contact_bases_world.as_ref().is_some_and(|bases| {
                 (0..ticks).any(|tick| {
                     (0..target_count).any(|target| {
@@ -16846,7 +16857,12 @@ impl FloatingWbcSession {
             };
             let centroidal_angular_momentum_task = (self.centroidal_angular_momentum_weight > 0.0)
                 .then_some(FloatingCentroidalAngularMomentumTask {
-                    desired_rate_world: Vec3::zeros(),
+                    desired_rate_world: centroidal_angular_momentum_rate_world
+                        .as_ref()
+                        .map(|rates| {
+                            Vec3::new(rates[[tick, 0]], rates[[tick, 1]], rates[[tick, 2]])
+                        })
+                        .unwrap_or_else(|| Vec3::zeros()),
                     priority: self.centroidal_angular_momentum_priority,
                     weight: self.centroidal_angular_momentum_weight,
                 });

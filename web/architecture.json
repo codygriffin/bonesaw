@@ -4,7 +4,7 @@
   "updated": "2026-08-03",
   "stage": "R314 qualifies measured body-moment rejection for the ±6 N class · falls 4→2 · ±8 N full recovery remains open · R310 remains public",
   "checkpoint": "R314 adds a bounded allocation-free Rust correction after load-reserve composition. It uses only measured root roll and roll rate, spends damping only on outward motion, and contributes one clipped roll-acceleration delta without changing contact rows, support modes, reset policy, or solver budget. On the frozen eight-force MuJoCo 3.3.7 holdout, both mirrored ±6 N cases change from tick-236 falls to complete 450-tick runs with five force-backed relocks and stable two-second bilateral tails. The −8 N guardrail stays at 79, +8 N moves later 69→72, and ±2/±4 N stay nonterminal. Bounded behavior is qualified, but the two ±8 N overload rows keep full promotion open and R314 default-off.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's persistent force-backed relock request, R314's measured body-moment correction, strict lexicographic support authority, the continuous wheel-load reserve request, bounded feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask and body-moment action never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo 3.3.7 consequence; it does not compute actions. The ±8 N overload class, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's persistent force-backed relock request, R314's measured body-moment correction, and R314's default-off delayed external-moment negative control, plus strict lexicographic support authority, the continuous wheel-load reserve request, bounded feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask and body-moment actions never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo 3.3.7 consequence; it does not compute actions. The ±8 N overload class, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -29,6 +29,10 @@
     {
       "name": "Measured body-moment rejection",
       "detail": "current measured root roll + current measured roll rate → Rust smoothstep tilt/outward-rate pressure → restoring stiffness plus outward-only damping → ±10.5 rad/s² clipped delta added after load-reserve composition · caller-owned 11-value diagnostic buffer · no policy, forecast, physics dependency, contact authoring, support-mode promotion, solver-row mutation, or admission bypass · nominal physical path bit-exact · frozen eight-force consequence falls 4→2 · ±6 N finish with stable tails · ±8 N remains overload · default-off"
+    },
+    {
+      "name": "Causal external-moment rejection",
+      "detail": "MuJoCo applies the current declared body wrench only after the WBC solve · the worker retains the completed world r×F moment for one 50 Hz tick · fixed-size observation crosses the PyO3 boundary · Rust's centroidal angular-momentum task requests the opposing contact moment · finite, mode-firewall, zero-allocation, deadline, and replay gates pass · R314 terminal boundaries 80/331/—/—/—/—/322/70 versus R313 79/236/—/—/—/—/236/69 · four falls remain and the profile is default-off"
     },
     {
       "name": "Measured contact admission",
@@ -122,6 +126,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r314-causal-external-moment-rejection",
+      "title": "Feed the last completed MuJoCo moment into Rust without anticipation",
+      "status": "mechanism qualified · recovery rejected · default-off",
+      "detail": "The live worker applies a declared wrench after each WBC solve, stores the completed world r×F moment, and passes it to the next 50 Hz call. Rust owns the fixed-size centroidal angular-momentum target and Python only transports the observation. The eight-force repeated upper-base holdout is finite, zero-allocation, deadline-clean, mode-firewall-clean, replay-exact, and never earlier than R313, but still has four terminal falls. R310 remains public and no authority follows."
+    },
     {
       "id": "r313-force-backed-relock-persistence",
       "title": "Keep landing effort through measured-load debounce without granting support",

@@ -17,6 +17,18 @@ and the `±2/±4 N` rows remain nonterminal. This completed slice is removed fro
 the punch list and retained in the
 [R314 report](benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 
+The independent delayed-wrench negative control also closes a useful causal
+observation seam:
+MuJoCo applies the declared wrench after each WBC solve, the worker retains the
+completed `r×F` moment for exactly one 50 Hz tick, and Rust owns the opposing
+centroidal contact-moment target. The full eight-force repeated upper-base
+holdout is finite, allocation-free, deadline-clean, mode-firewall-clean, and
+replay-exact; terminal boundaries move `79/236/236/69` (R313) to
+`80/331/322/70` for the terminal `-8/-6/+6/+8 N` cases. Four falls remain, so
+no authority is promoted. It is retained as a behavior-negative comparison to
+the state-local R314 law, not as an alternative public controller. See the
+[negative-control report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+
 The largest remaining behavior complaint is the `±8 N` overload class. Full
 promotion requires every declared holdout row to finish without inventing
 contact authority, raising solver iteration/time budgets, or weakening the

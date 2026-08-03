@@ -1126,6 +1126,8 @@ class RustWbcAdapter:
         body_moment_rejection_config: tuple[float, ...] | None = None,
         root_lateral_stiffness: float = 18.0,
         root_lateral_damping: float = 8.0,
+        centroidal_angular_momentum_weight: float = 0.0,
+        centroidal_angular_momentum_frequency_hz: float = 1.0,
         joint_posture_weight: float = 1.0,
         joint_posture_priority: int = 0,
         joint_posture_stiffness: float = 60.0,
@@ -1190,6 +1192,13 @@ class RustWbcAdapter:
         if not math.isfinite(control_dt) or control_dt <= 0.0:
             raise ValueError("control_dt must be finite and positive")
         self.control_dt = control_dt
+        self.centroidal_angular_momentum_weight = float(
+            centroidal_angular_momentum_weight
+        )
+        self.external_moment_observation_valid = False
+        self.centroidal_angular_momentum_rate_world = np.zeros(
+            (1, 3), np.float64
+        )
 
         self.session = bonesaw.FloatingWbcSession(
             str(model_path),
@@ -1208,6 +1217,8 @@ class RustWbcAdapter:
             root_height_task_weight=10.0,
             root_horizontal_task_weight=10.0,
             root_horizontal_task_priority=1,
+            centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
+            centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
             joint_posture_weight=joint_posture_weight,
             joint_posture_priority=joint_posture_priority,
             center_of_mass_task_weight=0.0,
@@ -1253,6 +1264,8 @@ class RustWbcAdapter:
                 root_height_task_weight=10.0,
                 root_horizontal_task_weight=10.0,
                 root_horizontal_task_priority=1,
+                centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
+                centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
                 joint_posture_weight=joint_posture_weight,
                 joint_posture_priority=joint_posture_priority,
                 center_of_mass_task_weight=0.0,
@@ -2129,6 +2142,12 @@ class RustWbcAdapter:
             contact_bases_world=self.contact_bases_world,
             feasibility_seed_reused_out=out["feasibility_seed_reused"],
             feasibility_prefix_resumed_out=out["feasibility_prefix_resumed"],
+            centroidal_angular_momentum_rate_world=(
+                self.centroidal_angular_momentum_rate_world
+                if self.external_moment_observation_valid
+                and self.centroidal_angular_momentum_weight > 0.0
+                else None
+            ),
         )
 
     def _restore_contact_authority(self) -> None:
@@ -2274,6 +2293,12 @@ class RustWbcAdapter:
             ),
             feasibility_seed_reused_out=out["feasibility_seed_reused"],
             feasibility_prefix_resumed_out=out["feasibility_prefix_resumed"],
+            centroidal_angular_momentum_rate_world=(
+                self.centroidal_angular_momentum_rate_world
+                if self.external_moment_observation_valid
+                and self.centroidal_angular_momentum_weight > 0.0
+                else None
+            ),
         )
         self.support_contingency_candidate_generalized_acceleration[:] = out[
             "generalized_acceleration"
@@ -2429,6 +2454,7 @@ class RustWbcAdapter:
         ground_height: float,
         observed_contact_active: np.ndarray | None = None,
         observed_wheel_normal_force_n: np.ndarray | None = None,
+        observed_external_wrench_world: np.ndarray | None = None,
         observed_contact_available: bool = True,
         observed_contact_age_ticks: int = 0,
         observed_contact_synchronization_uncertainty_ns: int = 0,
@@ -2447,6 +2473,28 @@ class RustWbcAdapter:
             raise ValueError(
                 "observed_wheel_normal_force_n must contain two finite nonnegative values"
             )
+        if observed_external_wrench_world is not None and (
+            observed_external_wrench_world.shape != (6,)
+            or not np.all(np.isfinite(observed_external_wrench_world))
+        ):
+            raise ValueError(
+                "observed_external_wrench_world must contain six finite values ordered moment XYZ, force XYZ"
+            )
+        self.external_moment_observation_valid = (
+            observed_external_wrench_world is not None
+            and self.centroidal_angular_momentum_weight > 0.0
+        )
+        if self.external_moment_observation_valid:
+            # A desired centroidal angular-momentum rate is the contact moment
+            # target. The external moment is supplied one control tick late by
+            # the plant boundary, so this remains causal; a persistent load is
+            # opposed continuously while the normal zero-rate damping task is
+            # retained whenever no external observation is available.
+            self.centroidal_angular_momentum_rate_world[0] = (
+                -observed_external_wrench_world[:3]
+            )
+        else:
+            self.centroidal_angular_momentum_rate_world.fill(0.0)
         if observed_contact_active is None:
             if not observed_contact_available or observed_contact_age_ticks:
                 raise ValueError(
@@ -5293,6 +5341,8 @@ def run_case(
     root_roll_damping: float = 4.4,
     root_lateral_stiffness: float = 18.0,
     root_lateral_damping: float = 8.0,
+    centroidal_angular_momentum_weight: float = 0.0,
+    centroidal_angular_momentum_frequency_hz: float = 1.0,
     fall_safe_enabled: bool = False,
     fall_safe_primary_blend: bool = True,
     execute_reduced_support: bool = True,
@@ -5373,6 +5423,8 @@ def run_case(
         root_roll_damping=root_roll_damping,
         root_lateral_stiffness=root_lateral_stiffness,
         root_lateral_damping=root_lateral_damping,
+        centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
+        centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
         fall_safe_enabled=fall_safe_enabled,
         fall_safe_primary_blend=fall_safe_primary_blend,
         execute_reduced_support=execute_reduced_support,
@@ -5410,6 +5462,7 @@ def run_case(
         "wbc_normal_force": np.empty((ticks, 2), np.float64),
         "external_force_x": np.empty(ticks, np.float64),
         "external_force_world": np.empty((ticks, 3), np.float64),
+        "external_moment_world": np.empty((ticks, 3), np.float64),
         "contact_count": np.empty(ticks, np.uint16),
         "measured_wheel_contact_active": np.empty((ticks, 2), np.uint8),
         "measured_wheel_normal_force": np.empty((ticks, 2), np.float64),
@@ -5485,6 +5538,7 @@ def run_case(
     rss_before = rss_bytes()
     completed_ticks = ticks
     fall_time_s: float | None = None
+    previous_external_wrench_world = np.zeros(6, np.float64)
     for tick, timestamp in enumerate(traces["time_s"]):
         loop_started = time.perf_counter_ns()
         root_position, root_quaternion, root_twist, q, v = read_state(model, data)
@@ -5515,6 +5569,7 @@ def run_case(
             ground_height,
             measured_contact_active if observe_measured_contact else None,
             observed_normal_force if observe_measured_contact else None,
+            previous_external_wrench_world,
         )
         mujoco.mj_energyVel(model, data)
         kinetic_energy_j = float(data.energy[1])
@@ -5542,6 +5597,11 @@ def run_case(
         plant_started = time.perf_counter_ns()
         for _ in range(substeps):
             mujoco.mj_step(model, data)
+        if disturbed:
+            previous_external_wrench_world[:3] = 0.0
+            previous_external_wrench_world[3:] = force_world
+        else:
+            previous_external_wrench_world.fill(0.0)
         plant_elapsed = time.perf_counter_ns() - plant_started
         traces["root_position"][tick] = root_position
         traces["root_quaternion"][tick] = root_quaternion
@@ -5565,6 +5625,7 @@ def run_case(
         traces["wbc_normal_force"][tick] = result["normal_force"]
         traces["external_force_x"][tick] = force_world[0] if disturbed else 0.0
         traces["external_force_world"][tick] = force_world if disturbed else 0.0
+        traces["external_moment_world"][tick] = 0.0
         traces["contact_count"][tick] = data.ncon
         traces["measured_wheel_contact_active"][tick] = measured_contact_active
         traces["measured_wheel_normal_force"][tick] = observed_normal_force

@@ -71,6 +71,56 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertFalse(result["measured_impact_impulse"]["available"])
         self.assertFalse(result["unobserved_model_reserve"]["available"])
 
+    def test_external_moment_observation_is_delayed_into_rust(self) -> None:
+        worker = LiveUpkiePlant(
+            ROOT / "models/upkie/upkie.urdf",
+            controller_options={
+                "centroidal_angular_momentum_weight": 0.3,
+                "centroidal_angular_momentum_frequency_hz": 1.0,
+            },
+        )
+        body_id = worker.body_by_name["base"]
+        force = np.asarray([2.0, 0.0, 0.0])
+        point = worker.data.xipos[body_id] + np.asarray([0.0, 0.0, 0.2])
+        expected_moment = np.cross(point - worker.data.xipos[body_id], force)
+        np.testing.assert_array_equal(
+            worker.controller.centroidal_angular_momentum_rate_world,
+            np.zeros((1, 3)),
+        )
+        worker.step(
+            {
+                "type": "step",
+                "command_id": 3,
+                "external_load": {
+                    "active": True,
+                    "body": "base",
+                    "force_world": force.tolist(),
+                    "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
+                    "request_id": 3,
+                },
+            }
+        )
+        # The load is applied after the first solve, so the first tick cannot
+        # use it as a feed-forward target.
+        np.testing.assert_array_equal(
+            worker.controller.centroidal_angular_momentum_rate_world,
+            np.zeros((1, 3)),
+        )
+        self.assertTrue(worker.last_external_wrench_valid)
+        np.testing.assert_allclose(
+            worker.last_external_wrench_world[:3], expected_moment, atol=1.0e-12
+        )
+        worker.step({"type": "step", "command_id": 4})
+        # The second solve consumes the completed first-tick wrench and asks
+        # the contact stack for the opposing centroidal moment in Rust.
+        np.testing.assert_allclose(
+            worker.controller.centroidal_angular_momentum_rate_world[0],
+            -expected_moment,
+            atol=1.0e-12,
+        )
+        self.assertFalse(worker.last_external_wrench_valid)
+
     def test_excessive_lever_is_rejected_without_advancing_plant(self) -> None:
         body = "base"
         body_id = self.worker.body_by_name[body]
@@ -102,6 +152,10 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(hello["control_hz"], 50)
         self.assertEqual(hello["physics_hz"], 250)
         self.assertEqual(hello["physics_substeps_per_control"], 5)
+        self.assertEqual(
+            hello["external_load_contract"]["wbc_external_moment_observation"],
+            "last_completed_world_r_cross_F, consumed one 50 Hz solve later",
+        )
         np.testing.assert_allclose(
             hello["simulator"]["ground_plane_point_world"], [0.0, 0.0, 0.0]
         )

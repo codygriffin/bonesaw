@@ -407,6 +407,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   evidence; the remaining behavior gap is continuous
   support-sustaining moment/landing rejection. See the
   [r313 envelope report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+- R314 closes the causal external-moment seam: MuJoCo applies the declared
+  wrench after the WBC solve, the worker retains the completed `r×F` moment for
+  one 50 Hz tick, and Rust owns the opposing centroidal contact-moment target.
+  The repeated eight-force holdout is finite, zero-allocation, deadline-clean,
+  mode-firewall-clean, replay-exact, and never earlier than R313 (`80/331/—/—/—/—/322/70`
+  versus `79/236/—/—/—/—/236/69`), but still has four terminal falls. The
+  mechanism remains default-off. See the
+  [r314 causal moment report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed
