@@ -489,6 +489,14 @@ pub struct ReconstructedState {
     pub source_interval_ns: (i64, i64),
 }
 
+/// Allocation-free evidence returned when reconstruction writes into a
+/// caller-owned [`RobotState`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReconstructedStateEvidence {
+    pub provenance: ReconstructionProvenance,
+    pub source_interval_ns: (i64, i64),
+}
+
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum HistoryQueryError {
     #[error("history is empty")]
@@ -499,6 +507,10 @@ pub enum HistoryQueryError {
     InterpolationGap,
     #[error("prediction is disabled or exceeds its configured horizon")]
     Extrapolation,
+    #[error("reconstruction output has q={q} and v={v}, expected {expected}")]
+    OutputLayout { expected: usize, q: usize, v: usize },
+    #[error("stored robot state has q={q} and v={v}, expected {expected}")]
+    StateLayout { expected: usize, q: usize, v: usize },
 }
 
 #[derive(Clone, Debug)]
@@ -510,6 +522,21 @@ pub struct ExternalFrameSample {
     pub acceleration: Option<SpatialAcceleration6>,
     pub covariance: Option<SymmetricMat6>,
     pub sequence: u64,
+}
+
+impl ExternalFrameSample {
+    /// Identity sample used to construct caller-owned reconstruction storage.
+    /// The value is overwritten before a successful reconstruction returns.
+    pub fn workspace() -> Self {
+        Self {
+            time_ns: 0,
+            anchor_from_frame: Transform3::identity(),
+            twist: None,
+            acceleration: None,
+            covariance: None,
+            sequence: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -673,6 +700,127 @@ impl ExternalFrameHistory {
             (lower.time_ns, upper.time_ns),
         ))
     }
+
+    /// Reconstruct into caller-owned sample storage. This is the hot-path
+    /// companion to [`Self::reconstruct`]; it preserves the same interpolation,
+    /// prediction, hold, and interval semantics without cloning a sample.
+    pub fn reconstruct_into(
+        &self,
+        time_ns: ControlTime,
+        policy: HistoryQueryPolicy,
+        output: &mut ExternalFrameSample,
+    ) -> Result<ReconstructedStateEvidence, HistoryQueryError> {
+        let first = self.samples.front().ok_or(HistoryQueryError::Empty)?;
+        let last = self.samples.back().expect("non-empty history has a back");
+        if time_ns < first.time_ns {
+            return Err(HistoryQueryError::BeforeHistory);
+        }
+        if time_ns == last.time_ns {
+            copy_external_sample_into(output, last);
+            return Ok(ReconstructedStateEvidence {
+                provenance: ReconstructionProvenance::ExactSample,
+                source_interval_ns: (last.time_ns, last.time_ns),
+            });
+        }
+        if time_ns > last.time_ns {
+            let horizon_ns = time_ns - last.time_ns;
+            if horizon_ns > policy.maximum_extrapolation_ns {
+                return Err(HistoryQueryError::Extrapolation);
+            }
+            if policy.allow_prediction
+                && let Some(twist) = last.twist
+            {
+                copy_external_sample_into(output, last);
+                let dt = horizon_ns as f64 * 1e-9;
+                let angular = Vec3::new(twist.0[0], twist.0[1], twist.0[2]);
+                let linear = Vec3::new(twist.0[3], twist.0[4], twist.0[5]);
+                output.time_ns = time_ns;
+                output.anchor_from_frame = Transform3::from_parts(
+                    nalgebra::Translation3::from(
+                        last.anchor_from_frame.translation.vector + linear * dt,
+                    ),
+                    nalgebra::UnitQuaternion::from_scaled_axis(angular * dt)
+                        * last.anchor_from_frame.rotation,
+                );
+                return Ok(ReconstructedStateEvidence {
+                    provenance: ReconstructionProvenance::PredictedConstantVelocity,
+                    source_interval_ns: (last.time_ns, time_ns),
+                });
+            }
+            if policy.allow_hold {
+                copy_external_sample_into(output, last);
+                output.time_ns = time_ns;
+                return Ok(ReconstructedStateEvidence {
+                    provenance: ReconstructionProvenance::Held,
+                    source_interval_ns: (last.time_ns, time_ns),
+                });
+            }
+            return Err(HistoryQueryError::Extrapolation);
+        }
+
+        let (lower, upper) = self
+            .samples
+            .iter()
+            .zip(self.samples.iter().skip(1))
+            .find(|(lower, upper)| lower.time_ns <= time_ns && time_ns <= upper.time_ns)
+            .expect("time within retained external history has a bracket");
+        if time_ns == lower.time_ns {
+            copy_external_sample_into(output, lower);
+            return Ok(ReconstructedStateEvidence {
+                provenance: ReconstructionProvenance::ExactSample,
+                source_interval_ns: (lower.time_ns, lower.time_ns),
+            });
+        }
+        if time_ns == upper.time_ns {
+            copy_external_sample_into(output, upper);
+            return Ok(ReconstructedStateEvidence {
+                provenance: ReconstructionProvenance::ExactSample,
+                source_interval_ns: (upper.time_ns, upper.time_ns),
+            });
+        }
+        let gap = upper.time_ns - lower.time_ns;
+        if gap > policy.maximum_interpolation_gap_ns {
+            return Err(HistoryQueryError::InterpolationGap);
+        }
+        let alpha = (time_ns - lower.time_ns) as f64 / gap as f64;
+        output.time_ns = time_ns;
+        output.anchor_from_frame = Transform3::from_parts(
+            nalgebra::Translation3::from(
+                (1.0 - alpha) * lower.anchor_from_frame.translation.vector
+                    + alpha * upper.anchor_from_frame.translation.vector,
+            ),
+            lower
+                .anchor_from_frame
+                .rotation
+                .slerp(&upper.anchor_from_frame.rotation, alpha),
+        );
+        output.twist = match (lower.twist, upper.twist) {
+            (Some(a), Some(b)) => Some(Motion6((1.0 - alpha) * a.0 + alpha * b.0)),
+            _ => None,
+        };
+        output.acceleration = match (lower.acceleration, upper.acceleration) {
+            (Some(a), Some(b)) => Some(SpatialAcceleration6((1.0 - alpha) * a.0 + alpha * b.0)),
+            _ => None,
+        };
+        output.covariance = match (lower.covariance, upper.covariance) {
+            (Some(a), Some(b)) => Some((1.0 - alpha) * a + alpha * b),
+            _ => None,
+        };
+        output.sequence = lower.sequence.max(upper.sequence);
+        Ok(ReconstructedStateEvidence {
+            provenance: ReconstructionProvenance::Interpolated,
+            source_interval_ns: (lower.time_ns, upper.time_ns),
+        })
+    }
+}
+
+fn copy_external_sample_into(destination: &mut ExternalFrameSample, source: &ExternalFrameSample) {
+    destination.time_ns = source.time_ns;
+    destination.anchor_from_frame = source.anchor_from_frame;
+    destination.twist = source.twist;
+    destination.acceleration = source.acceleration;
+    destination.covariance = source.covariance;
+    destination.sequence = source.sequence;
 }
 
 fn reconstructed_external(
@@ -1247,14 +1395,51 @@ impl RobotHistory {
         time_ns: ControlTime,
         policy: HistoryQueryPolicy,
     ) -> Result<ReconstructedState, HistoryQueryError> {
+        let mut state = RobotState::zeros(model);
+        let evidence = self.reconstruct_into(model, time_ns, policy, &mut state)?;
+        Ok(ReconstructedState {
+            state,
+            provenance: evidence.provenance,
+            source_interval_ns: evidence.source_interval_ns,
+        })
+    }
+
+    /// Reconstruct into caller-owned storage. Once `output` has the model's
+    /// fixed layout this path does not allocate, including interpolation and
+    /// constant-velocity prediction.
+    pub fn reconstruct_into(
+        &self,
+        model: &CompiledModel,
+        time_ns: ControlTime,
+        policy: HistoryQueryPolicy,
+        output: &mut RobotState,
+    ) -> Result<ReconstructedStateEvidence, HistoryQueryError> {
+        if output.q.len() != model.dof || output.v.len() != model.dof {
+            return Err(HistoryQueryError::OutputLayout {
+                expected: model.dof,
+                q: output.q.len(),
+                v: output.v.len(),
+            });
+        }
         let first = self.samples.front().ok_or(HistoryQueryError::Empty)?;
         let last = self.samples.back().expect("non-empty history has a back");
+        if first.state.q.len() != model.dof
+            || first.state.v.len() != model.dof
+            || last.state.q.len() != model.dof
+            || last.state.v.len() != model.dof
+        {
+            return Err(HistoryQueryError::StateLayout {
+                expected: model.dof,
+                q: first.state.q.len().max(last.state.q.len()),
+                v: first.state.v.len().max(last.state.v.len()),
+            });
+        }
         if time_ns < first.time_ns {
             return Err(HistoryQueryError::BeforeHistory);
         }
         if time_ns == last.time_ns {
-            return Ok(ReconstructedState {
-                state: last.state.clone(),
+            copy_robot_state_into(output, &last.state);
+            return Ok(ReconstructedStateEvidence {
                 provenance: ReconstructionProvenance::ExactSample,
                 source_interval_ns: (last.time_ns, last.time_ns),
             });
@@ -1262,17 +1447,16 @@ impl RobotHistory {
         if time_ns > last.time_ns {
             let horizon = time_ns - last.time_ns;
             if policy.allow_prediction && horizon <= policy.maximum_extrapolation_ns {
-                let mut state = last.state.clone();
-                model.integrate(&mut state, &last.state.v, horizon as f64 * 1e-9);
-                return Ok(ReconstructedState {
-                    state,
+                copy_robot_state_into(output, &last.state);
+                model.integrate(output, &last.state.v, horizon as f64 * 1e-9);
+                return Ok(ReconstructedStateEvidence {
                     provenance: ReconstructionProvenance::PredictedConstantVelocity,
                     source_interval_ns: (last.time_ns, time_ns),
                 });
             }
             if policy.allow_hold && horizon <= policy.maximum_extrapolation_ns {
-                return Ok(ReconstructedState {
-                    state: last.state.clone(),
+                copy_robot_state_into(output, &last.state);
+                return Ok(ReconstructedStateEvidence {
                     provenance: ReconstructionProvenance::Held,
                     source_interval_ns: (last.time_ns, time_ns),
                 });
@@ -1286,16 +1470,27 @@ impl RobotHistory {
             .zip(self.samples.iter().skip(1))
             .find(|(lower, upper)| lower.time_ns <= time_ns && time_ns <= upper.time_ns)
             .expect("time within retained history has a bracket");
+        if lower.state.q.len() != model.dof
+            || lower.state.v.len() != model.dof
+            || upper.state.q.len() != model.dof
+            || upper.state.v.len() != model.dof
+        {
+            return Err(HistoryQueryError::StateLayout {
+                expected: model.dof,
+                q: lower.state.q.len().max(upper.state.q.len()),
+                v: lower.state.v.len().max(upper.state.v.len()),
+            });
+        }
         if time_ns == lower.time_ns {
-            return Ok(ReconstructedState {
-                state: lower.state.clone(),
+            copy_robot_state_into(output, &lower.state);
+            return Ok(ReconstructedStateEvidence {
                 provenance: ReconstructionProvenance::ExactSample,
                 source_interval_ns: (lower.time_ns, lower.time_ns),
             });
         }
         if time_ns == upper.time_ns {
-            return Ok(ReconstructedState {
-                state: upper.state.clone(),
+            copy_robot_state_into(output, &upper.state);
+            return Ok(ReconstructedStateEvidence {
                 provenance: ReconstructionProvenance::ExactSample,
                 source_interval_ns: (upper.time_ns, upper.time_ns),
             });
@@ -1316,8 +1511,11 @@ impl RobotHistory {
                 .rotation
                 .slerp(&upper.state.control_world_from_root.rotation, alpha),
         );
-        let mut q = lower.state.q.clone();
-        let v = (1.0 - alpha) * &lower.state.v + alpha * &upper.state.v;
+        output.control_world_from_root = control_world_from_root;
+        for index in 0..model.dof {
+            output.q[index] = lower.state.q[index];
+            output.v[index] = (1.0 - alpha) * lower.state.v[index] + alpha * upper.state.v[index];
+        }
         for joint in &model.joints {
             let Some(index) = joint.coordinate else {
                 continue;
@@ -1328,14 +1526,9 @@ impl RobotHistory {
                     .rem_euclid(2.0 * std::f64::consts::PI)
                     - std::f64::consts::PI;
             }
-            q[index] = lower.state.q[index] + alpha * difference;
+            output.q[index] = lower.state.q[index] + alpha * difference;
         }
-        Ok(ReconstructedState {
-            state: RobotState {
-                control_world_from_root,
-                q,
-                v,
-            },
+        Ok(ReconstructedStateEvidence {
             provenance: ReconstructionProvenance::Interpolated,
             source_interval_ns: (lower.time_ns, upper.time_ns),
         })
@@ -1761,6 +1954,21 @@ mod tests {
         let middle = history.reconstruct(&model, 10_000_000, policy).unwrap();
         assert_eq!(middle.provenance, ReconstructionProvenance::Interpolated);
         assert!(middle.state.q[0].abs() > 3.0);
+        let mut middle_into = RobotState::zeros(&model);
+        let middle_evidence = history
+            .reconstruct_into(&model, 10_000_000, policy, &mut middle_into)
+            .unwrap();
+        assert_eq!(middle_evidence.provenance, middle.provenance);
+        assert_eq!(
+            middle_evidence.source_interval_ns,
+            middle.source_interval_ns
+        );
+        assert_eq!(
+            middle_into.control_world_from_root,
+            middle.state.control_world_from_root
+        );
+        assert_eq!(middle_into.q, middle.state.q);
+        assert_eq!(middle_into.v, middle.state.v);
         let future = history.reconstruct(&model, 40_000_000, policy).unwrap();
         assert_eq!(
             future.provenance,
@@ -1770,6 +1978,34 @@ mod tests {
             history.reconstruct(&model, 100_000_000, policy),
             Err(HistoryQueryError::Extrapolation)
         ));
+        let mut wrong_layout = RobotState {
+            control_world_from_root: Transform3::identity(),
+            q: nalgebra::DVector::zeros(0),
+            v: nalgebra::DVector::zeros(0),
+        };
+        assert_eq!(
+            history.reconstruct_into(&model, 10_000_000, policy, &mut wrong_layout),
+            Err(HistoryQueryError::OutputLayout {
+                expected: 1,
+                q: 0,
+                v: 0,
+            })
+        );
+        let mut malformed = RobotHistory::new(2);
+        malformed.push(TimedRobotState {
+            time_ns: 0,
+            sequence: 1,
+            state: wrong_layout,
+        });
+        let mut valid_output = RobotState::zeros(&model);
+        assert_eq!(
+            malformed.reconstruct_into(&model, 0, policy, &mut valid_output),
+            Err(HistoryQueryError::StateLayout {
+                expected: 1,
+                q: 0,
+                v: 0,
+            })
+        );
     }
 
     #[test]
@@ -1795,6 +2031,24 @@ mod tests {
         let middle = history.reconstruct(10_000_000, policy).unwrap();
         assert_eq!(middle.provenance, ReconstructionProvenance::Interpolated);
         assert!((middle.sample.anchor_from_frame.translation.x - 0.01).abs() < 1e-12);
+        let mut middle_into = ExternalFrameSample::workspace();
+        let middle_evidence = history
+            .reconstruct_into(10_000_000, policy, &mut middle_into)
+            .unwrap();
+        assert_eq!(middle_evidence.provenance, middle.provenance);
+        assert_eq!(
+            middle_evidence.source_interval_ns,
+            middle.source_interval_ns
+        );
+        assert_eq!(middle_into.time_ns, middle.sample.time_ns);
+        assert_eq!(
+            middle_into.anchor_from_frame,
+            middle.sample.anchor_from_frame
+        );
+        assert_eq!(middle_into.twist, middle.sample.twist);
+        assert_eq!(middle_into.acceleration, middle.sample.acceleration);
+        assert_eq!(middle_into.covariance, middle.sample.covariance);
+        assert_eq!(middle_into.sequence, middle.sample.sequence);
 
         let future = history.reconstruct(40_000_000, policy).unwrap();
         assert_eq!(
@@ -1802,6 +2056,18 @@ mod tests {
             ReconstructionProvenance::PredictedConstantVelocity
         );
         assert!((future.sample.anchor_from_frame.translation.x - 0.04).abs() < 1e-12);
+        let future_evidence = history
+            .reconstruct_into(40_000_000, policy, &mut middle_into)
+            .unwrap();
+        assert_eq!(future_evidence.provenance, future.provenance);
+        assert_eq!(
+            future_evidence.source_interval_ns,
+            future.source_interval_ns
+        );
+        assert_eq!(
+            middle_into.anchor_from_frame,
+            future.sample.anchor_from_frame
+        );
         assert!(
             future
                 .sample

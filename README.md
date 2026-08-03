@@ -207,6 +207,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   browser frame-time, WBC transfer, and authority remain separate open gates.
   See the
   [r286 frame-query report](benchmarks/results/frame-query-batch-r286/FRAME_QUERY_BATCH_R286.md).
+- R287 closes R286's reconstruction-allocation caveat. Rust now reconstructs
+  robot and external-frame histories through one explicit caller-owned
+  `HistoricalFrameQueryWorkspace`; strict scalar/batch calls reject undersized
+  layouts instead of growing them. Twenty-one independent Upkie process runs
+  execute 2,048 warmed queries each with zero measured allocation/deallocation,
+  bitwise-repeatable results, 1.381 µs/query median, and stable 2→2 output,
+  provenance, and external-sample capacities. This changes query dataflow only,
+  not WBC or physics authority. See the
+  [r287 allocation report](benchmarks/results/frame-query-allocation-r287/FRAME_QUERY_ALLOCATION_R287.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

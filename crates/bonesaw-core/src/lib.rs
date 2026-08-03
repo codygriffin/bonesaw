@@ -139,15 +139,15 @@ pub use frames::{
     AtlasFrameEstimate, AtlasFrameId, CompiledFrameAtlas, DerivedFrameOp, ExternalFrameInputs,
     ExternalFrameSlotId, FrameAtlasError, FrameAtlasSnapshot, HistoricalAtlasEstimate,
     HistoricalFrameQuery, HistoricalFrameQueryBatchError, HistoricalFrameQueryError,
-    RootedFrameInput,
+    HistoricalFrameQueryWorkspace, RootedFrameInput,
 };
 pub use history::{
     ExternalFrameHistories, ExternalFrameHistory, ExternalFrameSample, HistoryInsert,
     HistoryQueryError, HistoryQueryPolicy, ReconstructedExternalFrame, ReconstructedState,
-    ReconstructionProvenance, RobotHistory, RobotObservationErrorBound, RobotObservationErrorError,
-    RobotObservationErrorGrowth, RobotObservationEvidence, RobotObservationHistory,
-    RobotObservationIngestDisposition, RobotObservationIngestReport, RobotObservationLimits,
-    RobotObservationQueryError, RobotObservationQueryPolicy,
+    ReconstructedStateEvidence, ReconstructionProvenance, RobotHistory, RobotObservationErrorBound,
+    RobotObservationErrorError, RobotObservationErrorGrowth, RobotObservationEvidence,
+    RobotObservationHistory, RobotObservationIngestDisposition, RobotObservationIngestReport,
+    RobotObservationLimits, RobotObservationQueryError, RobotObservationQueryPolicy,
     RobotObservationReconstructionEvidence, RobotObservationRef, RobotObservationStamp,
     TimedRobotState, evaluate_robot_observation,
 };

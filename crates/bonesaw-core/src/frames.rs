@@ -5,11 +5,11 @@ use thiserror::Error;
 
 use crate::{
     history::{
-        ExternalFrameHistories, HistoryQueryError, HistoryQueryPolicy, ReconstructionProvenance,
-        RobotHistory,
+        ExternalFrameHistories, ExternalFrameSample, HistoryQueryError, HistoryQueryPolicy,
+        ReconstructionProvenance, RobotHistory,
     },
     math::Transform3,
-    model::{BodyId, CompiledModel, ModelCache, ModelError},
+    model::{BodyId, CompiledModel, ModelCache, ModelError, RobotState},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -192,6 +192,37 @@ impl HistoricalAtlasEstimate {
     }
 }
 
+/// Fixed-layout scratch for allocation-stable historical frame queries.
+///
+/// Construct this once for a model/atlas pair and reuse it across scalar or
+/// batch calls. Query outputs remain separate so callers can retain results.
+#[derive(Clone, Debug)]
+pub struct HistoricalFrameQueryWorkspace {
+    robot_state: RobotState,
+    external_samples: Vec<ExternalFrameSample>,
+    external_provenance: Vec<ReconstructionProvenance>,
+}
+
+impl HistoricalFrameQueryWorkspace {
+    pub fn new(model: &CompiledModel, atlas: &CompiledFrameAtlas) -> Self {
+        Self {
+            robot_state: RobotState::zeros(model),
+            external_samples: (0..atlas.external_slot_count)
+                .map(|_| ExternalFrameSample::workspace())
+                .collect(),
+            external_provenance: Vec::with_capacity(atlas.external_slot_count),
+        }
+    }
+
+    pub fn external_capacity(&self) -> usize {
+        self.external_provenance.capacity()
+    }
+
+    pub fn external_sample_capacity(&self) -> usize {
+        self.external_samples.capacity()
+    }
+}
+
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum FrameAtlasError {
     #[error("frame atlas external slot {0} is unavailable")]
@@ -218,6 +249,20 @@ pub enum HistoricalFrameQueryError {
     },
     #[error("external-frame history has {actual} slots but the atlas requires {required}")]
     ExternalSlotCount { required: usize, actual: usize },
+    #[error("external-frame input has {actual} slots but the atlas requires {required}")]
+    ExternalInputLayout { required: usize, actual: usize },
+    #[error("frame snapshot has pose={poses} and provenance={provenance}, expected {expected}")]
+    SnapshotLayout {
+        expected: usize,
+        poses: usize,
+        provenance: usize,
+    },
+    #[error("historical workspace has {actual} external samples, expected {required}")]
+    WorkspaceExternalSamples { required: usize, actual: usize },
+    #[error("historical workspace provenance capacity is {actual}, expected at least {required}")]
+    WorkspaceExternalCapacity { required: usize, actual: usize },
+    #[error("historical output provenance capacity is {actual}, expected at least {required}")]
+    OutputCapacity { required: usize, actual: usize },
     #[error(transparent)]
     Model(#[from] ModelError),
     #[error(transparent)]
@@ -497,44 +542,133 @@ impl CompiledFrameAtlas {
         snapshot: &mut FrameAtlasSnapshot,
         output: &mut HistoricalAtlasEstimate,
     ) -> Result<(), HistoricalFrameQueryError> {
+        if external_inputs.anchor_from_frame.len() != self.external_slot_count {
+            external_inputs
+                .anchor_from_frame
+                .resize(self.external_slot_count, None);
+        }
+        if output.external_provenance.capacity() < self.external_slot_count {
+            output
+                .external_provenance
+                .reserve(self.external_slot_count - output.external_provenance.capacity());
+        }
+        if snapshot.control_world_from_frame.len() != self.entries.len() {
+            snapshot
+                .control_world_from_frame
+                .resize(self.entries.len(), Transform3::identity());
+        }
+        if snapshot.provenance.len() != self.entries.len() {
+            snapshot
+                .provenance
+                .resize(self.entries.len(), AtlasFrameProvenance::FixedDerived);
+        }
+        let mut workspace = HistoricalFrameQueryWorkspace::new(model, self);
+        self.query_history_with_workspace_into(
+            model,
+            robot_history,
+            external_histories,
+            query,
+            &mut workspace,
+            model_cache,
+            external_inputs,
+            snapshot,
+            output,
+        )
+    }
+
+    /// Strict caller-owned historical query. All layouts and capacities are
+    /// checked before reconstruction, so a successful warmed call cannot
+    /// trigger hidden vector growth. The output is committed only after every
+    /// robot/external reconstruction and atlas evaluation succeeds.
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_history_with_workspace_into(
+        &self,
+        model: &CompiledModel,
+        robot_history: &RobotHistory,
+        external_histories: &ExternalFrameHistories,
+        query: HistoricalFrameQuery,
+        workspace: &mut HistoricalFrameQueryWorkspace,
+        model_cache: &mut ModelCache,
+        external_inputs: &mut ExternalFrameInputs,
+        snapshot: &mut FrameAtlasSnapshot,
+        output: &mut HistoricalAtlasEstimate,
+    ) -> Result<(), HistoricalFrameQueryError> {
         if external_histories.len() < self.external_slot_count {
             return Err(HistoricalFrameQueryError::ExternalSlotCount {
                 required: self.external_slot_count,
                 actual: external_histories.len(),
             });
         }
-        let robot = robot_history
-            .reconstruct(model, query.time_ns, query.policy)
-            .map_err(HistoricalFrameQueryError::RobotHistory)?;
-        model.forward_kinematics(&robot.state, model_cache)?;
-
         if external_inputs.anchor_from_frame.len() != self.external_slot_count {
-            external_inputs
-                .anchor_from_frame
-                .resize(self.external_slot_count, None);
+            return Err(HistoricalFrameQueryError::ExternalInputLayout {
+                required: self.external_slot_count,
+                actual: external_inputs.anchor_from_frame.len(),
+            });
         }
-        output.external_provenance.clear();
+        if snapshot.control_world_from_frame.len() != self.entries.len()
+            || snapshot.provenance.len() != self.entries.len()
+        {
+            return Err(HistoricalFrameQueryError::SnapshotLayout {
+                expected: self.entries.len(),
+                poses: snapshot.control_world_from_frame.len(),
+                provenance: snapshot.provenance.len(),
+            });
+        }
+        if workspace.external_provenance.capacity() < self.external_slot_count {
+            return Err(HistoricalFrameQueryError::WorkspaceExternalCapacity {
+                required: self.external_slot_count,
+                actual: workspace.external_provenance.capacity(),
+            });
+        }
+        if workspace.external_samples.len() != self.external_slot_count {
+            return Err(HistoricalFrameQueryError::WorkspaceExternalSamples {
+                required: self.external_slot_count,
+                actual: workspace.external_samples.len(),
+            });
+        }
         if output.external_provenance.capacity() < self.external_slot_count {
-            output
-                .external_provenance
-                .reserve(self.external_slot_count - output.external_provenance.capacity());
+            return Err(HistoricalFrameQueryError::OutputCapacity {
+                required: self.external_slot_count,
+                actual: output.external_provenance.capacity(),
+            });
         }
+        let robot = robot_history
+            .reconstruct_into(
+                model,
+                query.time_ns,
+                query.policy,
+                &mut workspace.robot_state,
+            )
+            .map_err(HistoricalFrameQueryError::RobotHistory)?;
+        model.forward_kinematics(&workspace.robot_state, model_cache)?;
+
+        workspace.external_provenance.clear();
         let mut support_start = robot.source_interval_ns.0;
         let mut support_end = robot.source_interval_ns.1;
         for slot in 0..self.external_slot_count {
-            let reconstructed = external_histories
+            let evidence = external_histories
                 .slot(slot)
                 .expect("slot count validated")
-                .reconstruct(query.time_ns, query.policy)
+                .reconstruct_into(
+                    query.time_ns,
+                    query.policy,
+                    &mut workspace.external_samples[slot],
+                )
                 .map_err(|source| HistoricalFrameQueryError::ExternalHistory { slot, source })?;
-            external_inputs.anchor_from_frame[slot] = Some(reconstructed.sample.anchor_from_frame);
-            output.external_provenance.push(reconstructed.provenance);
-            support_start = support_start.min(reconstructed.source_interval_ns.0);
-            support_end = support_end.max(reconstructed.source_interval_ns.1);
+            external_inputs.anchor_from_frame[slot] =
+                Some(workspace.external_samples[slot].anchor_from_frame);
+            workspace.external_provenance.push(evidence.provenance);
+            support_start = support_start.min(evidence.source_interval_ns.0);
+            support_end = support_end.max(evidence.source_interval_ns.1);
         }
         self.evaluate_into(model_cache, external_inputs, snapshot)?;
-        output.estimate = self.query(snapshot, query.from, query.to)?;
+        let estimate = self.query(snapshot, query.from, query.to)?;
+        output.estimate = estimate;
         output.robot_provenance = robot.provenance;
+        output.external_provenance.clear();
+        output
+            .external_provenance
+            .extend_from_slice(&workspace.external_provenance);
         output.support_interval_ns = (support_start, support_end);
         Ok(())
     }
@@ -568,6 +702,44 @@ impl CompiledFrameAtlas {
                 robot_history,
                 external_histories,
                 *query,
+                model_cache,
+                external_inputs,
+                snapshot,
+                output,
+            )
+            .map_err(|source| HistoricalFrameQueryBatchError::Query { index, source })?;
+        }
+        Ok(())
+    }
+
+    /// Allocation-stable batch form using one reusable reconstruction
+    /// workspace for every sequential query.
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_history_batch_with_workspace(
+        &self,
+        model: &CompiledModel,
+        robot_history: &RobotHistory,
+        external_histories: &ExternalFrameHistories,
+        queries: &[HistoricalFrameQuery],
+        workspace: &mut HistoricalFrameQueryWorkspace,
+        model_cache: &mut ModelCache,
+        external_inputs: &mut ExternalFrameInputs,
+        snapshot: &mut FrameAtlasSnapshot,
+        outputs: &mut [HistoricalAtlasEstimate],
+    ) -> Result<(), HistoricalFrameQueryBatchError> {
+        if queries.len() != outputs.len() {
+            return Err(HistoricalFrameQueryBatchError::OutputLength {
+                queries: queries.len(),
+                outputs: outputs.len(),
+            });
+        }
+        for (index, (query, output)) in queries.iter().zip(outputs.iter_mut()).enumerate() {
+            self.query_history_with_workspace_into(
+                model,
+                robot_history,
+                external_histories,
+                *query,
+                workspace,
                 model_cache,
                 external_inputs,
                 snapshot,
@@ -859,6 +1031,103 @@ mod tests {
                 .collect::<Vec<_>>(),
             first_results
         );
+
+        let mut workspace = HistoricalFrameQueryWorkspace::new(&model, &atlas);
+        let workspace_capacity = workspace.external_capacity();
+        atlas
+            .query_history_batch_with_workspace(
+                &model,
+                &robot_history,
+                &external_histories,
+                &queries,
+                &mut workspace,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs,
+            )
+            .unwrap();
+        assert_eq!(workspace.external_capacity(), workspace_capacity);
+        assert_eq!(
+            outputs
+                .iter()
+                .map(|output| output.estimate.from_to)
+                .collect::<Vec<_>>(),
+            first_results
+        );
+
+        let mut undersized = HistoricalAtlasEstimate::with_external_capacity(0);
+        let unchanged = undersized.estimate.from_to;
+        let capacity_error = atlas
+            .query_history_with_workspace_into(
+                &model,
+                &robot_history,
+                &external_histories,
+                queries[0],
+                &mut workspace,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut undersized,
+            )
+            .unwrap_err();
+        assert!(matches!(
+            capacity_error,
+            HistoricalFrameQueryError::OutputCapacity {
+                required: 2,
+                actual: 0
+            }
+        ));
+        assert_eq!(undersized.estimate.from_to, unchanged);
+
+        external_inputs.anchor_from_frame.pop();
+        let input_layout_error = atlas
+            .query_history_with_workspace_into(
+                &model,
+                &robot_history,
+                &external_histories,
+                queries[0],
+                &mut workspace,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs[0],
+            )
+            .unwrap_err();
+        assert!(matches!(
+            input_layout_error,
+            HistoricalFrameQueryError::ExternalInputLayout {
+                required: 2,
+                actual: 1
+            }
+        ));
+        external_inputs.anchor_from_frame.push(None);
+
+        snapshot.control_world_from_frame.pop();
+        let snapshot_layout_error = atlas
+            .query_history_with_workspace_into(
+                &model,
+                &robot_history,
+                &external_histories,
+                queries[0],
+                &mut workspace,
+                &mut model_cache,
+                &mut external_inputs,
+                &mut snapshot,
+                &mut outputs[0],
+            )
+            .unwrap_err();
+        assert!(matches!(
+            snapshot_layout_error,
+            HistoricalFrameQueryError::SnapshotLayout {
+                expected: 4,
+                poses: 3,
+                provenance: 4
+            }
+        ));
+        snapshot
+            .control_world_from_frame
+            .push(Transform3::identity());
 
         let length_error = atlas
             .query_history_batch(

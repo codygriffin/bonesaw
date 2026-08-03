@@ -2,7 +2,20 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU architecture slice — r286 historical frame-query batching
+## Current CPU architecture slice — r287 allocation-stable historical queries
+
+R287 closes R286's legacy reconstruction-allocation caveat with
+`RobotHistory::reconstruct_into`, `ExternalFrameHistory::reconstruct_into`, and
+an explicit `HistoricalFrameQueryWorkspace`. Strict scalar/batch calls own the
+robot state, external samples/provenance, model cache, atlas inputs/snapshot,
+and retained outputs; undersized storage is a typed error. Twenty-one
+independent Upkie process runs execute 2,048 warmed queries each with zero
+measured allocations, bytes, or deallocations, bitwise repeatability, stable
+2→2 capacities, and a 1.381 µs/query median. This is a query/dataflow result
+only and grants no WBC, physics, plant, or command authority. See
+[`FRAME_QUERY_ALLOCATION_R287.md`](../benchmarks/results/frame-query-allocation-r287/FRAME_QUERY_ALLOCATION_R287.md).
+
+## Prior CPU architecture slice — r286 historical frame-query batching
 
 R286 adds caller-owned `CompiledFrameAtlas::query_history_into` and
 `query_history_batch` workspaces. The batch surface preserves scalar query

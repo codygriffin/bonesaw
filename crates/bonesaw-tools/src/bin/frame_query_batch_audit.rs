@@ -5,15 +5,69 @@
 //! semantics. It emits one JSON object so the eval can retain the raw result
 //! without teaching Python any model math.
 
-use std::{path::PathBuf, time::Instant};
+use std::{
+    alloc::{GlobalAlloc, Layout, System},
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+    time::Instant,
+};
 
 use bonesaw_core::{
     CompiledFrameAtlas, ExternalFrameHistories, ExternalFrameSample, HistoricalAtlasEstimate,
-    HistoricalFrameQuery, HistoryQueryPolicy, ModelCache, MotionProgram, RobotHistory, RobotState,
-    TimedRobotState, TimingSpec,
+    HistoricalFrameQuery, HistoricalFrameQueryWorkspace, HistoryQueryPolicy, ModelCache,
+    MotionProgram, RobotHistory, RobotState, TimedRobotState, TimingSpec,
 };
 use nalgebra::DVector;
 use serde::Serialize;
+
+struct CountingAllocator;
+
+static ALLOCATION_CALLS: AtomicU64 = AtomicU64::new(0);
+static ALLOCATED_BYTES: AtomicU64 = AtomicU64::new(0);
+static DEALLOCATION_CALLS: AtomicU64 = AtomicU64::new(0);
+
+#[global_allocator]
+static ALLOCATOR: CountingAllocator = CountingAllocator;
+
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, Ordering::Relaxed);
+        ALLOCATED_BYTES.fetch_add(layout.size() as u64, Ordering::Relaxed);
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, Ordering::Relaxed);
+        ALLOCATED_BYTES.fetch_add(layout.size() as u64, Ordering::Relaxed);
+        unsafe { System.alloc_zeroed(layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, old: Layout, new_size: usize) -> *mut u8 {
+        ALLOCATION_CALLS.fetch_add(1, Ordering::Relaxed);
+        ALLOCATED_BYTES.fetch_add(new_size as u64, Ordering::Relaxed);
+        unsafe { System.realloc(ptr, old, new_size) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        DEALLOCATION_CALLS.fetch_add(1, Ordering::Relaxed);
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct AllocationSnapshot {
+    calls: u64,
+    bytes: u64,
+    deallocations: u64,
+}
+
+fn allocation_snapshot() -> AllocationSnapshot {
+    AllocationSnapshot {
+        calls: ALLOCATION_CALLS.load(Ordering::Relaxed),
+        bytes: ALLOCATED_BYTES.load(Ordering::Relaxed),
+        deallocations: DEALLOCATION_CALLS.load(Ordering::Relaxed),
+    }
+}
 
 #[derive(Serialize)]
 struct AuditResult {
@@ -26,6 +80,13 @@ struct AuditResult {
     nanoseconds_per_query: f64,
     output_external_capacity_before: usize,
     output_external_capacity_after: usize,
+    workspace_external_capacity_before: usize,
+    workspace_external_capacity_after: usize,
+    workspace_external_sample_capacity_before: usize,
+    workspace_external_sample_capacity_after: usize,
+    measured_allocation_calls: u64,
+    measured_allocated_bytes: u64,
+    measured_deallocation_calls: u64,
     repeated_results_bitwise_equal: bool,
     allocation_claim: &'static str,
 }
@@ -91,13 +152,17 @@ fn main() -> anyhow::Result<()> {
     let mut model_cache = ModelCache::new(model);
     let mut external_inputs = bonesaw_core::ExternalFrameInputs::new(&atlas);
     let mut snapshot = bonesaw_core::FrameAtlasSnapshot::new(&atlas);
+    let mut workspace = HistoricalFrameQueryWorkspace::new(model, &atlas);
+    let workspace_external_capacity_before = workspace.external_capacity();
+    let workspace_external_sample_capacity_before = workspace.external_sample_capacity();
 
     for _ in 0..8 {
-        atlas.query_history_batch(
+        atlas.query_history_batch_with_workspace(
             model,
             &robot_history,
             &external_histories,
             &queries,
+            &mut workspace,
             &mut model_cache,
             &mut external_inputs,
             &mut snapshot,
@@ -109,13 +174,15 @@ fn main() -> anyhow::Result<()> {
         .map(|output| output.estimate.from_to)
         .collect::<Vec<_>>();
     let measured_batches = 32;
+    let allocations_before = allocation_snapshot();
     let started = Instant::now();
     for _ in 0..measured_batches {
-        atlas.query_history_batch(
+        atlas.query_history_batch_with_workspace(
             model,
             &robot_history,
             &external_histories,
             &queries,
+            &mut workspace,
             &mut model_cache,
             &mut external_inputs,
             &mut snapshot,
@@ -123,16 +190,19 @@ fn main() -> anyhow::Result<()> {
         )?;
     }
     let elapsed_ns = started.elapsed().as_nanos();
+    let allocations_after = allocation_snapshot();
     let repeated_results_bitwise_equal = outputs
         .iter()
         .zip(first_results.iter())
         .all(|(output, expected)| output.estimate.from_to == *expected);
     let output_external_capacity_after = outputs[0].external_capacity();
+    let workspace_external_capacity_after = workspace.external_capacity();
+    let workspace_external_sample_capacity_after = workspace.external_sample_capacity();
     let total_queries = query_count * measured_batches;
     println!(
         "{}",
         serde_json::to_string(&AuditResult {
-            schema: "bonesaw.frame-query-batch-r286.v1",
+            schema: "bonesaw.frame-query-allocation-r287.v1",
             model: model.name.clone(),
             query_count,
             warmup_batches: 8,
@@ -141,8 +211,16 @@ fn main() -> anyhow::Result<()> {
             nanoseconds_per_query: elapsed_ns as f64 / total_queries as f64,
             output_external_capacity_before,
             output_external_capacity_after,
+            workspace_external_capacity_before,
+            workspace_external_capacity_after,
+            workspace_external_sample_capacity_before: workspace_external_sample_capacity_before,
+            workspace_external_sample_capacity_after: workspace_external_sample_capacity_after,
+            measured_allocation_calls: allocations_after.calls - allocations_before.calls,
+            measured_allocated_bytes: allocations_after.bytes - allocations_before.bytes,
+            measured_deallocation_calls: allocations_after.deallocations
+                - allocations_before.deallocations,
             repeated_results_bitwise_equal,
-            allocation_claim: "output provenance capacity is caller-owned and stable; this audit does not claim the legacy RobotHistory reconstruction is allocation-free",
+            allocation_claim: "strict caller-owned historical reconstruction and atlas query batch records zero allocation/deallocation calls in the measured loop",
         })?
     );
     Ok(())

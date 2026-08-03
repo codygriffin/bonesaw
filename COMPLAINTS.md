@@ -3,14 +3,6 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R286 closes one architecture/API seam without changing control behavior:
-historical frame queries now have a caller-owned scalar workspace and bounded
-batch entry point. A 64-query × 32-batch Upkie audit is bitwise repeatable and
-keeps external-provenance capacity stable. The audit explicitly does not claim
-that legacy state reconstruction is allocation-free; the remaining browser
-frame-time and WBC transfer gates are unaffected. See the
-[r286 frame-query report](benchmarks/results/frame-query-batch-r286/FRAME_QUERY_BATCH_R286.md).
-
 The open WBC complaint is now explicit support-feasible transfer, not recovery
 state plumbing or another scalar gain. R273–R276 completed bounded relock,
 stopping-headroom, hard-row localization, and automatic per-target contact
