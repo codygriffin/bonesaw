@@ -46,7 +46,7 @@ def audit() -> dict:
         "schema": "bonesaw.joint-motion-headroom-r288.v1",
         "model": "upkie",
         "repetitions_per_case": 20000,
-        "maximum_acceleration_mps2": 200.0,
+        "maximum_acceleration_rad_s2": 200.0,
         "reaction_time_seconds": 0.02,
         "cases": cases,
     }

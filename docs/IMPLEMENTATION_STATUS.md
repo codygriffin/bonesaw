@@ -12,7 +12,7 @@ motion witness and the legacy position-only witness; a negative margin remains
 evidence of an unrecoverable observation rather than a command or authority
 grant. Five CPU-4-pinned Upkie process repeats execute 20,000 warmed calls per
 case with bitwise-repeatable outputs and zero allocations, bytes, or
-deallocations in the measured loop (median 79.5 ns/call across cases). This
+deallocations in the measured loop (median 77.3 ns/call across cases). This
 closes the typed joint-headroom input seam, but does not admit walking,
 contact, timing, thermal, plant, or hardware authority. See
 [`JOINT_MOTION_HEADROOM_R288.md`](../benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).

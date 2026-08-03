@@ -221,7 +221,7 @@ This is an engineering prototype, not a safety-rated robot controller.
   with authored velocity utilization; an opt-in support tube can take the
   conservative minimum with its existing position-only headroom. Five
   CPU-4-pinned Upkie repeats are bitwise exact with zero measured allocations,
-  bytes, or deallocations and a 79.5 ns/call median across cases. A negative
+  bytes, or deallocations and a 77.3 ns/call median across cases. A negative
   witness is exposed as evidence rather than saturated into authority; G1
   walking, timing, contact, thermal, plant, and hardware gates remain open.
   See the

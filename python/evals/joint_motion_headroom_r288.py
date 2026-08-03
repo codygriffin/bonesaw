@@ -51,7 +51,12 @@ def qualify(audits: list[dict[str, Any]], cpu: int | None) -> dict[str, Any]:
     for repeat, audit in enumerate(audits):
         if audit.get("schema") != "bonesaw.joint-motion-headroom-r288.v1":
             raise ValueError(f"repeat {repeat} has an unexpected schema")
-        for key in ("model", "repetitions_per_case", "maximum_acceleration_mps2", "reaction_time_seconds"):
+        for key in (
+            "model",
+            "repetitions_per_case",
+            "maximum_acceleration_rad_s2",
+            "reaction_time_seconds",
+        ):
             if audit[key] != first[key]:
                 raise ValueError(f"repeat {repeat} changed fixed execution shape: {key}")
         cases = audit.get("cases", [])
@@ -84,7 +89,7 @@ def qualify(audits: list[dict[str, Any]], cpu: int | None) -> dict[str, Any]:
             "cpu_affinity": cpu,
             "process_repeats": len(audits),
             "repetitions_per_case": first["repetitions_per_case"],
-            "maximum_acceleration_mps2": first["maximum_acceleration_mps2"],
+            "maximum_acceleration_rad_s2": first["maximum_acceleration_rad_s2"],
             "reaction_time_seconds": first["reaction_time_seconds"],
         },
         "performance_ns_per_call": {
@@ -158,7 +163,7 @@ def build_report(result: dict[str, Any]) -> str:
             rows,
         ),
         "",
-        f"The Upkie model is evaluated with {execution['repetitions_per_case']:,} warmed calls per case, acceleration authority {execution['maximum_acceleration_mps2']:.1f} m/s², and {execution['reaction_time_seconds']:.3f} s reaction time. Centered → moving → near-limit headroom is strictly ordered; the near-limit case remains negative instead of being silently saturated. Across {execution['process_repeats']} CPU-{execution['cpu_affinity']} process repeats, median cost is {performance['median']:.1f} ns/call and p99 is {performance['p99']:.1f} ns/call.",
+        f"The Upkie model is evaluated with {execution['repetitions_per_case']:,} warmed calls per case, joint-acceleration authority {execution['maximum_acceleration_rad_s2']:.1f} rad/s², and {execution['reaction_time_seconds']:.3f} s reaction time. Centered → moving → near-limit headroom is strictly ordered; the near-limit case remains negative instead of being silently saturated. Across {execution['process_repeats']} CPU-{execution['cpu_affinity']} process repeats, median cost is {performance['median']:.1f} ns/call and p99 is {performance['p99']:.1f} ns/call.",
         "",
         f"The measured loop reports zero allocations ({contract['all_cases_zero_allocations']}), zero allocated bytes ({contract['all_cases_zero_bytes']}), and zero deallocations ({contract['all_cases_zero_deallocations']}); repeated outputs are bitwise exact. Python performs only orchestration/reporting, with no policy or physics steps.",
         "",

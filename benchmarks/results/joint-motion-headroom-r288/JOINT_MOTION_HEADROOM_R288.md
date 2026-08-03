@@ -8,11 +8,11 @@ R288 adds a default-off support-transfer witness in Rust. It combines one contro
 
 | case | position margin rad | stopping margin rad | velocity fraction | conservative fraction | ns/call | alloc bytes | repeatability |
 |---|---|---|---|---|---|---|---|
-| centered | 1.260 | 1.260 | 1.000 | 0.500 | 132.8 | 0 | exact |
-| moving | 0.560 | 0.440 | 0.861 | 0.175 | 131.3 | 0 | exact |
-| near_limit | 0.060 | -0.540 | 0.583 | -0.214 | 117.7 | 0 | exact |
+| centered | 1.260 | 1.260 | 1.000 | 0.500 | 77.2 | 0 | exact |
+| moving | 0.560 | 0.440 | 0.861 | 0.175 | 87.9 | 0 | exact |
+| near_limit | 0.060 | -0.540 | 0.583 | -0.214 | 87.5 | 0 | exact |
 
-The Upkie model is evaluated with 20,000 warmed calls per case, acceleration authority 200.0 m/s², and 0.020 s reaction time. Centered → moving → near-limit headroom is strictly ordered; the near-limit case remains negative instead of being silently saturated. Across 5 CPU-4 process repeats, median cost is 79.5 ns/call and p99 is 132.6 ns/call.
+The Upkie model is evaluated with 20,000 warmed calls per case, joint-acceleration authority 200.0 rad/s², and 0.020 s reaction time. Centered → moving → near-limit headroom is strictly ordered; the near-limit case remains negative instead of being silently saturated. Across 5 CPU-4 process repeats, median cost is 77.3 ns/call and p99 is 87.8 ns/call.
 
 The measured loop reports zero allocations (True), zero allocated bytes (True), and zero deallocations (True); repeated outputs are bitwise exact. Python performs only orchestration/reporting, with no policy or physics steps.
 

@@ -156,7 +156,7 @@ fn main() -> anyhow::Result<()> {
             "schema": "bonesaw.joint-motion-headroom-r288.v1",
             "model": program.model.name,
             "repetitions_per_case": repetitions,
-            "maximum_acceleration_mps2": maximum_acceleration,
+            "maximum_acceleration_rad_s2": maximum_acceleration,
             "reaction_time_seconds": reaction_time_seconds,
             "cases": results,
             "allocation_claim": "caller-owned model/state; measured hot-loop witness performs no allocations",
