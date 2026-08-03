@@ -721,7 +721,6 @@ impl CompiledTaskProgram {
                         desired_acceleration_world: acceleration
                             .map(|value| value.clamp(-maximum_acceleration, maximum_acceleration)),
                         horizontal_only: false,
-                        lateral_only: false,
                         priority,
                         weight,
                         acceleration_tube: None,

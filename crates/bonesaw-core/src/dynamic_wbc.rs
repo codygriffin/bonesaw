@@ -1115,10 +1115,6 @@ pub struct FloatingCenterOfMassTask {
     /// Use only world X/Y rows. Vertical support is then owned by the root
     /// height task instead of redundantly constraining CoM height.
     pub horizontal_only: bool,
-    /// Use only the world-Y row. This is a typed single-axis specialization
-    /// for lateral transfer requests; hard acceleration-tube faces remain
-    /// independent and may still constrain both horizontal axes.
-    pub lateral_only: bool,
     pub priority: Priority,
     /// Multiplier relative to the configured acceleration-task weight.
     pub weight: f64,
@@ -2614,21 +2610,13 @@ fn prepare_floating_tasks(
     if let Some(spec) = input.center_of_mass_task {
         center_of_mass.priority = spec.priority;
         center_of_mass.weight = config.acceleration_weight * spec.weight;
-        let (active_rows, first_world_axis) = if spec.lateral_only {
-            (1, 1)
-        } else if spec.horizontal_only {
-            (2, 0)
-        } else {
-            (3, 0)
-        };
+        let active_rows = if spec.horizontal_only { 2 } else { 3 };
         for row in 0..active_rows {
-            let world_axis = first_world_axis + row;
             for column in 0..generalized_dof {
-                center_of_mass.jacobian[(row, column)] =
-                    center_of_mass_jacobian[(world_axis, column)];
+                center_of_mass.jacobian[(row, column)] = center_of_mass_jacobian[(row, column)];
             }
-            center_of_mass.target_velocity[row] = spec.desired_acceleration_world[world_axis]
-                - center_of_mass_bias_acceleration_world[world_axis];
+            center_of_mass.target_velocity[row] =
+                spec.desired_acceleration_world[row] - center_of_mass_bias_acceleration_world[row];
         }
         for row in active_rows..3 {
             center_of_mass.jacobian.row_mut(row).fill(0.0);
@@ -4935,7 +4923,6 @@ mod tests {
             center_of_mass_task: Some(FloatingCenterOfMassTask {
                 desired_acceleration_world: Vec3::zeros(),
                 horizontal_only: true,
-                lateral_only: false,
                 priority: Priority::Viability,
                 weight: 0.0,
                 acceleration_tube: Some(invalid_tube),
@@ -5136,7 +5123,6 @@ mod tests {
                     center_of_mass_task: Some(FloatingCenterOfMassTask {
                         desired_acceleration_world: com_target,
                         horizontal_only: false,
-                        lateral_only: false,
                         priority: Priority::Style,
                         weight: 1.0,
                         acceleration_tube: None,
@@ -5192,7 +5178,6 @@ mod tests {
                             baseline_com_acceleration[2],
                         ),
                         horizontal_only: true,
-                        lateral_only: false,
                         priority: Priority::Style,
                         weight: 1.0,
                         acceleration_tube: Some(acceleration_tube),
@@ -5699,7 +5684,6 @@ mod tests {
                     center_of_mass_task: Some(FloatingCenterOfMassTask {
                         desired_acceleration_world: Vec3::new(10.0, -10.0, 0.0),
                         horizontal_only: true,
-                        lateral_only: false,
                         priority: Priority::Viability,
                         weight: 1.0,
                         acceleration_tube: None,

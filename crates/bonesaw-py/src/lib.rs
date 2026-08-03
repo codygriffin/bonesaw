@@ -15344,7 +15344,6 @@ impl FloatingWbcSession {
                     // the same priority creates a redundant, morphology-
                     // dependent trade instead of measuring either behavior.
                     horizontal_only: true,
-                    lateral_only: false,
                     priority: self.center_of_mass_task_priority,
                     weight: self.center_of_mass_task_weight,
                     acceleration_tube: None,
@@ -17689,7 +17688,6 @@ impl FloatingWbcSession {
                     desired_acceleration_world: desired_center_of_mass,
                     horizontal_only: self.dcm_balance_enabled
                         || self.support_reachable_tube_enabled,
-                    lateral_only: self.support_reachable_tube_enabled,
                     priority: self.center_of_mass_task_priority,
                     weight: self.center_of_mass_task_weight,
                     acceleration_tube: center_of_mass_acceleration_tube,

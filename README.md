@@ -162,14 +162,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   5.113 ms p99 in the latest replay. The walking profile is rejected and authority stays closed. See the
   [r278 trajectory-tube report](benchmarks/results/g1-support-trajectory-tube-r278/G1_SUPPORT_TRAJECTORY_TUBE_R278.md).
 - R279 adds an exact discrete backward-reachable DCM box over the authored
-  contact schedule alongside a finite-horizon position tube. Observer telemetry,
-  intent projection, soft CoM task, and fixed four-face hard admission are
-  independent/default-off layers. Dormant replay is exact on 89 shared
-  non-timing arrays; the reachable observer is state-exact on 936 active ticks.
-  The local h5 hard tube reaches conflict/release at 874/874; the reachable h5
-  hard row fails closed on all 936 active requests and reaches 295/295 with
-  26.629 m root RMS. All authority profiles remain rejected. See the
-  [r279 trajectory-tube report](benchmarks/results/g1-support-trajectory-tube-r279/G1_SUPPORT_TRAJECTORY_TUBE_R279.md).
+  contact schedule with independent observer, intent, soft-task, and hard-row
+  switches. R280 qualifies the behavior-positive two-axis soft profile:
+  release moves 1108→1234 and root/CoM/foot RMS improve by
+  14.35%/14.90%/16.87%. Five CPU-4-pinned repeats are semantically bit-exact,
+  but every p99 misses the 5 ms gate (5.226–5.730 ms). Hard rows admit only
+  662/1832 active ticks, so no authority is granted. A lateral-only timing
+  shortcut was removed after it regressed all tracking metrics. See the
+  [r280 timing qualification](benchmarks/results/g1-support-reachable-tube-r280/G1_SUPPORT_REACHABLE_TUBE_R280.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

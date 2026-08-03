@@ -2,7 +2,7 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r279 schedule-reachable DCM tube
+## Current CPU checkpoint — r280 reachable-tube timing qualification
 
 R279 adds an exact discrete backward preimage of the authored support schedule.
 The fixed-size Rust fold produces a time-varying DCM box; a moving-boundary
@@ -12,16 +12,15 @@ task authority, and four-face hard admission are independently default-off.
 Python retains the immutable policy-free/physics-free scenarios, metrics, and
 report.
 
-Dormant replay is exact against R278 on 89 shared non-timing arrays. The
-reachable observer is state-exact and active on 936 ticks. The local
-finite-horizon h5 hard tube reaches conflict/release at 874/874 with
-17.427/17.127 m root/foot RMS; the reachable h5 hard row fails closed on all
-936 active requests and reaches conflict/release at 295 with 26.629/26.555 m
-RMS. Observer p99 is 4.751 ms; every authority profile is rejected. The next
-slice must construct a WBC-achievable tube by composing support geometry with
-contact kinematics, joint/effort headroom, and bounded cross-tick progress.
-See the
-[`G1_SUPPORT_TRAJECTORY_TUBE_R279.md`](../benchmarks/results/g1-support-trajectory-tube-r279/G1_SUPPORT_TRAJECTORY_TUBE_R279.md)
+R280 qualifies the full two-axis soft construction on five CPU-4-pinned,
+policy-free/physics-free processes. Every semantic trace is bit-exact. Release
+moves 1108→1234 and root/CoM/foot RMS improves by 14.35%/14.90%/16.87%, but all
+five p99 values miss the 5 ms gate (5.226–5.730 ms). Hard enforcement admits
+662/1832 active ticks and leaves 1170 explicitly unresolved. A world-Y-only
+specialization was removed because its 4.956 ms p99 came with worse-than-dormant
+tracking. No authority is granted. The immediate slice is exact-trace CPU
+optimization and deterministic release-tail localization. See the
+[`G1_SUPPORT_REACHABLE_TUBE_R280.md`](../benchmarks/results/g1-support-reachable-tube-r280/G1_SUPPORT_REACHABLE_TUBE_R280.md)
 report.
 
 ## Prior CPU checkpoint — r278 local support-transfer tube
