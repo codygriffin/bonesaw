@@ -2,6 +2,21 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU checkpoint — r288 support-transfer motion headroom
+
+R288 adds a default-off Rust witness for the support-feasible transfer tube.
+For each authored joint it reports the directional finite-limit margin after
+one reaction interval plus ideal stopping distance, and the remaining authored
+velocity-limit fraction. The support-tube opt-in can take the minimum of this
+motion witness and the legacy position-only witness; a negative margin remains
+evidence of an unrecoverable observation rather than a command or authority
+grant. Five CPU-4-pinned Upkie process repeats execute 20,000 warmed calls per
+case with bitwise-repeatable outputs and zero allocations, bytes, or
+deallocations in the measured loop (median 79.5 ns/call across cases). This
+closes the typed joint-headroom input seam, but does not admit walking,
+contact, timing, thermal, plant, or hardware authority. See
+[`JOINT_MOTION_HEADROOM_R288.md`](../benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).
+
 ## Current CPU architecture slice — r287 allocation-stable historical queries
 
 R287 closes R286's legacy reconstruction-allocation caveat with

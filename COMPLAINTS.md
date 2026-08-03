@@ -84,6 +84,16 @@ exact optimization or a genuinely continuous low-authority supervisor, not a
 static call cap. See the
 [r285 anytime-budget report](benchmarks/results/g1-low-authority-budget-r285/G1_LOW_AUTHORITY_BUDGET_R285.md).
 
+R288 closes one typed input seam in that support-feasible tube. Rust now
+computes a default-off directional joint-motion witness from one reaction
+interval, ideal stopping distance, and authored velocity utilization; an
+opt-in support tube may combine it with the existing position-only headroom
+scale. The Upkie audit is bitwise repeatable with zero measured allocations,
+bytes, or deallocations. A negative witness remains visible and cannot grant
+authority. This is mechanism evidence only: the R280 release/tracking/timing
+profile and the remaining contact, actuator, thermal, plant, and hardware
+gates are unchanged.
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

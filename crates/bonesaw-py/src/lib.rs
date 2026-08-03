@@ -68,12 +68,12 @@ use bonesaw_core::{
     contact_phase_authority, cubic_precontact_acceleration, dcm_balance_acceleration,
     joint_acceleration_interval, joint_position_capture_acceleration,
     joint_position_capture_required_acceleration, joint_velocity_envelope_acceleration,
-    maximum_actuator_effort_utilization, minimum_joint_position_headroom,
-    moving_dcm_box_acceleration_bounds, next_viability_poll, predict_viability_forecast_path,
-    sample_quintic_scalar_jet, sample_quintic_vector_jet, score_terminal_impact,
-    score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
-    score_terminal_impact_velocity_box_upper, score_viability_forecast,
-    select_conservative_terminal_impact_candidate,
+    maximum_actuator_effort_utilization, minimum_joint_motion_headroom,
+    minimum_joint_position_headroom, moving_dcm_box_acceleration_bounds, next_viability_poll,
+    predict_viability_forecast_path, sample_quintic_scalar_jet, sample_quintic_vector_jet,
+    score_terminal_impact, score_terminal_impact_paired_state_exemplar_delta,
+    score_terminal_impact_state_box_upper, score_terminal_impact_velocity_box_upper,
+    score_viability_forecast, select_conservative_terminal_impact_candidate,
     select_conservative_terminal_impact_delta_candidate, select_inexact_observation_authority,
     slew_contact_phase_authority, slew_touchdown_phase_rate, solve_coupled_contact_impulse,
     solve_coupled_positive_reference_compliant_contact_impulse,
@@ -496,6 +496,10 @@ struct FloatingWbcSession {
     support_trajectory_tube_max_velocity_mps: f64,
     support_trajectory_tube_max_acceleration_mps2: f64,
     support_trajectory_tube_headroom_floor: f64,
+    /// Default-off extension of the support tube headroom witness. When
+    /// enabled, one-tick stopping distance and joint velocity utilization are
+    /// included in the scalar authority scale.
+    support_trajectory_tube_motion_headroom: bool,
     /// R279: fold the authored support schedule backward under exact discrete
     /// DCM dynamics, then enforce its moving boundary with hard CoM rows.
     support_reachable_tube_enabled: bool,
@@ -13480,6 +13484,38 @@ impl KinematicWitnessSession {
     }
 }
 
+impl FloatingWbcSession {
+    fn support_tube_headroom_scale(&self, dt_seconds: f64) -> PyResult<f64> {
+        if self.support_trajectory_tube_headroom_floor <= 0.0 {
+            return Ok(1.0);
+        }
+        let position_scale =
+            minimum_joint_position_headroom(&self.program.model, &self.state.robot)
+                .map_err(value_error)?
+                .map(|headroom| {
+                    (headroom.fraction_of_range / self.support_trajectory_tube_headroom_floor)
+                        .clamp(0.0, 1.0)
+                })
+                .unwrap_or(0.0);
+        if !self.support_trajectory_tube_motion_headroom {
+            return Ok(position_scale);
+        }
+        let motion_scale = minimum_joint_motion_headroom(
+            &self.program.model,
+            &self.state.robot,
+            self.maximum_acceleration,
+            dt_seconds,
+        )
+        .map_err(value_error)?
+        .map(|headroom| {
+            (headroom.fraction_of_range / self.support_trajectory_tube_headroom_floor)
+                .clamp(0.0, 1.0)
+        })
+        .unwrap_or(0.0);
+        Ok(position_scale.min(motion_scale))
+    }
+}
+
 #[pymethods]
 impl FloatingWbcSession {
     #[new]
@@ -13523,6 +13559,7 @@ impl FloatingWbcSession {
         support_trajectory_tube_max_velocity_mps=0.0,
         support_trajectory_tube_max_acceleration_mps2=0.0,
         support_trajectory_tube_headroom_floor=0.0,
+        support_trajectory_tube_motion_headroom=false,
         support_reachable_tube_enabled=false,
         support_reachable_tube_hard=false,
         support_reachable_tube_barrier_rate_per_second=0.0,
@@ -13616,6 +13653,7 @@ impl FloatingWbcSession {
         support_trajectory_tube_max_velocity_mps: f64,
         support_trajectory_tube_max_acceleration_mps2: f64,
         support_trajectory_tube_headroom_floor: f64,
+        support_trajectory_tube_motion_headroom: bool,
         support_reachable_tube_enabled: bool,
         support_reachable_tube_hard: bool,
         support_reachable_tube_barrier_rate_per_second: f64,
@@ -13895,6 +13933,14 @@ impl FloatingWbcSession {
                 "hard reachable-tube enforcement requires reachable-tube observation",
             ));
         }
+        if support_trajectory_tube_motion_headroom
+            && !support_trajectory_tube_enabled
+            && !support_reachable_tube_enabled
+        {
+            return Err(PyValueError::new_err(
+                "motion headroom requires an enabled support tube",
+            ));
+        }
         if !support_trajectory_tube_enabled
             && !support_reachable_tube_enabled
             && (support_trajectory_tube_preview_ticks > 512
@@ -14139,6 +14185,7 @@ impl FloatingWbcSession {
             support_trajectory_tube_max_velocity_mps,
             support_trajectory_tube_max_acceleration_mps2,
             support_trajectory_tube_headroom_floor,
+            support_trajectory_tube_motion_headroom,
             support_reachable_tube_enabled,
             support_reachable_tube_hard,
             support_reachable_tube_barrier_rate_per_second,
@@ -16443,17 +16490,7 @@ impl FloatingWbcSession {
                             };
                             if self.support_trajectory_tube_headroom_floor > 0.0 {
                                 support_trajectory_tube_headroom_scale =
-                                    minimum_joint_position_headroom(
-                                        &self.program.model,
-                                        &self.state.robot,
-                                    )
-                                    .map_err(value_error)?
-                                    .map(|headroom| {
-                                        (headroom.fraction_of_range
-                                            / self.support_trajectory_tube_headroom_floor)
-                                            .clamp(0.0, 1.0)
-                                    })
-                                    .unwrap_or(0.0);
+                                    self.support_tube_headroom_scale(dt_seconds)?;
                             }
                             let maximum_acceleration = self
                                 .support_trajectory_tube_max_acceleration_mps2
@@ -16620,17 +16657,7 @@ impl FloatingWbcSession {
                                 ];
                                 if self.support_trajectory_tube_headroom_floor > 0.0 {
                                     support_trajectory_tube_headroom_scale =
-                                        minimum_joint_position_headroom(
-                                            &self.program.model,
-                                            &self.state.robot,
-                                        )
-                                        .map_err(value_error)?
-                                        .map(|headroom| {
-                                            (headroom.fraction_of_range
-                                                / self.support_trajectory_tube_headroom_floor)
-                                                .clamp(0.0, 1.0)
-                                        })
-                                        .unwrap_or(0.0);
+                                        self.support_tube_headroom_scale(dt_seconds)?;
                                 }
                                 let maximum_velocity = self
                                     .support_trajectory_tube_max_velocity_mps

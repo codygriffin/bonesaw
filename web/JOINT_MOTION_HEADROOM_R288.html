@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Joint motion headroom · R288</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>Joint motion headroom witness · R288</h1>
+<blockquote>Mechanism **PASS** · allocation contract **PASS** · authority **NOT ADMITTED**.</blockquote>
+<p>R288 adds a default-off support-transfer witness in Rust. It combines one controller reaction interval, ideal stopping distance at the declared acceleration envelope, and authored joint velocity utilization. The result is evidence for the existing support-tube scale; it never clamps a command or turns a soft request into authority.</p>
+<h2>Frozen CPU audit</h2>
+<div class=table-wrap><table><thead><tr><th>case</th><th>position margin rad</th><th>stopping margin rad</th><th>velocity fraction</th><th>conservative fraction</th><th>ns/call</th><th>alloc bytes</th><th>repeatability</th></tr></thead><tbody><tr><td>centered</td><td>1.260</td><td>1.260</td><td>1.000</td><td>0.500</td><td>132.8</td><td>0</td><td>exact</td></tr><tr><td>moving</td><td>0.560</td><td>0.440</td><td>0.861</td><td>0.175</td><td>131.3</td><td>0</td><td>exact</td></tr><tr><td>near_limit</td><td>0.060</td><td>-0.540</td><td>0.583</td><td>-0.214</td><td>117.7</td><td>0</td><td>exact</td></tr></tbody></table></div>
+<p>The Upkie model is evaluated with 20,000 warmed calls per case, acceleration authority 200.0 m/s², and 0.020 s reaction time. Centered → moving → near-limit headroom is strictly ordered; the near-limit case remains negative instead of being silently saturated. Across 5 CPU-4 process repeats, median cost is 79.5 ns/call and p99 is 132.6 ns/call.</p>
+<p>The measured loop reports zero allocations (True), zero allocated bytes (True), and zero deallocations (True); repeated outputs are bitwise exact. Python performs only orchestration/reporting, with no policy or physics steps.</p>
+<h2>Integration boundary</h2>
+<p>The feature remains opt-in through `support_trajectory_tube_motion_headroom`. Existing dormant and R280/R287 profiles do not execute it and therefore retain their established semantics. When enabled with a positive headroom floor, the support-transfer envelope uses the minimum of the legacy position margin and this stopping/velocity witness. A negative margin is evidence of an unrecoverable observation, not permission to invent authority.</p>
+<p>This closes the missing typed joint-headroom input to the support-feasible tube. It does not claim that the G1 walking trace now meets its release, tracking, timing, contact, thermal, or plant gates; those remain separate qualification work.</p></main></body></html>

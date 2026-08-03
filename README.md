@@ -216,6 +216,16 @@ This is an engineering prototype, not a safety-rated robot controller.
   provenance, and external-sample capacities. This changes query dataflow only,
   not WBC or physics authority. See the
   [r287 allocation report](benchmarks/results/frame-query-allocation-r287/FRAME_QUERY_ALLOCATION_R287.md).
+- R288 adds a default-off support-transfer motion-headroom witness. Rust
+  combines directional joint stopping distance after one reaction interval
+  with authored velocity utilization; an opt-in support tube can take the
+  conservative minimum with its existing position-only headroom. Five
+  CPU-4-pinned Upkie repeats are bitwise exact with zero measured allocations,
+  bytes, or deallocations and a 79.5 ns/call median across cases. A negative
+  witness is exposed as evidence rather than saturated into authority; G1
+  walking, timing, contact, thermal, plant, and hardware gates remain open.
+  See the
+  [r288 motion-headroom report](benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

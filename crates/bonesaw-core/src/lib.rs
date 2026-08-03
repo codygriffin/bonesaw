@@ -46,8 +46,9 @@ pub use actuation::{
     step_actuator_realization, step_actuator_resource, step_passive_actuator_realization,
 };
 pub use authority::{
-    ActuatorEffortUtilization, AuthorityEvidenceError, JointPositionHeadroom,
-    maximum_actuator_effort_utilization, minimum_joint_position_headroom,
+    ActuatorEffortUtilization, AuthorityEvidenceError, JointMotionHeadroom, JointPositionHeadroom,
+    maximum_actuator_effort_utilization, minimum_joint_motion_headroom,
+    minimum_joint_position_headroom,
 };
 pub use collision::{
     CollisionAccelerationBarrierConfig, CollisionAccelerationBarrierEvidence,
