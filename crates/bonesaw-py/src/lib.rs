@@ -22,7 +22,8 @@ use bonesaw_core::{
     ConservativeTerminalImpactDeltaSelection, ContactCommandLeaseConfig, ContactCommandLeaseState,
     ContactMode, ContactObservation, ContactObservationConfig, ContactObservationState,
     ContactPhaseAuthorityConfig, ContactProgramAuthorityConfig, ContactProgramAuthorityState,
-    ContactSpec, ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
+    ContactReacquisitionConfig, ContactReacquisitionState, ContactSpec,
+    ContactTransitionAccelerationIntervalInput, ContactTransitionInput,
     ContactTransitionResponseScratch, Controller, ControllerInput, ControllerOutputBuffer,
     ControllerScratch, ControllerState, CoupledContactHypothesisEnvelopeInput,
     CoupledContactImpulseInput, CoupledPositiveReferenceCompliantContactImpulseInput,
@@ -81,9 +82,10 @@ use bonesaw_core::{
     solve_positive_reference_compliant_contact_impulse, solve_substepped_compliant_contact_impulse,
     solve_whole_body_ik_into, solve_whole_body_kinematic_jets_into, step_actuator_realization,
     step_actuator_resource, step_contact_command_lease, step_contact_observation,
-    step_contact_program_authority_with_inexact_command, step_passive_actuator_realization,
-    step_viability_confirmation, step_viability_execution_monitor, step_viability_hybrid_guard,
-    step_viability_request, support_margin_phase_rate, time_warp_scalar_jet, time_warp_vector_jet,
+    step_contact_program_authority_with_inexact_command, step_contact_reacquisition,
+    step_passive_actuator_realization, step_viability_confirmation,
+    step_viability_execution_monitor, step_viability_hybrid_guard, step_viability_request,
+    support_margin_phase_rate, time_warp_scalar_jet, time_warp_vector_jet,
     touchdown_phase_retiming, write_contact_transition_acceleration_interval_bounds,
     write_contact_transition_bounds, write_coupled_contact_hypothesis_velocity_envelope,
     write_directional_contact_transition_bounds, write_generalized_momentum_impulse_residuals,
@@ -3855,6 +3857,8 @@ struct UpkieBalanceSession {
     support_contingency_config: SupportContingencyConfig,
     contact_observation_config: ContactObservationConfig,
     contact_observation_state: ContactObservationState<2>,
+    contact_reacquisition_config: ContactReacquisitionConfig,
+    contact_reacquisition_state: ContactReacquisitionState<2>,
     contact_command_lease_config: ContactCommandLeaseConfig,
     contact_command_lease_state: ContactCommandLeaseState<2, 6>,
     contact_program_authority_config: ContactProgramAuthorityConfig<2>,
@@ -3951,6 +3955,8 @@ impl UpkieBalanceSession {
             support_contingency_config: SupportContingencyConfig::default(),
             contact_observation_config: ContactObservationConfig::default(),
             contact_observation_state: ContactObservationState::default(),
+            contact_reacquisition_config: ContactReacquisitionConfig::default(),
+            contact_reacquisition_state: ContactReacquisitionState::default(),
             contact_command_lease_config: ContactCommandLeaseConfig::default(),
             contact_command_lease_state: ContactCommandLeaseState::default(),
             contact_program_authority_config: ContactProgramAuthorityConfig::default(),
@@ -4009,6 +4015,7 @@ impl UpkieBalanceSession {
         self.lateral_viability_state = UpkieLateralViabilityState::default();
         self.fall_safe_state = UpkieFallSafeState::default();
         self.contact_observation_state = ContactObservationState::default();
+        self.contact_reacquisition_state = ContactReacquisitionState::default();
         self.contact_command_lease_state = ContactCommandLeaseState::default();
         self.contact_program_authority_state = ContactProgramAuthorityState::default();
         self.viability_request_state = ViabilityRequestState::default();
@@ -6719,6 +6726,134 @@ impl UpkieBalanceSession {
             saturating_i64(source_sequence),
             i64::from(source_identity),
             saturating_i64(synchronization_uncertainty_ns),
+        ]);
+        Ok(())
+    }
+
+    /// Configure the fail-closed measured-load reacquisition observer.  This
+    /// witness is inert until `step_contact_reacquisition_from_loads` is
+    /// called explicitly; it never changes WBC commands or contact authority.
+    fn configure_contact_reacquisition(
+        &mut self,
+        required_samples: u16,
+        minimum_total_load_n: f64,
+        minimum_contact_load_n: f64,
+        minimum_load_fraction: f64,
+    ) -> PyResult<()> {
+        if required_samples == 0
+            || !minimum_total_load_n.is_finite()
+            || minimum_total_load_n <= 0.0
+            || !minimum_contact_load_n.is_finite()
+            || minimum_contact_load_n < 0.0
+            || !minimum_load_fraction.is_finite()
+            || !(0.0..=0.5).contains(&minimum_load_fraction)
+            || minimum_load_fraction == 0.0
+        {
+            return Err(PyValueError::new_err(
+                "reacquisition config requires positive samples/total load, nonnegative contact load, and load fraction in (0, 0.5]",
+            ));
+        }
+        self.contact_reacquisition_config = ContactReacquisitionConfig {
+            required_samples,
+            minimum_total_load_n,
+            minimum_contact_load_n,
+            minimum_load_fraction,
+        };
+        self.contact_reacquisition_state = ContactReacquisitionState::default();
+        Ok(())
+    }
+
+    #[getter]
+    fn contact_reacquisition_diagnostic_names(&self) -> [&'static str; 13] {
+        [
+            "status",
+            "observation_exact",
+            "target_match",
+            "masks_consistent",
+            "load_valid",
+            "armed",
+            "qualified",
+            "pending_samples",
+            "transition_count",
+            "total_load_n",
+            "minimum_active_load_n",
+            "weakest_load_fraction",
+            "flags",
+        ]
+    }
+
+    /// Observe measured load-backed contact reacquisition without emitting a
+    /// command.  Every mask and load is caller-supplied evidence; malformed,
+    /// inexact, or reordered observations remain non-qualified.
+    fn step_contact_reacquisition_from_loads(
+        &mut self,
+        tick_sequence: u64,
+        observation_exact: bool,
+        target_contact: PyReadonlyArray1<'_, u8>,
+        raw_contact: PyReadonlyArray1<'_, u8>,
+        stable_contact: PyReadonlyArray1<'_, u8>,
+        hard_contact: PyReadonlyArray1<'_, u8>,
+        normal_load_n: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<()> {
+        let target_contact = target_contact.as_slice()?;
+        let raw_contact = raw_contact.as_slice()?;
+        let stable_contact = stable_contact.as_slice()?;
+        let hard_contact = hard_contact.as_slice()?;
+        let normal_load_n = normal_load_n.as_slice()?;
+        let diagnostics_out = diagnostics_out.as_slice_mut()?;
+        if target_contact.len() != 2
+            || raw_contact.len() != 2
+            || stable_contact.len() != 2
+            || hard_contact.len() != 2
+            || normal_load_n.len() != 2
+            || diagnostics_out.len() != 13
+            || target_contact.iter().any(|value| *value > 1)
+            || raw_contact.iter().any(|value| *value > 1)
+            || stable_contact.iter().any(|value| *value > 1)
+            || hard_contact.iter().any(|value| *value > 1)
+        {
+            return Err(PyValueError::new_err(
+                "reacquisition expects binary target/raw/stable/hard masks[2], loads[2], and diagnostics[13]",
+            ));
+        }
+        let target = [target_contact[0] != 0, target_contact[1] != 0];
+        let raw = [raw_contact[0] != 0, raw_contact[1] != 0];
+        let stable = [stable_contact[0] != 0, stable_contact[1] != 0];
+        let hard = [hard_contact[0] != 0, hard_contact[1] != 0];
+        let loads = [normal_load_n[0], normal_load_n[1]];
+        let allocation_before = allocation_snapshot();
+        let output = step_contact_reacquisition(
+            tick_sequence,
+            observation_exact,
+            target,
+            raw,
+            stable,
+            hard,
+            loads,
+            self.contact_reacquisition_config,
+            &mut self.contact_reacquisition_state,
+        );
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "contact reacquisition step allocated inside the Rust hot path",
+            ));
+        }
+        diagnostics_out.copy_from_slice(&[
+            output.status as u8 as f64,
+            f64::from(output.observation_exact),
+            f64::from(output.target_match),
+            f64::from(output.masks_consistent),
+            f64::from(output.load_valid),
+            f64::from(output.armed),
+            f64::from(output.qualified),
+            f64::from(output.pending_samples),
+            f64::from(output.transition_count),
+            output.total_load_n,
+            output.minimum_active_load_n,
+            output.weakest_load_fraction,
+            output.flags as f64,
         ]);
         Ok(())
     }

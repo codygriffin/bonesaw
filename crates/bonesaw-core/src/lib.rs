@@ -10,6 +10,7 @@ pub mod collision;
 pub mod contact_command_lease;
 pub mod contact_observation;
 pub mod contact_program_authority;
+pub mod contact_reacquisition;
 pub mod contact_transition;
 pub mod controller;
 pub mod dynamic_controller;
@@ -77,6 +78,15 @@ pub use contact_program_authority::{
     ContactProgramAuthorityConfig, ContactProgramAuthorityOutput, ContactProgramAuthorityState,
     ContactProgramSelection, step_contact_program_authority,
     step_contact_program_authority_with_inexact_command,
+};
+pub use contact_reacquisition::{
+    CONTACT_REACQUISITION_ARMED, CONTACT_REACQUISITION_BASELINE, CONTACT_REACQUISITION_CANDIDATE,
+    CONTACT_REACQUISITION_EVIDENCE_REJECTED, CONTACT_REACQUISITION_INVALID_CONFIG,
+    CONTACT_REACQUISITION_LOAD_REJECTED, CONTACT_REACQUISITION_MASK_MISMATCH,
+    CONTACT_REACQUISITION_QUALIFIED, CONTACT_REACQUISITION_SEQUENCE_REJECTED,
+    CONTACT_REACQUISITION_TARGET_CHANGED, CONTACT_REACQUISITION_TRANSITION,
+    ContactReacquisitionConfig, ContactReacquisitionOutput, ContactReacquisitionState,
+    ContactReacquisitionStatus, step_contact_reacquisition,
 };
 pub use contact_transition::{
     CONTACT_TRANSITION_IMPULSE_WIDTH, CONTACT_TRANSITION_WITNESS_WIDTH,
