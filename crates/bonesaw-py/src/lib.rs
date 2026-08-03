@@ -13550,6 +13550,38 @@ impl KinematicWitnessSession {
 }
 
 impl FloatingWbcSession {
+    /// Apply the configured load floor to the support representation that is
+    /// actually active for this model. Finite feet use one aggregate row per
+    /// four-point patch; rolling/point contacts have no patch, so each active
+    /// point receives its share directly. This keeps the public default at
+    /// zero while making the same authority meaningful for wheel contacts.
+    fn apply_minimum_support_load(
+        minimum_support_load_fraction: f64,
+        supported_weight: f64,
+        contact_points_per_target: usize,
+        contacts: &mut [ContactSpec],
+        support_patches: &mut [SupportPatchSpec],
+    ) {
+        if minimum_support_load_fraction <= 0.0 {
+            return;
+        }
+        if !support_patches.is_empty() {
+            let active_patch_count = support_patches.len() as f64;
+            let minimum_total_normal_force =
+                minimum_support_load_fraction * supported_weight / active_patch_count;
+            for patch in support_patches {
+                patch.minimum_total_normal_force = minimum_total_normal_force;
+            }
+        } else if contact_points_per_target == 1 && !contacts.is_empty() {
+            let active_contact_count = contacts.len() as f64;
+            let minimum_normal_force =
+                minimum_support_load_fraction * supported_weight / active_contact_count;
+            for contact in contacts {
+                contact.minimum_normal_force = minimum_normal_force;
+            }
+        }
+    }
+
     fn support_tube_headroom_scale(&self, dt_seconds: f64) -> PyResult<f64> {
         if self.support_trajectory_tube_headroom_floor <= 0.0 {
             return Ok(1.0);
@@ -17736,14 +17768,13 @@ impl FloatingWbcSession {
                     });
                 }
             }
-            if !self.support_patches.is_empty() && self.minimum_support_load_fraction > 0.0 {
-                let active_patch_count = self.support_patches.len() as f64;
-                let minimum_total_normal_force =
-                    self.minimum_support_load_fraction * self.supported_weight / active_patch_count;
-                for patch in &mut self.support_patches {
-                    patch.minimum_total_normal_force = minimum_total_normal_force;
-                }
-            }
+            Self::apply_minimum_support_load(
+                self.minimum_support_load_fraction,
+                self.supported_weight,
+                self.contact_points_per_target,
+                &mut self.contacts,
+                &mut self.support_patches,
+            );
             if self.contacts.len() > self.maximum_contacts {
                 return Err(PyValueError::new_err(
                     "floating trace contact patch exceeds session contact capacity",
@@ -18553,16 +18584,13 @@ impl FloatingWbcSession {
                             }
                         }
                     }
-                    if !self.support_patches.is_empty() && self.minimum_support_load_fraction > 0.0
-                    {
-                        let active_patch_count = self.support_patches.len() as f64;
-                        let minimum_total_normal_force = self.minimum_support_load_fraction
-                            * self.supported_weight
-                            / active_patch_count;
-                        for patch in &mut self.support_patches {
-                            patch.minimum_total_normal_force = minimum_total_normal_force;
-                        }
-                    }
+                    Self::apply_minimum_support_load(
+                        self.minimum_support_load_fraction,
+                        self.supported_weight,
+                        self.contact_points_per_target,
+                        &mut self.contacts,
+                        &mut self.support_patches,
+                    );
                     if !self.contacts.is_empty() {
                         let nominal_normal_force =
                             self.supported_weight / self.contacts.len() as f64;

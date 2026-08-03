@@ -148,6 +148,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             "wbc_contact_residual",
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
+
         self.assertTrue(
             np.all(
                 np.asarray(result["wbc_hard_contact_active"], np.uint8)
@@ -195,6 +196,14 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         )
         self.assertGreater(result["metrics"]["total_ground_normal_force_n"], 0.0)
         for key in (
+            "wbc_observed_wheel_normal_force_n",
+            "physics_wheel_normal_force_n",
+            "wbc_predicted_normal_force_n",
+        ):
+            self.assertEqual(len(result[key]), 2, key)
+            self.assertTrue(np.all(np.isfinite(result[key])), key)
+            self.assertTrue(np.all(np.asarray(result[key]) >= 0.0), key)
+        for key in (
             "kinetic_energy_j",
             "potential_energy_j",
         ):
@@ -207,6 +216,54 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             "maximum_abs_constraint_force",
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
+
+    def test_public_inner_rate_runs_five_wbc_ticks_per_stream_tick(self) -> None:
+        worker = LiveUpkiePlant(
+            ROOT / "models/upkie/upkie.urdf",
+            stream_dt=0.020,
+            control_dt=0.004,
+            physics_dt=0.001,
+        )
+        hello = worker.hello()
+        self.assertEqual(hello["stream_hz"], 50)
+        self.assertEqual(hello["control_hz"], 250)
+        self.assertEqual(hello["physics_hz"], 1000)
+        self.assertEqual(hello["physics_substeps_per_control"], 4)
+        self.assertEqual(
+            hello["contact_observation"],
+            {
+                "sample_hz": 1000,
+                "consumed_hz": 250,
+                "window_size": 4,
+                "wbc_source": "latest_completed_1000hz_substep",
+                "prestart_samples": 0,
+            },
+        )
+        observation_tick = worker.controller.contact_observation_tick
+        before = float(worker.data.time)
+        state = worker.step({"type": "step"})
+        self.assertAlmostEqual(float(worker.data.time) - before, 0.020, places=12)
+        self.assertEqual(
+            worker.controller.contact_observation_tick - observation_tick,
+            5,
+        )
+        self.assertEqual(state["simulator"]["physics_frame_index"], 20)
+        self.assertEqual(state["simulator"]["physics_dt_s"], 0.001)
+        self.assertEqual(state["simulator"]["control_dt_s"], 0.004)
+        self.assertEqual(state["simulator"]["physics_substeps"], 4)
+
+    def test_rate_periods_require_positive_integer_ratios(self) -> None:
+        model = ROOT / "models/upkie/upkie.urdf"
+        invalid = (
+            {"stream_dt": 0.0},
+            {"control_dt": float("nan")},
+            {"physics_dt": -0.001},
+            {"stream_dt": 0.020, "control_dt": 0.003},
+            {"control_dt": 0.004, "physics_dt": 0.0015},
+        )
+        for options in invalid:
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                LiveUpkiePlant(model, **options)
 
     def test_controller_overrides_are_explicit_and_survive_reset(self) -> None:
         worker = LiveUpkiePlant(
@@ -223,6 +280,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(
             mode_worker.hello()["controller_profile"], "evaluation_override"
         )
+
+    def test_contact_prestart_priming_is_bounded_and_causal(self) -> None:
+        worker = LiveUpkiePlant(
+            ROOT / "models/upkie/upkie.urdf",
+            controller_options={"contact_observation_prestart_samples": 3},
+        )
+        self.assertEqual(
+            worker.hello()["contact_observation"]["prestart_samples"], 3
+        )
+        result = worker.step({"type": "step"})
+        np.testing.assert_array_equal(result["wbc_observed_contact_active"], [1, 1])
+        np.testing.assert_array_equal(result["wbc_debounced_contact_active"], [1, 1])
+        np.testing.assert_array_equal(result["wbc_hard_contact_active"], [1, 1])
+        self.assertEqual(result["metrics"]["wbc_raw_status"], "Solved")
+        self.assertEqual(result["metrics"]["wbc_contact_observation_status"], 0)
+        self.assertEqual(result["metrics"]["wbc_contact_observation_provenance"], 0)
 
     def test_contact_ring_samples_each_substep_and_wbc_uses_boundary_mask(self) -> None:
         scripted = [
@@ -260,6 +333,9 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             first["wbc_observation"],
             {
                 "contact_active": scripted[0],
+                "wheel_normal_force_n": first[
+                    "wbc_observed_wheel_normal_force_n"
+                ],
                 "physics_frame_index": 0,
                 "source": "latest_completed_250hz_substep",
             },
@@ -282,6 +358,16 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             [[0, 0], [0, 0], [0, 1], [0, 0], [1, 1]],
         )
         self.assertEqual(first["physics_contact_active"], scripted[5])
+        self.assertEqual(
+            len(first["simulator"]["wheel_normal_force_window_n"]),
+            PHYSICS_STEPS_PER_CONTROL,
+        )
+        self.assertTrue(
+            np.all(
+                np.asarray(first["simulator"]["wheel_normal_force_window_n"])
+                >= 0.0
+            )
+        )
         self.assertEqual(second["wbc_observed_contact_active"], scripted[5])
         self.assertEqual(second["wbc_observation"]["physics_frame_index"], 5)
 

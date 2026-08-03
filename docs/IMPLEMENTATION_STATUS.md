@@ -2,6 +2,23 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current pre-loss support evidence — r303 measured wheel reserve
+
+R303 evaluates a bounded, fail-closed witness over the actual MuJoCo wheel
+normal forces consumed by the 50 Hz WBC. It requires bilateral finite load,
+the weaker wheel at or below `0.45` of total load, and a strictly falling
+fraction from the preceding sample. On the 8 N lateral-wrench trace the
+witness fires at tick 28 with `28.958/23.426 N` left/right load and a `0.4472`
+weaker-wheel fraction; MuJoCo loses contact at tick 31 and the WBC observes
+that loss at tick 32. The nominal control has no false trigger. The witness is
+telemetry-only (`actuator_authority_emitted=false`); no reserve action has
+been promoted, so the R302 wheel-supported recovery gate remains red. See
+[`UPKIE_LIVE_SUPPORT_RESERVE_R303.md`](../benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
+The Rust floating session also applies the existing opt-in minimum-support-load
+floor to one-point rolling contacts as well as four-point patches; the public
+worker leaves that floor at zero until a separate action/recovery experiment
+proves its authority and physical consequence.
+
 ## Current recovery calibration — r302 measured support contingency
 
 R302 runs a fixed 160-profile gain screen over the R301 allocation-free Rust

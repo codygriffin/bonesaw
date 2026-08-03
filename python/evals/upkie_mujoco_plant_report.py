@@ -320,6 +320,39 @@ def measured_wheel_ground_contacts_into(
     return active
 
 
+def measured_wheel_ground_normal_forces_into(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    body_sets: tuple[frozenset[int], ...],
+    normal_force_n: np.ndarray,
+    wrench_scratch: np.ndarray,
+) -> np.ndarray:
+    """Write per-wheel MuJoCo ground-normal load without allocating.
+
+    The result is a plant measurement, not the WBC's contact-force decision.
+    It therefore remains useful before the binary contact mask changes and
+    makes loss-of-load a causal observer for support-preservation experiments.
+    """
+    if normal_force_n.shape != (len(body_sets),) or normal_force_n.dtype != np.float64:
+        raise ValueError("normal_force_n must be float64 and match body_sets")
+    if wrench_scratch.shape != (6,) or wrench_scratch.dtype != np.float64:
+        raise ValueError("wrench_scratch must be a float64 vector of length six")
+    normal_force_n.fill(0.0)
+    for index, contact in enumerate(data.contact[: data.ncon]):
+        body_a = int(model.geom_bodyid[int(contact.geom[0])])
+        body_b = int(model.geom_bodyid[int(contact.geom[1])])
+        if body_a != 0 and body_b != 0:
+            continue
+        for wheel, members in enumerate(body_sets):
+            if (body_a == 0 and body_b in members) or (
+                body_b == 0 and body_a in members
+            ):
+                mujoco.mj_contactForce(model, data, index, wrench_scratch)
+                normal_force_n[wheel] += max(float(wrench_scratch[0]), 0.0)
+                break
+    return normal_force_n
+
+
 class PythonViabilityCoordinatePlanner:
     """Python-owned bounded search over allocation-free exact Rust WBC queries.
 
@@ -1068,12 +1101,15 @@ class RustWbcAdapter:
         balance_session: Any,
         balance_mode: str,
         capture_velocity_fraction: float,
+        nominal_joint_position: np.ndarray | None = None,
         friction_coefficient: float = 0.8,
         root_angular_task_weight: float = 10.0,
         root_roll_stiffness: float = 24.0,
         root_roll_damping: float = 4.4,
         root_lateral_stiffness: float = 18.0,
         root_lateral_damping: float = 8.0,
+        minimum_support_load_fraction: float = 0.0,
+        support_load_guard_enabled: bool = False,
         fall_safe_enabled: bool = False,
         fall_safe_primary_blend: bool = True,
         execute_reduced_support: bool = True,
@@ -1144,6 +1180,7 @@ class RustWbcAdapter:
             joint_posture_weight=1.0,
             joint_posture_priority=1,
             center_of_mass_task_weight=0.0,
+            minimum_support_load_fraction=minimum_support_load_fraction,
         )
         self.support_contingency_enabled = support_contingency_enabled
         self.support_contingency_execute = support_contingency_execute
@@ -1188,6 +1225,7 @@ class RustWbcAdapter:
                 joint_posture_weight=1.0,
                 joint_posture_priority=1,
                 center_of_mass_task_weight=0.0,
+                minimum_support_load_fraction=minimum_support_load_fraction,
             )
             if support_contingency_enabled
             else None
@@ -1629,12 +1667,25 @@ class RustWbcAdapter:
         self.contingency_root_blend = np.zeros(3, np.float64)
         self.contingency_blend = np.zeros((1, 6), np.float64)
         self.nominal_root_position = nominal_root_position.copy()
+        self.nominal_joint_position = (
+            standing_posture().copy()
+            if nominal_joint_position is None
+            else np.asarray(nominal_joint_position, np.float64).copy()
+        )
+        if self.nominal_joint_position.shape != (6,) or not np.all(
+            np.isfinite(self.nominal_joint_position)
+        ):
+            raise ValueError("nominal_joint_position must contain six finite values")
         self.target_ground_position = target_ground_position
         self.balance_mode = balance_mode
         self.root_roll_stiffness = root_roll_stiffness
         self.root_roll_damping = root_roll_damping
         self.root_lateral_stiffness = root_lateral_stiffness
         self.root_lateral_damping = root_lateral_damping
+        self.support_load_guard_enabled = support_load_guard_enabled
+        self.support_load_guard_active = False
+        self.support_load_guard_authority = 0.0
+        self.support_load_guard_release_ticks = 0
         self.viability_verification_scales = (1.0, 0.5, 0.25, 0.125, 0.0)
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
@@ -2181,6 +2232,7 @@ class RustWbcAdapter:
         ground_position: float,
         ground_height: float,
         observed_contact_active: np.ndarray | None = None,
+        observed_wheel_normal_force_n: np.ndarray | None = None,
         observed_contact_available: bool = True,
         observed_contact_age_ticks: int = 0,
         observed_contact_synchronization_uncertainty_ns: int = 0,
@@ -2190,6 +2242,14 @@ class RustWbcAdapter:
         if observed_contact_synchronization_uncertainty_ns < 0:
             raise ValueError(
                 "observed contact synchronization uncertainty must be nonnegative"
+            )
+        if observed_wheel_normal_force_n is not None and (
+            observed_wheel_normal_force_n.shape != (2,)
+            or not np.all(np.isfinite(observed_wheel_normal_force_n))
+            or np.any(observed_wheel_normal_force_n < 0.0)
+        ):
+            raise ValueError(
+                "observed_wheel_normal_force_n must contain two finite nonnegative values"
             )
         if observed_contact_active is None:
             if not observed_contact_available or observed_contact_age_ticks:
@@ -2305,10 +2365,52 @@ class RustWbcAdapter:
             ]
             == 2.0
         )
+        if self.support_load_guard_enabled and observed_wheel_normal_force_n is not None:
+            total_load = float(np.sum(observed_wheel_normal_force_n))
+            minimum_load_fraction = (
+                float(np.min(observed_wheel_normal_force_n)) / total_load
+                if total_load > 1.0e-9
+                else 0.0
+            )
+            if not self.support_load_guard_active:
+                self.support_load_guard_active = bool(
+                    observation_exact
+                    and np.all(self.observed_contact_active != 0)
+                    and total_load > 1.0
+                    and minimum_load_fraction < 0.45
+                )
+            if self.support_load_guard_active:
+                releasable = bool(
+                    observation_exact
+                    and np.all(self.observed_contact_active != 0)
+                    and minimum_load_fraction >= 0.47
+                    and abs(float(root_twist[0])) <= 0.05
+                )
+                self.support_load_guard_release_ticks = (
+                    self.support_load_guard_release_ticks + 1 if releasable else 0
+                )
+                if self.support_load_guard_release_ticks >= 25:
+                    self.support_load_guard_active = False
+                    self.support_load_guard_release_ticks = 0
+        guard_authority_target = 1.0 if self.support_load_guard_active else 0.0
+        guard_authority_delta = np.clip(
+            guard_authority_target - self.support_load_guard_authority,
+            -0.04,
+            0.20,
+        )
+        self.support_load_guard_authority += float(guard_authority_delta)
+        guarded_roll_stiffness = (
+            (1.0 - self.support_load_guard_authority) * self.root_roll_stiffness
+            + self.support_load_guard_authority * 12.0
+        )
+        guarded_roll_damping = (
+            (1.0 - self.support_load_guard_authority) * self.root_roll_damping
+            + self.support_load_guard_authority * 20.0
+        )
         self.root_angular_acceleration[0] = -24.0 * rotation_error - 4.4 * root_twist[:3]
         self.root_angular_acceleration[0, 0] = (
-            -self.root_roll_stiffness * rotation_error[0]
-            - self.root_roll_damping * root_twist[0]
+            -guarded_roll_stiffness * rotation_error[0]
+            - guarded_roll_damping * root_twist[0]
         )
         baseline_yaw_acceleration = self.root_angular_acceleration[0, 2]
         position_error = self.nominal_root_position - root_position
@@ -2322,7 +2424,9 @@ class RustWbcAdapter:
         )
         self.q[0] = q
         self.v[0] = v
-        self.joint_acceleration[0] = 60.0 * (standing_posture() - q) - 12.0 * v
+        self.joint_acceleration[0] = (
+            60.0 * (self.nominal_joint_position - q) - 12.0 * v
+        )
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
         self.viability_bank_delta_x = 0.0
@@ -4086,6 +4190,9 @@ class RustWbcAdapter:
             "support_contingency_forecast_step_ns": (
                 self.support_contingency_forecast_step_ns
             ),
+            "support_load_guard_enabled": self.support_load_guard_enabled,
+            "support_load_guard_active": self.support_load_guard_active,
+            "support_load_guard_authority": self.support_load_guard_authority,
             "support_contingency_diagnostics": self.support_contingency_diagnostics,
             "support_contingency_candidate_generalized_acceleration": (
                 self.support_contingency_candidate_generalized_acceleration

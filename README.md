@@ -353,6 +353,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   allocations, but spends 494 ticks in low-body/no-wheel support and never
   recovers. Mechanism is green; contact reacquisition remains the next gate.
   See the [r302 support-recovery report](benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
+- R303 adds a fail-closed measured wheel-load reserve witness to the live
+  250/50 plant stream. On the same 8 N lateral trace it triggers at tick 28
+  (left/right loads `28.958/23.426 N`, weaker-wheel fraction `0.4472`), three
+  control ticks before MuJoCo contact loss at tick 31 and the WBC's observed
+  loss at tick 32. The undisturbed control has no false trigger. This is
+  telemetry only—no actuator authority is emitted—so strict recovery remains
+  open while the next Rust-admitted reserve action is designed. See the
+  [r303 support-reserve report](benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

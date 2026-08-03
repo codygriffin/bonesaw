@@ -45,6 +45,7 @@ const previewGroundState = document.querySelector("#preview-ground-state");
 const plantGroundState = document.querySelector("#plant-ground-state");
 const groundContactState = document.querySelector("#ground-contact-state");
 const contactCadenceState = document.querySelector("#contact-cadence-state");
+const contactLoadState = document.querySelector("#contact-load-state");
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
 const plantWrenchLimit = document.querySelector("#plant-wrench-limit");
@@ -212,6 +213,7 @@ function resetPlantTelemetry(status = "disconnected · ghost") {
   plantGroundState.textContent = "awaiting simulator plane";
   groundContactState.textContent = "awaiting contact state";
   contactCadenceState.textContent = "awaiting contact cadence";
+  contactLoadState.textContent = "awaiting wheel loads";
   plantWrench.textContent = "unavailable";
   for (const [id, label] of [
     ["authority-capture", "awaiting live MuJoCo state"],
@@ -754,6 +756,19 @@ function updatePlantTelemetry(message) {
   const aggregateLoss = contactMask(simulator.contact_window_loss_mask);
   const aggregateGain = contactMask(simulator.contact_window_gain_mask);
   contactCadenceState.textContent = `WBC ${wbcMask}/${wbcFrame} · PHY ${physicsMask} · S ${windowMasks} · L ${aggregateLoss} G ${aggregateGain}`;
+  const loadPair = (value) => Array.isArray(value) && value.length === 2
+    ? value.map((entry) => Math.max(0, Number(entry)))
+    : [0, 0];
+  const measuredLoads = loadPair(message.wbc_observed_wheel_normal_force_n);
+  const predictedLoads = loadPair(message.wbc_predicted_normal_force_n);
+  const measuredTotal = measuredLoads[0] + measuredLoads[1];
+  const reserve = measuredTotal > 1e-9
+    ? Math.min(measuredLoads[0], measuredLoads[1]) / measuredTotal
+    : 0;
+  const guardState = metrics.wbc_support_load_guard_enabled
+    ? ` · guard ${Math.round(100 * Number(metrics.wbc_support_load_guard_authority || 0))}%`
+    : "";
+  contactLoadState.textContent = `measured L/R ${measuredLoads.map((entry) => entry.toFixed(1)).join("/")} N · WBC ${predictedLoads.map((entry) => entry.toFixed(1)).join("/")} N · reserve ${(100 * reserve).toFixed(1)}%${guardState}`;
   plantWrench.textContent = message.external_load?.active
     ? `${Math.hypot(...message.external_load.force_world).toFixed(2)} N · ${Number(message.external_load.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.external_load.body} · ${(message.external_load.provenance?.source || "unavailable").replaceAll("_", " ")}`
     : message.command_expired ? "expired safely" : "released";

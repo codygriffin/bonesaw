@@ -109,6 +109,7 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('id="plant-ground-state"', self.html)
         self.assertIn('id="ground-contact-state"', self.html)
         self.assertIn('id="contact-cadence-state"', self.html)
+        self.assertIn('id="contact-load-state"', self.html)
         self.assertIn('id="runtime-rates"', self.html)
         self.assertIn("drawPlantContactLayer", self.javascript)
         self.assertIn("message.contacts || []", self.javascript)
@@ -124,6 +125,8 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("contact_window_masks", self.javascript)
         self.assertIn("contact_window_loss_mask", self.javascript)
         self.assertIn("contact_window_gain_mask", self.javascript)
+        self.assertIn("wbc_observed_wheel_normal_force_n", self.javascript)
+        self.assertIn("wbc_predicted_normal_force_n", self.javascript)
         self.assertIn("wbc_hard_contact_executable", self.javascript)
 
     def test_support_contingency_is_a_separate_visible_authority_witness(self) -> None:

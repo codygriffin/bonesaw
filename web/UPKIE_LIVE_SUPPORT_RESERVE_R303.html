@@ -1,0 +1,32 @@
+<!doctype html>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Bonesaw Upkie support reserve R303</title>
+<style>body{font:15px system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#111827;color:#e5e7eb}pre{white-space:pre-wrap;line-height:1.45;background:#1f2937;padding:1rem;border-radius:8px}.pass{color:#86efac}.fail{color:#fca5a5}</style>
+<h1 class='pass'>Upkie measured support reserve · R303</h1>
+<pre># R303 causal wheel-load reserve witness
+
+Telemetry gate PASS · reserve action UNPROMOTED · no actuator authority.
+
+The live worker measures per-wheel MuJoCo ground-normal forces at 250 Hz and
+passes the completed five-sample window to the 50 Hz WBC boundary. A witness
+requires bilateral finite loads, a weaker-wheel fraction at or below 0.45,
+and a strictly falling fraction from the previous sample.
+
+| event | tick |
+|---|---:|
+| reserve witness | 28 |
+| witness loads (left/right) | 28.958 / 23.426 N |
+| weaker-wheel fraction | 0.4472 |
+| first MuJoCo physics loss | 31 |
+| first WBC-observed loss | 32 |
+| lead before physics loss | 3 control ticks / 12 ms |
+
+The undisturbed control trace has no false trigger. The witness emits no
+command or actuator authority; a future reserve action must be generated and
+admitted by Rust's ordinary floating WBC and must pass the strict
+wheel-supported recovery predicate.
+
+The separate default-off load-guard probe moves the first physics loss to
+tick 34 and the fall boundary to tick 61 with zero Rust allocation and no
+MaxIterations, but never recovers. It remains evaluation-only and rejected.
+</pre>

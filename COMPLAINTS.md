@@ -3,6 +3,13 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R303 closes the force-observation/localization part of the recovery complaint:
+the weaker measured wheel load crosses a strict `0.45` reserve at tick 28,
+three control ticks before the MuJoCo loss at tick 31 and the WBC observation
+at tick 32. The witness is fail-closed and telemetry-only; no actuator
+authority is emitted. See the
+[R303 report](benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
+
 R302 closes the gain-calibration question and leaves the real recovery complaint
 sharply bounded. A 160-profile screen selects
 `[9.81,4,16,12,80,14,8,8,20,80,120]`; its measured candidate delays the fall

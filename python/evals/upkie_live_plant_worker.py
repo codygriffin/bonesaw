@@ -47,7 +47,34 @@ class LiveUpkiePlant:
         *,
         controller_options: dict[str, Any] | None = None,
         controller_balance_mode: str = "capture",
+        stream_dt: float = STREAM_DT,
+        control_dt: float = CONTROL_DT,
+        physics_dt: float = PHYSICS_DT,
     ):
+        for name, value in (
+            ("stream_dt", stream_dt),
+            ("control_dt", control_dt),
+            ("physics_dt", physics_dt),
+        ):
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
+        self.control_ticks_per_stream = int(round(stream_dt / control_dt))
+        self.physics_steps_per_control = int(round(control_dt / physics_dt))
+        if (
+            self.control_ticks_per_stream < 1
+            or self.physics_steps_per_control < 1
+            or abs(self.control_ticks_per_stream * control_dt - stream_dt) > 1.0e-12
+            or abs(self.physics_steps_per_control * physics_dt - control_dt) > 1.0e-12
+        ):
+            raise ValueError(
+                "stream/control/physics periods must form positive integer ratios"
+            )
+        self.stream_dt = float(stream_dt)
+        self.control_dt = float(control_dt)
+        self.physics_dt = float(physics_dt)
+        self.wbc_observation_source = (
+            f"latest_completed_{int(round(1.0 / self.physics_dt))}hz_substep"
+        )
         self.model_path = model_path
         # Evaluation-only profiles may opt into existing Rust controller
         # mechanisms. The public worker passes no overrides, so its controller
@@ -67,7 +94,7 @@ class LiveUpkiePlant:
         import bonesaw
 
         self.model, self.data = plant.make_plant(
-            self.model_path, physics_dt=PHYSICS_DT
+            self.model_path, physics_dt=self.physics_dt
         )
         balance = bonesaw.UpkieBalanceSession(str(self.model_path))
         root_position, _, _, q, _ = plant.read_state(self.model, self.data)
@@ -117,9 +144,34 @@ class LiveUpkiePlant:
         controller_options: dict[str, Any] = {
             "fall_safe_enabled": True,
             "fall_safe_primary_blend": False,
-            "control_dt": CONTROL_DT,
+            "control_dt": self.control_dt,
+            # The MuJoCo plant is initialized from the Rust-balanced pose;
+            # targeting a different hard-coded standing pose injects a
+            # persistent joint-space disturbance into an otherwise nominal
+            # hold.
+            "nominal_joint_position": balanced_q,
         }
         controller_options.update(self.controller_options)
+        # Contact priming is an evaluation-only receiver operation.  Remove it
+        # before constructing the Rust adapter so a transport/profile option
+        # cannot accidentally become an unknown solver keyword.  The public
+        # worker leaves this at zero and therefore retains the cold-start
+        # contract.
+        prestart_samples = controller_options.pop(
+            "contact_observation_prestart_samples", 0
+        )
+        if isinstance(prestart_samples, bool) or not isinstance(
+            prestart_samples, (int, np.integer)
+        ):
+            raise ValueError(
+                "contact_observation_prestart_samples must be an integer"
+            )
+        prestart_samples = int(prestart_samples)
+        if not 0 <= prestart_samples <= 16:
+            raise ValueError(
+                "contact_observation_prestart_samples must be in 0..=16"
+            )
+        self.contact_observation_prestart_samples = prestart_samples
         self.controller = plant.RustWbcAdapter(
             self.model_path,
             nominal_root,
@@ -129,6 +181,17 @@ class LiveUpkiePlant:
             0.2,
             **controller_options,
         )
+        if prestart_samples:
+            prestart_contact = np.empty(2, np.uint8)
+            plant.measured_wheel_ground_contacts_into(
+                self.model,
+                self.data,
+                self.wheel_contact_body_sets,
+                prestart_contact,
+            )
+            self.controller.prime_contact_observation(
+                prestart_contact, samples=prestart_samples
+            )
         self.actuator_ids = np.asarray(
             [
                 mujoco.mj_name2id(
@@ -167,20 +230,27 @@ class LiveUpkiePlant:
         # control window; each row below is written immediately after one
         # MuJoCo substep and never grows at runtime.
         self.physics_contact_window = np.zeros(
-            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+            (self.physics_steps_per_control, 2), np.uint8
         )
         self.physics_contact_loss_window = np.zeros(
-            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+            (self.physics_steps_per_control, 2), np.uint8
         )
         self.physics_contact_gain_window = np.zeros(
-            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+            (self.physics_steps_per_control, 2), np.uint8
         )
         self.physics_contact_loss_mask = np.zeros(2, np.uint8)
         self.physics_contact_gain_mask = np.zeros(2, np.uint8)
+        self.physics_wheel_normal_force_window_n = np.zeros(
+            (self.physics_steps_per_control, 2), np.float64
+        )
         self.physics_contact_frame_index = 0
         self.wbc_observation_active = np.zeros(2, np.uint8)
+        self.wbc_observation_wheel_normal_force_n = np.zeros(2, np.float64)
+        self.observed_wheel_normal_force_n = np.zeros(2, np.float64)
+        self.contact_wrench_scratch = np.zeros(6, np.float64)
         self.wbc_observation_frame_index = 0
         self.no_contact_active = np.zeros(2, np.uint8)
+        self.no_wheel_normal_force_n = np.zeros(2, np.float64)
         self.last_result: dict[str, Any] | None = None
 
     def reset(self, *, numeric: bool = False, fall: bool = False) -> None:
@@ -200,15 +270,16 @@ class LiveUpkiePlant:
             "type": "plant_hello",
             "protocol": 2,
             "model": "upkie",
-            "stream_hz": int(round(1.0 / STREAM_DT)),
-            "control_hz": int(round(1.0 / CONTROL_DT)),
-            "physics_hz": int(round(1.0 / PHYSICS_DT)),
-            "physics_substeps_per_control": PHYSICS_STEPS_PER_CONTROL,
+            "stream_hz": int(round(1.0 / self.stream_dt)),
+            "control_hz": int(round(1.0 / self.control_dt)),
+            "physics_hz": int(round(1.0 / self.physics_dt)),
+            "physics_substeps_per_control": self.physics_steps_per_control,
             "contact_observation": {
-                "sample_hz": int(round(1.0 / PHYSICS_DT)),
-                "consumed_hz": int(round(1.0 / CONTROL_DT)),
-                "window_size": PHYSICS_STEPS_PER_CONTROL,
-                "wbc_source": "latest_completed_250hz_substep",
+                "sample_hz": int(round(1.0 / self.physics_dt)),
+                "consumed_hz": int(round(1.0 / self.control_dt)),
+                "window_size": self.physics_steps_per_control,
+                "wbc_source": self.wbc_observation_source,
+                "prestart_samples": int(self.contact_observation_prestart_samples),
             },
             "controller_profile": (
                 "production_default"
@@ -381,6 +452,8 @@ class LiveUpkiePlant:
         maximum_controller_step_ns = 0
         latest_observed_contact_active = self.no_contact_active
         latest_physics_contact_active = self.no_contact_active
+        latest_wbc_observed_wheel_normal_force_n = self.no_wheel_normal_force_n
+        latest_physics_wheel_normal_force_n = self.no_wheel_normal_force_n
         wbc_observation_frame_index = self.physics_contact_frame_index
         physics_contact_window_start = self.physics_contact_frame_index + 1
         physics_contact_window_end = self.physics_contact_frame_index
@@ -395,7 +468,7 @@ class LiveUpkiePlant:
         applied_moment_world = np.zeros(3, np.float64)
         application_offset_m = 0.0
         maximum_moment_nm = 0.0
-        for _ in range(CONTROL_TICKS_PER_STREAM):
+        for _ in range(self.control_ticks_per_stream):
             if self.paused:
                 # Stream heartbeats still carry a frozen state while the
                 # underlying simulator and WBC do no work.
@@ -421,10 +494,25 @@ class LiveUpkiePlant:
                     self.wbc_observation_active,
                     self.observed_contact_scratch,
                 )
+                plant.measured_wheel_ground_normal_forces_into(
+                    self.model,
+                    self.data,
+                    self.wheel_contact_body_sets,
+                    self.observed_wheel_normal_force_n,
+                    self.contact_wrench_scratch,
+                )
+                np.copyto(
+                    self.wbc_observation_wheel_normal_force_n,
+                    self.observed_wheel_normal_force_n,
+                )
             else:
                 np.copyto(
                     self.wbc_observation_active,
                     self.observed_contact_active,
+                )
+                np.copyto(
+                    self.wbc_observation_wheel_normal_force_n,
+                    self.observed_wheel_normal_force_n,
                 )
             np.copyto(self.observed_contact_active, self.wbc_observation_active)
             self.wbc_observation_frame_index = self.physics_contact_frame_index
@@ -440,6 +528,9 @@ class LiveUpkiePlant:
                 ground_position,
                 ground_height,
                 observed_contact_active=self.wbc_observation_active,
+                observed_wheel_normal_force_n=(
+                    self.wbc_observation_wheel_normal_force_n
+                ),
                 observed_contact_available=True,
             )
             latest_result = result
@@ -466,7 +557,7 @@ class LiveUpkiePlant:
             physics_contact_window_start = self.physics_contact_frame_index + 1
             physics_contact_loss_mask.fill(0)
             physics_contact_gain_mask.fill(0)
-            for substep in range(PHYSICS_STEPS_PER_CONTROL):
+            for substep in range(self.physics_steps_per_control):
                 mujoco.mj_step(self.model, self.data)
                 # mj_step leaves collision data at its internal solve stage;
                 # refresh it at the newly integrated state before declaring
@@ -479,6 +570,13 @@ class LiveUpkiePlant:
                     self.wheel_contact_body_sets,
                     self.physics_contact_window[substep],
                 )
+                plant.measured_wheel_ground_normal_forces_into(
+                    self.model,
+                    self.data,
+                    self.wheel_contact_body_sets,
+                    self.physics_wheel_normal_force_window_n[substep],
+                    self.contact_wrench_scratch,
+                )
                 current_contact = self.physics_contact_window[substep]
                 loss = self.physics_contact_loss_window[substep]
                 gain = self.physics_contact_gain_window[substep]
@@ -489,10 +587,18 @@ class LiveUpkiePlant:
                 np.copyto(self.observed_contact_active, current_contact)
                 previous_contact = current_contact
             np.copyto(self.observed_contact_active, self.physics_contact_window[-1])
+            np.copyto(
+                self.observed_wheel_normal_force_n,
+                self.physics_wheel_normal_force_window_n[-1],
+            )
             physics_contact_window_end = self.physics_contact_frame_index
             physics_contact_window_valid = True
             latest_observed_contact_active = self.wbc_observation_active
             latest_physics_contact_active = self.observed_contact_active
+            latest_wbc_observed_wheel_normal_force_n = (
+                self.wbc_observation_wheel_normal_force_n
+            )
+            latest_physics_wheel_normal_force_n = self.observed_wheel_normal_force_n
             peak_capture_pressure = max(
                 peak_capture_pressure, float(result["capture_pressure"])
             )
@@ -528,6 +634,8 @@ class LiveUpkiePlant:
             latest_result = None
             latest_observed_contact_active = self.no_contact_active
             latest_physics_contact_active = self.no_contact_active
+            latest_wbc_observed_wheel_normal_force_n = self.no_wheel_normal_force_n
+            latest_physics_wheel_normal_force_n = self.no_wheel_normal_force_n
             physics_contact_window_valid = False
         # The final substep's explicit `mj_forward` leaves kinematics and
         # contact data valid. Avoiding another pass here keeps the final window
@@ -553,6 +661,8 @@ class LiveUpkiePlant:
         if not published_contact_state:
             latest_observed_contact_active = self.no_contact_active
             latest_physics_contact_active = self.no_contact_active
+            latest_wbc_observed_wheel_normal_force_n = self.no_wheel_normal_force_n
+            latest_physics_wheel_normal_force_n = self.no_wheel_normal_force_n
             physics_contact_window_valid = False
             physics_contact_loss_mask.fill(0)
             physics_contact_gain_mask.fill(0)
@@ -648,12 +758,26 @@ class LiveUpkiePlant:
             "joint_positions": q.tolist(),
             "joint_velocities": v.tolist(),
             "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
+            "wbc_observed_wheel_normal_force_n": (
+                latest_wbc_observed_wheel_normal_force_n.tolist()
+            ),
             "wbc_observation": {
                 "contact_active": latest_observed_contact_active.tolist(),
+                "wheel_normal_force_n": (
+                    latest_wbc_observed_wheel_normal_force_n.tolist()
+                ),
                 "physics_frame_index": int(wbc_observation_frame_index),
-                "source": "latest_completed_250hz_substep",
+                "source": self.wbc_observation_source,
             },
             "physics_contact_active": latest_physics_contact_active.tolist(),
+            "physics_wheel_normal_force_n": (
+                latest_physics_wheel_normal_force_n.tolist()
+            ),
+            "wbc_predicted_normal_force_n": (
+                self.no_wheel_normal_force_n.tolist()
+                if latest_result is None or self.paused
+                else np.asarray(latest_result["normal_force"], np.float64).tolist()
+            ),
             "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
             "wbc_hard_contact_active": published_hard_contact_active.tolist(),
             "wbc_hard_contact_executable": published_hard_contact_executable.tolist(),
@@ -672,9 +796,9 @@ class LiveUpkiePlant:
                 "backend": "MuJoCo",
                 "paused": self.paused,
                 "time_s": float(self.data.time),
-                "physics_dt_s": PHYSICS_DT,
-                "control_dt_s": CONTROL_DT,
-                "physics_substeps": PHYSICS_STEPS_PER_CONTROL,
+                "physics_dt_s": self.physics_dt,
+                "control_dt_s": self.control_dt,
+                "physics_substeps": self.physics_steps_per_control,
                 "physics_frame_index": int(self.physics_contact_frame_index),
                 "contact_window_frame_start": int(physics_contact_window_start),
                 "contact_window_frame_end": int(physics_contact_window_end),
@@ -684,6 +808,9 @@ class LiveUpkiePlant:
                 "contact_window_gain_masks": self.physics_contact_gain_window.tolist(),
                 "contact_window_loss_mask": physics_contact_loss_mask.tolist(),
                 "contact_window_gain_mask": physics_contact_gain_mask.tolist(),
+                "wheel_normal_force_window_n": (
+                    self.physics_wheel_normal_force_window_n.tolist()
+                ),
                 "solver_iterations": int(np.max(solver_niter)),
                 "solver_forward_inverse": solver_fwdinv.tolist(),
                 "constraint_count": int(self.data.nefc),
@@ -834,9 +961,31 @@ class LiveUpkiePlant:
                         "support_contingency_forecast_guard_passed"
                     ]
                 ),
+                "wbc_support_load_guard_enabled": bool(
+                    self.controller.support_load_guard_enabled
+                ),
+                "wbc_support_load_guard_active": bool(
+                    published_contact_state
+                    and latest_result is not None
+                    and latest_result["support_load_guard_active"]
+                ),
+                "wbc_support_load_guard_authority": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["support_load_guard_authority"]),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
+                "wbc_observed_wheel_normal_force_n": (
+                    latest_wbc_observed_wheel_normal_force_n.tolist()
+                ),
+                "physics_wheel_normal_force_n": (
+                    latest_physics_wheel_normal_force_n.tolist()
+                ),
+                "wbc_predicted_normal_force_n": (
+                    self.no_wheel_normal_force_n.tolist()
+                    if latest_result is None or self.paused
+                    else np.asarray(latest_result["normal_force"], np.float64).tolist()
+                ),
                 "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
                 "wbc_hard_contact_active": published_hard_contact_active.tolist(),
                 "wbc_hard_contact_executable": published_hard_contact_executable.tolist(),
@@ -913,6 +1062,9 @@ class LiveUpkiePlant:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=pathlib.Path)
+    parser.add_argument("--stream-dt", type=float, default=0.020)
+    parser.add_argument("--control-dt", type=float, default=0.004)
+    parser.add_argument("--physics-dt", type=float, default=0.001)
     return parser.parse_args()
 
 
@@ -923,7 +1075,12 @@ def emit(value: dict[str, Any]) -> None:
 
 def main() -> int:
     args = parse_args()
-    live = LiveUpkiePlant(args.model.resolve())
+    live = LiveUpkiePlant(
+        args.model.resolve(),
+        stream_dt=args.stream_dt,
+        control_dt=args.control_dt,
+        physics_dt=args.physics_dt,
+    )
     emit(live.hello())
     for line in sys.stdin:
         try:

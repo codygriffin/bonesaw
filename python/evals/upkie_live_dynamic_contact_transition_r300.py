@@ -65,6 +65,15 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
             float(value) for value in state["generalized_acceleration"]
         ],
         "observed": [int(value) for value in state["wbc_observed_contact_active"]],
+        "observed_wheel_normal_force_n": [
+            float(value) for value in state["wbc_observed_wheel_normal_force_n"]
+        ],
+        "physics_wheel_normal_force_n": [
+            float(value) for value in state["physics_wheel_normal_force_n"]
+        ],
+        "wbc_predicted_normal_force_n": [
+            float(value) for value in state["wbc_predicted_normal_force_n"]
+        ],
         "wbc_observation_frame_index": int(
             state["wbc_observation"]["physics_frame_index"]
         ),
@@ -93,6 +102,10 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         ],
         "contact_window_gain_mask": [
             int(value) for value in simulator["contact_window_gain_mask"]
+        ],
+        "wheel_normal_force_window_n": [
+            [float(value) for value in row]
+            for row in simulator["wheel_normal_force_window_n"]
         ],
         "debounced": [int(value) for value in state["wbc_debounced_contact_active"]],
         "hard": [int(value) for value in state["wbc_hard_contact_active"]],
@@ -158,6 +171,15 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "support_contingency_forecast_guard_passed": bool(
             metrics.get("wbc_support_contingency_forecast_guard_passed", False)
         ),
+        "support_load_guard_enabled": bool(
+            metrics.get("wbc_support_load_guard_enabled", False)
+        ),
+        "support_load_guard_active": bool(
+            metrics.get("wbc_support_load_guard_active", False)
+        ),
+        "support_load_guard_authority": float(
+            metrics.get("wbc_support_load_guard_authority", 0.0)
+        ),
         "controller_step_us": float(metrics["controller_step_us"]),
         "worker_step_us": float(metrics["worker_step_us"]),
         "root_tilt_rad": float(metrics["root_tilt_rad"]),
@@ -198,11 +220,13 @@ def run_case(
     maximum_ticks: int = MAX_TICKS,
     controller_options: dict[str, Any] | None = None,
     controller_balance_mode: str = "capture",
+    worker_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     worker = LiveUpkiePlant(
         model_path,
         controller_options=controller_options,
         controller_balance_mode=controller_balance_mode,
+        **({} if worker_options is None else worker_options),
     )
     hello = worker.hello()
     base_body = worker.body_by_name["base"]
