@@ -305,6 +305,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   call, so this closes the sequential ingress harness—not per-substep MuJoCo
   measurement, a hardware estimator, or walking transfer. See the
   [r298 synthetic contact-ingress report](benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
+- R299 replaces authored masks with actual MuJoCo collision truth. Root poses
+  alone produce 50 kinematic 250 Hz frames spanning `11→10→01→00`; the
+  newest of each five-frame window enters the persistent Rust adapter/WBC at
+  50 Hz. All 14 extraction, cadence, debounce, hard-subset, finite-output,
+  zero-allocation, zero-policy/zero-integration, and exact-replay gates pass.
+  `mj_step` is forbidden and simulator time stays zero, so this admits the
+  collision-extraction seam without claiming a dynamically realized transfer,
+  tracking, contact forces, hardware sensing, or authority. See the
+  [r299 kinematic measured-contact report](benchmarks/results/upkie-measured-contact-kinematic-r299/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

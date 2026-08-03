@@ -3,6 +3,15 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R299 closes the actual collision-extraction seam without borrowing authored
+contact masks. Fifty `mj_forward` frames generated from root poses measure
+`11→10→01→00`; every fifth observation drives the persistent Rust adapter
+and WBC, with all 14 gates exact and allocation-free. `mj_step` is forbidden,
+so the immediate remaining complaint is a dynamically realized measured
+double→single→flight/landing transfer with tracking, contact force, solver
+deadline, and reset witnesses. See the
+[R299 report](benchmarks/results/upkie-measured-contact-kinematic-r299/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md).
+
 R297 closes the 5 ms deadline only for this machine's declared host-native
 local deployment: seven exact production repeats report 4.644 ms median and
 4.712 ms worst p99. It does not close the portable generic deadline, whose
@@ -16,7 +25,7 @@ sample from five-frame synthetic 250 Hz chunks, cover `11/10/01/00`, pass
 debounce and hard-subset/fail-closed checks, and pause without reset. This
 removes uncertainty in the contact-ingress/debounce harness only. The source
 buffer is consumed in one 50 Hz extractor call, so actual per-substep MuJoCo
-sampling, full floating walking, measured plant transfer, tracking, and
+sampling under dynamic integration, full floating walking, measured plant transfer, tracking, and
 hardware remain open. See the
 [R298 ingress report](benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
 

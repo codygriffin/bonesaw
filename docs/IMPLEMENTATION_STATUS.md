@@ -2,6 +2,19 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current measured-contact evidence — r299 kinematic collision replay
+
+R299 authors root poses rather than masks. Fifty nominal 250 Hz frames call
+`mj_forward` and the production wheel-subtree/ground extractor, measuring
+`11`, `10`, `01`, and `00`; the newest observation from each five-frame window
+enters the persistent Rust adapter/WBC at 50 Hz. All 14 extraction, cadence,
+debounce, hard-subset, finite-output, allocation, zero-policy/zero-integration,
+and exact-replay gates pass. `mj_step` is patched to fail and simulator time
+remains zero. This admits the collision-extraction → observation → hard-row
+seam, not a dynamically realized transfer, tracking consequence, contact-force
+oracle, hardware estimator, or command authority. See
+[`UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md`](../benchmarks/results/upkie-measured-contact-kinematic-r299/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md).
+
 ## Current local CPU qualification — r297 host-native timing
 
 R297 qualifies the local deployment profile separately from portable CPU

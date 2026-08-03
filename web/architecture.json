@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "synthetic-contact-ingress-r298",
+  "revision": "kinematic-measured-contact-r299",
   "updated": "2026-08-03",
-  "stage": "R298 qualifies synthetic sequential contact ingress · actual measured transfer and portable timing remain open",
-  "checkpoint": "R298 drives the existing LiveUpkiePlant and persistent Rust adapter through ten 50 Hz ticks with synthetic five-frame 250 Hz contact chunks. The newest sample covers 11/10/01/00; three-sample activation, two-sample release, hard-subset, zero-contact fail-closed, pause/no-reset, cadence, and exact replay pass all 14 gates and 11/11 tests. The chunks are consumed in one 50 Hz extractor call, so this is ingress/debounce evidence rather than production per-substep MuJoCo sampling or measured transfer. R297's local native timing qualification remains green, while portable generic timing, floating walking, tracking, thermal, and authority remain open.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and policy/physics-free qualification. R297 closes the local host-native p99 gate; R298 closes only the synthetic sequential ingress/debounce harness. Browser frame time, authenticated transport, portable exact solver p99, production per-substep contact sampling, WBC-achievable measured transfer, calibrated actuation/thermal state, and hardware realization remain open.",
+  "stage": "R299 admits kinematic MuJoCo contact extraction · dynamic measured transfer remains open",
+  "checkpoint": "R299 authors only root poses and calls MuJoCo forward collision detection on 50 nominal 250 Hz frames. The production wheel-subtree/ground extractor measures 11/10/01/00; the newest of each five-frame window enters the persistent Rust adapter/WBC at 50 Hz. All 14 extraction, cadence, debounce, hard-subset, finite-output, zero-allocation, zero-policy/zero-integration, and exact-replay gates pass. mj_step is forbidden and simulator time remains zero. This closes the geometry-to-hard-row seam, not dynamically realized transfer, tracking/contact-force consequence, hardware estimation, or authority. R297 local native timing remains green; portable timing remains open.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and policy/physics-free qualification. R297 closes local host-native p99, R298 closes synthetic ingress, and R299 closes actual kinematic MuJoCo collision extraction. Browser frame time, authenticated transport, portable exact solver p99, dynamically realized measured transfer, tracking/contact-force consequence, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -98,6 +98,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r299-kinematic-measured-contact",
+      "title": "Admit actual MuJoCo collision extraction without dynamics integration",
+      "status": "kinematic seam passed · dynamic transfer open · authority closed",
+      "detail": "Root poses alone generate 50 nominal 250 Hz frames through mj_forward and the production wheel-subtree/ground extractor. Measured masks span 11/10/01/00 and feed the persistent Rust adapter/WBC at 50 Hz. All 14 gates and exact replay pass with zero Rust hot-loop allocations. mj_step is forbidden and simulator time remains zero, so physical transfer, tracking, force accuracy, hardware estimation, and authority remain open."
+    },
     {
       "id": "r297-host-native-timing",
       "title": "Qualify the explicitly local host-native CPU profile",
@@ -1129,6 +1135,12 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R299 kinematic measured-contact replay",
+      "result": "14/14 gates · 50 actual collision frames · zero policy/integration · authority closed",
+      "detail": "MuJoCo forward collision truth—not authored masks—covers double, left-only, right-only, and flight. Every fifth measured observation feeds the persistent Rust adapter/WBC; debounce, immediate hard-row removal, finite residuals, zero allocation, and exact replay pass. The fixture deliberately forbids mj_step and makes no physical transfer claim.",
+      "report": "/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.html"
+    },
     {
       "name": "R297 local host-native timing qualification",
       "result": "112-array exact · production p99 7/7 PASS · candidate 6/7 FAIL · authority closed",
@@ -3781,6 +3793,7 @@
     "The editor adapter has no authentication. The current Cloudflare Quick Tunnel is intentionally temporary and publicly reachable; it must not carry private robot state or hardware authority until access control and origin policy are added."
   ],
   "feedback_questions": [
+    "R299 closes actual kinematic collision extraction while forbidding dynamics integration. Should the next physical gate author a gentle root-roll trajectory that the WBC must resist, induce a wheel unload with an external wrench while retaining the other support, or start from a recorded free-fall/landing trace and score only observation-to-command causality?",
     "R298 proves the synthetic 250-to-50 Hz contact-ingress/debounce contract but deliberately does not claim production per-substep measurement. Should the next boundary add a fixed-capacity 250 Hz contact ring consumed by each WBC tick, freeze a genuine MuJoCo contact trace and replay only its observations, or go directly to a causal measured double→single→flight plant transfer?",
     "R297 closes the timing deadline on this explicitly local native CPU profile but preserves the portable generic miss. Should the next admission target require one portable x86-64-v3 binary envelope, ship per-host qualified profiles with fingerprints, or treat timing as deployment-specific while the next work moves entirely to measured-contact transfer?",
     "R296's sequential 250/50 measured-contact replay now passes the source-cadence and fail-closed harness. Should the next behavior step build a longer evolving G1/MuJoCo source trace through the full floating support transfer, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule still cannot close the transfer gate.",
