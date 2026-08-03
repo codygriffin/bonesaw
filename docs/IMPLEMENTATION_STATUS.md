@@ -14,7 +14,7 @@ release, tracking, and timing; no policy or physics step is added.
 Dormant replay is bit-exact against R276 on all 82 shared non-timing arrays. A
 frozen eight-profile screen spans weights 1e-5–1e-4 and 5/10-tick previews. The
 best release is still tick 959 versus control 1108. Its tick-874 state is
-causally better—lateral velocity changes from -1.668 to -0.427 m/s, CoM y from
+causally better—lateral CoM velocity changes from 0.542 to 0.333 m/s, CoM y from
 0.14338 to 0.10696 m, and the right knee leaves its lower limit—so the original
 conflict moves from tick 875 to 926. But root/foot RMS regress to
 19.280/19.059 m, p99 reaches 6.726 ms, and two samples exceed 20 ms. Continuous

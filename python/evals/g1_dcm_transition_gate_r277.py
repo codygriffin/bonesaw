@@ -78,7 +78,9 @@ def summarize(directory: pathlib.Path) -> dict[str, Any]:
         "tick_874": {
             "root_y_m": float(trace["root_tracked"][874, 1]),
             "center_of_mass_y_m": float(trace["center_of_mass_tracked"][874, 1]),
-            "root_y_velocity_mps": float(trace["v"][874, 1]),
+            "center_of_mass_y_velocity_mps": float(
+                trace["center_of_mass_velocity"][874, 1]
+            ),
             "right_knee_position_rad": float(trace["q"][874, 9]),
         },
         "dcm": metrics["dcm_balance"],
@@ -165,7 +167,7 @@ def main() -> int:
             name,
             f'{profile["tick_874"]["root_y_m"]:.5f}',
             f'{profile["tick_874"]["center_of_mass_y_m"]:.5f}',
-            f'{profile["tick_874"]["root_y_velocity_mps"]:.5f}',
+            f'{profile["tick_874"]["center_of_mass_y_velocity_mps"]:.5f}',
             f'{profile["tick_874"]["right_knee_position_rad"]:.5f}',
         ]
         for name, profile in profiles.items()
@@ -209,11 +211,11 @@ def main() -> int:
             "## Causal state at the original conflict",
             "",
             *markdown_table(
-                ["profile", "root y m", "CoM y m", "root vy m/s", "right knee rad"],
+                ["profile", "root y m", "CoM y m", "CoM vy m/s", "right knee rad"],
                 state_rows,
             ),
             "",
-            "The gated profile does move the upstream state in the intended direction: at tick 874, lateral root speed falls from -1.668 to -0.427 m/s, CoM y moves from 0.14338 to 0.10696 m, and the right knee is no longer pinned at its -0.087267 rad lower limit. The original tick-875 full-lock conflict moves to tick 926. This is a causal mechanism result, not a walking pass.",
+            "The gated profile does move the upstream state in the intended direction: at tick 874, lateral CoM speed falls from 0.542 to 0.333 m/s, CoM y moves from 0.14338 to 0.10696 m, and the right knee is no longer pinned at its -0.087267 rad lower limit. The original tick-875 full-lock conflict moves to tick 926. This is a causal mechanism result, not a walking pass.",
             "",
             "The consequence remains unacceptable. Release advances from tick 1108 to 959, root/foot RMS rise from 15.514/15.467 m to 19.280/19.059 m, and p99 reaches 6.726 ms with two 20 ms misses. During the gated interval, virtual ZMP is clipped on "
             f'{100.0 * dcm["zmp_clipped_fraction"]:.1f}% of active ticks, support margin p05/min is {dcm["support_margin_p05_m"]:.3f}/{dcm["support_margin_minimum_m"]:.3f} m, and DCM acceleration p95/max is {dcm["command_acceleration_p95_mps2"]:.3f}/{dcm["command_acceleration_maximum_mps2"]:.3f} m/s². The soft task can change the state, but it does not construct a support-feasible trajectory.',

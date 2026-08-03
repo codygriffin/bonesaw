@@ -11,14 +11,14 @@
 
 ## Causal state at the original conflict
 
-| profile | root y m | CoM y m | root vy m/s | right knee rad |
+| profile | root y m | CoM y m | CoM vy m/s | right knee rad |
 |---|---|---|---|---|
-| R276 control | 0.15284 | 0.14338 | -1.66794 | -0.08727 |
-| R277 dormant | 0.15284 | 0.14338 | -1.66794 | -0.08727 |
-| R277 gated 5e-5 / 10 | 0.10510 | 0.10696 | -0.42716 | 0.43082 |
-| continuous 0.025 | -5.03971 | -4.95757 | 0.06741 | -0.08098 |
+| R276 control | 0.15284 | 0.14338 | 0.54248 | -0.08727 |
+| R277 dormant | 0.15284 | 0.14338 | 0.54248 | -0.08727 |
+| R277 gated 5e-5 / 10 | 0.10510 | 0.10696 | 0.33308 | 0.43082 |
+| continuous 0.025 | -5.03971 | -4.95757 | -2.80692 | -0.08098 |
 
-The gated profile does move the upstream state in the intended direction: at tick 874, lateral root speed falls from -1.668 to -0.427 m/s, CoM y moves from 0.14338 to 0.10696 m, and the right knee is no longer pinned at its -0.087267 rad lower limit. The original tick-875 full-lock conflict moves to tick 926. This is a causal mechanism result, not a walking pass.
+The gated profile does move the upstream state in the intended direction: at tick 874, lateral CoM speed falls from 0.542 to 0.333 m/s, CoM y moves from 0.14338 to 0.10696 m, and the right knee is no longer pinned at its -0.087267 rad lower limit. The original tick-875 full-lock conflict moves to tick 926. This is a causal mechanism result, not a walking pass.
 
 The consequence remains unacceptable. Release advances from tick 1108 to 959, root/foot RMS rise from 15.514/15.467 m to 19.280/19.059 m, and p99 reaches 6.726 ms with two 20 ms misses. During the gated interval, virtual ZMP is clipped on 75.8% of active ticks, support margin p05/min is -0.993/-1.213 m, and DCM acceleration p95/max is 7.738/10.920 m/s². The soft task can change the state, but it does not construct a support-feasible trajectory.
 
