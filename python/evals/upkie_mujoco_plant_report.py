@@ -1113,6 +1113,8 @@ class RustWbcAdapter:
         support_load_reserve_action_enabled: bool = False,
         support_load_reserve_bank_action_enabled: bool = True,
         support_load_reserve_config: tuple[float, ...] | None = None,
+        single_support_reacquisition_enabled: bool = False,
+        single_support_reacquisition_config: tuple[float, ...] | None = None,
         fall_safe_enabled: bool = False,
         fall_safe_primary_blend: bool = True,
         execute_reduced_support: bool = True,
@@ -1722,6 +1724,33 @@ class RustWbcAdapter:
         self.support_load_reserve_step_ns = 0
         self.support_load_reserve_allocation_calls = 0
         self.support_load_reserve_allocated_bytes = 0
+        self.single_support_reacquisition_enabled = bool(
+            single_support_reacquisition_enabled
+        )
+        if single_support_reacquisition_config is not None:
+            if len(single_support_reacquisition_config) != 8:
+                raise ValueError(
+                    "single_support_reacquisition_config must contain exactly 8 values"
+                )
+            self.balance.configure_single_support_reacquisition(
+                *single_support_reacquisition_config
+            )
+        self.single_support_reacquisition_diagnostics = np.zeros(
+            len(self.balance.single_support_reacquisition_diagnostic_names),
+            np.float64,
+        )
+        self.single_support_reacquisition_index = {
+            name: index
+            for index, name in enumerate(
+                self.balance.single_support_reacquisition_diagnostic_names
+            )
+        }
+        self.single_support_reacquisition_joint_acceleration = np.zeros(
+            6, np.float64
+        )
+        self.single_support_reacquisition_step_ns = 0
+        self.single_support_reacquisition_allocation_calls = 0
+        self.single_support_reacquisition_allocated_bytes = 0
         self.viability_verification_scales = (1.0, 0.5, 0.25, 0.125, 0.0)
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
@@ -2476,6 +2505,35 @@ class RustWbcAdapter:
         self.joint_acceleration[0] = (
             60.0 * (self.nominal_joint_position - q) - 12.0 * v
         )
+        if self.single_support_reacquisition_enabled:
+            support_mask = int(self.contact_authority_active[0]) | (
+                int(self.contact_authority_active[1]) << 1
+            )
+            (
+                self.single_support_reacquisition_step_ns,
+                self.single_support_reacquisition_allocation_calls,
+                self.single_support_reacquisition_allocated_bytes,
+            ) = self.balance.step_single_support_reacquisition_from_state(
+                self.control_dt,
+                observation_exact,
+                support_mask,
+                root_position,
+                root_quaternion,
+                root_twist,
+                q,
+                v,
+                self.single_support_reacquisition_diagnostics,
+                self.single_support_reacquisition_joint_acceleration,
+            )
+            self.joint_acceleration[0] += (
+                self.single_support_reacquisition_joint_acceleration
+            )
+        else:
+            self.single_support_reacquisition_diagnostics.fill(0.0)
+            self.single_support_reacquisition_joint_acceleration.fill(0.0)
+            self.single_support_reacquisition_step_ns = 0
+            self.single_support_reacquisition_allocation_calls = 0
+            self.single_support_reacquisition_allocated_bytes = 0
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
         self.viability_bank_delta_x = 0.0
@@ -3100,9 +3158,17 @@ class RustWbcAdapter:
             if self.balance_mode == "viability_verified"
             else (1.0,)
         )
-        accumulated_step_ns = coordinate_step_ns
-        accumulated_allocation_calls = coordinate_allocation_calls
-        accumulated_allocated_bytes = coordinate_allocated_bytes
+        accumulated_step_ns = (
+            coordinate_step_ns + self.single_support_reacquisition_step_ns
+        )
+        accumulated_allocation_calls = (
+            coordinate_allocation_calls
+            + self.single_support_reacquisition_allocation_calls
+        )
+        accumulated_allocated_bytes = (
+            coordinate_allocated_bytes
+            + self.single_support_reacquisition_allocated_bytes
+        )
         for query_index, verification_scale in enumerate(verification_scales, 1):
             if self.balance_mode == "viability_verified":
                 effective_scale = verification_scale * primary_authority
@@ -4361,6 +4427,31 @@ class RustWbcAdapter:
             ),
             "support_load_reserve_allocated_bytes": int(
                 self.support_load_reserve_allocated_bytes
+            ),
+            "single_support_reacquisition_enabled": (
+                self.single_support_reacquisition_enabled
+            ),
+            "single_support_reacquisition_diagnostics": (
+                self.single_support_reacquisition_diagnostics
+            ),
+            "single_support_reacquisition_active": bool(
+                self.single_support_reacquisition_diagnostics[
+                    self.single_support_reacquisition_index["active"]
+                ]
+            ),
+            "single_support_reacquisition_authority": float(
+                self.single_support_reacquisition_diagnostics[
+                    self.single_support_reacquisition_index["authority"]
+                ]
+            ),
+            "single_support_reacquisition_step_ns": int(
+                self.single_support_reacquisition_step_ns
+            ),
+            "single_support_reacquisition_allocation_calls": int(
+                self.single_support_reacquisition_allocation_calls
+            ),
+            "single_support_reacquisition_allocated_bytes": int(
+                self.single_support_reacquisition_allocated_bytes
             ),
             "support_contingency_diagnostics": self.support_contingency_diagnostics,
             "support_contingency_candidate_generalized_acceleration": (

@@ -201,6 +201,27 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "support_load_reserve_allocated_bytes": int(
             metrics.get("wbc_support_load_reserve_allocated_bytes", 0)
         ),
+        "single_support_reacquisition_enabled": bool(
+            metrics.get("wbc_single_support_reacquisition_enabled", False)
+        ),
+        "single_support_reacquisition_active": bool(
+            metrics.get("wbc_single_support_reacquisition_active", False)
+        ),
+        "single_support_reacquisition_authority": float(
+            metrics.get("wbc_single_support_reacquisition_authority", 0.0)
+        ),
+        "single_support_reacquisition_diagnostics": list(
+            metrics.get("wbc_single_support_reacquisition_diagnostics", [0.0] * 14)
+        ),
+        "single_support_reacquisition_step_us": float(
+            metrics.get("wbc_single_support_reacquisition_step_us", 0.0)
+        ),
+        "single_support_reacquisition_allocation_calls": int(
+            metrics.get("wbc_single_support_reacquisition_allocation_calls", 0)
+        ),
+        "single_support_reacquisition_allocated_bytes": int(
+            metrics.get("wbc_single_support_reacquisition_allocated_bytes", 0)
+        ),
         "controller_step_us": float(metrics["controller_step_us"]),
         "worker_step_us": float(metrics["worker_step_us"]),
         "root_tilt_rad": float(metrics["root_tilt_rad"]),

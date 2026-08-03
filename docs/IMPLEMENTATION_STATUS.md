@@ -2,6 +2,23 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current single-support touchdown request — r308 default-off negative evidence
+
+R308 adds a bounded Rust-owned free-leg request after an exact measured
+one-wheel support observation. Persistent Rust computes the lost wheel's
+height/velocity error and a damped Jacobian-transpose joint-acceleration
+request in fixed six-joint storage; the ordinary floating WBC still owns
+measured contact rows, effort limits, hard residuals, and executable authority.
+The 20 s nominal hold remains exactly dormant. On the frozen 8 N lateral trace,
+the request activates at the first measured single-support tick (`40`), reaches
+authority `1.0`, runs at `3.402 µs` p99, and allocates `0` calls/bytes. Causal
+activation, finite output, and hot-path gates pass, but the candidate still
+falls at tick `56`, has no ten-tick bilateral/upright tail, and retains two
+non-admitted `MaxIterations` ticks. It is therefore retained as negative
+evidence and remains evaluation-only/default-off. The next behavior slice is a
+phase-aware, physically sustained landing/reload policy. See
+[`UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md`](../benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
+
 ## Current contact-reacquisition evidence — r305 fail-closed observer
 
 R305 closes the typed evidence seam identified by the R302 recovery eval. An
@@ -34,8 +51,9 @@ loss from tick 34 to tick 53, and reduces maximum lateral displacement from
 The promotion contract requires a five-second bilateral/upright tail, no
 body-ground stall, no non-admission, hard residuals below `1e-8`, and the
 existing timing/allocation gates. Every recovery gate remains red, so the
-action is default-off. The next controller slice composes contact-mode-aware
-single-support control with R305's fail-closed reacquisition evidence. See
+action is default-off. R308 supplies the first bounded contact-mode
+single-support request composed with R305's fail-closed reacquisition evidence;
+physically sustained landing remains open. See
 [`UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md`](../benchmarks/results/upkie-live-load-reserve-action-r307/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md).
 
 ## Current contact-mode reacquisition comparison — r306 negative evidence

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw R308 · single-support touchdown request</title>
+<style>
+:root{color-scheme:dark;--bg:#090d0f;--panel:#11181b;--line:#263338;--text:#d7e3df;--muted:#91a19b;--green:#82e0b6;--red:#ff8d87;--amber:#f4c574}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,sans-serif}main{width:min(920px,100%);margin:auto;padding:clamp(22px,5vw,64px)}h1{font-size:clamp(2.2rem,8vw,5rem);line-height:.94;letter-spacing:-.05em;margin:.25em 0}.kicker{color:var(--green);font:700 12px/1.2 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}.lede{max-width:720px;color:var(--muted);font-size:1.08rem}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:28px 0}.card{border:1px solid var(--line);background:var(--panel);padding:16px;border-radius:10px}.card b{display:block;font-size:1.45rem}.card small{color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:.78rem;text-transform:uppercase}.pass{color:var(--green)}.open{color:var(--red)}code{color:var(--amber)}section{margin-top:38px}.note{border-left:3px solid var(--red);padding:12px 16px;background:var(--panel)}a{color:var(--green)}@media(max-width:680px){.cards{grid-template-columns:1fr 1fr}table{font-size:.82rem;display:block;overflow-x:auto}main{padding:22px 16px}}
+</style>
+</head>
+<body><main>
+<div class="kicker">Bonesaw · R308 · measured consequence</div>
+<h1>Touchdown request.<br>Still not recovery.</h1>
+<p class="lede">A Rust-owned, fixed-capacity free-leg request now reacts to exact measured single support. It is deliberately bounded and still passes through the ordinary floating WBC; the experiment remains default-off because the plant does not sustain recovery.</p>
+<div class="cards">
+  <div class="card"><b>40</b><small>first measured single-support tick</small></div>
+  <div class="card"><b>3.402 µs</b><small>Rust request p99</small></div>
+  <div class="card"><b>0 B</b><small>hot allocations</small></div>
+  <div class="card"><b class="open">tick 56</b><small>disturbed fall boundary</small></div>
+</div>
+<section><h2>Measured request</h2>
+<table><thead><tr><th>Gate</th><th>Result</th></tr></thead><tbody>
+<tr><td>20 s nominal bilateral/upright hold</td><td class="pass">pass</td></tr>
+<tr><td>Nominal request authority</td><td class="pass">exactly 0</td></tr>
+<tr><td>Activation</td><td class="pass">tick 40, after measured single support</td></tr>
+<tr><td>Maximum authority / vertical request</td><td class="pass">1.000 / 2.774 m/s²</td></tr>
+<tr><td>Rust allocations</td><td class="pass">0 calls / 0 bytes</td></tr>
+<tr><td>Ten-tick bilateral/upright recovery tail</td><td class="open">open</td></tr>
+<tr><td>Non-admitted `MaxIterations` ticks</td><td class="open">25, 33</td></tr>
+</tbody></table></section>
+<section><h2>Authority boundary</h2>
+<p>The worker supplies the exact measured mask, root state, joint state, and compiled wheel Jacobian. Rust owns the authority slew, height/velocity law, Jacobian damping, acceleration caps, and diagnostics. Python only adds the returned candidate acceleration before the normal measured-contact floating solve. A touch is not counted as support until the ordinary contact pipeline admits it.</p>
+<p class="note"><strong>No promotion:</strong> causal activation and zero allocation are not physical recovery. Promotion still requires a sustained measured bilateral/upright tail, no non-admitted solve or body-ground stall, hard residuals below <code>1e-8</code>, and the timing/allocation gates.</p>
+</section>
+<section><h2>What remains</h2>
+<p>The missing layer is a phase-aware landing/reload controller that can survive the single-support interval, choose a feasible touchdown geometry, and demonstrate force-backed recontact in MuJoCo. More QP iterations or a longer timeout would not establish that behavior.</p>
+<p><a href="/">Back to the live editor</a> · <a href="/architecture.json">Architecture manifest</a></p>
+</section>
+</main></body></html>

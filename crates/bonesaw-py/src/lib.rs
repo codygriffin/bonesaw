@@ -109,9 +109,11 @@ use bonesaw_cuda::{
 use bonesaw_tools::{
     UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
     UpkieFallSafeState, UpkieLateralViabilityConfig, UpkieLateralViabilityState,
-    UpkiePlanarCaptureConfig, UpkiePlanarCaptureState, UpkieWheelBalancer, UpkieWheelBalancerState,
+    UpkiePlanarCaptureConfig, UpkiePlanarCaptureState, UpkieSingleSupportReacquisitionConfig,
+    UpkieSingleSupportReacquisitionState, UpkieWheelBalancer, UpkieWheelBalancerState,
     UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState, step_upkie_fall_safe,
-    step_upkie_lateral_viability, step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
+    step_upkie_lateral_viability, step_upkie_single_support_reacquisition,
+    step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
 };
 use nalgebra::{DMatrix, DVector, Point3, Translation3, UnitQuaternion, Vector2};
 use numpy::{
@@ -3855,6 +3857,8 @@ struct UpkieBalanceSession {
     lateral_viability_state: UpkieLateralViabilityState,
     wheel_load_reserve_config: UpkieWheelLoadReserveConfig,
     wheel_load_reserve_state: UpkieWheelLoadReserveState,
+    single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig,
+    single_support_reacquisition_state: UpkieSingleSupportReacquisitionState,
     fall_safe_config: UpkieFallSafeConfig,
     fall_safe_state: UpkieFallSafeState,
     support_contingency_config: SupportContingencyConfig,
@@ -3955,6 +3959,8 @@ impl UpkieBalanceSession {
             lateral_viability_state: UpkieLateralViabilityState::default(),
             wheel_load_reserve_config: UpkieWheelLoadReserveConfig::default(),
             wheel_load_reserve_state: UpkieWheelLoadReserveState::default(),
+            single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig::default(),
+            single_support_reacquisition_state: UpkieSingleSupportReacquisitionState::default(),
             fall_safe_config: UpkieFallSafeConfig::default(),
             fall_safe_state: UpkieFallSafeState::default(),
             support_contingency_config: SupportContingencyConfig::default(),
@@ -4019,6 +4025,7 @@ impl UpkieBalanceSession {
         self.planar_state = UpkiePlanarCaptureState::default();
         self.lateral_viability_state = UpkieLateralViabilityState::default();
         self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
+        self.single_support_reacquisition_state = UpkieSingleSupportReacquisitionState::default();
         self.fall_safe_state = UpkieFallSafeState::default();
         self.contact_observation_state = ContactObservationState::default();
         self.contact_reacquisition_state = ContactReacquisitionState::default();
@@ -4293,6 +4300,58 @@ impl UpkieBalanceSession {
         Ok(())
     }
 
+    /// Configure the default-off measured single-support touchdown request.
+    /// The request only becomes active for an exact one-wheel support mask;
+    /// its joint acceleration still requires ordinary floating-WBC admission.
+    fn configure_single_support_reacquisition(
+        &mut self,
+        target_wheel_height_m: f64,
+        vertical_stiffness_per_s2: f64,
+        vertical_damping_per_s: f64,
+        maximum_vertical_acceleration_m_s2: f64,
+        jacobian_damping: f64,
+        authority_attack_per_s: f64,
+        authority_release_per_s: f64,
+        maximum_joint_acceleration_rad_s2: f64,
+    ) -> PyResult<()> {
+        let values = [
+            target_wheel_height_m,
+            vertical_stiffness_per_s2,
+            vertical_damping_per_s,
+            maximum_vertical_acceleration_m_s2,
+            jacobian_damping,
+            authority_attack_per_s,
+            authority_release_per_s,
+            maximum_joint_acceleration_rad_s2,
+        ];
+        if values.iter().any(|value| !value.is_finite())
+            || target_wheel_height_m < 0.0
+            || vertical_stiffness_per_s2 <= 0.0
+            || vertical_damping_per_s <= 0.0
+            || maximum_vertical_acceleration_m_s2 <= 0.0
+            || jacobian_damping <= 0.0
+            || authority_attack_per_s <= 0.0
+            || authority_release_per_s <= 0.0
+            || maximum_joint_acceleration_rad_s2 <= 0.0
+        {
+            return Err(PyValueError::new_err(
+                "single-support reacquisition configuration must be finite with a nonnegative target and positive gains/bounds",
+            ));
+        }
+        self.single_support_reacquisition_config = UpkieSingleSupportReacquisitionConfig {
+            target_wheel_height_m,
+            vertical_stiffness_per_s2,
+            vertical_damping_per_s,
+            maximum_vertical_acceleration_m_s2,
+            jacobian_damping,
+            authority_attack_per_s,
+            authority_release_per_s,
+            maximum_joint_acceleration_rad_s2,
+        };
+        self.single_support_reacquisition_state = UpkieSingleSupportReacquisitionState::default();
+        Ok(())
+    }
+
     #[getter]
     fn capture_diagnostic_names(&self) -> [&'static str; 16] {
         [
@@ -4445,6 +4504,26 @@ impl UpkieBalanceSession {
             "vertical_acceleration_was_saturated",
             "angular_acceleration_was_saturated",
             "joint_acceleration_was_saturated",
+        ]
+    }
+
+    #[getter]
+    fn single_support_reacquisition_diagnostic_names(&self) -> [&'static str; 14] {
+        [
+            "evidence_available",
+            "active",
+            "support_mask",
+            "lost_support_index",
+            "wheel_height_m",
+            "wheel_velocity_m_s",
+            "target_wheel_height_m",
+            "target_error_m",
+            "requested_vertical_acceleration_m_s2",
+            "commanded_vertical_acceleration_m_s2",
+            "authority",
+            "jacobian_gain",
+            "joint_acceleration_was_saturated",
+            "transition_count",
         ]
     }
 
@@ -7449,6 +7528,161 @@ impl UpkieBalanceSession {
             output.acceleration_was_saturated as u8 as f64,
             output.bank_was_saturated as u8 as f64,
             tangent_x.y.atan2(tangent_x.x),
+        ]);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Author a bounded free-leg touchdown request from the measured current
+    /// support mask.  This is a Rust-owned geometric request only: the caller
+    /// must add it to its target acceleration and submit the result to the
+    /// ordinary floating WBC with the same measured mask.
+    #[allow(clippy::too_many_arguments)]
+    fn step_single_support_reacquisition_from_state(
+        &mut self,
+        timestep_seconds: f64,
+        observation_exact: bool,
+        support_mask: u8,
+        root_position: PyReadonlyArray1<'_, f64>,
+        root_quaternion_wxyz: PyReadonlyArray1<'_, f64>,
+        root_twist_world: PyReadonlyArray1<'_, f64>,
+        q: PyReadonlyArray1<'_, f64>,
+        joint_velocity: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray1<'_, f64>,
+        mut joint_acceleration_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let root_position = root_position.as_slice()?;
+        let root_quaternion_wxyz = root_quaternion_wxyz.as_slice()?;
+        let root_twist_world = root_twist_world.as_slice()?;
+        let q = q.as_slice()?;
+        let joint_velocity = joint_velocity.as_slice()?;
+        let diagnostics_out = diagnostics_out.as_slice_mut()?;
+        let joint_acceleration_out = joint_acceleration_out.as_slice_mut()?;
+        let dof = self.program.model.dof;
+        if dof != 6
+            || root_position.len() != 3
+            || root_quaternion_wxyz.len() != 4
+            || root_twist_world.len() != 6
+            || q.len() != dof
+            || joint_velocity.len() != dof
+            || diagnostics_out.len() != 14
+            || joint_acceleration_out.len() != dof
+            || support_mask > 3
+        {
+            return Err(PyValueError::new_err(
+                "single-support reacquisition expects Upkie root[3], quaternion[4], twist[6], q/v[6], mask in [0,3], diagnostics[14], and joint output[6]",
+            ));
+        }
+        if !timestep_seconds.is_finite()
+            || timestep_seconds <= 0.0
+            || root_position
+                .iter()
+                .chain(root_quaternion_wxyz)
+                .chain(root_twist_world)
+                .chain(q)
+                .chain(joint_velocity)
+                .any(|value| !value.is_finite())
+        {
+            return Err(PyValueError::new_err(
+                "single-support reacquisition state must be finite with a positive timestep",
+            ));
+        }
+        let rotation = UnitQuaternion::try_new(
+            nalgebra::Quaternion::new(
+                root_quaternion_wxyz[0],
+                root_quaternion_wxyz[1],
+                root_quaternion_wxyz[2],
+                root_quaternion_wxyz[3],
+            ),
+            1.0e-12,
+        )
+        .ok_or_else(|| {
+            PyValueError::new_err("single-support reacquisition quaternion is degenerate")
+        })?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        self.robot.control_world_from_root = Transform3::from_parts(
+            Translation3::new(root_position[0], root_position[1], root_position[2]),
+            rotation,
+        );
+        self.robot.q.as_mut_slice().copy_from_slice(q);
+        self.robot.v.as_mut_slice().copy_from_slice(joint_velocity);
+        self.program
+            .model
+            .forward_kinematics(&self.robot, &mut self.cache)
+            .map_err(value_error)?;
+        let lost_support_index = match support_mask {
+            1 => 1,
+            2 => 0,
+            _ => 0,
+        };
+        self.program
+            .model
+            .floating_point_jacobian_into(
+                &self.cache,
+                self.support_frames[lost_support_index],
+                Vec3::zeros(),
+                &mut self.wheel_jacobians[lost_support_index],
+            )
+            .map_err(value_error)?;
+        let mut wheel_joint_jacobian = [0.0; 6];
+        for coordinate in 0..6 {
+            wheel_joint_jacobian[coordinate] =
+                self.wheel_jacobians[lost_support_index][(2, coordinate + 6)];
+        }
+        let wheel_velocity_z = (0..6)
+            .map(|column| {
+                self.wheel_jacobians[lost_support_index][(2, column)] * root_twist_world[column]
+            })
+            .sum::<f64>()
+            + (0..6)
+                .map(|coordinate| {
+                    self.wheel_jacobians[lost_support_index][(2, coordinate + 6)]
+                        * joint_velocity[coordinate]
+                })
+                .sum::<f64>();
+        let wheel_height = self.cache.world_from_body[self.support_frames[lost_support_index].0]
+            .translation
+            .vector
+            .z;
+        let joint_velocity: &[f64; 6] = joint_velocity
+            .try_into()
+            .expect("joint velocity length was validated");
+        let output = step_upkie_single_support_reacquisition(
+            timestep_seconds,
+            observation_exact,
+            support_mask,
+            wheel_height,
+            wheel_velocity_z,
+            &wheel_joint_jacobian,
+            joint_velocity,
+            self.single_support_reacquisition_config,
+            &mut self.single_support_reacquisition_state,
+            joint_acceleration_out
+                .try_into()
+                .expect("joint output length was validated"),
+        )
+        .ok_or_else(|| PyValueError::new_err("single-support reacquisition request is invalid"))?;
+        diagnostics_out.copy_from_slice(&[
+            f64::from(output.evidence_available),
+            f64::from(output.active),
+            f64::from(output.support_mask),
+            f64::from(output.lost_support_index),
+            output.wheel_height_m,
+            output.wheel_velocity_m_s,
+            output.target_wheel_height_m,
+            output.target_error_m,
+            output.requested_vertical_acceleration_m_s2,
+            output.commanded_vertical_acceleration_m_s2,
+            output.authority,
+            output.jacobian_gain,
+            f64::from(output.joint_acceleration_was_saturated),
+            f64::from(output.transition_count),
         ]);
         let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
         let allocation_after = allocation_snapshot();

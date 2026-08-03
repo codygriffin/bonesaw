@@ -3,6 +3,19 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R308 adds the first bounded Rust-owned single-support touchdown request. It
+consumes only an exact measured one-wheel mask, the free wheel's measured
+height/velocity, and a preallocated Jacobian; its capped vertical request then
+passes through the ordinary floating WBC. The nominal hold stays dormant, the
+request activates exactly at measured single support, and the Rust path is
+allocation-free (`3.402 µs` p99, `0` calls/bytes). The causal trigger and
+authority boundary are therefore green, but the frozen 8 N MuJoCo trace still
+has no ten-tick bilateral/upright tail and retains non-admitted solves. The
+request remains evaluation-only/default-off. The largest remaining behavior
+chunk is a contact-mode phase policy that can make touchdown physically
+sustainable, not more timeout or QP iterations. See the
+[R308 report](benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
+
 R305 closes the contact-reacquisition evidence seam, but not physical recovery.
 The new allocation-free Rust observer sits downstream of raw/stable/hard
 contact observation and upstream of command authority. It requires an exact
@@ -28,10 +41,10 @@ the 20 s nominal hold, runs at `3.069 µs` p99 with zero allocations, and delays
 first support loss on the 8 N trace from tick 34 to tick 53 while reducing peak
 lateral displacement from `0.1196 m` to `0.0360 m`. It then oscillates, has one
 non-admitted `MaxIterations` tick, and falls at tick 73. A five-second stable
-tail gate rejects this apparent short recovery. The largest remaining chunk is
-contact-mode-aware single-support control composed with R305's qualified
-reacquisition observer; more timeout, QP iterations, or another scalar gain
-screen does not satisfy the complaint. See the
+tail gate rejects this apparent short recovery. R308 now supplies the first
+bounded contact-mode single-support request composed with R305's qualified
+observer; the remaining complaint is physically sustained landing/reload, not
+more timeout, QP iterations, or another scalar gain screen. See the
 [R307 report](benchmarks/results/upkie-live-load-reserve-action-r307/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md).
 
 R306 knocks off the adjacent authority-leak complaint. Six existing capture,
@@ -40,8 +53,9 @@ mask authoritative across primary WBC, admission, forecast, lease, and
 telemetry even when their planner queries use hypothetical support masks. The
 causal, finite, allocation, and timing gates pass, but no profile reacquires
 ten consecutive measured bilateral/upright samples. Physical recovery remains
-open; the next slice is a contact-mode-aware landing/reacquisition request,
-not a larger timeout or a planner scratch mask. See the
+open; R308 supplies the bounded landing request, but the phase-aware physical
+reacquisition consequence remains open. This is not a larger timeout or a
+planner scratch mask. See the
 [R306 report](benchmarks/results/upkie-live-reacquisition-modes-r306/UPKIE_LIVE_REACQUISITION_MODES_R306.md).
 
 R302 closes the gain-calibration question and leaves the real recovery complaint
@@ -50,9 +64,10 @@ sharply bounded. A 160-profile screen selects
 from tick 52 to tick 644, has no `MaxIterations`, stays below `1e-8` hard
 residual, runs at `0.265 ms` controller p99, and allocates zero Rust bytes.
 It then spends 494 ticks below 0.40 m without wheel support and never reaches
-ten consecutive both-wheel/upright ticks, so recovery remains red. The next
-behavior slice is contact reacquisition or a support-changing action; more
-QP iterations or a longer timeout is not evidence of recovery. See the
+ten consecutive both-wheel/upright ticks, so recovery remains red. R308 adds
+the bounded single-support request; a phase-aware support-changing/landing
+action that sustains physical reacquisition is still required. More QP
+iterations or a longer timeout is not evidence of recovery. See the
 [R302 report](benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
 
 R301 closes the first bounded degraded-mode response on that frozen trace. An

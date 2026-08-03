@@ -711,6 +711,191 @@ pub fn step_upkie_wheel_load_reserve(
     })
 }
 
+/// Bounded single-support touchdown request for the Upkie example.
+///
+/// This is deliberately a request author, not a contact estimator or a
+/// torque path.  The caller must supply an exact measured one-wheel support
+/// mask and the free wheel's current height/velocity/Jacobian.  The request
+/// uses a damped Jacobian-transpose lowering law, is slew/effort bounded, and
+/// is intended to be passed through the ordinary floating WBC with the
+/// measured support mask.  No geometric touch is treated as authority.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UpkieSingleSupportReacquisitionConfig {
+    pub target_wheel_height_m: f64,
+    pub vertical_stiffness_per_s2: f64,
+    pub vertical_damping_per_s: f64,
+    pub maximum_vertical_acceleration_m_s2: f64,
+    pub jacobian_damping: f64,
+    pub authority_attack_per_s: f64,
+    pub authority_release_per_s: f64,
+    pub maximum_joint_acceleration_rad_s2: f64,
+}
+
+impl Default for UpkieSingleSupportReacquisitionConfig {
+    fn default() -> Self {
+        Self {
+            target_wheel_height_m: 0.05,
+            vertical_stiffness_per_s2: 90.0,
+            vertical_damping_per_s: 14.0,
+            maximum_vertical_acceleration_m_s2: 20.0,
+            jacobian_damping: 1.0e-4,
+            authority_attack_per_s: 20.0,
+            authority_release_per_s: 30.0,
+            maximum_joint_acceleration_rad_s2: 120.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct UpkieSingleSupportReacquisitionState {
+    pub authority: f64,
+    pub previous_support_mask: u8,
+    pub transition_count: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UpkieSingleSupportReacquisitionOutput {
+    pub evidence_available: bool,
+    pub active: bool,
+    pub support_mask: u8,
+    pub lost_support_index: u8,
+    pub wheel_height_m: f64,
+    pub wheel_velocity_m_s: f64,
+    pub target_wheel_height_m: f64,
+    pub target_error_m: f64,
+    pub requested_vertical_acceleration_m_s2: f64,
+    pub commanded_vertical_acceleration_m_s2: f64,
+    pub authority: f64,
+    pub jacobian_gain: f64,
+    pub joint_acceleration_was_saturated: bool,
+    pub transition_count: u32,
+}
+
+fn valid_single_support_reacquisition_config(
+    config: UpkieSingleSupportReacquisitionConfig,
+) -> bool {
+    config.target_wheel_height_m.is_finite()
+        && config.target_wheel_height_m >= 0.0
+        && config.vertical_stiffness_per_s2.is_finite()
+        && config.vertical_stiffness_per_s2 > 0.0
+        && config.vertical_damping_per_s.is_finite()
+        && config.vertical_damping_per_s > 0.0
+        && config.maximum_vertical_acceleration_m_s2.is_finite()
+        && config.maximum_vertical_acceleration_m_s2 > 0.0
+        && config.jacobian_damping.is_finite()
+        && config.jacobian_damping > 0.0
+        && config.authority_attack_per_s.is_finite()
+        && config.authority_attack_per_s > 0.0
+        && config.authority_release_per_s.is_finite()
+        && config.authority_release_per_s > 0.0
+        && config.maximum_joint_acceleration_rad_s2.is_finite()
+        && config.maximum_joint_acceleration_rad_s2 > 0.0
+}
+
+/// Advance one exact measured single-support touchdown request.  The six
+/// element arrays are fixed to the Upkie canonical joint order, so this
+/// function remains allocation-free and does not perform a runtime name or
+/// topology lookup.
+pub fn step_upkie_single_support_reacquisition(
+    timestep_seconds: f64,
+    observation_exact: bool,
+    support_mask: u8,
+    wheel_height_m: f64,
+    wheel_velocity_m_s: f64,
+    wheel_joint_jacobian: &[f64; 6],
+    joint_velocity: &[f64; 6],
+    config: UpkieSingleSupportReacquisitionConfig,
+    state: &mut UpkieSingleSupportReacquisitionState,
+    joint_acceleration_out: &mut [f64; 6],
+) -> Option<UpkieSingleSupportReacquisitionOutput> {
+    if !timestep_seconds.is_finite()
+        || timestep_seconds <= 0.0
+        || !wheel_height_m.is_finite()
+        || !wheel_velocity_m_s.is_finite()
+        || wheel_joint_jacobian.iter().any(|value| !value.is_finite())
+        || joint_velocity.iter().any(|value| !value.is_finite())
+        || support_mask > 3
+        || !valid_single_support_reacquisition_config(config)
+        || !state.authority.is_finite()
+        || !(0.0..=1.0).contains(&state.authority)
+    {
+        return None;
+    }
+
+    let active = observation_exact && matches!(support_mask, 1 | 2);
+    let lost_support_index = match support_mask {
+        1 => 1,
+        2 => 0,
+        _ => 0,
+    };
+    if support_mask != state.previous_support_mask {
+        state.previous_support_mask = support_mask;
+        state.transition_count = state.transition_count.saturating_add(1);
+    }
+    let target_authority = f64::from(active);
+    let maximum_authority_delta = if target_authority > state.authority {
+        config.authority_attack_per_s * timestep_seconds
+    } else {
+        config.authority_release_per_s * timestep_seconds
+    };
+    state.authority = (state.authority
+        + (target_authority - state.authority)
+            .clamp(-maximum_authority_delta, maximum_authority_delta))
+    .clamp(0.0, 1.0);
+    joint_acceleration_out.fill(0.0);
+
+    let target_error = config.target_wheel_height_m - wheel_height_m;
+    let raw_vertical_acceleration = config.vertical_stiffness_per_s2 * target_error
+        - config.vertical_damping_per_s * wheel_velocity_m_s;
+    let commanded_vertical_acceleration = if active {
+        raw_vertical_acceleration.clamp(
+            -config.maximum_vertical_acceleration_m_s2,
+            config.maximum_vertical_acceleration_m_s2,
+        ) * state.authority
+    } else {
+        0.0
+    };
+    let jacobian_gain = wheel_joint_jacobian
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        + config.jacobian_damping;
+    if !jacobian_gain.is_finite() || jacobian_gain <= 0.0 {
+        return None;
+    }
+    let mut maximum_abs_joint_acceleration: f64 = 0.0;
+    for coordinate in 0..6 {
+        joint_acceleration_out[coordinate] =
+            commanded_vertical_acceleration * wheel_joint_jacobian[coordinate] / jacobian_gain;
+        maximum_abs_joint_acceleration =
+            maximum_abs_joint_acceleration.max(joint_acceleration_out[coordinate].abs());
+    }
+    let mut joint_acceleration_was_saturated = false;
+    if maximum_abs_joint_acceleration > config.maximum_joint_acceleration_rad_s2 {
+        let scale = config.maximum_joint_acceleration_rad_s2 / maximum_abs_joint_acceleration;
+        for acceleration in joint_acceleration_out.iter_mut() {
+            *acceleration *= scale;
+        }
+        joint_acceleration_was_saturated = true;
+    }
+    Some(UpkieSingleSupportReacquisitionOutput {
+        evidence_available: observation_exact,
+        active,
+        support_mask,
+        lost_support_index,
+        wheel_height_m,
+        wheel_velocity_m_s,
+        target_wheel_height_m: config.target_wheel_height_m,
+        target_error_m: target_error,
+        requested_vertical_acceleration_m_s2: raw_vertical_acceleration,
+        commanded_vertical_acceleration_m_s2: commanded_vertical_acceleration,
+        authority: state.authority,
+        jacobian_gain,
+        joint_acceleration_was_saturated,
+        transition_count: state.transition_count,
+    })
+}
+
 /// Bounded transition from the Upkie example's primary balance objectives to
 /// a low-energy contingency. This supervisor does not claim that a fall is
 /// preventable. It makes loss of usable command authority explicit, slews the
@@ -1558,9 +1743,11 @@ mod tests {
         UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
         UpkieFallSafeMode, UpkieFallSafeState, UpkieLateralViabilityConfig,
         UpkieLateralViabilityState, UpkiePlanarCaptureConfig, UpkiePlanarCaptureState,
+        UpkieSingleSupportReacquisitionConfig, UpkieSingleSupportReacquisitionState,
         UpkieWheelBalancer, UpkieWheelBalancerState, UpkieWheelLoadReserveConfig,
         UpkieWheelLoadReserveState, step_upkie_fall_safe, step_upkie_lateral_viability,
-        step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
+        step_upkie_single_support_reacquisition, step_upkie_wheel_load_reserve,
+        write_upkie_fall_safe_contingency,
     };
 
     fn official_balancer() -> (UpkieWheelBalancer, RobotState) {
@@ -2254,5 +2441,76 @@ mod tests {
         .unwrap();
         assert_eq!(output.commanded_zmp_m, 0.0);
         assert_eq!(output.requested_lateral_acceleration_m_s2, 0.0);
+    }
+
+    #[test]
+    fn single_support_reacquisition_lowers_only_from_exact_measured_support() {
+        let mut state = UpkieSingleSupportReacquisitionState::default();
+        let mut acceleration = [0.0; 6];
+        let jacobian = [0.0, 0.25, 0.20, 0.0, 0.0, 0.0];
+        let velocity = [0.0; 6];
+        let output = step_upkie_single_support_reacquisition(
+            0.02,
+            true,
+            1,
+            0.16,
+            0.0,
+            &jacobian,
+            &velocity,
+            UpkieSingleSupportReacquisitionConfig::default(),
+            &mut state,
+            &mut acceleration,
+        )
+        .unwrap();
+        assert!(output.active);
+        assert!(output.authority > 0.0);
+        assert!(output.commanded_vertical_acceleration_m_s2 < 0.0);
+        assert!(acceleration[1] < 0.0);
+        assert!(acceleration[2] < 0.0);
+
+        let before = state;
+        let rejected = step_upkie_single_support_reacquisition(
+            0.02,
+            false,
+            1,
+            0.16,
+            0.0,
+            &jacobian,
+            &velocity,
+            UpkieSingleSupportReacquisitionConfig::default(),
+            &mut state,
+            &mut acceleration,
+        )
+        .unwrap();
+        assert!(!rejected.active);
+        assert!(rejected.authority < before.authority);
+        assert!(acceleration.iter().all(|value| *value == 0.0));
+    }
+
+    #[test]
+    fn single_support_reacquisition_rejects_invalid_evidence_atomically() {
+        let mut state = UpkieSingleSupportReacquisitionState {
+            authority: 0.4,
+            ..UpkieSingleSupportReacquisitionState::default()
+        };
+        let before = state;
+        let mut acceleration = [1.0; 6];
+        assert!(
+            step_upkie_single_support_reacquisition(
+                0.02,
+                true,
+                3,
+                f64::NAN,
+                0.0,
+                &[0.0; 6],
+                &[0.0; 6],
+                UpkieSingleSupportReacquisitionConfig::default(),
+                &mut state,
+                &mut acceleration,
+            )
+            .is_none()
+        );
+        assert_eq!(state, before);
+        assert_eq!(acceleration, [1.0; 6]);
     }
 }

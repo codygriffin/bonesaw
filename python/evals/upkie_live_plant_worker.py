@@ -1004,6 +1004,40 @@ class LiveUpkiePlant:
                 "wbc_support_load_reserve_allocated_bytes": 0
                 if latest_result is None or self.paused
                 else int(latest_result["support_load_reserve_allocated_bytes"]),
+                "wbc_single_support_reacquisition_enabled": bool(
+                    self.controller.single_support_reacquisition_enabled
+                ),
+                "wbc_single_support_reacquisition_active": bool(
+                    latest_result is not None
+                    and not self.paused
+                    and latest_result["single_support_reacquisition_active"]
+                ),
+                "wbc_single_support_reacquisition_authority": 0.0
+                if latest_result is None or self.paused
+                else float(
+                    latest_result["single_support_reacquisition_authority"]
+                ),
+                "wbc_single_support_reacquisition_diagnostics": (
+                    self.controller.single_support_reacquisition_diagnostics.tolist()
+                ),
+                "wbc_single_support_reacquisition_step_us": 0.0
+                if latest_result is None or self.paused
+                else float(
+                    latest_result["single_support_reacquisition_step_ns"]
+                )
+                / 1.0e3,
+                "wbc_single_support_reacquisition_allocation_calls": 0
+                if latest_result is None or self.paused
+                else int(
+                    latest_result[
+                        "single_support_reacquisition_allocation_calls"
+                    ]
+                ),
+                "wbc_single_support_reacquisition_allocated_bytes": 0
+                if latest_result is None or self.paused
+                else int(
+                    latest_result["single_support_reacquisition_allocated_bytes"]
+                ),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),

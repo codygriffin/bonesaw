@@ -59,6 +59,16 @@ start_live() {
     echo "prepare it with scripts/run-upkie-rooted-capture-plant-report.sh" >&2
     exit 1
   fi
+  local bonesaw_plant_venv="${BONESAW_PLANT_PYTHON%/bin/python}"
+  if [[ ! -x "$bonesaw_plant_venv/bin/maturin" ]]; then
+    echo "maturin is unavailable beside live plant Python: $bonesaw_plant_venv" >&2
+    exit 1
+  fi
+  # The worker imports the extension from this exact environment. Rebuild it
+  # before every managed restart so a transient/stale editable .pth cannot
+  # leave the public process on an older Rust ABI.
+  VIRTUAL_ENV="$bonesaw_plant_venv" \
+    "$bonesaw_plant_venv/bin/maturin" develop --release
   if [[ ! -f "$BONESAW_PLANT_WORKER" ]]; then
     echo "live plant worker is missing: $BONESAW_PLANT_WORKER" >&2
     exit 1
