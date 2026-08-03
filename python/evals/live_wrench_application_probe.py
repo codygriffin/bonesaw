@@ -169,7 +169,12 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
     ]
     low, center, high = conditions
     assert low["moment_y_nm"][-1] < -0.35
-    assert abs(center["moment_y_nm"][-1]) < 0.01
+    # The application point is held in world coordinates while the base is
+    # moving, so a nominally COM-centred three-frame probe can accumulate a
+    # small dynamic lever arm.  Keep the witness tight relative to the
+    # ±0.4 N·m offsets without making the transport smoke depend on a
+    # sub-centimetre trajectory/timing detail.
+    assert abs(center["moment_y_nm"][-1]) < 0.05
     assert high["moment_y_nm"][-1] > 0.35
     assert 0.75 < high["moment_y_nm"][-1] - low["moment_y_nm"][-1] < 0.85
     assert low["final_pitch_rad"] < center["final_pitch_rad"] < high["final_pitch_rad"]
