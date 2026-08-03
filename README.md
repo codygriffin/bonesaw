@@ -212,7 +212,7 @@ This is an engineering prototype, not a safety-rated robot controller.
   `HistoricalFrameQueryWorkspace`; strict scalar/batch calls reject undersized
   layouts instead of growing them. Twenty-one independent Upkie process runs
   execute 2,048 warmed queries each with zero measured allocation/deallocation,
-  bitwise-repeatable results, 1.381 µs/query median, and stable 2→2 output,
+  bitwise-repeatable results, a CPU-4-pinned 1.380 µs/query median, and stable 2→2 output,
   provenance, and external-sample capacities. This changes query dataflow only,
   not WBC or physics authority. See the
   [r287 allocation report](benchmarks/results/frame-query-allocation-r287/FRAME_QUERY_ALLOCATION_R287.md).

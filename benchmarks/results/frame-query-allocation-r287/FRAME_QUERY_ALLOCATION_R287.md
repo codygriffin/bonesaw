@@ -14,19 +14,20 @@ remains available for compatibility and delegates to the same semantics.
 | field | value |
 |---|---:|
 | model | `upkie` |
+| CPU affinity | 4 |
 | independent process repeats | 21 |
 | queries per batch | 64 |
 | warmup batches per repeat | 8 |
 | measured batches per repeat | 32 |
 | measured queries per repeat | 2048 |
-| latency minimum | 1.327 µs/query |
-| latency median | 1.381 µs/query |
-| latency mean | 1.974 µs/query |
-| latency p95 | 2.756 µs/query |
-| latency p99 | 2.761 µs/query |
-| latency maximum | 2.762 µs/query |
-| peak-to-peak process jitter | 1.435 µs/query |
-| coefficient of variation | 33.56% |
+| latency minimum | 1.344 µs/query |
+| latency median | 1.380 µs/query |
+| latency mean | 1.442 µs/query |
+| latency p95 | 1.412 µs/query |
+| latency p99 | 2.396 µs/query |
+| latency maximum | 2.642 µs/query |
+| peak-to-peak process jitter | 1.298 µs/query |
+| coefficient of variation | 18.64% |
 | measured allocation calls | 0 |
 | measured allocated bytes | 0 |
 | measured deallocation calls | 0 |
@@ -45,8 +46,8 @@ external reconstruction plus atlas evaluation succeeds.
 
 The prior recorded R286 sample was
 2.918 µs/query; R287's multi-process
-median is 1.381 µs/query
-(-52.67%). R286 retained one recorded timing sample and did not instrument legacy reconstruction allocations; this comparison is contextual, not a paired statistical claim.
+median is 1.380 µs/query
+(-52.68%). R286 retained one recorded timing sample and did not instrument legacy reconstruction allocations; this comparison is contextual, not a paired statistical claim.
 
 No policy step, physics step, actuator command, plant observation, or WBC
 authority admission is part of this result.

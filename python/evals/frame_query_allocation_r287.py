@@ -27,9 +27,14 @@ R286_RESULT = (
 )
 
 
-def run_audit(binary: pathlib.Path, model: pathlib.Path) -> dict[str, Any]:
+def run_audit(
+    binary: pathlib.Path, model: pathlib.Path, cpu: int | None
+) -> dict[str, Any]:
+    command = [str(binary), str(model)]
+    if cpu is not None:
+        command = ["taskset", "-c", str(cpu), *command]
     completed = subprocess.run(
-        [str(binary), str(model)],
+        command,
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -52,7 +57,7 @@ def percentile(samples: list[float], quantile: float) -> float:
     return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
 
 
-def qualify(audits: list[dict[str, Any]]) -> dict[str, Any]:
+def qualify(audits: list[dict[str, Any]], cpu: int | None) -> dict[str, Any]:
     if len(audits) < 5:
         raise ValueError("R287 requires at least five independent process repeats")
     first = audits[0]
@@ -97,6 +102,7 @@ def qualify(audits: list[dict[str, Any]]) -> dict[str, Any]:
         "revision": REVISION,
         "execution": {
             "model": first["model"],
+            "cpu_affinity": cpu,
             "process_repeats": len(audits),
             "query_count": first["query_count"],
             "warmup_batches_per_repeat": first["warmup_batches"],
@@ -189,6 +195,7 @@ remains available for compatibility and delegates to the same semantics.
 | field | value |
 |---|---:|
 | model | `{execution['model']}` |
+| CPU affinity | {execution['cpu_affinity'] if execution['cpu_affinity'] is not None else 'unbound'} |
 | independent process repeats | {execution['process_repeats']} |
 | queries per batch | {execution['query_count']} |
 | warmup batches per repeat | {execution['warmup_batches_per_repeat']} |
@@ -239,11 +246,20 @@ def main() -> None:
         "--model", type=pathlib.Path, default=ROOT / "models/upkie/upkie.urdf"
     )
     parser.add_argument("--repeats", type=int, default=21)
+    parser.add_argument(
+        "--cpu",
+        type=int,
+        default=4,
+        help="pin each measured process to one CPU; pass -1 to leave unbound",
+    )
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     if args.repeats < 5:
         parser.error("--repeats must be at least 5")
-    result = qualify([run_audit(args.binary, args.model) for _ in range(args.repeats)])
+    cpu = None if args.cpu < 0 else args.cpu
+    result = qualify(
+        [run_audit(args.binary, args.model, cpu) for _ in range(args.repeats)], cpu
+    )
     if not args.check_only:
         RESULT_DIR.mkdir(parents=True, exist_ok=True)
         RESULT.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")

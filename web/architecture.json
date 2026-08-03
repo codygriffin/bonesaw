@@ -3,7 +3,7 @@
   "revision": "frame-query-allocation-r287",
   "updated": "2026-08-03",
   "stage": "R287 makes historical robot/external reconstruction and frame-query batching explicitly caller-owned and allocation-stable · r287",
-  "checkpoint": "R287 adds strict scalar/batch queries over one HistoricalFrameQueryWorkspace. Twenty-one independent Upkie process runs execute 2,048 warmed queries each with zero measured allocation/deallocation calls or bytes, bitwise repeatability, stable 2→2 capacities, and 1.381 microseconds/query median. Undersized layouts fail as typed errors; the older allocating API remains compatible. This changes query dataflow only and admits no WBC, physics, plant, or command authority.",
+  "checkpoint": "R287 adds strict scalar/batch queries over one HistoricalFrameQueryWorkspace. Twenty-one independent CPU-4-pinned Upkie process runs execute 2,048 warmed queries each with zero measured allocation/deallocation calls or bytes, bitwise repeatability, stable 2→2 capacities, and 1.380 microseconds/query median. Undersized layouts fail as typed errors; the older allocating API remains compatible. This changes query dataflow only and admits no WBC, physics, plant, or command authority.",
   "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R287 closes the legacy reconstruction-allocation caveat without changing controller behavior. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
   "flow": [
     {
@@ -1104,7 +1104,7 @@
     {
       "name": "R287 allocation-stable historical frame queries",
       "result": "strict caller-owned query path pass · zero measured allocations · authority unchanged",
-      "detail": "RobotHistory and ExternalFrameHistory reconstruct into one fixed-layout HistoricalFrameQueryWorkspace; strict scalar and batch entry points reject undersized layout/capacity before reconstruction and commit retained output only after successful atlas evaluation. Twenty-one independent Upkie processes each run 64 queries × 32 measured batches after warmup: all observe zero allocation calls, zero allocated bytes, zero deallocations, bitwise repeatability, stable 2→2 capacities, and a 1.381 microsecond/query median. The R286 2.918 microsecond sample is contextual only, not a paired statistical baseline.",
+      "detail": "RobotHistory and ExternalFrameHistory reconstruct into one fixed-layout HistoricalFrameQueryWorkspace; strict scalar and batch entry points reject undersized layout/capacity before reconstruction and commit retained output only after successful atlas evaluation. Twenty-one independent CPU-4-pinned Upkie processes each run 64 queries × 32 measured batches after warmup: all observe zero allocation calls, zero allocated bytes, zero deallocations, bitwise repeatability, stable 2→2 capacities, and a 1.380 microsecond/query median. The R286 2.918 microsecond sample is contextual only, not a paired statistical baseline.",
       "report": "/FRAME_QUERY_ALLOCATION_R287.html"
     },
     {
@@ -2580,7 +2580,7 @@
         "name": "Historical query dataflow · r287",
         "detail": "Robot state, external samples and provenance, model cache, rooted-frame inputs, atlas snapshot, and retained outputs are caller-owned. Strict query entry points reject layout/capacity mismatch rather than allocating; the compatibility API remains explicitly allocating. This layer reads retained history and answers map/odom/control-world/body transforms only. It cannot run WBC, advance physics, emit a command, or grant authority.",
         "signal": "robot/external provenance · support interval · output/workspace capacity · allocation calls/bytes/deallocations · repeat bits · query latency",
-        "value": "21 PROCESSES · 43,008 QUERIES · 0 ALLOC / 0 B / 0 DEALLOC · CAPACITY 2→2 · BITWISE PASS · MEDIAN 1.381 µS · AUTH NO",
+        "value": "CPU 4 · 21 PROCESSES · 43,008 QUERIES · 0 ALLOC / 0 B / 0 DEALLOC · CAPACITY 2→2 · BITWISE PASS · MEDIAN 1.380 µS · AUTH NO",
         "pressure": 0.03,
         "state": "ok"
       },

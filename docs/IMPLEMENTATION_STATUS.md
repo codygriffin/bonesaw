@@ -11,7 +11,7 @@ robot state, external samples/provenance, model cache, atlas inputs/snapshot,
 and retained outputs; undersized storage is a typed error. Twenty-one
 independent Upkie process runs execute 2,048 warmed queries each with zero
 measured allocations, bytes, or deallocations, bitwise repeatability, stable
-2→2 capacities, and a 1.381 µs/query median. This is a query/dataflow result
+2→2 capacities, and a CPU-4-pinned 1.380 µs/query median. This is a query/dataflow result
 only and grants no WBC, physics, plant, or command authority. See
 [`FRAME_QUERY_ALLOCATION_R287.md`](../benchmarks/results/frame-query-allocation-r287/FRAME_QUERY_ALLOCATION_R287.md).
 
