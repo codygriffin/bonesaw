@@ -121,6 +121,14 @@ explicit cross-tick progress/tracking-debt supervisor or exact work reduction,
 not another fixed Style count. See the
 [r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
 
+R291 rejects the guarded row-Gram task pseudoinverse on the integrated G1
+holdout. It lowers one observed p99 below 5 ms, but diverges at tick 0 on
+63/113 retained arrays and worsens root/CoM/stance-foot RMS by
+71.8%/72.9%/77.5%. Hard feasibility remains intact, so the ordinary complaint
+is still exact Preference/Style work reduction or a continuous progress
+supervisor; timing alone cannot admit this rewrite. See the
+[r291 row-Gram report](benchmarks/results/g1-row-gram-task-r291/G1_ROW_GRAM_TASK_R291.md).
+
 R292 rejects the next exact kernel rewrite as well. A raw-pointer
 sweep-boundary energy re-anchor is byte-exact across four 112-array pairs, but
 retires 0.0304% more instructions on average and regresses every paired

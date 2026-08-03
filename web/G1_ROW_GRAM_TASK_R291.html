@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 row-Gram pseudoinverse · R291</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 guarded row-Gram pseudoinverse · R291</h1>
+<blockquote>Arithmetic candidate **REJECTED** · hard residuals **PASS** · tracking **FAIL** · authority **CLOSED**.</blockquote>
+<p>R291 enables the existing `row-gram-task-pseudoinverse-experiment` feature without changing the production default. It is a guarded factorization shortcut for well-conditioned wide task projections; the frozen integrated G1 replay is the required semantic holdout.</p>
+<h2>Frozen policy/physics-free replay</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>p50 µs</th><th>p99 µs</th><th>max µs</th><th>root RMS m</th><th>CoM RMS m</th><th>stance-foot RMS m</th><th>max root rotation</th></tr></thead><tbody><tr><td>control</td><td>1796.3</td><td>5287.4</td><td>8207.8</td><td>13.288</td><td>13.176</td><td>12.353</td><td>0.607</td></tr><tr><td>row-Gram</td><td>16.3</td><td>4021.5</td><td>8031.1</td><td>22.830</td><td>22.785</td><td>21.925</td><td>1.821</td></tr></tbody></table></div>
+<p>Only 50/113 retained raw arrays match; the first divergence is tick 0 (root/q state). The row-Gram path lowers one-run p99 to 4021.5 µs, but root/CoM/foot RMS rises by 71.8%/72.9%/77.5% and maximum root rotation reaches 1.821 rad.</p>
+<p>Hard dynamics/contact residuals remain 3.880e-09/1.260e-10, so this is a semantic/tracking rejection rather than a hard-feasibility failure. The candidate remains available only for feature-level kernel tests; R284 remains the production Jacobi path.</p>
+<h2>Decision</h2>
+<p>Do not promote the row-Gram factorization. A faster local pseudoinverse is not an acceptable WBC optimization when it changes the floating trace at tick zero. The next CPU slice must preserve arithmetic/semantic state before timing is considered.</p></main></body></html>

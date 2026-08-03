@@ -248,6 +248,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   5 ms and worsens root RMS 10.05%; Style-3/4/6/8 never exhaust and preserve
   every common non-timing array. All finite profiles remain rejected. See the
   [r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
+- R291 rejects the guarded row-Gram task pseudoinverse on the integrated G1
+  holdout. The one-run p99 falls to 4.022 ms, but only 50/113 retained arrays
+  remain exact from tick 0 and root/CoM/stance-foot RMS regresses
+  71.8%/72.9%/77.5%. Hard residuals still pass, so this is a semantic and
+  tracking rejection; the row-Gram path remains opt-in and R284 remains the
+  production default. See the
+  [r291 row-Gram report](benchmarks/results/g1-row-gram-task-r291/G1_ROW_GRAM_TASK_R291.md).
 - R292 rejects a raw-pointer rewrite of the sweep-boundary Jacobi energy
   re-anchor. Four CPU-4-pinned control/candidate pairs preserve all 112
   non-timing arrays byte-for-byte, but the candidate retires 0.0304% more

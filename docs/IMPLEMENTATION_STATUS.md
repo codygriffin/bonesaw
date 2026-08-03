@@ -15,6 +15,18 @@ timing, authority, policy, physics, contact-transfer, or CUDA gate changes.
 See
 [`G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md`](../benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
 
+## Prior CPU optimization audit — r291 guarded row-Gram pseudoinverse
+
+R291 replays the existing default-off `row-gram-task-pseudoinverse-experiment`
+against the frozen 2,317-tick G1 corpus. The candidate is faster on one host
+window (4.022 ms p99 versus 5.287 ms control), but only 50/113 retained arrays
+match and the first divergence is tick 0. Root/CoM/stance-foot RMS regresses
+by 71.8%/72.9%/77.5%; hard dynamics/contact residuals remain below `4e-9` /
+`2e-10`. The factorization is rejected for semantic/tracking reasons and
+remains opt-in only; R284's exact Jacobi path stays the production default.
+No policy, physics, authority, or CUDA gate changes. See
+[`G1_ROW_GRAM_TASK_R291.md`](../benchmarks/results/g1-row-gram-task-r291/G1_ROW_GRAM_TASK_R291.md).
+
 ## Current CPU checkpoint — r288 support-transfer motion headroom
 
 R288 adds a default-off Rust witness for the support-feasible transfer tube.
