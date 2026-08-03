@@ -1138,6 +1138,7 @@ class RustWbcAdapter:
         single_support_reacquisition_config: tuple[float, ...] | None = None,
         measured_landing_enabled: bool = False,
         measured_landing_config: tuple[float, ...] | None = None,
+        measured_landing_envelope_config: tuple[float, ...] | None = None,
         fall_safe_enabled: bool = False,
         fall_safe_primary_blend: bool = True,
         execute_reduced_support: bool = True,
@@ -1795,6 +1796,14 @@ class RustWbcAdapter:
                     "measured_landing_config must contain exactly 9 values"
                 )
             self.balance.configure_measured_landing(*measured_landing_config)
+        if measured_landing_envelope_config is not None:
+            if len(measured_landing_envelope_config) != 4:
+                raise ValueError(
+                    "measured_landing_envelope_config must contain exactly 4 values"
+                )
+            self.balance.configure_measured_landing_envelope(
+                *measured_landing_envelope_config
+            )
         self.measured_landing_diagnostics = np.zeros(
             len(self.balance.measured_landing_diagnostic_names), np.float64
         )
@@ -5230,6 +5239,7 @@ def run_case(
     support_contingency_query_every_tick: bool = False,
     measured_landing_enabled: bool = False,
     measured_landing_config: tuple[float, ...] | None = None,
+    measured_landing_envelope_config: tuple[float, ...] | None = None,
 ) -> dict[str, np.ndarray | int]:
     import bonesaw
 
@@ -5310,6 +5320,7 @@ def run_case(
         support_contingency_query_every_tick=support_contingency_query_every_tick,
         measured_landing_enabled=measured_landing_enabled,
         measured_landing_config=measured_landing_config,
+        measured_landing_envelope_config=measured_landing_envelope_config,
     )
     ticks = int(round(duration / CONTROL_DT))
     substeps = int(round(CONTROL_DT / PHYSICS_DT))
