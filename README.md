@@ -234,6 +234,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   retained only as an opt-in negative experiment. The 5 ms p99 and authority
   gates remain open. See the
   [r289 direct-offset report](benchmarks/results/g1-jacobi-column-offset-pointer-r289/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md).
+- R290 adds a causal, default-off post-transfer Style budget experiment. The
+  support-reachable tube clips first at tick 819; the inclusive nominal prefix
+  remains bit-exact, then a Style-2 ceiling exhausts once at tick 1152. Hard
+  dynamics/contact residuals stay below `1e-8`, but five CPU-4-pinned repeats
+  still average `5.177 ms` p99 and root/CoM/foot RMS regresses by
+  10.0%/10.3%/10.5%. The gate is retained as typed research telemetry and is
+  rejected for walking or authority. See the
+  [r290 post-transfer Style report](benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

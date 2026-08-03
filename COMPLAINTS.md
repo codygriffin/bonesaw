@@ -102,6 +102,17 @@ evidence and R284 stays the default. Ordinary exact Preference/Style work
 reduction and the 5 ms p99 gate remain open. See the
 [r289 direct-offset report](benchmarks/results/g1-jacobi-column-offset-pointer-r289/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md).
 
+R290 tests whether the existing Style ceiling can be delayed until the support
+trajectory projector actually clips an intent request. The first clip is tick
+819 and the inclusive nominal prefix is exact; Style-2 then exhausts once at
+tick 1152 with hard residuals below `1e-8`. Five CPU-4-pinned repeats still
+average `5.177 ms` p99 and root/CoM/foot RMS regresses by 10.0%/10.3%/10.5%,
+so the candidate is rejected for walking. The gate is retained as a typed,
+default-off research primitive; the open complaint is now a genuinely
+continuous authority/progress supervisor or further exact dense-work
+reduction, not a static call cap. See the
+[r290 post-transfer Style report](benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

@@ -440,6 +440,14 @@ struct FloatingWbcSession {
     no_contact_safe_mode: bool,
     maximum_contact_solve_hold_ticks: usize,
     contact_solve_hold_ticks: usize,
+    /// The preference/style pseudoinverse budgets that are restored at the
+    /// start of every trace.  A post-transfer style budget is deliberately
+    /// kept separate so the nominal prefix remains unbounded until the
+    /// support-transfer witness has clipped an authored command.
+    nominal_preference_task_pseudoinverses: Option<usize>,
+    nominal_style_task_pseudoinverses: Option<usize>,
+    post_transfer_style_task_pseudoinverses: Option<usize>,
+    post_transfer_style_budget_armed: bool,
     localized_contact_fallback_target: Option<usize>,
     /// Default-off bounded search over active contact targets. Each candidate
     /// spends at most one normal-only solve and no unfinished output is used.
@@ -13514,6 +13522,39 @@ impl FloatingWbcSession {
         .unwrap_or(0.0);
         Ok(position_scale.min(motion_scale))
     }
+
+    fn reset_post_transfer_style_budget(&mut self) -> PyResult<()> {
+        let style_budget = if self.post_transfer_style_task_pseudoinverses.is_some() {
+            None
+        } else {
+            self.nominal_style_task_pseudoinverses
+        };
+        self.controller
+            .set_projected_task_pseudoinverse_budgets(
+                self.nominal_preference_task_pseudoinverses,
+                style_budget,
+            )
+            .map_err(value_error)?;
+        self.post_transfer_style_budget_armed = false;
+        Ok(())
+    }
+
+    fn arm_post_transfer_style_budget(&mut self) -> PyResult<()> {
+        if self.post_transfer_style_budget_armed {
+            return Ok(());
+        }
+        let Some(style_budget) = self.post_transfer_style_task_pseudoinverses else {
+            return Ok(());
+        };
+        self.controller
+            .set_projected_task_pseudoinverse_budgets(
+                self.nominal_preference_task_pseudoinverses,
+                Some(style_budget),
+            )
+            .map_err(value_error)?;
+        self.post_transfer_style_budget_armed = true;
+        Ok(())
+    }
 }
 
 #[pymethods]
@@ -13535,6 +13576,7 @@ impl FloatingWbcSession {
         continue_identical_exhausted_feasibility_prefix=false,
         maximum_preference_task_pseudoinverses=None,
         maximum_style_task_pseudoinverses=None,
+        post_transfer_style_task_pseudoinverses=None,
         maximum_contact_solve_hold_ticks=0,
         localized_contact_fallback_target=None,
         automatic_contact_fault_localization=false,
@@ -13629,6 +13671,7 @@ impl FloatingWbcSession {
         continue_identical_exhausted_feasibility_prefix: bool,
         maximum_preference_task_pseudoinverses: Option<usize>,
         maximum_style_task_pseudoinverses: Option<usize>,
+        post_transfer_style_task_pseudoinverses: Option<usize>,
         maximum_contact_solve_hold_ticks: usize,
         localized_contact_fallback_target: Option<usize>,
         automatic_contact_fault_localization: bool,
@@ -13727,6 +13770,18 @@ impl FloatingWbcSession {
         if maximum_style_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls)) {
             return Err(PyValueError::new_err(
                 "maximum_style_task_pseudoinverses must be in 1..=64 when provided",
+            ));
+        }
+        if post_transfer_style_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls)) {
+            return Err(PyValueError::new_err(
+                "post_transfer_style_task_pseudoinverses must be in 1..=64 when provided",
+            ));
+        }
+        if post_transfer_style_task_pseudoinverses.is_some()
+            && maximum_style_task_pseudoinverses.is_some()
+        {
+            return Err(PyValueError::new_err(
+                "post-transfer and nominal style pseudoinverse budgets are mutually exclusive",
             ));
         }
         if maximum_contact_solve_hold_ticks > 16 {
@@ -13941,6 +13996,14 @@ impl FloatingWbcSession {
                 "motion headroom requires an enabled support tube",
             ));
         }
+        if post_transfer_style_task_pseudoinverses.is_some()
+            && (!support_trajectory_tube_project_intent
+                || (!support_trajectory_tube_enabled && !support_reachable_tube_enabled))
+        {
+            return Err(PyValueError::new_err(
+                "post-transfer style budget requires a projected support trajectory or reachable tube",
+            ));
+        }
         if !support_trajectory_tube_enabled
             && !support_reachable_tube_enabled
             && (support_trajectory_tube_preview_ticks > 512
@@ -14065,7 +14128,13 @@ impl FloatingWbcSession {
                 reuse_identical_hard_feasibility_seed,
                 continue_identical_exhausted_feasibility_prefix,
                 maximum_preference_task_pseudoinverses,
-                maximum_style_task_pseudoinverses,
+                maximum_style_task_pseudoinverses: if post_transfer_style_task_pseudoinverses
+                    .is_some()
+                {
+                    None
+                } else {
+                    maximum_style_task_pseudoinverses
+                },
                 ..DynamicWbcConfig::default()
             },
         )
@@ -14139,6 +14208,10 @@ impl FloatingWbcSession {
             no_contact_safe_mode: false,
             maximum_contact_solve_hold_ticks,
             contact_solve_hold_ticks: 0,
+            nominal_preference_task_pseudoinverses: maximum_preference_task_pseudoinverses,
+            nominal_style_task_pseudoinverses: maximum_style_task_pseudoinverses,
+            post_transfer_style_task_pseudoinverses,
+            post_transfer_style_budget_armed: false,
             localized_contact_fallback_target,
             automatic_contact_fault_localization,
             support_transition_config: SupportTransitionConfig::default(),
@@ -14718,6 +14791,7 @@ impl FloatingWbcSession {
         self.reference_phase = 0.0;
         self.reference_phase_rate = 1.0;
         self.previous_reference_phase_rate = 1.0;
+        self.reset_post_transfer_style_budget()?;
         Ok(())
     }
 
@@ -16219,6 +16293,10 @@ impl FloatingWbcSession {
             ));
         }
 
+        // A session can be reused for multiple corpus traces.  Always begin
+        // from the nominal prefix so a prior clipped trace cannot leak its
+        // post-transfer style ceiling into a fresh replay.
+        self.reset_post_transfer_style_budget()?;
         let contact_omega = std::f64::consts::TAU;
         let posture_omega = std::f64::consts::TAU;
         for tick in 0..ticks {
@@ -18845,6 +18923,12 @@ impl FloatingWbcSession {
                 cumulative_feasibility_polish_jacobi_sweeps_by_stage_out[[tick, stage]] =
                     solve_attempts.feasibility_polish_jacobi_sweeps_by_stage[stage]
                         .min(u32::MAX as usize) as u32;
+            }
+            // Arm only after this tick has fully completed.  The clipping
+            // tick itself therefore retains the nominal unbounded style
+            // prefix; the bounded style solve begins on the following tick.
+            if support_trajectory_tube_clipped {
+                self.arm_post_transfer_style_budget()?;
             }
             reference_phase_target_rate_out[tick] = phase_target_rate;
             reference_phase_required_time_out[tick] = phase_required_time_seconds;

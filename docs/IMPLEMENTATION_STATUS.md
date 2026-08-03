@@ -17,6 +17,19 @@ closes the typed joint-headroom input seam, but does not admit walking,
 contact, timing, thermal, plant, or hardware authority. See
 [`JOINT_MOTION_HEADROOM_R288.md`](../benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).
 
+## Current CPU WBC timing experiment — r290 post-transfer Style budget
+
+R290 arms the existing terminal Style projected-solve ceiling only after the
+support-reachable tube has clipped an intent request. The clipping tick stays
+on the nominal unbounded path; the next solve is the first eligible capped
+solve. On the frozen 2,317-tick G1 replay, the first clip is tick 819 and the
+inclusive prefix through that tick is bit-exact. Style-2 exhausts once at tick
+1152, keeps dynamics/contact residuals below `1e-8`, but raises root/CoM/foot
+RMS by 10.0%/10.3%/10.5% and still misses the 5 ms p99 gate across five
+CPU-4-pinned repeats (mean `5.177 ms`). The gate is retained as a typed,
+default-off research primitive; no walking or authority promotion follows.
+See [`G1_POST_TRANSFER_STYLE_BUDGET_R290.md`](../benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
+
 ## Current CPU optimization audit — r289 direct-offset Jacobi pointer
 
 R289 tests direct base-pointer offsets around the arithmetic-identical R284

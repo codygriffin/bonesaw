@@ -1952,6 +1952,31 @@ impl FloatingDynamicWbc {
         &self.model
     }
 
+    /// Update the optional projected-task pseudoinverse budgets without
+    /// rebuilding the floating controller.  The Python trace session uses
+    /// this to arm a bounded low-authority style prefix only after its causal
+    /// support-transfer witness has actually clipped an intent command.
+    ///
+    /// The update preserves the same `1..=64` validation as the public
+    /// constructors and is otherwise a small, allocation-free hot-boundary
+    /// operation.
+    pub fn set_projected_task_pseudoinverse_budgets(
+        &mut self,
+        maximum_preference_task_pseudoinverses: Option<usize>,
+        maximum_style_task_pseudoinverses: Option<usize>,
+    ) -> Result<(), DynamicWbcError> {
+        if maximum_preference_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls))
+            || maximum_style_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls))
+        {
+            return Err(DynamicWbcError::InvalidConfig);
+        }
+        self.config.maximum_preference_task_pseudoinverses = maximum_preference_task_pseudoinverses;
+        self.config.maximum_style_task_pseudoinverses = maximum_style_task_pseudoinverses;
+        self.solver.maximum_preference_task_pseudoinverses = maximum_preference_task_pseudoinverses;
+        self.solver.maximum_style_task_pseudoinverses = maximum_style_task_pseudoinverses;
+        Ok(())
+    }
+
     pub fn collision_pair_count(&self) -> usize {
         self.collision
             .as_ref()

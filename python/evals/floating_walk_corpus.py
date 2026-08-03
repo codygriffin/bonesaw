@@ -117,6 +117,15 @@ def parse_args() -> argparse.Namespace:
         help="optional hard-safe degraded-mode ceiling for terminal Style projected solves",
     )
     parser.add_argument(
+        "--post-transfer-style-task-pseudoinverses",
+        type=int,
+        default=None,
+        help=(
+            "arm a Style projected-solve ceiling only after the support "
+            "trajectory/reachable tube has clipped an intent command"
+        ),
+    )
+    parser.add_argument(
         "--maximum-contact-solve-hold-ticks",
         type=int,
         default=0,
@@ -3351,6 +3360,30 @@ def main() -> None:
     if args.precontact_ticks < 0 or args.touchdown_blend_ticks < 0:
         raise SystemExit("transition tick settings must be nonnegative")
     if (
+        args.maximum_preference_task_pseudoinverses is not None
+        and not 1 <= args.maximum_preference_task_pseudoinverses <= 64
+    ):
+        raise SystemExit("--maximum-preference-task-pseudoinverses must be in 1..=64")
+    if (
+        args.maximum_style_task_pseudoinverses is not None
+        and not 1 <= args.maximum_style_task_pseudoinverses <= 64
+    ):
+        raise SystemExit("--maximum-style-task-pseudoinverses must be in 1..=64")
+    if (
+        args.post_transfer_style_task_pseudoinverses is not None
+        and not 1 <= args.post_transfer_style_task_pseudoinverses <= 64
+    ):
+        raise SystemExit(
+            "--post-transfer-style-task-pseudoinverses must be in 1..=64"
+        )
+    if (
+        args.maximum_style_task_pseudoinverses is not None
+        and args.post_transfer_style_task_pseudoinverses is not None
+    ):
+        raise SystemExit(
+            "nominal and post-transfer style pseudoinverse budgets are mutually exclusive"
+        )
+    if (
         not np.isfinite(args.precontact_maximum_acceleration)
         or args.precontact_maximum_acceleration <= 0.0
     ):
@@ -3506,6 +3539,13 @@ def main() -> None:
             args.support_trajectory_tube_project_intent
             and not (
                 args.support_trajectory_tube or args.support_reachable_tube
+            )
+        )
+        or (
+            args.post_transfer_style_task_pseudoinverses is not None
+            and (
+                not args.support_trajectory_tube_project_intent
+                or not (args.support_trajectory_tube or args.support_reachable_tube)
             )
         )
     ):
@@ -3865,6 +3905,9 @@ def main() -> None:
             args.maximum_preference_task_pseudoinverses
         ),
         maximum_style_task_pseudoinverses=args.maximum_style_task_pseudoinverses,
+        post_transfer_style_task_pseudoinverses=(
+            args.post_transfer_style_task_pseudoinverses
+        ),
         maximum_contact_solve_hold_ticks=args.maximum_contact_solve_hold_ticks,
         localized_contact_fallback_target=args.localized_contact_fallback_target,
         automatic_contact_fault_localization=(
@@ -4494,6 +4537,9 @@ def main() -> None:
         "morphology_posture_position_only": args.morphology_posture_position_only,
         "continue_identical_exhausted_feasibility_prefix": (
             args.continue_identical_exhausted_feasibility_prefix
+        ),
+        "post_transfer_style_task_pseudoinverses": (
+            args.post_transfer_style_task_pseudoinverses
         ),
         "maximum_contact_solve_hold_ticks": args.maximum_contact_solve_hold_ticks,
         "localized_contact_fallback_target": args.localized_contact_fallback_target,
