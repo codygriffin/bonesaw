@@ -258,6 +258,9 @@ The reference/Bonesaw near-active masks contain 166/154 states and agree on
 not missing RollingWheel physics. See the
 [R319 report](../benchmarks/results/upkie-pinocchio-rolling-reference-r319/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.md)
 and its [web report](../web/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.html).
+Reproduce it in an isolated environment with
+`scripts/run-upkie-rolling-reference-r319.sh`; set `BONESAW_R319_VENV` to
+override the cache location.
 
 ### Revision r318 root-wrench axis confidence screen
 
