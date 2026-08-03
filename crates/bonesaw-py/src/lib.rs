@@ -375,6 +375,10 @@ struct FloatingWbcSession {
     center_of_mass_task_priority: Priority,
     center_of_mass_omega: f64,
     dcm_balance_enabled: bool,
+    /// Zero preserves continuous DCM operation. A positive value activates
+    /// ahead of authored multi-to-single support losses and remains active
+    /// through the resulting single-support interval.
+    dcm_pre_liftoff_activation_ticks: usize,
     dcm_balance_config: DcmBalanceConfig,
     protected_joint_posture_weight: f64,
     protected_joint_posture_priority: Priority,
@@ -13387,6 +13391,7 @@ impl FloatingWbcSession {
         center_of_mass_task_priority=1,
         center_of_mass_frequency_hz=2.0,
         dcm_balance_enabled=false,
+        dcm_pre_liftoff_activation_ticks=0,
         dcm_feedback_gain_per_second=3.5,
         dcm_support_margin_m=0.01,
         dcm_maximum_horizontal_acceleration_mps2=25.0,
@@ -13467,6 +13472,7 @@ impl FloatingWbcSession {
         center_of_mass_task_priority: u8,
         center_of_mass_frequency_hz: f64,
         dcm_balance_enabled: bool,
+        dcm_pre_liftoff_activation_ticks: usize,
         dcm_feedback_gain_per_second: f64,
         dcm_support_margin_m: f64,
         dcm_maximum_horizontal_acceleration_mps2: f64,
@@ -13695,6 +13701,11 @@ impl FloatingWbcSession {
                 "DCM balance requires a finite four-point support patch and a positive CoM task weight",
             ));
         }
+        if dcm_pre_liftoff_activation_ticks > 512 {
+            return Err(PyValueError::new_err(
+                "dcm_pre_liftoff_activation_ticks must be in 0..=512",
+            ));
+        }
         if balance_feedback_authority_enabled && !dcm_balance_enabled {
             return Err(PyValueError::new_err(
                 "balance-feedback authority requires DCM balance telemetry",
@@ -13914,6 +13925,7 @@ impl FloatingWbcSession {
             center_of_mass_task_priority,
             center_of_mass_omega: std::f64::consts::TAU * center_of_mass_frequency_hz,
             dcm_balance_enabled,
+            dcm_pre_liftoff_activation_ticks,
             dcm_balance_config: DcmBalanceConfig {
                 feedback_gain_per_second: dcm_feedback_gain_per_second,
                 support_margin_m: dcm_support_margin_m,
@@ -15543,6 +15555,7 @@ impl FloatingWbcSession {
         mut dcm_zmp_clipped_out: PyReadwriteArray1<'_, u8>,
         mut dcm_support_vertices_out: PyReadwriteArray1<'_, u8>,
         mut dcm_support_margin_out: PyReadwriteArray1<'_, f64>,
+        mut dcm_pre_liftoff_active_out: PyReadwriteArray1<'_, u8>,
         mut landing_retarget_anchor_out: PyReadwriteArray3<'_, f64>,
         mut landing_retarget_capture_scale_out: PyReadwriteArray2<'_, f64>,
         mut landing_retarget_offset_out: PyReadwriteArray2<'_, f64>,
@@ -15650,6 +15663,7 @@ impl FloatingWbcSession {
         let dcm_zmp_clipped_out = dcm_zmp_clipped_out.as_slice_mut()?;
         let dcm_support_vertices_out = dcm_support_vertices_out.as_slice_mut()?;
         let dcm_support_margin_out = dcm_support_margin_out.as_slice_mut()?;
+        let dcm_pre_liftoff_active_out = dcm_pre_liftoff_active_out.as_slice_mut()?;
         let mut landing_retarget_anchor_out = landing_retarget_anchor_out.as_array_mut();
         let mut landing_retarget_capture_scale_out =
             landing_retarget_capture_scale_out.as_array_mut();
@@ -15756,6 +15770,7 @@ impl FloatingWbcSession {
             && dcm_zmp_clipped_out.len() == ticks
             && dcm_support_vertices_out.len() == ticks
             && dcm_support_margin_out.len() == ticks
+            && dcm_pre_liftoff_active_out.len() == ticks
             && landing_retarget_anchor_out.shape() == [ticks, target_count, 3]
             && landing_retarget_capture_scale_out.shape() == [ticks, target_count]
             && landing_retarget_offset_out.shape() == [ticks, target_count]
@@ -15984,6 +15999,33 @@ impl FloatingWbcSession {
                 self.center_of_mass_omega,
                 100.0,
             );
+            let dcm_balance_active = self.dcm_balance_enabled
+                && if self.dcm_pre_liftoff_activation_ticks == 0 {
+                    true
+                } else {
+                    let current_supports = (0..target_count)
+                        .filter(|target| {
+                            contact_active[[reference_tick, *target]] != 0
+                                && target_active[[reference_tick, *target]] != 0
+                        })
+                        .count();
+                    current_supports == 1
+                        || (current_supports > 1
+                            && (1..=self
+                                .dcm_pre_liftoff_activation_ticks
+                                .min(ticks - reference_tick - 1))
+                                .any(|offset| {
+                                    (0..target_count)
+                                        .filter(|target| {
+                                            contact_active[[reference_tick + offset, *target]] != 0
+                                                && target_active[[reference_tick + offset, *target]]
+                                                    != 0
+                                        })
+                                        .count()
+                                        < current_supports
+                                }))
+                };
+            dcm_pre_liftoff_active_out[tick] = u8::from(dcm_balance_active);
             let centroidal_angular_momentum_task = if self.centroidal_angular_momentum_weight > 0.0
             {
                 self.program
@@ -16752,7 +16794,7 @@ impl FloatingWbcSession {
             dcm_zmp_clipped_out[tick] = 0;
             dcm_support_vertices_out[tick] = 0;
             dcm_support_margin_out[tick] = f64::NAN;
-            if self.dcm_balance_enabled {
+            if dcm_balance_active {
                 let mut support_points = [Vec3::zeros(); 16];
                 let mut support_point_count = 0usize;
                 for target in 0..target_count {
@@ -17013,8 +17055,9 @@ impl FloatingWbcSession {
             for axis in 0..3 {
                 center_of_mass_command_out[[tick, axis]] = desired_center_of_mass[axis];
             }
-            let center_of_mass_task =
-                (self.center_of_mass_task_weight > 0.0).then_some(FloatingCenterOfMassTask {
+            let center_of_mass_task = (self.center_of_mass_task_weight > 0.0
+                && (!self.dcm_balance_enabled || dcm_balance_active))
+                .then_some(FloatingCenterOfMassTask {
                     desired_acceleration_world: desired_center_of_mass,
                     horizontal_only: self.dcm_balance_enabled,
                     priority: self.center_of_mass_task_priority,

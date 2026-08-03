@@ -3,57 +3,19 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R273 closes the narrow absorbing-state complaint: `NormalFallback` now has an
-explicit, default-off route back to `Locked` through a bounded full-lock
-feasibility probe. Rejected probe output is never integrated; Rust restores the
-established normal-only rows and retries once, with admission, rejection, and
-rejection-with-release typed separately. The 0-tick control preserves all 72
-non-timing arrays. Intervals 1/4/8/16/32 do re-lock for up to ten ticks, but
-release at 916/926/976/957/1011 instead of baseline tick 1108; interval 64 admits nothing and
-only adds work. The completed state-machine mechanism has therefore moved out
-of this punch list. The remaining complaint is useful pre-limit prevention and
-compositional recovery: avoid the tick-874 knee-limit/fallback cause, retain
-support through the tick-1108 handoff, and restore bounded root/attitude
-tracking without weakening contact admission or exceeding the CPU budget. See
-the [r273 relock-probe report](benchmarks/results/g1-normal-fallback-relock-probe-r273/G1_NORMAL_FALLBACK_RELOCK_PROBE_R273.md).
-
-R274 rules out the smallest soft position-capture version of that upstream
-fix. Its default-zero stopping-headroom request is exactly dormant, and enabled
-profiles activate at ticks 859–863 on as many as three lower-body joints. They
-still hit the knee limit at tick 875; the best release is 1020, short of 1108,
-and full root RMS remains 14.886–18.989 m. This completed falsifier has moved
-out of the punch list. The remaining behavior complaint is now coupled
-root/foot/support feasibility before the limit event, not more local braking
-gain. See the [r274 position-capture report](benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md).
-
-R275 closes the missing hard-row provenance seam without claiming recovery.
-The allocation-free Rust witness now separates anonymous coordinate-bound
-residue from named dynamics/contact/friction/support/actuator rows, and the
-floating trace snapshots the first solve before a contingency retry overwrites
-it. The cap-8 control preserves all 74 shared R274 non-timing arrays. Its first
-unfinished full-lock solve is tick 875: no coordinate-bound residue and a
-13.781 violation of floating-base world-X dynamics row `0x10000003`. Cap 16/64
-preserve the state and event; 20,000 torque and 30× normal-force ablations are
-trace-exact. A per-foot ablation then localizes the useful contingency: making
-only the right foot normal-only solves while the left stays locked, whereas
-trying the left foot requires releasing left support. Hard knee capture fails
-six ticks earlier and all resource/friction/contact variants remain rejected.
-The remaining complaint is a default-off bounded automatic per-target
-localizer that retains useful support through the tick-1108 handoff, restores
-tracking, and stays below the CPU deadline. See the
-[r275 hard-feasibility report](benchmarks/results/g1-hard-feasibility-witness-r275/G1_HARD_FEASIBILITY_WITNESS_R275.md).
-
-R276 closes that automatic-localizer implementation seam. On a multi-target
-hard failure, Rust tries at most one normal-only solve per represented target
-in stable order, restores every rejected candidate exactly, and integrates
-only a solved candidate. Single-target failures are not probed. The default-off
-trace preserves all 81 shared R275 non-timing arrays; the enabled tick-875 path
-rejects left, admits right on probe two, emits typed status 13, and keeps left
-locked. The walking profile is still rejected: left-only support falls back at
-885 and releases at 886, root/foot RMS regresses to 16.782/16.376 m, and p99 is
-5.216 ms. The remaining complaint is now pre-liftoff coupled root/CoM/support
-shaping or a support-feasible trajectory tube—not more failure-time contact
-selection. See the [r276 automatic-localization report](benchmarks/results/g1-automatic-contact-localization-r276/G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md).
+The open WBC complaint is now explicit support-feasible transfer, not recovery
+state plumbing or another scalar gain. R273–R276 completed bounded relock,
+stopping-headroom, hard-row localization, and automatic per-target contact
+localization mechanisms; their rejected walking profiles are retained in the
+revisioned reports. R277 then proves that the existing DCM/virtual-ZMP task can
+causally improve the tick-874 state and delay the first conflict to tick 926,
+but a frozen eight-profile schedule-bounded screen still releases no later than
+tick 959 versus control 1108 and regresses tracking/timing. Continuous DCM is
+worse. The remaining acceptance criterion is a default-off root/CoM support
+trajectory tube that includes velocity and joint-headroom state, preserves the
+locked support through at least tick 1108, improves bounded tracking, remains
+fail-closed, and meets the sub-5 ms p99 CPU gate. See the
+[r277 transition-gate report](benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md).
 
 ## Open browser gate: viewport frame time
 

@@ -2,7 +2,52 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r274 joint-position stopping-headroom capture
+## Current CPU checkpoint — r277 schedule-bounded DCM transition shaping
+
+R277 adds a default-off, allocation-free Rust schedule gate around the existing
+DCM/virtual-ZMP task. Zero retains historical continuous behavior. A positive
+horizon activates before an authored multi-to-single support loss and stays
+active through the resulting single-support interval. The caller-owned byte
+witness remains separate from DCM residual, support margin, contact admission,
+release, tracking, and timing; no policy or physics step is added.
+
+Dormant replay is bit-exact against R276 on all 82 shared non-timing arrays. A
+frozen eight-profile screen spans weights 1e-5–1e-4 and 5/10-tick previews. The
+best release is still tick 959 versus control 1108. Its tick-874 state is
+causally better—lateral velocity changes from -1.668 to -0.427 m/s, CoM y from
+0.14338 to 0.10696 m, and the right knee leaves its lower limit—so the original
+conflict moves from tick 875 to 926. But root/foot RMS regress to
+19.280/19.059 m, p99 reaches 6.726 ms, and two samples exceed 20 ms. Continuous
+DCM releases at 466. The gate is retained experimental/default-off; every DCM
+profile and authority gate is rejected. The remaining WBC slice is an explicit
+support-feasible root/CoM trajectory tube with velocity and joint-headroom
+state, not another scalar DCM gain. See the
+[`G1_DCM_TRANSITION_GATE_R277.md`](../benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md)
+report.
+
+## Prior CPU checkpoint — r276 automatic contact localization
+
+R276 completes the default-off per-target contact-localization seam predicted by
+R275. After an unfinished full-lock solve with at least two represented
+targets, Rust probes each target in stable order with one normal-only solve;
+failed candidates restore the exact rank-minimal contact pattern, while only a
+solved candidate marks that target `NormalFallback` and integrates its output.
+Single-target failures are deliberately not probed. The PyO3 trace exposes
+attempt count, admitted target, and typed status 13 in caller-owned arrays.
+
+The dormant replay is exact against the retained R275 control on all 81 shared
+non-timing arrays. In the policy-free, physics-free G1 replay, the enabled
+profile spends two probes at tick 875, rejects left, admits right, and keeps the
+left foot locked. It still reaches left-only fallback/release at 885/886 versus
+control release 1108; root/foot RMS becomes 16.782/16.376 m, p99 is 5.216 ms.
+The mechanism passes, the walking profile and
+authority are rejected, and the feature remains default-off. The remaining WBC
+slice is pre-liftoff coupled root/CoM/support shaping or a support-feasible
+trajectory tube, not another failure-time selector. See the
+[`G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md`](../benchmarks/results/g1-automatic-contact-localization-r276/G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md)
+report.
+
+## Prior CPU checkpoint — r274 joint-position stopping-headroom capture
 
 R274 adds `joint_position_capture_acceleration`, an allocation-free scalar
 request based on directional stopping distance plus a bounded reaction-time

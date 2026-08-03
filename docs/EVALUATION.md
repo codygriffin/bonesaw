@@ -2848,6 +2848,52 @@ extension, regenerate both traces, and render the Markdown/HTML decision
 report. The retained artifact is
 [`G1_BOUNDED_CONTACT_CONTINUATION.md`](../benchmarks/results/g1-bounded-contact-continuation-r269/G1_BOUNDED_CONTACT_CONTINUATION.md).
 
+### Revision r277 schedule-bounded DCM transition shaping
+
+`python/evals/g1_dcm_transition_gate_r277.py` evaluates the default-off Rust
+schedule gate around the DCM/virtual-ZMP task. Zero preserves historical
+continuous DCM. A positive horizon activates before an authored multi-to-single
+support loss and remains active through single support. The caller-owned
+`dcm_pre_liftoff_active` byte array is evidence, not authority, and there is no
+per-tick Python loop, policy step, or physics step.
+
+Dormant R277 is bit-exact against the retained R276 control on 82 shared
+non-timing arrays. The frozen 1e-5–1e-4 by 5/10-tick screen rejects all eight
+profiles. Its latest-release row (5e-5, 10 ticks) improves the original tick-874
+lateral state, avoids the right-knee limit, and delays the first conflict to
+926, but releases at 959 versus control 1108, regresses root/foot RMS to
+19.280/19.059 m, and reaches 6.726 ms p99. Continuous DCM releases at 466. The
+mechanism passes; all DCM profiles and authority are rejected.
+
+Run `scripts/run-g1-dcm-transition-gate-r277.sh` to rebuild the extension,
+regenerate the dormant, gated, continuous, and frozen screen traces, and render
+the retained
+[`G1_DCM_TRANSITION_GATE_R277.md`](../benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md)
+report.
+
+### Revision r276 automatic contact localization
+
+`python/evals/g1_automatic_contact_localization_r276.py` evaluates the bounded,
+default-off per-target contact probe introduced after the R275 hard-row
+witness. When the first full-lock solve is unfinished and at least two contact
+targets are represented, Rust spends at most one normal-only solve per target
+in stable order. A failed candidate restores the exact rank-minimal contact
+pattern; only a solved candidate is integrated and reported with status 13.
+Single-target failures skip the search. Probe count and admitted target are
+separate raw arrays, not an authority score.
+
+The dormant R276 replay matches the retained R275 control on all 81 shared
+non-timing arrays. The enabled profile probes twice at tick 875, rejects the
+left candidate, admits the right candidate, then releases at tick 886 versus
+control tick 1108. Root/foot RMS is 16.782/16.376 m and p99 is 5.216 ms. The
+mechanism passes; the walking profile and authority
+are rejected, with zero policy and physics steps.
+
+Run `scripts/run-g1-automatic-contact-localization-r276.sh` to rebuild the
+extension, regenerate both traces, and render the retained
+[`G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md`](../benchmarks/results/g1-automatic-contact-localization-r276/G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md)
+report.
+
 ### Revision r274 joint-position stopping-headroom capture
 
 `python/evals/g1_joint_position_capture_r274.py` evaluates a soft pre-limit

@@ -131,6 +131,27 @@ This is an engineering prototype, not a safety-rated robot controller.
   the knee limit at tick 875 and release by tick 1020 versus baseline 1108.
   Mechanism retained, walking profile and authority rejected. See the
   [r274 position-capture report](benchmarks/results/g1-joint-position-capture-r274/G1_JOINT_POSITION_CAPTURE_R274.md).
+- R276 closes the R275 diagnostic seam with a default-off bounded automatic
+  per-target contact localizer. After a failed multi-target full-lock solve it
+  spends at most one normal-only probe per represented target and integrates
+  only a solved candidate; status 13 and caller-owned arrays expose attempts
+  and the admitted target. The dormant replay preserves all 81 shared R275
+  non-timing arrays. The retained G1 profile probes twice at tick 875, admits
+  the right-foot candidate, then releases at 886 versus control 1108; root/foot
+  RMS is 16.782/16.376 m and p99 is 5.216 ms. The mechanism passes but walking
+  and authority remain rejected/default-off. See the
+  [r276 automatic-localization report](benchmarks/results/g1-automatic-contact-localization-r276/G1_AUTOMATIC_CONTACT_LOCALIZATION_R276.md).
+- R277 adds a default-off Rust schedule gate around the existing DCM/virtual-ZMP
+  task. A positive horizon activates before authored support loss, remains
+  active through single support, and emits a caller-owned byte witness; dormant
+  replay is exact across 82 shared R276 non-timing arrays. A frozen eight-profile
+  small-weight screen and continuous negative control use zero policy and zero
+  physics steps. The selected gated profile improves the tick-874 lateral state,
+  avoids the knee limit, and moves the first conflict to tick 926, but releases
+  at 959, regresses root/foot RMS to 19.280/19.059 m, and reaches 6.726 ms p99.
+  The mechanism stays experimental/default-off; every DCM profile and authority
+  is rejected. See the
+  [r277 transition-gate report](benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

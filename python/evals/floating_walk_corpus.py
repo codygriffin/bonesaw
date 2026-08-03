@@ -170,6 +170,15 @@ def parse_args() -> argparse.Namespace:
         "--dcm-maximum-horizontal-acceleration", type=float, default=25.0
     )
     parser.add_argument(
+        "--dcm-pre-liftoff-activation-ticks",
+        type=int,
+        default=0,
+        help=(
+            "activate DCM authority before authored support loss and retain it "
+            "through single support"
+        ),
+    )
+    parser.add_argument(
         "--center-of-mass-zero-reference-derivatives",
         action="store_true",
         help="track only the CoM position reference; zero preview velocity/acceleration jets",
@@ -1513,6 +1522,7 @@ def summarize(
     dcm_zmp_clipped: np.ndarray,
     dcm_support_vertices: np.ndarray,
     dcm_support_margin: np.ndarray,
+    dcm_pre_liftoff_active: np.ndarray,
     landing_retarget_anchor: np.ndarray,
     landing_retarget_capture_scale: np.ndarray,
     landing_retarget_offset: np.ndarray,
@@ -1549,8 +1559,16 @@ def summarize(
         center_of_mass_command_norm = np.linalg.norm(
             center_of_mass_command[dcm_valid, :2], axis=1
         )
+        active_indices = np.flatnonzero(dcm_pre_liftoff_active)
         dcm_metrics = {
             "enabled": True,
+            "pre_liftoff_active_ticks": int(active_indices.size),
+            "pre_liftoff_first_active_tick": (
+                int(active_indices[0]) if active_indices.size else None
+            ),
+            "pre_liftoff_last_active_tick": (
+                int(active_indices[-1]) if active_indices.size else None
+            ),
             "tracking_rms_m": rms(dcm_error),
             "tracking_p95_m": percentile(dcm_error, 95),
             "zmp_clipped_fraction": float(np.mean(dcm_zmp_clipped[dcm_valid])),
@@ -1594,7 +1612,12 @@ def summarize(
             ),
         }
     else:
-        dcm_metrics = {"enabled": False}
+        dcm_metrics = {
+            "enabled": False,
+            "pre_liftoff_active_ticks": int(
+                np.count_nonzero(dcm_pre_liftoff_active)
+            ),
+        }
     tracking_error = np.linalg.norm(tracked - target_positions, axis=2)
     stance = effective_contact_active[:, :2].astype(bool)
     swing = ~stance
@@ -2978,6 +3001,7 @@ def main() -> None:
         or args.dcm_support_margin < 0.0
         or not np.isfinite(args.dcm_maximum_horizontal_acceleration)
         or args.dcm_maximum_horizontal_acceleration <= 0.0
+        or not 0 <= args.dcm_pre_liftoff_activation_ticks <= 512
         or not np.isfinite(args.upper_body_posture_weight)
         or args.upper_body_posture_weight < 0.0
         or not np.isfinite(args.joint_velocity_envelope_weight)
@@ -3429,6 +3453,7 @@ def main() -> None:
         center_of_mass_task_priority=args.center_of_mass_task_priority,
         center_of_mass_frequency_hz=args.center_of_mass_frequency_hz,
         dcm_balance_enabled=args.center_of_mass_controller == "dcm-zmp",
+        dcm_pre_liftoff_activation_ticks=args.dcm_pre_liftoff_activation_ticks,
         dcm_feedback_gain_per_second=args.dcm_feedback_gain_per_second,
         dcm_support_margin_m=args.dcm_support_margin,
         dcm_maximum_horizontal_acceleration_mps2=(
@@ -3622,6 +3647,7 @@ def main() -> None:
     dcm_zmp_clipped = np.empty(args.ticks, dtype=np.uint8)
     dcm_support_vertices = np.empty(args.ticks, dtype=np.uint8)
     dcm_support_margin = np.empty(args.ticks, dtype=np.float64)
+    dcm_pre_liftoff_active = np.empty(args.ticks, dtype=np.uint8)
     landing_retarget_anchor = np.empty(
         (args.ticks, len(frame_ids), 3), dtype=np.float64
     )
@@ -3739,6 +3765,7 @@ def main() -> None:
         dcm_zmp_clipped,
         dcm_support_vertices,
         dcm_support_margin,
+        dcm_pre_liftoff_active,
         landing_retarget_anchor,
         landing_retarget_capture_scale,
         landing_retarget_offset,
@@ -3842,6 +3869,7 @@ def main() -> None:
         dcm_zmp_clipped,
         dcm_support_vertices,
         dcm_support_margin,
+        dcm_pre_liftoff_active,
         landing_retarget_anchor,
         landing_retarget_capture_scale,
         landing_retarget_offset,
@@ -3914,6 +3942,7 @@ def main() -> None:
         "dcm_maximum_horizontal_acceleration_mps2": (
             args.dcm_maximum_horizontal_acceleration
         ),
+        "dcm_pre_liftoff_activation_ticks": args.dcm_pre_liftoff_activation_ticks,
         "center_of_mass_zero_reference_derivatives": (
             args.center_of_mass_zero_reference_derivatives
         ),
@@ -4088,6 +4117,7 @@ def main() -> None:
         dcm_zmp_clipped=dcm_zmp_clipped,
         dcm_support_vertices=dcm_support_vertices,
         dcm_support_margin=dcm_support_margin,
+        dcm_pre_liftoff_active=dcm_pre_liftoff_active,
         minimum_support_margin=minimum_support_margin,
         landing_retarget_anchor=landing_retarget_anchor,
         landing_retarget_capture_scale=landing_retarget_capture_scale,
