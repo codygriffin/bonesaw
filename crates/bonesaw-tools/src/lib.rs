@@ -4,6 +4,12 @@ use bonesaw_core::{
     RobotState, SignalOp, SignalOutputSpec, TaskSpec, Vec3,
 };
 
+mod upkie_landing;
+pub use upkie_landing::{
+    UPKIE_MEASURED_LANDING_DIAGNOSTIC_WIDTH, UpkieMeasuredLandingConfig,
+    UpkieMeasuredLandingOutput, UpkieMeasuredLandingState, step_upkie_measured_landing,
+};
+
 #[derive(Clone, Copy, Debug)]
 pub struct UpkieWheelBalancerConfig {
     pub wheel_radius: f64,

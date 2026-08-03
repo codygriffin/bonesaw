@@ -1060,6 +1060,60 @@ class LiveUpkiePlant:
                 else int(
                     latest_result["single_support_reacquisition_allocated_bytes"]
                 ),
+                # R309 measured landing is an evaluation-only Rust-owned
+                # phase boundary.  Publish its latest diagnostic vector next
+                # to the older single-support witness so a replay can tell
+                # precontact, touchdown-normal, force-backed qualification,
+                # and contact-mode promotion apart.  Pause/reset fail closed
+                # rather than leaking the previous solve's state.
+                "measured_landing_enabled": bool(
+                    self.controller.measured_landing_enabled
+                ),
+                "measured_landing_active": bool(
+                    self.controller.measured_landing_enabled
+                    and published_contact_state
+                    and latest_result is not None
+                    and latest_result["measured_landing_active"]
+                ),
+                "measured_landing_precontact_active": bool(
+                    self.controller.measured_landing_enabled
+                    and published_contact_state
+                    and latest_result is not None
+                    and latest_result["measured_landing_precontact_active"]
+                ),
+                "measured_landing_touchdown_normal_active": bool(
+                    self.controller.measured_landing_enabled
+                    and published_contact_state
+                    and latest_result is not None
+                    and latest_result["measured_landing_touchdown_normal_active"]
+                ),
+                "measured_landing_reacquisition_qualified": bool(
+                    self.controller.measured_landing_enabled
+                    and published_contact_state
+                    and latest_result is not None
+                    and latest_result["measured_landing_reacquisition_qualified"]
+                ),
+                "measured_landing_diagnostics": (
+                    self.controller.measured_landing_diagnostics.tolist()
+                    if self.controller.measured_landing_enabled
+                    and published_contact_state
+                    else [0.0] * 25
+                ),
+                "measured_landing_contact_modes": (
+                    self.controller.measured_landing_contact_modes.tolist()
+                    if self.controller.measured_landing_enabled
+                    and published_contact_state
+                    else [0, 0]
+                ),
+                "measured_landing_step_us": 0.0
+                if latest_result is None or self.paused
+                else float(self.controller.measured_landing_step_ns) / 1.0e3,
+                "measured_landing_allocation_calls": 0
+                if latest_result is None or self.paused
+                else int(self.controller.measured_landing_allocation_calls),
+                "measured_landing_allocated_bytes": 0
+                if latest_result is None or self.paused
+                else int(self.controller.measured_landing_allocated_bytes),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
