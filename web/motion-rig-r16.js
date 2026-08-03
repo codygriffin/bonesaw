@@ -574,7 +574,7 @@ function renderArchitecture(manifest) {
   );
   if (authority) {
     authoritySection.body.append(
-      element("p", "authority-disclaimer", authority.note),
+      element("p", "authority-disclaimer", authority.current_note || authority.note),
       authorityGroup("Lexicographic layers", authority.layers),
       authorityGroup("Physical and compute resources", authority.resources),
     );

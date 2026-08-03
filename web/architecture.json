@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "live-single-support-reacquisition-r308",
+  "revision": "live-posture-priority-r309",
   "updated": "2026-08-03",
-  "stage": "R308 default-off measured single-support touchdown request · wheel-supported recovery remains red",
-  "checkpoint": "R304 remains an explicit fast-profile evaluation only; the hosted/public worker stays at 250 Hz MuJoCo physics and 50 Hz Rust WBC with a 50 Hz stream. R305 keeps fail-closed measured-load reacquisition evidence independent of authority. R306 restores the caller-owned measured hard-contact mask after viability/support hypotheses across primary WBC, admission, forecast, lease, and telemetry. R307 adds an allocation-free Rust wheel-load reserve action upstream of WBC. R308 adds an allocation-free Rust single-support touchdown request driven only by exact measured support, free-wheel height/velocity, and a preallocated Jacobian. Its causal trigger and authority boundary pass, but the 8 N MuJoCo trace has no sustained bilateral/upright tail, so both actions remain default-off.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the R306 measured-mask authority firewall, fail-closed reacquisition evidence, R307 measured-load reserve state/action, R308 bounded single-support touchdown request, bounded feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, R303 localizes pre-loss load reserve, R304 promotes the faster public rate split, R305 closes measured-load reacquisition evidence, R306 closes the hypothesis-mask telemetry leak, R307 retains a default-off pre-loss reserve action, and R308 retains a default-off touchdown request; neither promotes physical recovery. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
+  "stage": "R309 qualifies leg-posture authority at the public 50 Hz WBC / 250 Hz plant cadence · deliberate contact reacquisition remains default-off",
+  "checkpoint": "R309 fixes the live hierarchy defect that let root/contact tracking starve the six-coordinate hip/knee posture request. Moving the unchanged bounded posture row from priority 1 to priority 0 holds measured bilateral wheel contact for the complete 6 s nominal and 8 N disturbed traces, with zero non-admission, zero hot-path allocation, hard residual below 1e-8, 0.204 ms worst-case candidate p99 WBC time, and 15.3% peak torque utilization. The legacy hierarchy loses nominal contact at tick 61 and disturbed contact at tick 32, then falls. Historical R300-R308 fixtures explicitly retain priority 1; new live construction defaults to priority 0.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the R306 measured-mask firewall, R308's default-off bounded touchdown request, strict lexicographic task authority, bounded fail-closed feasibility, typed hard witnesses, default-off wheel-load reserve, and allocation-free telemetry. R309 promotes only one hierarchy correction: physical wheel contact and bounded leg posture share priority 0, while root/CoM tracking remains priority 1. Python owns immutable corpus orchestration, the replaceable MuJoCo consequence plant, profile selection, and qualification. Nominal standing and the 8 N holdout now remain bilateral for 6 s at the public 50/250/50 cadence. The R308 landing request remains default-off; calibrated actuation/thermal state, authenticated transport, browser frame time, external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -25,6 +25,10 @@
     {
       "name": "Measured single-support touchdown request",
       "detail": "An exact measured one-wheel mask, free-wheel height/velocity, and a compiled six-joint Jacobian enter persistent Rust state · Rust owns authority slew, damped height/velocity control, vertical/joint acceleration caps, and diagnostics · Python adds only the returned bounded candidate before the ordinary floating WBC · geometric touch and hypothetical masks never grant support · R308 activates causally and allocation-free but remains default-off because the frozen MuJoCo trace has no sustained bilateral/upright tail"
+    },
+    {
+      "name": "Support-preserving task hierarchy",
+      "detail": "measured wheel-contact equalities + bounded six-coordinate hip/knee posture stabilization share priority 0 · floating root/CoM tracking remains priority 1 · strict lexicographic solve cannot spend physical support freedom on a lower-authority base target · R309 changes no gains, limits, model, contact evidence, solver budget, policy, or plant · old priority-1 posture remains pinned only in frozen R300-R308 consequence fixtures"
     },
     {
       "name": "Explicit tick input",
@@ -106,6 +110,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r309-live-posture-priority",
+      "title": "Keep wheel contact and leg posture in one physical-support authority layer",
+      "status": "frozen",
+      "detail": "The legacy priority-1 posture row is starved by root/contact hierarchy despite ample torque headroom: nominal contact is lost at tick 61 and the robot falls at tick 82. R309 moves the unchanged weight-1 posture row to priority 0. Nominal and 8 N disturbed traces both complete 300 public-rate ticks with measured 11 contact, zero non-admission, hard residual below 1e-8, zero Rust allocation, 0.204 ms maximum candidate WBC p99, and 15.3% peak torque utilization. Exact semantic replay passes. Historical R300-R308 fixtures explicitly pin priority 1, while new LiveUpkiePlant construction uses priority 0. This is a hierarchy correction, not a policy, timeout, reset, or iteration-budget change."
+    },
     {
       "id": "r308-single-support-touchdown-request",
       "title": "Bound touchdown requests by measured single support",
@@ -1197,6 +1207,12 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R309 live posture-authority qualification",
+      "result": "11/11 gates · 6.000 s nominal + disturbed bilateral hold · 0.204 ms WBC p99 · 15.3% torque · zero allocation",
+      "scope": "one-variable exact-hierarchy A/B · public 50 Hz WBC / 250 Hz MuJoCo / 50 Hz stream · unchanged model, gains, limits, contact evidence, solver budget, and 8 N wrench · legacy nominal/disturbed contact loss at 61/32 and fall at 82/57 · candidates complete all 300 ticks · root RMS 1.98/3.67 mm · CoM RMS 1.53/2.57 mm · exact semantic replay · frozen historical fixtures preserve priority 1 · no lost-contact reacquisition or hardware claim",
+      "href": "/UPKIE_LIVE_POSTURE_PRIORITY_R309.html"
+    },
     {
       "name": "R308 measured single-support touchdown request",
       "result": "causal activation PASS · nominal dormant PASS · zero allocation PASS · physical recovery REJECTED",
@@ -2790,7 +2806,16 @@
   ],
   "authority_stack_example": {
     "note": "R308 MEASURED SINGLE-SUPPORT TOUCHDOWN REQUEST + R307 MEASURED WHEEL-LOAD RESERVE ACTION + R305 FAIL-CLOSED REACQUISITION EVIDENCE + R304 1 KHZ PLANT / 250 HZ WBC CADENCE + R283 BOUNDED FEASIBILITY-POLISH PROFILE + R282 CUMULATIVE SOLVE-ATTEMPT TELEMETRY + R279 SCHEDULE-REACHABLE DCM OBSERVER/REQUEST/SOFT/HARD SPLIT + R278 SUPPORT-TRANSFER TRAJECTORY TUBE + R277 SCHEDULE-BOUNDED DCM + R276 AUTOMATIC CONTACT LOCALIZATION + R275 HARD-FEASIBILITY WITNESS + R274 JOINT-POSITION STOPPING-HEADROOM CAPTURE + R273 BOUNDED NORMALFALLBACK RELOCK PROBE + R272 NORMALFALLBACK TASK-SCALE CAUSAL SPLIT + R271 PER-PATCH SUPPORT-LOAD FLOOR FALSIFIER + R216 G1 CAUSAL-CENTER + SPLIT-KINETIC ZERO-PLANT REPLAY + R215 G1 FINITE-PATCH SPATIAL TRANSITION HOLDOUT + R214 G1 KINETIC IMPULSE ELLIPSOID HOLDOUT + R213 G1 FROZEN GROUPED TRANSITION HOLDOUT + R212 UPKIE GROUPED REACHABLE SET + R211 CROSS-MORPHOLOGY MODEL ORACLE + R210 SPATIAL-CONDITIONED MOMENTUM RESIDUAL + R209 GENERALIZED-MOMENTUM RESIDUAL TUBE + R208 PHYSICS-FREE CONTACT REGULARIZATION + R207 COUPLED DELASSUS CONTACT RESPONSE + R206 SPATIAL CONTACT WRENCH + R205 CONTACT-RESPONSE LOCALIZATION + R204 PASSIVE DIRECTIONAL CONTACT TUBE + R203 CONTINUOUS ACCELERATION INTERVAL + R202 MODEL-OWNED CONTACT RESPONSE + R201 PHYSICAL CONTACT-TRANSITION INTERVAL + R200 EXACT CONTACT-PRESTATE CONDITIONING REJECTION + R199 CAUSAL IMPULSE/VELOCITY-JUMP HOLDOUT + R198 LAGGED-IMPULSE REJECTION + R197 CONTACT-IMPULSE RESIDUAL LOCALIZATION + R196 TERMINAL RESIDUAL CONDITIONING + R195 EXPLICIT SUPPORT-HYPOTHESIS TERMINAL ENVELOPE + R194 ZERO-EFFORT SUPPORT-REALIZATION CALIBRATION + R193 EXACT ZERO-EFFORT TERMINAL BASELINE + R192 TERMINAL-CANDIDATE REALIZATION CALIBRATION + R191 EXACT TERMINAL-IMPACT THREE-WAY CHOOSER + R190 FRESH SUPPORT-FREE BRAKE + R189 CAUSAL FORECAST-IMPROVEMENT GATE + R188 CAUSAL SUPPORT-FREE RETAINED-EFFORT FORECAST SELECTOR + R187 FUTURE-DURATION ORACLE NEGATIVE CONTROL + R186 CONTINUOUS Q15 INEXACT-HOLD AUTHORITY SWEEP + R185 TYPED INEXACT-OBSERVATION HOLD ABLATION + R184 DROPOUT-PHASE CONSEQUENCE + R183 STEADY-DELAY / LATENCY-ONSET CLASSIFICATION + R182 DELAY/DROPOUT/MIRRORED ROBUSTNESS + R181 CURRENT-SUPPORT REALIZATION ABLATION + R180 MEASURED-CONTACT PROGRAM COMPOSITION + R179 GUARDED FLIGHT ACTION + R178 RUST CONTACT-PROGRAM AUTHORITY + MEASURED R177 ENABLE/REACQUISITION DIAGNOSTIC + R176 CAUSAL SELECTION CONSEQUENCE + R175 OBSERVED-SUPPORT REQUEST / SEPARATE WBC ADMISSION + R151–R174 VIABILITY / FORECAST / COMPUTE AUTHORITY + R139 CAUSAL CONTACT + R143 BOUNDED LEASE + R138 CONTACT TRUTH + R137 STALE-COMMAND EXPIRY + R136 FALL-SAFE SUPERVISOR + R135 POLICY-FREE STATE-LOCAL AUTHORITY + R130–R134 ROOTED PHYSICAL EXAMPLES + R90/R97/R98/R99–R121 CPU/BACKEND/OBSERVATION/COMMAND/GEOMETRY AUTHORITY · Observation age, timestamp continuity, joint stopping headroom, fallback/relock state, fallback-task activation time, support load, physical/support hypotheses, candidate availability, contact transition, spatial impulse, response provenance, acceleration uncertainty, interval width, terminal consequence, measured realization, impulse localization, typed WBC admission, retained-command freshness, causal plant consequence, timing, cumulative solver work, and hardware realization remain independent witnesses. No witnesses are aggregated.",
+    "current_note": "R309 PROMOTED SUPPORT HIERARCHY + R308 DEFAULT-OFF LANDING/REACQUISITION + R305 DEFAULT-OFF LOAD RESERVE + R300 MEASURED CONTACT · Physical support, leg posture, root/CoM intent, contact evidence, solver admission, resource margins, timing, allocation, plant consequence, and hardware realization remain separate witnesses. No aggregate health score grants authority.",
     "layers": [
+      {
+        "name": "Physical support hierarchy · R309 promoted default",
+        "detail": "Measured contact equalities and bounded hip/knee posture stabilization occupy priority 0 because both preserve the wheel-supported mechanism. Root and CoM targets occupy priority 1 and may compromise before support is spent. This ordering prevents slow leg divergence that previously looked like a harmless root-tracking compromise until a wheel unloaded.",
+        "signal": "task priority · posture residual · raw/debounced/hard support masks · root/CoM tracking · torque utilization · admission · hard residual · allocation · p99",
+        "value": "300/300 NOMINAL + DISTURBED · CONTACT 11 · NO RESET · NO NONADMISSION · WBC P99 0.204 MS · TORQUE 15.3% · 0 ALLOC",
+        "pressure": 0.153,
+        "state": "ok"
+      },
     {
       "name": "Measured single-support touchdown request · R308",
       "detail": "An exact one-wheel measured mask enables a Rust-owned free-leg height/velocity request through the compiled wheel Jacobian. Authority slew, Jacobian damping, joint/vertical acceleration caps, and transition diagnostics are caller-buffered and allocation-free; the ordinary WBC still admits the candidate. Causal activation passes, but the frozen physical trace has no sustained bilateral/upright tail, so this layer is default-off.",
@@ -3894,6 +3919,7 @@
     ]
   },
   "gaps": [
+    "R309 prevents nominal and 8 N support loss at the public cadence, but R308 has not yet demonstrated deliberate lost-wheel landing followed by a five-second bilateral/upright tail; reacquisition remains default-off.",
     "R296's sequential measured-contact replay passes all 14 cadence, newest-frame edge, 11/10/01/00, debounce, hard-subset, fail-closed pause, no-reset, and exact-replay gates. This closes the contact-admission harness boundary, not the full MuJoCo/WBC floating transfer, tracking, thermal, or hardware gate.",
     "R296 rejects a fixed 58-element Jacobi dot after five pinned pairs preserve 56-array semantics and zero allocations but increase retired instructions in every pair. R293 remains the CPU default; ordinary Preference/Style work, the sub-5 ms p99 gate, and floating walking/contact transfer remain open.",
     "R294 rejects a generation-checked Jacobi rejected-pair cache after every pinned pair increases instructions 1.55537% and branches 6.81245%. R293 therefore remains the exact dense-matvec production default at a 5.175 ms median p99, still above target; ordinary Preference/Style work, walking/contact transfer, and authority gates remain open.",
@@ -3959,6 +3985,7 @@
     "The editor adapter has no authentication. The current Cloudflare Quick Tunnel is intentionally temporary and publicly reachable; it must not carry private robot state or hardware authority until access control and origin policy are added."
   ],
   "feedback_questions": [
+    "R309 places contact equalities and bounded leg posture together at physical-support priority 0, with base/CoM intent at priority 1. Is that the right stable authority boundary, or should posture be split into support-critical and style coordinates with separate limits?",
     "R300 localizes the first live-rate failure to two non-admitted right-support MaxIterations ticks after repeated flight/contact chatter. Should the next controller slice prioritize a retained-support feasibility seed for reacquisition, a bounded contact-free braking command until three fresh samples re-arm support, or a slower supervisor that prevents the state from entering this chatter regime?",
     "R297 closes the timing deadline on this explicitly local native CPU profile but preserves the portable generic miss. Should the next admission target require one portable x86-64-v3 binary envelope, ship per-host qualified profiles with fingerprints, or treat timing as deployment-specific while the next work moves entirely to measured-contact transfer?",
     "R296's sequential 250/50 measured-contact replay now passes the source-cadence and fail-closed harness. Should the next behavior step build a longer evolving G1/MuJoCo source trace through the full floating support transfer, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule still cannot close the transfer gate.",

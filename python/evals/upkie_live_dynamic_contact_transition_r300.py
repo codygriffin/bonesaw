@@ -264,11 +264,21 @@ def run_case(
     controller_balance_mode: str = "capture",
     worker_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    resolved_controller_options = {
+        "joint_posture_priority": 1,
+        **(controller_options or {}),
+    }
+    resolved_worker_options = dict(worker_options or {})
+    # R300-R303 are frozen historical fixtures. Their original adapter used
+    # its standing-posture default; public/live construction now uses the
+    # Rust-balanced initial pose. New evaluations must opt into that change
+    # explicitly so old evidence is not silently rewritten.
+    resolved_worker_options.setdefault("balanced_nominal_joint_target", False)
     worker = LiveUpkiePlant(
         model_path,
-        controller_options=controller_options,
+        controller_options=resolved_controller_options,
         controller_balance_mode=controller_balance_mode,
-        **({} if worker_options is None else worker_options),
+        **resolved_worker_options,
     )
     hello = worker.hello()
     base_body = worker.body_by_name["base"]

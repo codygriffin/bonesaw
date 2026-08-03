@@ -236,6 +236,9 @@ def prepare_case(
         balance,
         balance_mode,
         0.2,
+        # This matrix is a frozen pre-R309 consequence fixture. New live
+        # construction uses the qualified priority-0 posture hierarchy.
+        joint_posture_priority=1,
         fall_safe_enabled=fall_safe_enabled,
         fall_safe_primary_blend=fall_safe_primary_blend,
         execute_reduced_support=execute_reduced_support,

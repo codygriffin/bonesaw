@@ -1108,6 +1108,10 @@ class RustWbcAdapter:
         root_roll_damping: float = 4.4,
         root_lateral_stiffness: float = 18.0,
         root_lateral_damping: float = 8.0,
+        joint_posture_weight: float = 1.0,
+        joint_posture_priority: int = 0,
+        joint_posture_stiffness: float = 60.0,
+        joint_posture_damping: float = 12.0,
         minimum_support_load_fraction: float = 0.0,
         support_load_guard_enabled: bool = False,
         support_load_reserve_action_enabled: bool = False,
@@ -1182,8 +1186,8 @@ class RustWbcAdapter:
             root_height_task_weight=10.0,
             root_horizontal_task_weight=10.0,
             root_horizontal_task_priority=1,
-            joint_posture_weight=1.0,
-            joint_posture_priority=1,
+            joint_posture_weight=joint_posture_weight,
+            joint_posture_priority=joint_posture_priority,
             center_of_mass_task_weight=0.0,
             minimum_support_load_fraction=minimum_support_load_fraction,
         )
@@ -1227,8 +1231,8 @@ class RustWbcAdapter:
                 root_height_task_weight=10.0,
                 root_horizontal_task_weight=10.0,
                 root_horizontal_task_priority=1,
-                joint_posture_weight=1.0,
-                joint_posture_priority=1,
+                joint_posture_weight=joint_posture_weight,
+                joint_posture_priority=joint_posture_priority,
                 center_of_mass_task_weight=0.0,
                 minimum_support_load_fraction=minimum_support_load_fraction,
             )
@@ -1693,6 +1697,15 @@ class RustWbcAdapter:
         self.root_roll_damping = root_roll_damping
         self.root_lateral_stiffness = root_lateral_stiffness
         self.root_lateral_damping = root_lateral_damping
+        if (
+            not math.isfinite(joint_posture_stiffness)
+            or joint_posture_stiffness <= 0.0
+            or not math.isfinite(joint_posture_damping)
+            or joint_posture_damping <= 0.0
+        ):
+            raise ValueError("joint posture gains must be finite and positive")
+        self.joint_posture_stiffness = joint_posture_stiffness
+        self.joint_posture_damping = joint_posture_damping
         self.support_load_guard_enabled = support_load_guard_enabled
         self.support_load_guard_active = False
         self.support_load_guard_authority = 0.0
@@ -2503,7 +2516,8 @@ class RustWbcAdapter:
         self.q[0] = q
         self.v[0] = v
         self.joint_acceleration[0] = (
-            60.0 * (self.nominal_joint_position - q) - 12.0 * v
+            self.joint_posture_stiffness * (self.nominal_joint_position - q)
+            - self.joint_posture_damping * v
         )
         if self.single_support_reacquisition_enabled:
             support_mask = int(self.contact_authority_active[0]) | (

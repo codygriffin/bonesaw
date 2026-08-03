@@ -2,6 +2,26 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current live hierarchy — r309 posture authority qualified
+
+R309 fixes the live hierarchy defect that allowed floating root/contact
+tracking to starve the six-coordinate hip/knee posture row even with ample
+torque headroom. The only candidate change moves that unchanged weight-1
+posture request from priority 1 to priority 0, alongside physical support;
+root and CoM targets remain priority 1. The legacy nominal/disturbed traces
+lose measured bilateral contact at ticks 61/32 and fall at ticks 82/57. Both
+candidates complete 300 public-rate ticks (6 s) with measured `11` contact,
+zero reset or non-admission, hard residual below `1e-8`, zero hot-path Rust
+allocation, controller p99 at `0.204 ms` or less, worker p99 at `2.965 ms` or
+less, and `15.3%` peak torque utilization. Semantic replay is exact.
+
+New `LiveUpkiePlant` construction therefore defaults leg posture to priority
+0. Frozen R300–R308 consequence fixtures explicitly pin priority 1 so their
+historical evidence does not change retroactively. This promotion corrects
+authority ordering; it does not add policy, increase solver iterations, extend
+a timeout, hide a reset, or claim deliberate lost-wheel reacquisition. See
+[`UPKIE_LIVE_POSTURE_PRIORITY_R309.md`](../benchmarks/results/upkie-live-posture-priority-r309/UPKIE_LIVE_POSTURE_PRIORITY_R309.md).
+
 ## Current single-support touchdown request — r308 default-off negative evidence
 
 R308 adds a bounded Rust-owned free-leg request after an exact measured
