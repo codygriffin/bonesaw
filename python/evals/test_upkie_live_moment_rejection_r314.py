@@ -98,6 +98,77 @@ class UpkieLiveMomentRejectionR314Tests(unittest.TestCase):
                 },
             )
 
+    def test_axis_scales_are_explicit_and_rust_owned(self) -> None:
+        from upkie_live_plant_worker import LiveUpkiePlant
+
+        axis_scales = (0.68, 0.68, 0.68, 0.52, 0.52, 0.52)
+        worker = LiveUpkiePlant(
+            ROOT / "models" / "upkie" / "upkie.urdf",
+            controller_options={
+                **r314.CANDIDATE_OPTIONS,
+                "external_wrench_feedforward_axis_scales": axis_scales,
+            },
+        )
+        np.testing.assert_allclose(
+            worker.controller.external_wrench_feedforward_axis_scales,
+            axis_scales,
+        )
+        contract = worker.hello()["external_load_contract"][
+            "wbc_external_wrench_feedforward"
+        ]
+        self.assertEqual(contract["axis_order"], "root_moment_xyz_then_root_force_xyz")
+        self.assertEqual(contract["axis_scales"], list(axis_scales))
+
+        with self.assertRaises(ValueError):
+            LiveUpkiePlant(
+                ROOT / "models" / "upkie" / "upkie.urdf",
+                controller_options={
+                    "external_wrench_feedforward_axis_scales": (0.5,) * 5,
+                },
+            )
+
+    def test_axis_scale_changes_feedforward_consequence_without_changing_public_default(self) -> None:
+        from upkie_live_plant_worker import LiveUpkiePlant
+
+        def delayed_effort(options: dict[str, object]) -> np.ndarray:
+            worker = LiveUpkiePlant(
+                ROOT / "models" / "upkie" / "upkie.urdf",
+                controller_options=options,
+            )
+            body_id = worker.body_by_name["base"]
+            point = worker.data.xipos[body_id] + np.asarray([0.0, 0.0, 0.2])
+            command = {
+                "type": "step",
+                "command_id": 21,
+                "external_load": {
+                    "active": True,
+                    "body": "base",
+                    "force_world": [0.0, 2.0, 0.0],
+                    "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
+                    "request_id": 21,
+                },
+            }
+            worker.step(command)
+            state = worker.step({"type": "step", "command_id": 22})
+            return np.asarray(state["actuator_effort_nm"], np.float64)
+
+        scalar = delayed_effort(dict(r314.CANDIDATE_OPTIONS))
+        split = delayed_effort(
+            {
+                **r314.CANDIDATE_OPTIONS,
+                "external_wrench_feedforward_axis_scales": (0.70, 0.70, 0.70, 0.20, 0.20, 0.20),
+            }
+        )
+        self.assertGreater(float(np.max(np.abs(scalar - split))), 1.0e-7)
+        with self.assertRaises(ValueError):
+            LiveUpkiePlant(
+                ROOT / "models" / "upkie" / "upkie.urdf",
+                controller_options={
+                    "external_wrench_feedforward_axis_scales": (0.5,) * 5 + (1.1,),
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

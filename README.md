@@ -423,6 +423,11 @@ This is an engineering prototype, not a safety-rated robot controller.
   [r314 feed-forward report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md),
   [r315 composition report](benchmarks/results/upkie-live-composed-moment-rejection-r315/UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md), and
   [r316 robustness report](benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
+- R318 adds an optional Rust-owned six-axis root-wrench confidence seam
+  (`moment XYZ` then `force XYZ`) while preserving the legacy scalar and public
+  default. The exploratory split screen changes measured consequences but
+  leaves falls/nonadmissions, so no vector profile is promoted. See the
+  [r318 axis-scale probe](benchmarks/results/upkie-live-root-wrench-axis-scale-probe-r318/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

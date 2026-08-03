@@ -1130,6 +1130,7 @@ class RustWbcAdapter:
         centroidal_angular_momentum_frequency_hz: float = 1.0,
         external_wrench_feedforward_enabled: bool = False,
         external_wrench_feedforward_scale: float = 1.0,
+        external_wrench_feedforward_axis_scales: tuple[float, ...] | None = None,
         joint_posture_weight: float = 1.0,
         joint_posture_priority: int = 0,
         joint_posture_stiffness: float = 60.0,
@@ -1208,6 +1209,28 @@ class RustWbcAdapter:
         self.external_wrench_feedforward_scale = float(
             external_wrench_feedforward_scale
         )
+        if external_wrench_feedforward_axis_scales is None:
+            self.external_wrench_feedforward_axis_scales = None
+            self.external_wrench_feedforward_axis_scales_batch = None
+        else:
+            axis_scales = np.asarray(
+                external_wrench_feedforward_axis_scales, dtype=np.float64
+            )
+            if (
+                axis_scales.shape != (6,)
+                or not np.all(np.isfinite(axis_scales))
+                or np.any(axis_scales < 0.0)
+                or np.any(axis_scales > 1.0)
+            ):
+                raise ValueError(
+                    "external_wrench_feedforward_axis_scales must contain six finite values in [0, 1]"
+                )
+            self.external_wrench_feedforward_axis_scales = axis_scales.copy()
+            # Caller-owned, fixed-shape storage for the one-row live query;
+            # the Rust boundary validates and applies the vector by axis.
+            self.external_wrench_feedforward_axis_scales_batch = axis_scales.reshape(
+                1, 6
+            ).copy()
         self.external_moment_observation_valid = False
         self.centroidal_angular_momentum_rate_world = np.zeros(
             (1, 3), np.float64
@@ -2169,6 +2192,12 @@ class RustWbcAdapter:
                 else None
             ),
             external_wrench_feedforward_scale=self.external_wrench_feedforward_scale,
+            external_wrench_feedforward_axis_scales=(
+                self.external_wrench_feedforward_axis_scales_batch
+                if self.external_wrench_feedforward_axis_scales_batch is not None
+                and self.external_wrench_observation_valid
+                else None
+            ),
         )
 
     def _restore_contact_authority(self) -> None:

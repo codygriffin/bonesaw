@@ -390,6 +390,13 @@ class LiveUpkiePlant:
                 "wbc_external_wrench_feedforward": {
                     "enabled": bool(self.controller.external_wrench_feedforward_enabled),
                     "scale": float(self.controller.external_wrench_feedforward_scale),
+                    "axis_scales": (
+                        self.controller.external_wrench_feedforward_axis_scales.tolist()
+                        if self.controller.external_wrench_feedforward_axis_scales
+                        is not None
+                        else None
+                    ),
+                    "axis_order": "root_moment_xyz_then_root_force_xyz",
                     "moment_reference": "current root-body origin",
                 },
             },

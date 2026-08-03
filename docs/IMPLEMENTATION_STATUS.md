@@ -69,6 +69,15 @@ exactly. Deadlines and all completed upright tails pass, but scale-neighborhood
 and independent-holdout gates do not. See
 [`UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md`](../benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
 
+R318 adds an optional Rust-owned six-axis confidence vector for the delayed
+root wrench, ordered as root moment XYZ followed by root force XYZ. The legacy
+scalar remains the outer factor and the public R310/R314 options remain
+unchanged. A small force/moment screen shows that the vector can change a
+measured actuator consequence, but no tested vector clears every centered and
+lever holdout row: falls and nonadmissions remain. This is an explicit API and
+evaluation seam, not a promoted authority profile. See
+[`UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md`](../benchmarks/results/upkie-live-root-wrench-axis-scale-probe-r318/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md).
+
 ## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
 
 R313 keeps the R312 measured-contact phase boundary and adds a fixed-size Rust

@@ -16140,7 +16140,8 @@ impl FloatingWbcSession {
         feasibility_prefix_resumed_out=None,
         centroidal_angular_momentum_rate_world=None,
         external_wrench_world=None,
-        external_wrench_feedforward_scale=1.0
+        external_wrench_feedforward_scale=1.0,
+        external_wrench_feedforward_axis_scales=None
     ))]
     fn run_oracle_trace(
         &mut self,
@@ -16209,6 +16210,7 @@ impl FloatingWbcSession {
         centroidal_angular_momentum_rate_world: Option<PyReadonlyArray2<'_, f64>>,
         external_wrench_world: Option<PyReadonlyArray2<'_, f64>>,
         external_wrench_feedforward_scale: f64,
+        external_wrench_feedforward_axis_scales: Option<PyReadonlyArray2<'_, f64>>,
     ) -> PyResult<()> {
         // Every call begins from the configured nominal authority. This also
         // self-heals a session after any model error returned from the middle
@@ -16333,6 +16335,13 @@ impl FloatingWbcSession {
         let external_wrench_world = external_wrench_world
             .as_ref()
             .map(PyReadonlyArray2::as_array);
+        // Optional per-axis confidence is ordered exactly like the typed
+        // wrench: [root moment XYZ; root force XYZ].  The legacy scalar is
+        // still applied as an outer factor, so existing callers remain
+        // bit-for-bit equivalent when this vector is absent or all ones.
+        let external_wrench_feedforward_axis_scales = external_wrench_feedforward_axis_scales
+            .as_ref()
+            .map(PyReadonlyArray2::as_array);
         if !external_wrench_feedforward_scale.is_finite()
             || !(0.0..=1.0).contains(&external_wrench_feedforward_scale)
         {
@@ -16444,6 +16453,9 @@ impl FloatingWbcSession {
             || external_wrench_world
                 .as_ref()
                 .is_some_and(|wrench| wrench.shape() != [ticks, 6])
+            || external_wrench_feedforward_axis_scales
+                .as_ref()
+                .is_some_and(|scales| scales.shape() != [ticks, 6])
             || rolling_coordinates.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_coefficients.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_stabilization_gains
@@ -16489,6 +16501,13 @@ impl FloatingWbcSession {
             || external_wrench_world
                 .as_ref()
                 .is_some_and(|wrench| wrench.iter().any(|value| !value.is_finite()))
+            || external_wrench_feedforward_axis_scales
+                .as_ref()
+                .is_some_and(|scales| {
+                    scales
+                        .iter()
+                        .any(|scale| !scale.is_finite() || !(0.0..=1.0).contains(scale))
+                })
             || contact_bases_world.as_ref().is_some_and(|bases| {
                 (0..ticks).any(|tick| {
                     (0..target_count).any(|target| {
@@ -16590,13 +16609,19 @@ impl FloatingWbcSession {
         let root_height_priority = priority(root_height_priority)?;
         for tick in 0..ticks {
             let external_wrench_world = external_wrench_world.map(|wrench| {
+                let scale = |component: usize| {
+                    external_wrench_feedforward_scale
+                        * external_wrench_feedforward_axis_scales
+                            .as_ref()
+                            .map_or(1.0, |scales| scales[[tick, component]])
+                };
                 Force6(nalgebra::SVector::<f64, 6>::new(
-                    wrench[[tick, 0]] * external_wrench_feedforward_scale,
-                    wrench[[tick, 1]] * external_wrench_feedforward_scale,
-                    wrench[[tick, 2]] * external_wrench_feedforward_scale,
-                    wrench[[tick, 3]] * external_wrench_feedforward_scale,
-                    wrench[[tick, 4]] * external_wrench_feedforward_scale,
-                    wrench[[tick, 5]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 0]] * scale(0),
+                    wrench[[tick, 1]] * scale(1),
+                    wrench[[tick, 2]] * scale(2),
+                    wrench[[tick, 3]] * scale(3),
+                    wrench[[tick, 4]] * scale(4),
+                    wrench[[tick, 5]] * scale(5),
                 ))
             });
             if let Some(scales) = generalized_acceleration_limit_scales.as_ref() {

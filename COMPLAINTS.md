@@ -55,6 +55,13 @@ shared frozen states, including CPU, memory, jitter, tracking, divergence, and
 execution windows. Its material wheel-center contact is deliberately not
 equated with Bonesaw's nonholonomic RollingWheel row.
 
+R318 makes the next wrench hypothesis measurable without quietly promoting it:
+the Rust boundary accepts an optional six-axis confidence vector, with separate
+moment and force scales after the legacy scalar. A small centered/lever screen
+changes measured actuator consequences, but every split profile still leaves a
+fall or nonadmission. The robust schedule/lever/scale complaint therefore
+remains open; the vector is an evaluation seam for calibrated evidence only.
+
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated
 pulls finish with an upright tail and all tested moments at or below `1 N·m`

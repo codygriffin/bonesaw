@@ -237,6 +237,19 @@ and timing arrays are retained beside the report. Exact rolling-controller
 parity remains open until an independent solver consumes the same
 nonholonomic row and force basis.
 
+### Revision r318 root-wrench axis confidence screen
+
+R318 keeps the R314 scalar feed-forward path intact while exposing an optional
+fixed six-axis Rust-owned confidence vector in the order `[root moment XYZ;
+root force XYZ]`. The small exploratory screen compares three split profiles
+with the legacy scalar `0.70` over centered and upper-base pulls. The vector
+path changes measured actuator consequences, but at least one vector row still
+falls or is nonadmitted; no profile clears the full holdout and none is
+promoted. This is a typed seam for future calibrated evidence, not a claim
+that force and moment confidence can be tuned independently today. See the
+[R318 probe](../benchmarks/results/upkie-live-root-wrench-axis-scale-probe-r318/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md)
+and its [web report](../web/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.html).
+
 ### Revision r90 live query timing contract
 
 R88's physical trace was valid, but its `solve_us` timing label was not: the

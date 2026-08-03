@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "upkie-placo-dynamic-reference-r317",
+  "revision": "upkie-live-root-wrench-axis-scale-probe-r318",
   "updated": "2026-08-03",
-  "stage": "R317 adds an independent floating Upkie PlaCo reference · exact rolling parity remains open · R316 rejects root-wrench robustness · R310 remains public",
-  "checkpoint": "R317 runs current Rust Bonesaw and PlaCo DynamicsSolver in isolated processes on the same 256 policy-, integration-, and physics-free Upkie states. Both solve every row and retain latency, jitter, CPU, RSS, GC/allocation, tracking, divergence, and eight execution windows. PlaCo's independently implemented weighted QP uses material wheel-center point contacts, not Bonesaw's nonholonomic RollingWheel rows, so the comparison is a nearby full-body reference rather than false exact parity. R316 still rejects root-wrench scale/schedule robustness and R310 remains public.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC and measured contact admission. R317 adds an isolated PlaCo floating-dynamics reference on shared frozen Upkie states while keeping its material point contact visibly distinct from RollingWheel. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens, comparison orchestration, and replaceable MuJoCo consequence; it does not compute production actions. The live plant streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Exact rolling reference parity, robust delay/model calibration, authenticated transport, browser frame time, and hardware realization remain open.",
+  "stage": "R318 adds an exploratory six-axis wrench-confidence seam · R317 nearby PlaCo reference retained · R316 rejects root-wrench robustness · R310 remains public",
+  "checkpoint": "R318 keeps the legacy scalar root-wrench confidence as an outer factor and adds an optional Rust-owned vector ordered root moment XYZ then root force XYZ. The small centered/lever screen changes measured actuator consequences but leaves falls and nonadmissions, so no vector profile is promoted. R317 remains an independent nearby floating PlaCo reference: its material wheel-center point contacts are not exact RollingWheel parity.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC and measured contact admission. R317 adds an isolated PlaCo floating-dynamics reference on shared frozen Upkie states while keeping its material point contact visibly distinct from RollingWheel. R318 adds only an optional six-axis delayed-wrench confidence seam and rejects promotion after its exploratory screen. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens, comparison orchestration, and replaceable MuJoCo consequence; it does not compute production actions. The live plant streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Exact rolling reference parity, robust delay/model calibration, authenticated transport, browser frame time, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -32,7 +32,7 @@
     },
     {
       "name": "Causal external-wrench feed-forward",
-      "detail": "MuJoCo applies the current wrench after the WBC solve · application-body, aggregate-CoM, and root-origin moments remain distinct · root-origin [moment; force] matches [root angular; root-origin linear; joints] and shifts six Rust dynamics rows one tick later · scale 0.7 clears the selected eight rows · R316's sampled scale response is discontinuous and its independent 40-case holdout has one repeated centered +8 N fall/nonadmission · R315 composition also fails · public profile unchanged/default-off"
+      "detail": "MuJoCo applies the current wrench after the WBC solve · application-body, aggregate-CoM, and root-origin moments remain distinct · root-origin [moment; force] matches [root angular; root-origin linear; joints] and shifts six Rust dynamics rows one tick later · legacy scalar 0.7 clears the selected eight rows · optional R318 vector is ordered [moment XYZ; force XYZ], changes measured consequence, but its centered/lever screen still has falls/nonadmissions · R316's sampled scale response is discontinuous and its independent 40-case holdout has one repeated centered +8 N fall/nonadmission · R315 composition also fails · public profile unchanged/default-off"
     },
     {
       "name": "Measured contact admission",
@@ -126,6 +126,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r318-root-wrench-axis-confidence-seam",
+      "title": "Separate force and moment confidence without promoting an uncalibrated wrench",
+      "status": "typed exploratory seam passed · robust holdout rejected · default-off",
+      "detail": "The PyO3 boundary accepts an optional fixed [ticks,6] Rust-owned confidence vector ordered root moment XYZ then root force XYZ, with the legacy scalar retained as an outer factor. R318's centered/upper-lever screen changes measured actuator consequences, but every split profile leaves at least one fall or nonadmission. The public controller and authority stack remain unchanged; contiguous scale, schedule/lever, delay/model, and hardware calibration gates remain open."
+    },
     {
       "id": "r317-upkie-placo-dynamic-reference",
       "title": "Compare floating whole-body implementations without erasing contact semantics",
