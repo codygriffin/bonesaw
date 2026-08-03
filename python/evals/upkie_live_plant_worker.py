@@ -145,11 +145,6 @@ class LiveUpkiePlant:
             "fall_safe_enabled": True,
             "fall_safe_primary_blend": False,
             "control_dt": self.control_dt,
-            # The MuJoCo plant is initialized from the Rust-balanced pose;
-            # targeting a different hard-coded standing pose injects a
-            # persistent joint-space disturbance into an otherwise nominal
-            # hold.
-            "nominal_joint_position": balanced_q,
         }
         controller_options.update(self.controller_options)
         # Contact priming is an evaluation-only receiver operation.  Remove it
@@ -1062,9 +1057,9 @@ class LiveUpkiePlant:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=pathlib.Path)
-    parser.add_argument("--stream-dt", type=float, default=0.020)
-    parser.add_argument("--control-dt", type=float, default=0.004)
-    parser.add_argument("--physics-dt", type=float, default=0.001)
+    parser.add_argument("--stream-dt", type=float, default=STREAM_DT)
+    parser.add_argument("--control-dt", type=float, default=CONTROL_DT)
+    parser.add_argument("--physics-dt", type=float, default=PHYSICS_DT)
     return parser.parse_args()
 
 

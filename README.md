@@ -354,13 +354,23 @@ This is an engineering prototype, not a safety-rated robot controller.
   recovers. Mechanism is green; contact reacquisition remains the next gate.
   See the [r302 support-recovery report](benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
 - R303 adds a fail-closed measured wheel-load reserve witness to the live
-  250/50 plant stream. On the same 8 N lateral trace it triggers at tick 28
-  (left/right loads `28.958/23.426 N`, weaker-wheel fraction `0.4472`), three
-  control ticks before MuJoCo contact loss at tick 31 and the WBC's observed
-  loss at tick 32. The undisturbed control has no false trigger. This is
+  frozen 250/50 plant stream. On the same 8 N lateral trace it triggers at tick
+  28 (left/right loads `28.958/23.426 N`, weaker-wheel fraction `0.4472`),
+  three 50 Hz stream ticks before MuJoCo contact loss at tick 31 and four
+  before the WBC's observed loss at tick 32. The undisturbed control has no
+  false trigger. This is
   telemetry only—no actuator authority is emitted—so strict recovery remains
   open while the next Rust-admitted reserve action is designed. See the
   [r303 support-reserve report](benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
+- R304 separates the public execution rates without changing the 50 Hz browser
+  transport: five 250 Hz Rust WBC ticks run inside each stream frame, each over
+  four 1 kHz MuJoCo substeps. The Rust-balanced initialization is also the
+  nominal joint target. The frozen 50 Hz-WBC baseline falls after `1.640 s`;
+  the public-rate control holds measured `11` for the full `20.000 s` horizon,
+  with `0.005983 rad` peak tilt, `2.197e-11` maximum hard residual, zero Rust
+  allocations, `0.147 ms` controller p99, and `7.268 ms` worker p99. The 8 N
+  lateral holdout still falls at tick 56 and is not promoted. See the
+  [r304 inner-rate report](benchmarks/results/upkie-live-inner-rate-r304/UPKIE_LIVE_INNER_RATE_R304.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

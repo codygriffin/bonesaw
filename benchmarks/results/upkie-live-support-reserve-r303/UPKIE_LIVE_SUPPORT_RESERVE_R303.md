@@ -21,11 +21,11 @@ strictly falling fraction from the preceding 50 Hz sample. On the frozen
 
 The undisturbed control trace has no false trigger. All force samples are
 finite and nonnegative, and the witness never claims actuator authority. This
-closes the measurement/localization seam: the first support failure is
-visible in the force reserve before the binary contact mask arrives. It does
-not close recovery, because no reserve action is yet promoted. The next slice
-is a bounded Rust request generated from this witness, with ordinary WBC
-admission, residual, timing, and physical recovery gates.
+closes the measurement/localization seam: the first support failure is visible
+in the force reserve before the binary contact mask arrives. It does not close
+recovery, because no reserve action is yet promoted. The next slice is a bounded
+Rust request generated from this witness, with ordinary WBC admission, residual,
+timing, and physical recovery gates.
 
 For comparison, the separate `support_load_guard_enabled` evaluation override
 ramps a damping/stiffness guard from the same measured stream. In the recorded
