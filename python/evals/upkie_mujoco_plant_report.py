@@ -544,15 +544,25 @@ class PythonViabilityCoordinatePlanner:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_coordinates=(
+                ROLLING_COORDINATES
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
+            ),
             rolling_velocity_coefficients=(
-                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+                ROLLING_COEFFICIENTS
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_velocity_stabilization_gains=(
-                self.rolling_gains if np.any(self.contact_modes == 3) else None
+                self.rolling_gains
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_maximum_stabilization_accelerations=(
-                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+                self.rolling_corrections
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             root_quaternions_wxyz=batch["root_quaternion"],
             root_angular_velocities_world=batch["root_angular_velocity"],
@@ -2055,15 +2065,25 @@ class RustWbcAdapter:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_coordinates=(
+                ROLLING_COORDINATES
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
+            ),
             rolling_velocity_coefficients=(
-                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+                ROLLING_COEFFICIENTS
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_velocity_stabilization_gains=(
-                self.rolling_gains if np.any(self.contact_modes == 3) else None
+                self.rolling_gains
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_maximum_stabilization_accelerations=(
-                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+                self.rolling_corrections
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             root_quaternions_wxyz=self.root_quaternion,
             root_angular_velocities_world=self.root_angular_velocity,
@@ -2178,15 +2198,25 @@ class RustWbcAdapter:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_coordinates=(
+                ROLLING_COORDINATES
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
+            ),
             rolling_velocity_coefficients=(
-                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+                ROLLING_COEFFICIENTS
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_velocity_stabilization_gains=(
-                self.rolling_gains if np.any(self.contact_modes == 3) else None
+                self.rolling_gains
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             rolling_maximum_stabilization_accelerations=(
-                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+                self.rolling_corrections
+                if self.contact_modes[0] == 3 or self.contact_modes[1] == 3
+                else None
             ),
             root_quaternions_wxyz=self.root_quaternion,
             root_angular_velocities_world=self.root_angular_velocity,

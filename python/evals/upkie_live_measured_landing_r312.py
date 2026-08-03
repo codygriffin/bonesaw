@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""R309 live 250/50 measured-landing phase and contact-mode evaluation.
+"""R312 live 250/50 measured-landing phase and contact-mode evaluation.
 
 This fixture keeps the public-rate MuJoCo worker (250 Hz integration, 50 Hz
-Rust WBC) and compares an explicitly enabled R309 phase-aware landing
+Rust WBC) and compares an explicitly enabled R312 phase-aware landing
 candidate with the same receiver/controller profile with the candidate off.
 The candidate is deliberately evaluation-only and default-off.  A positive
 result requires causal measured activation, bounded phase/mode transitions,
@@ -14,6 +14,7 @@ recovery evidence instead of being hidden by the worker's automatic reset.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import pathlib
@@ -23,9 +24,11 @@ from typing import Any
 import numpy as np
 
 import upkie_live_dynamic_contact_transition_r300 as r300
+import upkie_live_load_reserve_matrix_r310 as r310
+import upkie_live_wrench_envelope_r311 as r311
 
 
-REVISION = "upkie-live-measured-landing-r309"
+REVISION = "upkie-live-measured-landing-r312"
 CONTROL_HZ = 50
 PHYSICS_HZ = 250
 PHYSICS_SUBSTEPS_PER_CONTROL = 5
@@ -33,7 +36,7 @@ CONTROL_DT = 1.0 / CONTROL_HZ
 DEFAULT_NOMINAL_TICKS = 1000
 DEFAULT_DISTURBED_TICKS = 300
 
-# R308 request parameters followed by the R309 precontact horizon.
+# R308 request parameters followed by the R312 precontact horizon.
 CANDIDATE_CONFIG = (0.05, 90.0, 14.0, 20.0, 1.0e-4, 20.0, 30.0, 120.0, 0.20)
 BASE_CONTROLLER_OPTIONS: dict[str, Any] = {
     # Prime only the measured receiver.  This keeps the balanced nominal
@@ -47,6 +50,16 @@ CANDIDATE_CONTROLLER_OPTIONS: dict[str, Any] = {
     "measured_landing_config": CANDIDATE_CONFIG,
 }
 PUBLIC_WORKER_OPTIONS = {"balanced_nominal_joint_target": True}
+COMPOSITION_TICKS = 450
+COMPOSITION_FORCES_N = r311.FORCES_N
+COMPOSITION_OFFSET_Z_M = 0.25
+COMPOSITION_WINDOWS = r311.SCHEDULES["repeated"]
+PUBLIC_CONTROLLER_OPTIONS = dict(r310.CANDIDATE_OPTIONS)
+PUBLIC_LANDING_CONTROLLER_OPTIONS = {
+    **PUBLIC_CONTROLLER_OPTIONS,
+    "measured_landing_enabled": True,
+    "measured_landing_config": CANDIDATE_CONFIG,
+}
 
 DIAGNOSTIC_INDEX = {
     "physics_observation_exact": 0,
@@ -172,10 +185,144 @@ def _action_summary(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _semantic_digest(case: dict[str, Any]) -> str:
+    return hashlib.sha256(
+        json.dumps(r300._semantic(case), sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _run_composition_case(
+    model: pathlib.Path,
+    force_y_n: float,
+    controller_options: dict[str, Any],
+    *,
+    ticks: int = COMPOSITION_TICKS,
+) -> dict[str, Any]:
+    return r300.run_case(
+        model,
+        disturbed=True,
+        maximum_ticks=ticks,
+        controller_options=controller_options,
+        worker_options=r310.WORKER_OPTIONS,
+        force_world_n=(0.0, force_y_n, 0.0),
+        application_offset_world_m=(0.0, 0.0, COMPOSITION_OFFSET_Z_M),
+        push_windows=COMPOSITION_WINDOWS,
+    )
+
+
+def _composition_row(
+    force_y_n: float,
+    baseline_case: dict[str, Any],
+    candidate_case: dict[str, Any],
+) -> dict[str, Any]:
+    baseline = r310.summarize(baseline_case)
+    candidate = r310.summarize(candidate_case)
+    action = _action_summary(candidate_case)
+    return {
+        "force_y_n": force_y_n,
+        "baseline": baseline,
+        "candidate": candidate,
+        "action": action,
+        "baseline_case": baseline_case,
+        "candidate_case": candidate_case,
+        "terminal_tick_delta": (
+            candidate["terminal_tick"] - baseline["terminal_tick"]
+            if candidate["terminal_tick"] is not None
+            and baseline["terminal_tick"] is not None
+            else None
+        ),
+    }
+
+
+def _evaluate_composition(
+    rows: list[dict[str, Any]], replay: dict[str, Any], *, ticks: int
+) -> dict[str, Any]:
+    baseline_falls = sum(
+        row["baseline"]["terminal_pending"] is not None for row in rows
+    )
+    candidate_falls = sum(
+        row["candidate"]["terminal_pending"] is not None for row in rows
+    )
+    action_rows = [row for row in rows if row["action"]["request_active_ticks"]]
+    public_rows = [
+        {
+            key: value
+            for key, value in row.items()
+            if key not in ("baseline_case", "candidate_case")
+        }
+        for row in rows
+    ]
+    harness_gates = {
+        "r311_upper_repeated_holdout_has_both_signs": (
+            any(row["force_y_n"] < 0.0 for row in rows)
+            and any(row["force_y_n"] > 0.0 for row in rows)
+        ),
+        "baseline_reproduces_terminal_boundary": baseline_falls > 0,
+        "landing_activates_only_after_measured_loss": bool(action_rows)
+        and all(
+            row["action"]["first_request_active_tick"]
+            >= row["candidate"]["first_non_double_tick"]
+            for row in action_rows
+        ),
+        "mode_firewall_holds_on_public_composition": all(
+            _mode_firewall(row["candidate_case"]["states"]) for row in rows
+        ),
+        "finite_zero_allocation_landing_boundary": all(
+            _finite_outputs(row["candidate_case"]["states"])
+            and row["action"]["allocation_calls"] == 0
+            and row["action"]["allocated_bytes"] == 0
+            for row in rows
+        ),
+        "controller_and_worker_deadlines_hold": all(
+            row["candidate"]["controller_step_us"]["p99"] < 5_000.0
+            and row["candidate"]["worker_step_us"]["p99"] < 20_000.0
+            for row in rows
+        ),
+        "representative_replay_exact": _semantic_digest(rows[-1]["candidate_case"])
+        == _semantic_digest(replay),
+    }
+    promotion_gates = {
+        "candidate_eliminates_every_terminal_fall": candidate_falls == 0,
+        "candidate_reduces_terminal_fall_count": candidate_falls < baseline_falls,
+        "candidate_never_moves_terminal_boundary_earlier": all(
+            row["terminal_tick_delta"] is None or row["terminal_tick_delta"] >= 0
+            for row in rows
+        ),
+        "every_activated_case_requalifies_bilateral_contact": bool(action_rows)
+        and all(
+            row["action"]["first_reacquisition_qualified_tick"] is not None
+            for row in action_rows
+        ),
+        "every_case_finishes_requested_horizon": all(
+            row["candidate"]["ticks"] == ticks
+            and row["candidate"]["terminal_pending"] is None
+            for row in rows
+        ),
+    }
+    return {
+        "ticks": ticks,
+        "forces_y_n": [row["force_y_n"] for row in rows],
+        "offset_z_m": COMPOSITION_OFFSET_Z_M,
+        "windows": [list(window) for window in COMPOSITION_WINDOWS],
+        "baseline_falls": baseline_falls,
+        "candidate_falls": candidate_falls,
+        "activated_cases": len(action_rows),
+        "qualified_reacquisition_cases": sum(
+            row["action"]["first_reacquisition_qualified_tick"] is not None
+            for row in action_rows
+        ),
+        "rows": public_rows,
+        "harness_gates": harness_gates,
+        "promotion_gates": promotion_gates,
+        "harness_valid": all(harness_gates.values()),
+        "recovery_promoted": all(promotion_gates.values()),
+    }
+
+
 def _mode_firewall(states: list[dict[str, Any]]) -> bool:
     """A rolling-wheel mode may only survive on an observed support leg.
 
-    R309 starts in NormalPoint until both the transition phase and the
+    R312 starts in NormalPoint until both the transition phase and the
     force-backed reacquisition observer qualify.  A lost leg must therefore
     never retain mode 3 merely because it was rolling before the loss.
     """
@@ -204,7 +351,7 @@ def _mode_firewall(states: list[dict[str, Any]]) -> bool:
 
 
 def _causal_measured_window(states: list[dict[str, Any]]) -> bool:
-    """Check both the five-frame worker window and the R309 exact snapshot."""
+    """Check the five-frame window and the exact masks consumed by WBC."""
 
     if not r300._causal_window_contract(states):
         return False
@@ -212,12 +359,15 @@ def _causal_measured_window(states: list[dict[str, Any]]) -> bool:
         diagnostics = state["measured_landing_diagnostics"]
         if not diagnostics or _diagnostic(state, "physics_observation_exact") < 0.5:
             return False
+        # The adapter runs before the next five MuJoCo substeps. Its exact
+        # physics snapshot is therefore the prior completed window exposed as
+        # `observed`, not the post-integration `physics_contact_active` field.
         if int(round(_diagnostic(state, "physics_support_mask"))) != _mask(
-            state["physics_contact_active"]
+            state["observed"]
         ):
             return False
         if int(round(_diagnostic(state, "observed_support_mask"))) != _mask(
-            state["observed"]
+            state["hard"]
         ):
             return False
         if int(round(_diagnostic(state, "target_support_mask"))) != 3:
@@ -273,6 +423,8 @@ def evaluate(
     baseline_disturbed: dict[str, Any],
     candidate_nominal: dict[str, Any],
     candidate_disturbed: dict[str, Any],
+    candidate_replay: dict[str, Any],
+    composition: dict[str, Any],
     *,
     nominal_ticks: int,
     disturbed_ticks: int,
@@ -355,6 +507,14 @@ def evaluate(
             for state in candidate_disturbed["states"]
         ),
         "all_wbc_outputs_finite": _finite_outputs(candidate_disturbed["states"]),
+        "controller_and_worker_deadlines_hold": all(
+            summary["controller_step_us"]["p99"] < 5_000.0
+            and summary["worker_step_us"]["p99"] < 20_000.0
+            for summary in (candidate_nominal_summary, candidate_disturbed_summary)
+        ),
+        "mechanism_replay_exact": _semantic_digest(candidate_disturbed)
+        == _semantic_digest(candidate_replay),
+        "r311_public_composition_harness_valid": composition["harness_valid"],
     }
     promotion_gates = {
         "disturbed_completes_requested_horizon": (
@@ -408,14 +568,18 @@ def evaluate(
         "qualification_gates": qualification_gates,
         "promotion_gates": promotion_gates,
         "negative_evidence": negative_evidence,
+        "r311_public_composition": composition,
         "qualified_as_bounded_default_off_experiment": all(qualification_gates.values()),
-        "recovery_promoted": all(promotion_gates.values()),
+        "recovery_promoted": all(promotion_gates.values())
+        and composition["recovery_promoted"],
         "finding": (
-            "R309 is a causal, phase-aware, force-backed landing boundary. "
-            "The nominal candidate remains dormant and allocation-free; the "
-            "current 8 N disturbed trace is retained as negative recovery "
-            "evidence when it falls, rather than allowing automatic reset to "
-            "turn an incomplete recovery into a pass."
+            "R312 is a causal, phase-aware, force-backed landing boundary, "
+            "but not a recovery controller. The isolated mechanism is "
+            "default-off, causal, deterministic, and allocation-free. On the "
+            "R311 upper-body moment holdout it does not reduce fall count, "
+            "never reaches force-backed bilateral requalification, and moves "
+            "at least one terminal boundary earlier. This negative physical "
+            "composition is retained without reset masking or promotion."
         ),
     }
 
@@ -433,14 +597,41 @@ def render_markdown(metrics: dict[str, Any]) -> str:
         f"- {'PASS' if passed else 'FAIL'} `{name}`"
         for name, passed in metrics["negative_evidence"].items()
     )
+    composition = metrics["r311_public_composition"]
+    composition_harness_lines = "\n".join(
+        f"- {'PASS' if passed else 'FAIL'} `{name}`"
+        for name, passed in composition["harness_gates"].items()
+    )
+    composition_promotion_lines = "\n".join(
+        f"- {'PASS' if passed else 'OPEN'} `{name}`"
+        for name, passed in composition["promotion_gates"].items()
+    )
+    composition_rows = "\n".join(
+        "| {force:+.0f} | {baseline_ticks} / {baseline_terminal} | "
+        "{candidate_ticks} / {candidate_terminal} | {delta} | {active} | {qualified} |".format(
+            force=row["force_y_n"],
+            baseline_ticks=row["baseline"]["ticks"],
+            baseline_terminal=row["baseline"]["terminal_pending"] or "—",
+            candidate_ticks=row["candidate"]["ticks"],
+            candidate_terminal=row["candidate"]["terminal_pending"] or "—",
+            delta=row["terminal_tick_delta"]
+            if row["terminal_tick_delta"] is not None
+            else "—",
+            active=row["action"]["request_active_ticks"],
+            qualified=row["action"]["first_reacquisition_qualified_tick"]
+            if row["action"]["first_reacquisition_qualified_tick"] is not None
+            else "—",
+        )
+        for row in composition["rows"]
+    )
     nominal = metrics["candidate_nominal"]
     disturbed = metrics["candidate_disturbed"]
     action = metrics["disturbed_action"]
-    return f"""# Upkie measured landing phase boundary — R309
+    return f"""# Upkie measured landing phase boundary — R312
 
 Status: **{'QUALIFIED DEFAULT-OFF EXPERIMENT' if metrics['qualified_as_bounded_default_off_experiment'] else 'FIXTURE FAILED'}**; recovery **{'PROMOTED' if metrics['recovery_promoted'] else 'RETAINED AS NEGATIVE EVIDENCE'}**.
 
-R309 runs the Rust-owned phase-aware measured-landing candidate at the public
+R312 runs the Rust-owned phase-aware measured-landing candidate at the public
 250 Hz MuJoCo / 50 Hz WBC rate.  The receiver is primed from four measured
 prestart samples only to avoid cold-start rejection; no contact authority is
 authored by that option.  The candidate uses the frozen configuration
@@ -473,6 +664,27 @@ authored by that option.  The candidate uses the frozen configuration
 
 {negative_lines}
 
+## R311 public-profile composition
+
+The retained R310 controller profile is evaluated on repeated upper-base pulls
+at a 250 mm lever. This is the physical promotion holdout; the earlier table is
+only the frozen mechanism-isolation trace.
+
+| force Y N | baseline ticks / terminal | R312 ticks / terminal | terminal Δ ticks | active ticks | qualified tick |
+|---:|---:|---:|---:|---:|---:|
+{composition_rows}
+
+Baseline/candidate falls: **{composition['baseline_falls']} / {composition['candidate_falls']}**.
+Activated/force-qualified cases: **{composition['activated_cases']} / {composition['qualified_reacquisition_cases']}**.
+
+### Composition harness
+
+{composition_harness_lines}
+
+### Recovery promotion
+
+{composition_promotion_lines}
+
 ## Architectural conclusion
 
 {metrics['finding']}
@@ -484,6 +696,7 @@ def run(
     *,
     nominal_ticks: int = DEFAULT_NOMINAL_TICKS,
     disturbed_ticks: int = DEFAULT_DISTURBED_TICKS,
+    composition_forces: tuple[float, ...] = COMPOSITION_FORCES_N,
 ) -> tuple[dict[str, Any], dict[str, Any], str]:
     baseline_nominal = r300.run_case(
         model,
@@ -513,11 +726,39 @@ def run(
         controller_options=CANDIDATE_CONTROLLER_OPTIONS,
         worker_options=PUBLIC_WORKER_OPTIONS,
     )
+    candidate_replay = r300.run_case(
+        model,
+        disturbed=True,
+        maximum_ticks=disturbed_ticks,
+        controller_options=CANDIDATE_CONTROLLER_OPTIONS,
+        worker_options=PUBLIC_WORKER_OPTIONS,
+    )
+    composition_rows: list[dict[str, Any]] = []
+    for force_y_n in composition_forces:
+        baseline_case = _run_composition_case(
+            model, force_y_n, PUBLIC_CONTROLLER_OPTIONS
+        )
+        candidate_case = _run_composition_case(
+            model, force_y_n, PUBLIC_LANDING_CONTROLLER_OPTIONS
+        )
+        composition_rows.append(
+            _composition_row(force_y_n, baseline_case, candidate_case)
+        )
+    composition_replay = _run_composition_case(
+        model, composition_forces[-1], PUBLIC_LANDING_CONTROLLER_OPTIONS
+    )
+    composition = _evaluate_composition(
+        composition_rows,
+        composition_replay,
+        ticks=COMPOSITION_TICKS,
+    )
     metrics = evaluate(
         baseline_nominal,
         baseline_disturbed,
         candidate_nominal,
         candidate_disturbed,
+        candidate_replay,
+        composition,
         nominal_ticks=nominal_ticks,
         disturbed_ticks=disturbed_ticks,
     )
@@ -527,6 +768,10 @@ def run(
         "baseline_disturbed": baseline_disturbed,
         "candidate_nominal": candidate_nominal,
         "candidate_disturbed": candidate_disturbed,
+        "candidate_replay": candidate_replay,
+        "representative_r311_baseline": composition_rows[-1]["baseline_case"],
+        "representative_r312_candidate": composition_rows[-1]["candidate_case"],
+        "representative_r312_replay": composition_replay,
     }
     return metrics, traces, render_markdown(metrics)
 
@@ -541,7 +786,7 @@ def main() -> int:
     parser.add_argument(
         "--output-dir",
         type=pathlib.Path,
-        default=pathlib.Path("benchmarks/results/upkie-live-measured-landing-r309"),
+        default=pathlib.Path("benchmarks/results/upkie-live-measured-landing-r312"),
     )
     args = parser.parse_args()
     if args.nominal_ticks < 100 or args.disturbed_ticks < 100:
@@ -558,7 +803,7 @@ def main() -> int:
     (args.output_dir / "traces.json").write_text(
         json.dumps(traces, separators=(",", ":")) + "\n", encoding="utf-8"
     )
-    (args.output_dir / "UPKIE_LIVE_MEASURED_LANDING_R309.md").write_text(
+    (args.output_dir / "UPKIE_LIVE_MEASURED_LANDING_R312.md").write_text(
         markdown, encoding="utf-8"
     )
     print(json.dumps(metrics, indent=2, sort_keys=True))

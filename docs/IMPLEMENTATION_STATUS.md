@@ -2,6 +2,29 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current measured-landing boundary — r312 qualified mechanism, rejected recovery
+
+R312 adds a persistent Rust phase boundary for measured wheel-contact loss and
+landing. It consumes only prior-window contact observation, measured normal
+loads, and monotonic sample identity; emits fixed-size precontact/relock state;
+keeps an unobserved wheel in `NormalPoint`; and cannot promote it to
+`RollingWheel` until the existing force-backed reacquisition observer
+qualifies. The mechanism is default-off, deterministic, finite, and
+allocation-free, with `3.768 µs` worst-case p99 in the isolated trace. Every
+causality, mode-firewall, hard-row, deadline, and exact-replay gate passes.
+
+Physical promotion is rejected. On the current R310 public controller and
+R311 repeated upper-base holdout, baseline and candidate both fall in four of
+eight cases. The candidate activates in all four terminal cases but reaches
+force-backed bilateral qualification in none; it also moves the `-6 N`
+terminal boundary 80 ticks earlier and the `+6 N` boundary four ticks earlier.
+R312 is therefore a qualified observation/action boundary, not a recovery
+controller, and it changes no public authority, timeout, iteration budget, or
+reset behavior. The largest remaining Upkie behavior slice is a continuous
+moment-rejection/landing action that sustains measured load and passes this
+same holdout. See
+[`UPKIE_LIVE_MEASURED_LANDING_R312.md`](../benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
+
 ## Current wrench capability envelope — r311 measured, not fully qualified
 
 R311 extends the policy-free live consequence matrix to off-CoM moments and

@@ -18,16 +18,17 @@ try:
 except ImportError:
     HAS_RUNTIME = False
 
-import upkie_live_measured_landing_r309 as r309  # noqa: E402
+import upkie_live_measured_landing_r312 as r312  # noqa: E402
 
 
 @unittest.skipUnless(HAS_RUNTIME, "the live MuJoCo/PyO3 runtime is not installed")
-class UpkieLiveMeasuredLandingR309Tests(unittest.TestCase):
+class UpkieLiveMeasuredLandingR312Tests(unittest.TestCase):
     def test_phase_boundary_is_default_off_causal_and_allocation_free(self) -> None:
-        metrics, _, _ = r309.run(
+        metrics, _, _ = r312.run(
             ROOT / "models/upkie/upkie.urdf",
             nominal_ticks=120,
             disturbed_ticks=250,
+            composition_forces=(-8.0, 8.0),
         )
         self.assertTrue(
             metrics["qualified_as_bounded_default_off_experiment"], metrics
@@ -57,6 +58,15 @@ class UpkieLiveMeasuredLandingR309Tests(unittest.TestCase):
         )
         self.assertTrue(
             metrics["qualification_gates"]["finite_measured_landing_outputs"], metrics
+        )
+        self.assertTrue(
+            metrics["qualification_gates"]["mechanism_replay_exact"], metrics
+        )
+        self.assertTrue(
+            metrics["r311_public_composition"]["harness_valid"], metrics
+        )
+        self.assertFalse(
+            metrics["r311_public_composition"]["recovery_promoted"], metrics
         )
         # The current 8 N trace is intentionally a negative recovery witness;
         # this assertion prevents a reset or a missing telemetry field from

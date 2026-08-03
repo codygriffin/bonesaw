@@ -1060,7 +1060,7 @@ class LiveUpkiePlant:
                 else int(
                     latest_result["single_support_reacquisition_allocated_bytes"]
                 ),
-                # R309 measured landing is an evaluation-only Rust-owned
+                # R312 measured landing is an evaluation-only Rust-owned
                 # phase boundary.  Publish its latest diagnostic vector next
                 # to the older single-support witness so a replay can tell
                 # precontact, touchdown-normal, force-backed qualification,

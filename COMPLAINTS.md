@@ -3,7 +3,21 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R311 narrows the current live-controller complaint to off-CoM moment authority.
+R312 closes the missing phase-boundary mechanism without closing physical
+recovery. Persistent Rust now detects measured contact loss, keeps missing
+wheels in `NormalPoint`, emits a bounded precontact/relock request, and requires
+the existing measured-load observer before `RollingWheel` can return. All
+causality, mode-firewall, finite, zero-allocation, deadline, and replay gates
+pass. On the current public R310 controller plus R311 upper-base holdout,
+however, candidate and baseline both fall in four of eight cases, no activated
+case reaches force-backed bilateral requalification, and the `-6 N` terminal
+boundary moves 80 ticks earlier. The mechanism remains default-off. The largest
+remaining behavior chunk is now narrower: design continuous landing/moment
+rejection that sustains measured wheel load, reduces the four terminal cases,
+and never moves a terminal boundary earlier. See the
+[R312 report](benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
+
+R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated
 pulls finish with an upright tail and all tested moments at or below `1 N·m`
 remain nonterminal. Upper-base pulls expose a repeatable `1.5 N·m`-class fall
@@ -11,49 +25,9 @@ boundary. Four lower-force cases each contain one nonadmitted solve; the
 fall-safe path retains the previous admitted effort for that tick, performs no
 reset, and admits on the next tick, but the zero-nonadmission quality gate stays
 red. More projection sweeps do not change that boundary. The largest remaining
-behavior chunk is a phase-aware landing/moment-rejection action that sustains
-measured contact under upper-body wrench, not a longer timeout or larger QP
-budget. See the
+behavior chunk is the physically effective action now isolated by R312, not a
+longer timeout or larger QP budget. See the
 [R311 report](benchmarks/results/upkie-live-wrench-envelope-r311/UPKIE_LIVE_WRENCH_ENVELOPE_R311.md).
-
-R308 adds the first bounded Rust-owned single-support touchdown request. It
-consumes only an exact measured one-wheel mask, the free wheel's measured
-height/velocity, and a preallocated Jacobian; its capped vertical request then
-passes through the ordinary floating WBC. The nominal hold stays dormant, the
-request activates exactly at measured single support (WBC tick `40`), and the
-Rust path is allocation-free (`2.202 µs` p99, `0` calls/bytes). The causal
-trigger and authority boundary are therefore green, but the plant has already
-left the bilateral physics window at tick `34`; R308 is not precontact control.
-The frozen 8 N MuJoCo trace still has no ten-tick bilateral/upright tail and
-retains non-admitted solves. The request remains evaluation-only/default-off.
-The largest remaining behavior chunk is a contact-mode phase policy that can
-make touchdown physically sustainable, not more timeout or QP iterations. See the
-[R308 report](benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
-
-R305 closes the contact-reacquisition evidence seam, but not physical recovery.
-The new allocation-free Rust observer sits downstream of raw/stable/hard
-contact observation and upstream of command authority. It requires an exact
-target mask, matching masks, finite nonnegative measured loads, at least `1 N`
-total load, at least `0.5 N` and `5%` of total load on every target contact,
-and three consecutive monotonic samples after a valid loss. Startup is a
-baseline; geometric zero-load touch, inexact/NaN evidence, and repeated ticks
-remain rejected. The PyO3 query and R305 synthetic contract are explicit and
-default-off; no worker cadence, actuator command, or public authority changed.
-The R302 wheel-supported recovery predicate therefore remains red: a physical
-reacquisition action still must be generated, admitted by the ordinary WBC,
-and shown to recover in MuJoCo. See the
-[R305 observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
-
-R306 knocks off the adjacent authority-leak complaint. Six existing capture,
-viability, and support-contingency profiles now keep the measured hard-contact
-mask authoritative across primary WBC, admission, forecast, lease, and
-telemetry even when their planner queries use hypothetical support masks. The
-causal, finite, allocation, and timing gates pass, but no profile reacquires
-ten consecutive measured bilateral/upright samples. Physical recovery remains
-open; R308 supplies the bounded landing request, but the phase-aware physical
-reacquisition consequence remains open. This is not a larger timeout or a
-planner scratch mask. See the
-[R306 report](benchmarks/results/upkie-live-reacquisition-modes-r306/UPKIE_LIVE_REACQUISITION_MODES_R306.md).
 
 R297 closes the 5 ms deadline only for this machine's declared host-native
 local deployment: seven exact production repeats report 4.644 ms median and
