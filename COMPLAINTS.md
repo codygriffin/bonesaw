@@ -59,6 +59,16 @@ policy/zero physics with no authority. Exact reduction of the repeated
 Preference/Style work and the 5 ms p99 gate remain open. See the
 [r282 cumulative-solve report](benchmarks/results/g1-cumulative-solve-diagnostics-r282/G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md).
 
+R283 closes the deterministic release-tail portion without changing the
+universal default. An explicit seven-iteration active-set profile preserves
+all 89 established non-timing arrays across five CPU-4-pinned runs and cuts
+ticks 1694/2296 from 195/184 ms to at most 7.94 ms; dense polish inverses fall
+126→12 per tail. Budgets below seven changed behavior and are rejected. Every
+repeat still misses the 5 ms p99 gate at 5.204–5.517 ms, so ordinary
+Preference/Style projected-task work—not the release retry—is now the immediate
+CPU complaint. No authority is admitted. See the
+[r283 bounded-polish report](benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

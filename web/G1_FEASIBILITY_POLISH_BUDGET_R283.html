@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 bounded feasibility polish · R283</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 bounded feasibility-polish profile · R283</h1>
+<blockquote>Exact profile **RETAINED** · deterministic tail **PASS** · p99 **REJECTED** · default/authority **UNCHANGED**.</blockquote>
+<p>R283 applies the user-suggested bounded-compute tradeoff to the policy- and physics-free R280/R281 WBC replay. It reduces the speculative active-set accelerator from 64 to seven iterations while retaining the existing eight-sweep exact Dykstra boundary. Failed acceleration remains fail-closed and is never integrated.</p>
+<h2>Five CPU-4-pinned repeats</h2>
+<div class=table-wrap><table><thead><tr><th>repeat</th><th>89 arrays</th><th>p50 µs</th><th>p95 µs</th><th>p99 µs</th><th>max µs</th><th>&gt;5 ms</th><th>tails 1694/2296 ms</th><th>RSS Δ MiB</th><th>GC</th></tr></thead><tbody><tr><td>0</td><td>exact</td><td>1774.2</td><td>4018.0</td><td>5203.8</td><td>7926.2</td><td>40</td><td>7.37/7.93</td><td>3.957</td><td>0</td></tr><tr><td>1</td><td>exact</td><td>1778.6</td><td>4163.4</td><td>5252.3</td><td>7794.5</td><td>40</td><td>7.35/7.79</td><td>3.980</td><td>0</td></tr><tr><td>2</td><td>exact</td><td>1786.1</td><td>4284.7</td><td>5516.9</td><td>7759.4</td><td>48</td><td>7.24/7.76</td><td>3.977</td><td>0</td></tr><tr><td>3</td><td>exact</td><td>1776.6</td><td>4086.0</td><td>5244.1</td><td>7792.8</td><td>39</td><td>7.29/7.79</td><td>3.891</td><td>0</td></tr><tr><td>4</td><td>exact</td><td>1785.5</td><td>4203.2</td><td>5280.8</td><td>7938.1</td><td>40</td><td>7.35/7.79</td><td>3.969</td><td>0</td></tr></tbody></table></div>
+<p>All five runs reproduce the established 89-array digest `3489c58b1259bcb97feb87dde038de8df30da9c2d1de3cb77a4f169b9f228521`. The two deterministic tails fall from 195.2/184.3 ms to at most 7.93 ms (96.01% mean reduction). Dense polish pseudoinverses fall from 126 per tail to 12 (90.48% reduction).</p>
+<h2>Decision</h2>
+<p>The profile is retained as an explicit real-time configuration, not promoted to the universal default: lower budgets changed behavior in the qualification sweep, so seven is corpus-qualified rather than a global theorem. Ordinary work still misses the 5,000 µs gate in every repeat (mean p99 5299.6 µs, σ 111.4 µs; 207 total misses). Preference/Style task inversions remain the next exact optimization target.</p>
+<p>No support, contact, actuator, thermal, or walking authority is admitted by this result.</p></main></body></html>

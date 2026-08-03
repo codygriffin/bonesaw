@@ -2,7 +2,7 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r282 cumulative solve diagnostics
+## Current CPU checkpoint — r283 bounded feasibility polish
 
 R279 adds an exact discrete backward preimage of the authored support schedule.
 The fixed-size Rust fold produces a time-varying DCM box; a moving-boundary
@@ -10,6 +10,16 @@ barrier includes measured CoM velocity, reference-phase boundary velocity, and
 an explicit acceleration envelope. Observer telemetry, intent projection, soft
 task authority, and four-face hard admission are independently default-off.
 Python retains the immutable policy-free/physics-free scenarios, metrics, and
+report.
+
+R283 qualifies a corpus-specific seven-iteration active-set accelerator while
+retaining the exact eight-sweep Dykstra boundary. Five CPU-4-pinned runs match
+all 89 established non-timing arrays. The 1694/2296 release tails fall from
+195/184 ms to 7.2–7.9 ms and dense polish inverses fall 126→12, but every p99
+still misses 5 ms at 5.204–5.517 ms. Budgets below seven changed behavior, so
+the universal default remains 64 and no authority is admitted. Ordinary
+Preference/Style task inversions are the next exact CPU target. See the
+[`G1_FEASIBILITY_POLISH_BUDGET_R283.md`](../benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md)
 report.
 
 R282 adds a fixed-capacity, allocation-free cumulative witness for every

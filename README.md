@@ -185,6 +185,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   authority. The 5 ms p99 gate and exact Preference/Style work reduction are
   still open. See the
   [r282 cumulative-solve diagnostics](benchmarks/results/g1-cumulative-solve-diagnostics-r282/G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md).
+- R283 retains a seven-iteration feasibility-accelerator profile after five
+  CPU-4-pinned, 89-array-exact repeats. It reduces the deterministic
+  1694/2296 release tails from 195/184 ms to at most 7.94 ms and cuts dense
+  polish inverses 126→12. Lower budgets change behavior, so the default stays
+  64; all five p99 values still miss 5 ms at 5.204–5.517 ms and authority
+  remains closed. See the
+  [r283 bounded-polish profile](benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd
