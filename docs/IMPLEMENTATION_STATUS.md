@@ -2,6 +2,19 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU optimization audit — r292 Jacobi energy re-anchor pointer
+
+R292 tests a raw-pointer traversal of the sweep-boundary column-energy
+re-anchor while preserving its exact scalar summation and store order. Four
+CPU-4-pinned, 2,317-tick pairs preserve all 112 current non-timing arrays
+byte-for-byte. Three complete-process counter pairs show +0.0295% to +0.0311%
+retired instructions, with a +0.0304% mean and +0.230% mean branches. The
+candidate is rejected and retained only through
+`jacobi-energy-reanchor-pointer-experiment`; R284 remains the default. No
+timing, authority, policy, physics, contact-transfer, or CUDA gate changes.
+See
+[`G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md`](../benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
+
 ## Current CPU checkpoint — r288 support-transfer motion headroom
 
 R288 adds a default-off Rust witness for the support-feasible transfer tube.

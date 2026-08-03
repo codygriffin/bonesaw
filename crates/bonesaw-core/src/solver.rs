@@ -20,6 +20,8 @@ const USE_JACOBI_COLUMN_POINTERS: bool = !cfg!(feature = "jacobi-column-pointer-
     || cfg!(feature = "jacobi-column-pointer-experiment");
 const USE_JACOBI_COLUMN_OFFSET_POINTERS: bool =
     cfg!(feature = "jacobi-column-offset-pointer-experiment");
+const USE_JACOBI_ENERGY_REANCHOR_POINTERS: bool =
+    cfg!(feature = "jacobi-energy-reanchor-pointer-experiment");
 const USE_DENSE_MULTIPLY_ROW_SLICES: bool = !cfg!(feature = "dense-multiply-row-slice-control")
     || cfg!(feature = "dense-multiply-row-slice-experiment");
 
@@ -2769,8 +2771,12 @@ fn one_sided_jacobi_flat(
                 let mut norm_squared = 0.0;
                 if use_column_slices {
                     let values = &matrix[column * rows..(column + 1) * rows];
-                    for value in values {
-                        norm_squared += value * value;
+                    if USE_JACOBI_ENERGY_REANCHOR_POINTERS {
+                        norm_squared = scalar_squared_norm_raw(values);
+                    } else {
+                        for value in values {
+                            norm_squared += value * value;
+                        }
                     }
                 } else {
                     for row in 0..rows {
@@ -2802,6 +2808,21 @@ fn scalar_dot_raw(left: &[f64], right: &[f64]) -> f64 {
         }
     }
     value
+}
+
+#[inline(always)]
+fn scalar_squared_norm_raw(values: &[f64]) -> f64 {
+    let mut norm_squared = 0.0;
+    let mut index = 0;
+    unsafe {
+        let values_ptr = values.as_ptr();
+        while index < values.len() {
+            let value = *values_ptr.add(index);
+            norm_squared += value * value;
+            index += 1;
+        }
+    }
+    norm_squared
 }
 
 #[inline(always)]
@@ -5415,6 +5436,26 @@ mod tests {
                         .all(|(actual, expected)| actual.to_bits() == expected.to_bits())
                 );
             }
+        }
+    }
+
+    #[test]
+    fn jacobi_energy_reanchor_pointer_preserves_every_sum_bit() {
+        let mut random_state = 0x73ad_f811_4e2c_b965_u64;
+        for len in [0, 1, 2, 8, 29, 58, 117] {
+            let mut values = Vec::with_capacity(len);
+            for _ in 0..len {
+                random_state ^= random_state << 13;
+                random_state ^= random_state >> 7;
+                random_state ^= random_state << 17;
+                values.push(random_state as i64 as f64 / i64::MAX as f64);
+            }
+            let mut expected = 0.0;
+            for value in &values {
+                expected += value * value;
+            }
+            let actual = scalar_squared_norm_raw(&values);
+            assert_eq!(actual.to_bits(), expected.to_bits());
         }
     }
 

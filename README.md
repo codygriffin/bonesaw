@@ -248,6 +248,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   5 ms and worsens root RMS 10.05%; Style-3/4/6/8 never exhaust and preserve
   every common non-timing array. All finite profiles remain rejected. See the
   [r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
+- R292 rejects a raw-pointer rewrite of the sweep-boundary Jacobi energy
+  re-anchor. Four CPU-4-pinned control/candidate pairs preserve all 112
+  non-timing arrays byte-for-byte, but the candidate retires 0.0304% more
+  instructions and 0.230% more branches on the three-pair average; every
+  paired instruction delta is positive. The R284 slice-iterator re-anchor
+  remains the default, and the 5 ms p99/authority gates remain open. See the
+  [r292 energy re-anchor report](benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

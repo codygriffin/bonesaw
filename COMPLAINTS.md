@@ -121,6 +121,14 @@ explicit cross-tick progress/tracking-debt supervisor or exact work reduction,
 not another fixed Style count. See the
 [r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
 
+R292 rejects the next exact kernel rewrite as well. A raw-pointer
+sweep-boundary energy re-anchor is byte-exact across four 112-array pairs, but
+retires 0.0304% more instructions on average and regresses every paired
+instruction count. It remains an opt-in negative experiment; R284's
+slice-iterator re-anchor stays the default. This does not close the ordinary
+Preference/Style work or 5 ms p99 complaints. See the
+[r292 energy re-anchor report](benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the
