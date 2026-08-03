@@ -1017,6 +1017,12 @@ physical z=0 plane: MuJoCo advances at 250 Hz, persistent Rust WBC runs at
 streams at 50 Hz. Contact points, normals, normal force, ground-contact count,
 penetration, sim time, solver iterations, backend/version, wrench force and
 moment are rendered separately from the diagnostic TARGET state.
+The live WBC now also consumes an exact MuJoCo wheel-to-ground mask on every
+50 Hz observation. Rust owns fresh-observation provenance, positive debounce,
+and immediate hard-support removal on contact loss; raw, debounced, and hard
+masks plus support counts are streamed as separate witnesses. Lifting the
+root therefore removes support authority without silently reusing the authored
+standing stance or resetting the plant.
 
 The live plant lifecycle is explicit: `plant_pause` releases the wrench and
 freezes MuJoCo while keeping a heartbeat, `plant_resume` restarts from the

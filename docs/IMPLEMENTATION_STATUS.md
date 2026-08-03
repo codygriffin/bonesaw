@@ -441,6 +441,22 @@ contingency, zero 20 ms misses, and 4.757 ms p99 in the latest replay. This clos
 freeze/reset failure mode, not the functional floating-walk, MuJoCo tracking,
 thermal, or authority gates. See the [r263 recovery report](../benchmarks/results/g1-floating-contact-release-r263/G1_FLOATING_CONTACT_RELEASE_R263.md).
 
+## Current live feedback checkpoint — r295 measured MuJoCo contact admission
+
+The live worker now derives the Upkie wheel subtrees from MuJoCo once and
+writes an exact wheel-to-ground contact mask into caller-owned scratch storage
+at each 50 Hz WBC observation. The persistent Rust adapter receives that mask
+with an explicit fresh-observation flag, so its timestamp/provenance checks,
+three-sample positive debounce, and immediate contact-loss hard-row removal
+operate on measured plant feedback rather than the authored nominal stance.
+Raw, debounced, and hard/admitted masks, support counts, and typed observation
+status/provenance/flags are streamed beside the measured MuJoCo state. A
+lifted-root regression reports `[0, 0]` raw and hard support without a reset;
+the worker suite is 9/9 and the core suite remains 317/317. This closes the
+stale-authored-contact state-ownership complaint, not the floating walking,
+tracking, thermal, or authority gates. See
+[`docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md`](LIVE_PLANT_INTENT_WRENCH_CONTRACT.md).
+
 ## Current live feedback checkpoint — r235 measured-state lifecycle
 
 The live plant now has an explicit ownership contract. Green `TARGET` remains a

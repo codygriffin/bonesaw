@@ -29,6 +29,19 @@ reason to copy the controller's predicted state into the plant. The streamed
 record labels the measured state, the accepted wrench provenance, and the WBC
 admission result independently.
 
+Contact authority follows the same measured-state boundary. On every 50 Hz
+observation the worker derives the two wheel subtrees once, scans MuJoCo's
+world-ground contacts, and writes the raw mask into caller-owned scratch
+storage. That mask is passed to the persistent Rust adapter with an explicit
+fresh-observation flag; Rust owns timestamp/provenance checks, three-sample
+positive debounce, and immediate hard-row removal on contact loss. The stream
+exposes all three witnesses as `wbc_observed_contact_active`,
+`wbc_debounced_contact_active`, and `wbc_hard_contact_active`, together with
+observation status/provenance/flags and support counts. A reset or paused
+heartbeat reports no fresh observation and cannot turn the authored nominal
+two-wheel stance into support authority. This is measured contact admission,
+not a claim that the WBC can execute a floating walking transfer.
+
 Simulation lifecycle commands are explicit and fail-safe:
 
 - `plant_pause` releases any active wrench lease and freezes MuJoCo time while

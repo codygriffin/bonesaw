@@ -295,7 +295,20 @@ def measured_wheel_ground_contacts(
     body_sets: tuple[frozenset[int], ...],
 ) -> np.ndarray:
     """Return exact MuJoCo wheel-to-world contact activity for this observation."""
-    active = np.zeros(len(body_sets), np.uint8)
+    active = np.empty(len(body_sets), np.uint8)
+    return measured_wheel_ground_contacts_into(model, data, body_sets, active)
+
+
+def measured_wheel_ground_contacts_into(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    body_sets: tuple[frozenset[int], ...],
+    active: np.ndarray,
+) -> np.ndarray:
+    """Write exact wheel-to-ground contact activity into caller-owned storage."""
+    if active.shape != (len(body_sets),) or active.dtype != np.uint8:
+        raise ValueError("active must be a uint8 vector matching body_sets")
+    active.fill(0)
     for contact in data.contact[: data.ncon]:
         body_a = int(model.geom_bodyid[int(contact.geom[0])])
         body_b = int(model.geom_bodyid[int(contact.geom[1])])
@@ -1203,9 +1216,12 @@ class RustWbcAdapter:
         self.q = np.empty((1, 6), np.float64)
         self.v = np.empty((1, 6), np.float64)
         self.joint_acceleration = np.empty((1, 6), np.float64)
-        self.contact_active = np.ones((1, 2), np.uint8)
-        self.observed_contact_active = np.ones(2, np.uint8)
-        self.contact_debounced = np.ones(2, np.uint8)
+        # A newly built adapter has no accepted plant observation yet. Keep
+        # all contact witnesses fail-closed until the worker supplies a fresh
+        # MuJoCo mask; the nominal stance is not measured support authority.
+        self.contact_active = np.zeros((1, 2), np.uint8)
+        self.observed_contact_active = np.zeros(2, np.uint8)
+        self.contact_debounced = np.zeros(2, np.uint8)
         self.contact_observation_diagnostics = np.zeros(
             len(self.balance.contact_observation_diagnostic_names), np.int64
         )

@@ -129,6 +129,24 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert math.isfinite(initial["simulator"]["potential_energy_j"])
         assert initial["metrics"]["ground_contact_count"] >= 1, initial["metrics"]
         assert initial["contacts"], "MuJoCo contacts were not streamed"
+        observed_contact = initial["metrics"]["wbc_observed_contact_active"]
+        debounced_contact = initial["metrics"]["wbc_debounced_contact_active"]
+        hard_contact = initial["metrics"]["wbc_hard_contact_active"]
+        assert initial["metrics"]["wbc_observed_contact_available"]
+        assert initial["wbc_observed_contact_active"] == observed_contact
+        assert initial["wbc_debounced_contact_active"] == debounced_contact
+        assert initial["wbc_hard_contact_active"] == hard_contact
+        assert (
+            len(observed_contact)
+            == len(debounced_contact)
+            == len(hard_contact)
+            == 2
+        )
+        assert all(
+            hard <= observed
+            for hard, observed in zip(hard_contact, observed_contact)
+        )
+        assert initial["metrics"]["wbc_support_active_count"] <= sum(observed_contact)
         assert len(initial["actuator_effort_nm"]) == 6
         assert len(initial["generalized_acceleration"]) == 12
         assert len(initial["constraint_generalized_force"]) == 12
@@ -169,6 +187,10 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert heartbeat["tick"] > pause_tick
         assert heartbeat["simulator"]["time_s"] == pause_time
         assert heartbeat["metrics"]["wbc_status"] == "paused"
+        assert not heartbeat["metrics"]["wbc_observed_contact_available"]
+        assert heartbeat["wbc_debounced_contact_active"] == [0, 0]
+        assert heartbeat["wbc_hard_contact_active"] == [0, 0]
+        assert heartbeat["metrics"]["wbc_support_active_count"] == 0
         websocket.send_json(
             {
                 "type": "plant_push",
@@ -191,6 +213,10 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         reset_paused = receive_correlated_state(websocket, 244, paused=True)
         assert reset_paused["reset_epoch"] > initial_epoch
         assert reset_paused["simulator"]["time_s"] == 0.0
+        assert not reset_paused["metrics"]["wbc_observed_contact_available"]
+        assert reset_paused["wbc_debounced_contact_active"] == [0, 0]
+        assert reset_paused["wbc_hard_contact_active"] == [0, 0]
+        assert reset_paused["metrics"]["wbc_support_active_count"] == 0
         initial_epoch = reset_paused["reset_epoch"]
         websocket.send_json({"type": "plant_resume", "request_id": 245})
         receive_correlated_state(websocket, 245, paused=False)

@@ -95,6 +95,14 @@ class LiveUpkiePlant:
             np.mean(self.data.xpos[wheel_bodies, 0])
         )
         self.wheel_bodies = wheel_bodies
+        # Contact identity is derived once from the MuJoCo body topology.  At
+        # every 50 Hz WBC observation we then pass the measured wheel-to-ground
+        # mask into the persistent Rust adapter.  The adapter owns debounce,
+        # timestamp/provenance checks, and hard-row eligibility; this worker
+        # must not turn an authored standing assumption into contact authority.
+        self.wheel_contact_body_sets = plant.wheel_contact_body_sets(
+            self.model, self.wheel_bodies
+        )
         self.controller = plant.RustWbcAdapter(
             self.model_path,
             nominal_root,
@@ -134,6 +142,12 @@ class LiveUpkiePlant:
         ].copy()
         self.ground_plane_normal_world = ground_rotation[:, 2].copy()
         self.zero_torque = np.zeros(3, np.float64)
+        # Until MuJoCo has supplied a fresh observation, expose no contact.
+        # The authored nominal stance must never be mistaken for measured
+        # support authority, including on a paused/reset heartbeat.
+        self.observed_contact_active = np.zeros(2, np.uint8)
+        self.observed_contact_scratch = np.empty(2, np.uint8)
+        self.no_contact_active = np.zeros(2, np.uint8)
         self.last_result: dict[str, Any] | None = None
 
     def reset(self, *, numeric: bool = False, fall: bool = False) -> None:
@@ -320,6 +334,7 @@ class LiveUpkiePlant:
         maximum_fall_safe_mode = 0
         fall_safe_reason_flags = 0
         maximum_controller_step_ns = 0
+        latest_observed_contact_active = self.observed_contact_active
         # A paused frame keeps the last WBC diagnostics while explicitly
         # labelling the solve as paused below; no controller call occurs.
         latest_result: dict[str, Any] | None = self.last_result
@@ -334,6 +349,13 @@ class LiveUpkiePlant:
             root_position, root_quaternion, root_twist, q, v = plant.read_state(
                 self.model, self.data
             )
+            plant.measured_wheel_ground_contacts_into(
+                self.model,
+                self.data,
+                self.wheel_contact_body_sets,
+                self.observed_contact_scratch,
+            )
+            np.copyto(self.observed_contact_active, self.observed_contact_scratch)
             ground_position = float(np.mean(self.data.xpos[self.wheel_bodies, 0]))
             ground_height = float(np.mean(self.data.xpos[self.wheel_bodies, 2]))
             result = self.controller.solve(
@@ -344,6 +366,8 @@ class LiveUpkiePlant:
                 v,
                 ground_position,
                 ground_height,
+                observed_contact_active=self.observed_contact_scratch,
+                observed_contact_available=True,
             )
             latest_result = result
             self.data.ctrl[self.actuator_ids] = result["torque"]
@@ -400,6 +424,7 @@ class LiveUpkiePlant:
             self.reset(numeric=True)
             numeric_reset = True
             latest_result = None
+            latest_observed_contact_active = self.observed_contact_active
         mujoco.mj_forward(self.model, self.data)
         root_position, root_quaternion, root_twist, q, v = plant.read_state(
             self.model, self.data
@@ -414,6 +439,21 @@ class LiveUpkiePlant:
         self.tick += 1
         self.last_result = latest_result
         contacts = self._contacts()
+        # The adapter retains its internal debounce state across an ordinary
+        # pause so a later fresh observation can be processed causally.  That
+        # retained state is not current hard authority while no WBC solve ran,
+        # so the stream must fail closed instead of publishing it as active.
+        published_contact_state = latest_result is not None and not self.paused
+        published_debounced_contact_active = (
+            self.controller.contact_debounced
+            if published_contact_state
+            else self.no_contact_active
+        )
+        published_hard_contact_active = (
+            self.controller.contact_active[0]
+            if published_contact_state
+            else self.no_contact_active
+        )
         ground_contacts = [contact for contact in contacts if contact["ground"]]
         total_ground_normal_force_n = sum(
             float(contact["normal_force_n"]) for contact in ground_contacts
@@ -473,6 +513,9 @@ class LiveUpkiePlant:
             "center_of_mass_world": center_of_mass_world.tolist(),
             "joint_positions": q.tolist(),
             "joint_velocities": v.tolist(),
+            "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
+            "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
+            "wbc_hard_contact_active": published_hard_contact_active.tolist(),
             "actuator_effort_nm": actuator_effort_nm.tolist(),
             "actuator_force": actuator_force.tolist(),
             "generalized_acceleration": generalized_acceleration.tolist(),
@@ -533,6 +576,29 @@ class LiveUpkiePlant:
                 else plant.STATUS_NAMES[int(latest_result["status"])]),
                 "wbc_admitted": not self.paused and latest_result is not None
                 and int(latest_result["status"]) in (0, 1),
+                "wbc_observed_contact_available": latest_result is not None
+                and not self.paused,
+                "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
+                "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
+                "wbc_hard_contact_active": published_hard_contact_active.tolist(),
+                "wbc_support_active_count": 0
+                if latest_result is None
+                else int(latest_result["support_active_count"]),
+                "wbc_support_active_left": 0
+                if latest_result is None
+                else int(latest_result["support_active_left"]),
+                "wbc_support_active_right": 0
+                if latest_result is None
+                else int(latest_result["support_active_right"]),
+                "wbc_contact_observation_status": 0
+                if latest_result is None
+                else int(latest_result["contact_observation_status"]),
+                "wbc_contact_observation_provenance": 0
+                if latest_result is None
+                else int(latest_result["contact_observation_provenance"]),
+                "wbc_contact_observation_flags": 0
+                if latest_result is None
+                else int(latest_result["contact_observation_flags"]),
                 "capture_pressure": peak_capture_pressure,
                 "capture_error_m": 0.0
                 if latest_result is None

@@ -12,6 +12,7 @@ def test_wheel_contact_truth_uses_named_subtrees_and_world_contact() -> None:
     from upkie_mujoco_plant_report import (
         make_plant,
         measured_wheel_ground_contacts,
+        measured_wheel_ground_contacts_into,
         wheel_contact_body_sets,
     )
 
@@ -39,6 +40,10 @@ def test_wheel_contact_truth_uses_named_subtrees_and_world_contact() -> None:
     np.testing.assert_array_equal(
         measured_wheel_ground_contacts(model, data, body_sets), [1, 1]
     )
+    observed = np.empty(2, np.uint8)
+    returned = measured_wheel_ground_contacts_into(model, data, body_sets, observed)
+    assert returned is observed
+    np.testing.assert_array_equal(observed, [1, 1])
 
     root = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "root")
     data.qpos[model.jnt_qposadr[root] + 2] += 0.5
@@ -46,3 +51,5 @@ def test_wheel_contact_truth_uses_named_subtrees_and_world_contact() -> None:
     np.testing.assert_array_equal(
         measured_wheel_ground_contacts(model, data, body_sets), [0, 0]
     )
+    measured_wheel_ground_contacts_into(model, data, body_sets, observed)
+    np.testing.assert_array_equal(observed, [0, 0])

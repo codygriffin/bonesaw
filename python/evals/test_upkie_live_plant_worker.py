@@ -4,6 +4,7 @@ import pathlib
 import sys
 import unittest
 
+import mujoco
 import numpy as np
 
 
@@ -110,6 +111,40 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(result["simulator"]["physics_dt_s"], PHYSICS_DT)
         self.assertEqual(result["simulator"]["physics_substeps"], PHYSICS_STEPS_PER_CONTROL)
         self.assertGreaterEqual(result["metrics"]["ground_contact_count"], 1)
+        # The live controller consumes the measured MuJoCo wheel mask through
+        # the Rust contact-observation boundary; it must not silently reuse an
+        # authored two-wheel stance when a wheel has left the plane.
+        np.testing.assert_array_equal(
+            result["wbc_observed_contact_active"],
+            result["metrics"]["wbc_observed_contact_active"],
+        )
+        np.testing.assert_array_equal(
+            result["wbc_debounced_contact_active"],
+            result["metrics"]["wbc_debounced_contact_active"],
+        )
+        np.testing.assert_array_equal(
+            result["wbc_hard_contact_active"],
+            result["metrics"]["wbc_hard_contact_active"],
+        )
+        self.assertTrue(result["metrics"]["wbc_observed_contact_available"])
+        self.assertTrue(
+            np.all(
+                np.asarray(result["wbc_hard_contact_active"], np.uint8)
+                <= np.asarray(result["wbc_observed_contact_active"], np.uint8)
+            )
+        )
+        np.testing.assert_array_equal(result["wbc_debounced_contact_active"], [0, 0])
+        self.assertLessEqual(
+            result["metrics"]["wbc_support_active_count"],
+            int(np.sum(result["wbc_observed_contact_active"])),
+        )
+        self.assertIn(result["metrics"]["wbc_contact_observation_status"], (0, 1, 2, 3))
+        self.assertIn(result["metrics"]["wbc_contact_observation_provenance"], (0, 1, 2, 3))
+        settled = result
+        for _ in range(3):
+            settled = self.worker.step({"type": "step"})
+        np.testing.assert_array_equal(settled["wbc_debounced_contact_active"], [1, 1])
+        self.assertGreaterEqual(settled["metrics"]["wbc_support_active_count"], 1)
         self.assertTrue(np.isfinite(result["metrics"]["maximum_penetration_m"]))
         self.assertEqual(len(result["actuator_effort_nm"]), 6)
         self.assertEqual(
@@ -152,6 +187,18 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
 
+    def test_wbc_hard_support_fails_closed_when_mujoco_loses_both_wheels(self) -> None:
+        root = mujoco.mj_name2id(
+            self.worker.model, mujoco.mjtObj.mjOBJ_JOINT, "root"
+        )
+        self.worker.data.qpos[self.worker.model.jnt_qposadr[root] + 2] += 0.5
+        mujoco.mj_forward(self.worker.model, self.worker.data)
+        result = self.worker.step({"type": "step"})
+        np.testing.assert_array_equal(result["wbc_observed_contact_active"], [0, 0])
+        np.testing.assert_array_equal(result["wbc_hard_contact_active"], [0, 0])
+        self.assertEqual(result["metrics"]["wbc_support_active_count"], 0)
+        self.assertEqual(result["metrics"]["wbc_contact_observation_status"], 0)
+
     def test_pause_freezes_mujoco_time_but_keeps_stream_heartbeat(self) -> None:
         running = self.worker.step({"type": "step", "command_id": 10})
         time_before = float(self.worker.data.time)
@@ -167,6 +214,10 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertTrue(paused["simulator"]["paused"])
         self.assertTrue(paused["metrics"]["paused"])
         self.assertEqual(paused["metrics"]["wbc_status"], "paused")
+        self.assertFalse(paused["metrics"]["wbc_observed_contact_available"])
+        np.testing.assert_array_equal(paused["wbc_debounced_contact_active"], [0, 0])
+        np.testing.assert_array_equal(paused["wbc_hard_contact_active"], [0, 0])
+        self.assertEqual(paused["metrics"]["wbc_support_active_count"], 0)
         self.assertEqual(int(paused["tick"]), tick_before + 1)
         self.assertEqual(float(self.worker.data.time), time_before)
         np.testing.assert_array_equal(self.worker.data.qpos, qpos_before)
@@ -189,6 +240,14 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertTrue(reset["paused"])
         self.assertEqual(float(reset["simulator"]["time_s"]), 0.0)
         self.assertEqual(reset["metrics"]["wbc_status"], "paused")
+        self.assertFalse(reset["metrics"]["wbc_observed_contact_available"])
+        np.testing.assert_array_equal(reset["wbc_debounced_contact_active"], [0, 0])
+        np.testing.assert_array_equal(reset["wbc_hard_contact_active"], [0, 0])
+        self.assertEqual(reset["metrics"]["wbc_support_active_count"], 0)
+        self.assertFalse(reset["metrics"]["wbc_observed_contact_available"])
+        np.testing.assert_array_equal(reset["wbc_observed_contact_active"], [0, 0])
+        np.testing.assert_array_equal(reset["wbc_debounced_contact_active"], [0, 0])
+        np.testing.assert_array_equal(reset["wbc_hard_contact_active"], [0, 0])
 
     def test_paused_worker_rejects_active_external_load(self) -> None:
         self.worker.step({"type": "step", "paused": True})

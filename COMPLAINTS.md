@@ -155,6 +155,19 @@ work reduction or a genuinely continuous cross-tick progress/tracking-debt
 supervisor, plus the repeatable sub-5 ms p99 gate. See the
 [r294 rejected-pair cache report](benchmarks/results/g1-jacobi-rejected-pair-cache-r294/G1_JACOBI_REJECTED_PAIR_CACHE_R294.md).
 
+R295 closes the live-state complaint that WBC support could silently remain an
+authored two-wheel stance after MuJoCo contact was lost. The worker derives
+wheel subtrees once, writes the measured wheel/ground mask into caller-owned
+storage at every 50 Hz observation, and passes it to Rust with an explicit
+fresh-observation flag. Raw, debounced, and hard/admitted masks plus typed
+observation status/provenance and support counts are streamed. A lifted-root
+regression reaches raw/hard `[0, 0]` without a reset; the worker suite is 9/9
+and the core suite remains 317/317. This removes stale contact authority from
+the live plant boundary. Floating walking/contact transfer, tracking, thermal,
+and hardware authority remain open; the behavior gate is now the useful
+support-transition profile rather than state-ownership plumbing. See the
+[live intent/wrench contract](docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the
@@ -187,8 +200,9 @@ the Upkie C++ WheelBalancer oracle. The moving-liftoff prefix and Upkie parity
 pass; the walking row remains red at 5.549 cm foot RMS, and the full transfer
 remains red with contingency/deadline/residual growth after the contact-mode
 change. These are behavior/evaluation failures, not reset or authority
-decisions. The next WBC slice is a causal support-transition/contact-mode
-improvement with the same 250 Hz MuJoCo / 50 Hz measured-feedback contract.
+decisions. The next behavior slice is a causal support-transition/contact-mode
+profile under this measured 250 Hz MuJoCo / 50 Hz WBC contract; it must use the
+raw contact mask rather than an authored stance assumption.
 See the [r260 WBC benchmark manifest](benchmarks/results/wbc-benchmark-manifest-r260/WBC_BENCHMARK_MANIFEST.md).
 
 R262 now makes the timeout behavior explicit. The existing PyO3 floating WBC

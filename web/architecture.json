@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "jacobi-rejected-pair-cache-r294",
+  "revision": "measured-mujoco-contact-r295",
   "updated": "2026-08-03",
-  "stage": "R294 rejects an exact rejected-Jacobi-pair cache; R293 remains the CPU default · r294",
-  "checkpoint": "R294 reuses caller-owned pseudoinverse output scratch to remember a rejected Jacobi pair only while both column generations and bit-exact re-anchored energies remain unchanged. All 317 core tests pass in default and candidate builds, and a 100-tick native G1 sentinel is non-timing byte-exact. Three CPU-4-pinned AB/BA pairs retire 1.55537% more instructions and 6.81245% more branches in every pair, so the candidate is rejected before full corpus replay. R293 remains the default at 5.175 ms median p99; deadline, walking, contact, and authority gates stay open.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R294 rejects one exact CPU idea without changing the R293 production trace or closing the ordinary p99 deadline or WBC-achievable transfer gate. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
+  "stage": "R295 feeds measured MuJoCo wheel contact into the Rust WBC boundary; R293 remains the CPU default · r295",
+  "checkpoint": "R295 derives the Upkie wheel subtrees once, writes exact wheel-to-ground activity into caller-owned scratch at every 50 Hz observation, and passes it to Rust with an explicit fresh-observation flag. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss; raw, debounced, hard, status, provenance, and support-count witnesses stream beside measured plant state. The 9/9 worker suite and 317/317 core suite pass, including a lifted-root [0,0] support regression. This closes stale authored-contact state ownership, not floating walking, tracking, thermal, or authority gates.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R295 closes stale live-contact authority without closing the ordinary p99 deadline or WBC-achievable transfer gate. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -13,6 +13,10 @@
     {
       "name": "Live plant authority boundary",
       "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, pause/resume, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever · MuJoCo advances five 4 ms soft-contact steps per held command, while Rust reads measured qpos/qvel/root and runs WBC at 50 Hz · plant_pause clears the lease and skips WBC/physics but keeps a heartbeat; plant_resume starts from the frozen state; plant_reset clears wrench and increments reset_epoch · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
+    },
+    {
+      "name": "Measured contact admission",
+      "detail": "MuJoCo named wheel subtrees are resolved once; each 50 Hz observation writes exact world-ground activity into caller-owned uint8 scratch · Rust receives the raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, hard/admitted masks, support counts, status, provenance, and flags remain separate witnesses · reset/paused frames fail closed until a fresh plant sample · no authored nominal stance becomes authority · floating walking transfer remains a separate gate"
     },
     {
       "name": "Explicit tick input",
@@ -94,6 +98,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r295-measured-contact-admission",
+      "title": "Make live WBC support follow measured MuJoCo contact",
+      "status": "implemented mechanism · transfer profile open",
+      "detail": "The live worker resolves wheel subtrees once and passes a caller-owned raw wheel/ground mask into the persistent Rust adapter on every 50 Hz solve with explicit fresh-observation availability. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss. Raw, debounced, hard, status, provenance, and support-count telemetry remain separate; reset and paused frames fail closed. A lifted-root regression reaches raw/hard [0,0] without a reset. This closes stale authored-contact state ownership but does not admit floating walking, tracking, thermal, or hardware authority."
+    },
     {
       "id": "r277-dcm-transition-gate",
       "title": "Bound DCM/virtual-ZMP authority around authored support transitions",
@@ -1101,6 +1111,11 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R295 measured MuJoCo contact admission",
+      "result": "9/9 worker tests · raw/hard support loss without reset · core unchanged",
+      "detail": "The live Upkie worker resolves named wheel subtrees once, writes exact world-ground contact activity into caller-owned scratch, and passes it to Rust with fresh-observation availability. The adapter's debounce and hard eligibility now consume measured plant state; a root lifted by 0.5 m reports raw and hard [0,0], support count zero, and no automatic reset."
+    },
     {
       "name": "R294 rejected Jacobi-pair cache",
       "result": "native sentinel exact · instructions +1.55537% · branches +6.81245% · default unchanged",
