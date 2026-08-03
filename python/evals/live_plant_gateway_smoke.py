@@ -390,7 +390,12 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         automatic_fall_reset_observed = False
         recovery_states: list[dict[str, Any]] = []
         consecutive_settled = 0
-        for _ in range(150):
+        # A local worker often enters the settled envelope within 150 frames;
+        # the same 50 Hz plant behind a quick Cloudflare tunnel can receive a
+        # shorter push burst and then recover more slowly without ever falling.
+        # Keep the assertion bounded, but allow six seconds for that valid
+        # transport-dependent settling tail.
+        for _ in range(300):
             state = receive_plant(websocket, "plant_state")
             recovery_states.append(state)
             fallen_observed = fallen_observed or bool(state["metrics"]["fallen"])
