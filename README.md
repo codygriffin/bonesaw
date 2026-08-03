@@ -297,6 +297,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   This closes only this machine's local timing gate; the 5.175 ms portable
   generic result, walking/contact realization, and authority remain open. See
   the [r297 host-native timing report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
+- R296's sequential measured-contact replay now drives the existing live
+  worker at the declared 250 Hz MuJoCo / 50 Hz WBC split. Ten control ticks
+  consume exactly five source frames each and cover `11`, `10`, `01`, and `00`;
+  all 14 debounce, edge-sampling, hard-subset, fail-closed pause, no-reset, cadence, and
+  exact-replay gates pass. This is simulator-boundary evidence, not a hardware
+  estimator or a walking-transfer admission. See the
+  [r296 measured-contact transition report](benchmarks/results/upkie-live-contact-transition-r296/UPKIE_LIVE_CONTACT_TRANSITION_R296.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

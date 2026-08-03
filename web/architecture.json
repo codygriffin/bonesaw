@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "host-native-timing-r297",
+  "revision": "host-native-timing-r297-measured-contact-transition-r296",
   "updated": "2026-08-03",
-  "stage": "R297 qualifies the local host-native CPU profile · R293 remains the source default · portable timing and transfer remain open",
-  "checkpoint": "R297 runs seven CPU-4-pinned AB/BA pairs over the frozen 2,317-tick policy-free, physics-free G1 corpus with the actual local `-C target-cpu=native` profile. All 112 non-timing arrays are exact. R293 production passes all seven 5 ms p99 gates (median 4.644 ms, worst 4.712 ms); the rejected R296 fixed-58 candidate passes six and increases integrated retired instructions in every counter pair. The local manager now defaults to the qualified native profile with an explicit override. R295 measured-contact admission, its 9/9 worker suite, and fail-closed pause behavior remain intact. This closes only this machine's declared timing profile, not portable generic timing, floating walking, tracking, thermal, or authority gates.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R296's rejected fixed-shape Jacobi-dot experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R297 closes the local host-native p99 gate while preserving the portable generic miss as a separate open witness. Browser frame time, authenticated transport, calibrated actuation/thermal state, portable exact solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
+  "stage": "R297 qualifies the local host-native CPU profile; R296 qualifies sequential measured-contact admission · portable timing and transfer remain open",
+  "checkpoint": "R297 runs seven CPU-4-pinned AB/BA pairs over the frozen 2,317-tick policy-free, physics-free G1 corpus with the actual local `-C target-cpu=native` profile. All 112 non-timing arrays are exact. R293 production passes all seven 5 ms p99 gates (median 4.644 ms, worst 4.712 ms); the rejected R296 fixed-58 candidate passes six and increases integrated retired instructions in every counter pair. Separately, the eval-only live-contact replay drives the existing 250 Hz MuJoCo / 50 Hz WBC worker through ten ticks, consumes five source frames per tick, places edges on newest source frames, covers 11/10/01/00, and passes all 14 gates with no reset. The local manager now defaults to the qualified native profile with an explicit override. This closes only the local timing and sequential contact-admission harnesses, not portable generic timing, floating walking, tracking, thermal, or authority gates.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R296's rejected fixed-shape Jacobi-dot experiment and sequential measured-contact replay, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R297 closes the local host-native p99 gate and R296 closes the sequential contact-admission harness while preserving the portable generic miss and WBC-achievable transfer gate as separate open witnesses. Browser frame time, authenticated transport, portable exact solver p99, WBC-achievable transfer composition, calibrated actuation/thermal state, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -103,6 +103,12 @@
       "title": "Qualify the explicitly local host-native CPU profile",
       "status": "local timing admitted · portable timing open · authority closed",
       "detail": "Seven CPU-4-pinned AB/BA pairs preserve all 112 non-timing arrays on the 2,317-tick zero-policy/zero-physics corpus. R293 production passes all seven 5,000 µs p99 gates (median 4,644.5 µs, worst 4,711.9 µs); the R296 fixed-58 candidate passes only six and regresses integrated retired instructions in all three counter pairs. The local manager defaults to -C target-cpu=native with BONESAW_LIVE_RUSTFLAGS as the override. The 5.175 ms portable generic result and every physical/authority gate remain open."
+    },
+    {
+      "id": "r296-sequential-measured-contact-transition",
+      "title": "Replay sequential measured-contact edges through the live 250/50 boundary",
+      "status": "harness passed · plant transfer open · authority closed",
+      "detail": "An eval-only source replaces only the named MuJoCo contact extractor and drives the existing LiveUpkiePlant/Rust adapter for ten 50 Hz ticks, consuming exactly five 250 Hz frames per tick. Edges are placed on the newest frame inside a control window; raw masks cover 11/10/01/00, Rust observes three-sample activation and two-sample release debounce, hard rows remain a subset of raw contact, zero contact fails closed, pause hides retained state without reset, and all 14 gates plus exact replay pass. This is simulator-boundary evidence, not a hardware estimator or walking-transfer admission."
     },
     {
       "id": "r295-measured-contact-admission",
@@ -1128,6 +1134,12 @@
       "result": "112-array exact · production p99 7/7 PASS · candidate 6/7 FAIL · authority closed",
       "detail": "Seven alternating CPU-4-pinned process pairs use the actual local native build profile. Production median/worst p99 are 4.644/4.712 ms. Three complete-process counter pairs reject the fixed-58 specialization with a consistent +0.2533%–+0.2565% retired-instruction regression. Portable generic timing remains a separately visible miss.",
       "report": "/G1_HOST_NATIVE_TIMING_R297.html"
+    },
+    {
+      "name": "R296 sequential measured-contact transition replay",
+      "result": "14/14 gates · exact replay · 11/11 tests · no reset",
+      "detail": "The eval-only source drives the existing live worker/Rust adapter with five 250 Hz frames per 50 Hz tick, places edges on newest source frames, and covers 11/10/01/00. Raw passthrough, debounce, hard-row intersection, zero-contact fail-closed, paused heartbeat, cadence, edge sampling, and exact replay all pass. This is simulator-boundary evidence, not hardware or walking-transfer authority.",
+      "report": "/UPKIE_LIVE_CONTACT_TRANSITION_R296.html"
     },
     {
       "name": "R295 measured MuJoCo contact admission",
@@ -3704,6 +3716,7 @@
     ]
   },
   "gaps": [
+    "R296's sequential measured-contact replay passes all 14 cadence, newest-frame edge, 11/10/01/00, debounce, hard-subset, fail-closed pause, no-reset, and exact-replay gates. This closes the contact-admission harness boundary, not the full MuJoCo/WBC floating transfer, tracking, thermal, or hardware gate.",
     "R296 rejects a fixed 58-element Jacobi dot after five pinned pairs preserve 56-array semantics and zero allocations but increase retired instructions in every pair. R293 remains the CPU default; ordinary Preference/Style work, the sub-5 ms p99 gate, and floating walking/contact transfer remain open.",
     "R294 rejects a generation-checked Jacobi rejected-pair cache after every pinned pair increases instructions 1.55537% and branches 6.81245%. R293 therefore remains the exact dense-matvec production default at a 5.175 ms median p99, still above target; ordinary Preference/Style work, walking/contact transfer, and authority gates remain open.",
     "R291's guarded row-Gram task pseudoinverse lowers one observed p99 below 5 ms but diverges from the control at tick 0 and regresses long-horizon tracking. The ordinary CPU complaint therefore remains an exact, semantically preserving Preference/Style work reduction or an explicitly supervised continuous progress budget; the faster factorization is not authority evidence.",
@@ -3769,7 +3782,7 @@
   ],
   "feedback_questions": [
     "R297 closes the timing deadline on this explicitly local native CPU profile but preserves the portable generic miss. Should the next admission target require one portable x86-64-v3 binary envelope, ship per-host qualified profiles with fingerprints, or treat timing as deployment-specific while the next work moves entirely to measured-contact transfer?",
-    "R296 rejects another exact fixed-shape kernel after instructions rise despite byte-exact output. The next behavior step should build the deterministic 250 Hz MuJoCo source trace and 50 Hz WBC replay with sequential raw masks, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule cannot close both gates.",
+    "R296's sequential 250/50 measured-contact replay now passes the source-cadence and fail-closed harness. Should the next behavior step build a longer evolving G1/MuJoCo source trace through the full floating support transfer, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule still cannot close the transfer gate.",
     "R294 shows that exact cross-sweep rejection memoization adds more branch and bookkeeping work than it removes. Should the next exact CPU slice specialize a measured fixed matrix shape, fuse a downstream consumer into the pseudoinverse output pass, or pause kernel work and prototype the continuous cross-tick Style progress/tracking-debt supervisor?",
     "R290 delays a terminal Style cap until the support tube clips and preserves the nominal prefix exactly, but one later exhaustion still worsens tracking and misses p99. Should a continuous supervisor carry task-error/progress debt across ticks, or should the solver expose an exact incremental Style factorization before any cap is reconsidered?",
     "R287 separates a strict allocation-stable workspace API from the older convenience API that allocates a workspace per scalar call. Should the compatibility surface remain indefinitely, be renamed to make allocation explicit, or be deprecated once browser/Python callers migrate to persistent workspaces?",

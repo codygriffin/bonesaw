@@ -11,6 +11,14 @@ transfer, calibrated resources, or authority. The local manager now builds
 with `-C target-cpu=native` by default and keeps an explicit override. See the
 [R297 report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
 
+The sequential live-contact harness is now green: ten 50 Hz ticks consume
+exactly five 250 Hz source frames each, cover `11/10/01/00`, exercise an edge
+on the newest frame inside a control window, pass debounce and
+hard-subset/fail-closed checks, and pause without reset. This removes the
+contact-admission/timing-harness uncertainty; full floating walking, measured
+plant transfer, tracking, and hardware remain open. See the
+[R296 transition report](benchmarks/results/upkie-live-contact-transition-r296/UPKIE_LIVE_CONTACT_TRANSITION_R296.md).
+
 R296 closes the adjacent fixed-shape CPU experiment as negative evidence: the
 58-element Jacobi dot stayed semantically exact and allocation-free, but
 retired instructions rose in every pinned pair. The solver default is unchanged
