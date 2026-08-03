@@ -314,6 +314,23 @@ This is an engineering prototype, not a safety-rated robot controller.
   collision-extraction seam without claiming a dynamically realized transfer,
   tracking, contact forces, hardware sensing, or authority. See the
   [r299 kinematic measured-contact report](benchmarks/results/upkie-measured-contact-kinematic-r299/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md).
+- R300 freezes the first actual live-rate dynamic consequence trace. A
+  zero-wrench control retains measured double support for 1.06 s; an otherwise
+  identical 8 N lateral/200 ms candidate produces `11→10→01→00` and a fall
+  boundary at tick 52. The 250/50 transport, immediate hard-row removal,
+  no-reset-on-solver-error, exact replay, zero Rust allocation, and 20 ms worker
+  deadline gates pass. Each 50 Hz WBC boundary consumes the final completed
+  contact sample from the prior five-frame 250 Hz MuJoCo window; the stream
+  exposes the entire window and per-substep loss/gain edges. Diagnostic hard
+  rows remain visible, while executable hard rows fail closed on a paused or
+  non-admitted solve; a transient edge is diagnostic until the terminal sample
+  reaches the next boundary. Controller behavior is
+  rejected: ticks 48/50 reach `MaxIterations`, controller p99/max are
+  5.341/5.415 ms in the frozen artifact, and unsolved
+  dynamics/contact residuals reach 91.4/12.9. The live page now renders those
+  residuals, support masks, allocation counts, and raw solver status in the
+  authority stack and near-body bars. See the
+  [r300 dynamic measured-contact report](benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

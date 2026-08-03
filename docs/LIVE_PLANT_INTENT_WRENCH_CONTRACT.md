@@ -29,18 +29,26 @@ reason to copy the controller's predicted state into the plant. The streamed
 record labels the measured state, the accepted wrench provenance, and the WBC
 admission result independently.
 
-Contact authority follows the same measured-state boundary. On every 50 Hz
-observation the worker derives the two wheel subtrees once, scans MuJoCo's
-world-ground contacts, and writes the raw mask into caller-owned scratch
-storage. That mask is passed to the persistent Rust adapter with an explicit
+Contact authority follows the same measured-state boundary. The worker derives
+the two wheel subtrees once, refreshes MuJoCo collision data after each 4 ms
+integration step, and writes a fixed five-row caller-owned 250 Hz contact
+window. The 50 Hz WBC consumes only the final completed row from the preceding
+window (the startup observation is frame zero); frame indices, per-substep
+loss/gain edges, and the terminal physical mask are streamed so this one-tick
+causal latency is testable. A transient loss inside a window is diagnostic for
+that tick; the next boundary sees it only if the terminal mask is still lost.
+The raw mask is passed to the persistent Rust adapter with an explicit
 fresh-observation flag; Rust owns timestamp/provenance checks, three-sample
 positive debounce, and immediate hard-row removal on contact loss. The stream
-exposes all three witnesses as `wbc_observed_contact_active`,
-`wbc_debounced_contact_active`, and `wbc_hard_contact_active`, together with
-observation status/provenance/flags and support counts. A reset or paused
-heartbeat reports no fresh observation and cannot turn the authored nominal
-two-wheel stance into support authority. This is measured contact admission,
-not a claim that the WBC can execute a floating walking transfer.
+exposes raw, debounced, diagnostic hard, and executable hard masks as
+`wbc_observed_contact_active`, `wbc_debounced_contact_active`,
+`wbc_hard_contact_active`, and `wbc_hard_contact_executable`, together with
+observation status/provenance/flags, support counts, and raw/admitted solver
+status. A non-admitted result (including `MaxIterations`), reset, or paused
+heartbeat cannot advertise retained hard rows as executable authority and
+cannot turn the authored nominal two-wheel stance into support authority. This
+is measured contact admission, not a claim that the WBC can execute a floating
+walking transfer.
 
 Simulation lifecycle commands are explicit and fail-safe:
 

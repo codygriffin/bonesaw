@@ -2,6 +2,31 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current dynamic consequence fixture — r300 live measured contact
+
+R300 runs the actual `LiveUpkiePlant` contract at five 4 ms MuJoCo substeps per
+20 ms persistent Rust WBC tick. A zero-wrench control holds measured `11` for
+1.06 s. An otherwise identical 8 N lateral wrench at the measured base COM for
+200 ms produces `11`, `10`, `01`, and `00`, then reports a fall at tick 52 and
+stops before consuming the pending automatic reset. Fixture gates pass for
+exact replay, immediate hard-row removal, non-admitted `MaxIterations`, zero
+Rust allocation, no numeric reset/warning, and the 20 ms worker deadline.
+The worker refreshes collision data after each completed 4 ms integration step,
+stores a fixed five-sample contact window, and makes the following 50 Hz WBC
+boundary consume exactly its final sample. The window, frame indices, and
+per-substep loss/gain edges are streamed and checked as a causal contract.
+Diagnostic hard-contact rows remain visible for inspection, while
+`wbc_hard_contact_executable` is fail-closed whenever the solve is paused or
+non-admitted; a transient edge inside a window is diagnostic until it reaches
+the terminal sample consumed at the next boundary.
+Controller behavior is rejected: ticks 48/50 take up to 5.415 ms (5.341 ms
+p99) in the frozen artifact, raw and published status are `MaxIterations`, and unsolved
+dynamics/contact residuals reach 91.4/12.9. The plant stream now exposes raw
+status, allocation counts, maximum constraint violation, and dynamics/contact
+residuals; the browser renders them as separate support/hard-row/solver
+authority bars. See
+[`UPKIE_LIVE_DYNAMIC_CONTACT_R300.md`](../benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
+
 ## Current measured-contact evidence — r299 kinematic collision replay
 
 R299 authors root poses rather than masks. Fifty nominal 250 Hz frames call

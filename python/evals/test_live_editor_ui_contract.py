@@ -108,6 +108,7 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('id="plant-com-state"', self.html)
         self.assertIn('id="plant-ground-state"', self.html)
         self.assertIn('id="ground-contact-state"', self.html)
+        self.assertIn('id="contact-cadence-state"', self.html)
         self.assertIn('id="runtime-rates"', self.html)
         self.assertIn("drawPlantContactLayer", self.javascript)
         self.assertIn("message.contacts || []", self.javascript)
@@ -119,6 +120,11 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("MUJOCO GROUND", self.javascript)
         self.assertIn("message.center_of_mass_world", self.javascript)
         self.assertIn("solver_forward_inverse", self.javascript)
+        self.assertIn("wbc_observation", self.javascript)
+        self.assertIn("contact_window_masks", self.javascript)
+        self.assertIn("contact_window_loss_mask", self.javascript)
+        self.assertIn("contact_window_gain_mask", self.javascript)
+        self.assertIn("wbc_hard_contact_executable", self.javascript)
 
     def test_mujoco_pause_resume_reset_controls_are_explicit(self) -> None:
         for selector in ('#pause-button', '#resume-button', '#reset-button'):
@@ -140,6 +146,28 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('"authority-capture"', self.javascript)
         self.assertIn('"authority-station"', self.javascript)
         self.assertIn("drawTinyAuthorityBar", self.javascript)
+
+    def test_live_wbc_failures_remain_separate_visible_authority_rows(self) -> None:
+        worker = (ROOT / "python/evals/upkie_live_plant_worker.py").read_text()
+        for signal in (
+            "wbc_raw_status",
+            "wbc_allocation_calls",
+            "wbc_allocated_bytes",
+            "wbc_maximum_constraint_violation",
+            "wbc_dynamics_residual",
+            "wbc_contact_residual",
+        ):
+            self.assertIn(signal, worker)
+            self.assertIn(signal, self.javascript)
+        for authority_row in (
+            '"authority-hard"',
+            '"authority-support"',
+            '"authority-actuator"',
+            '"authority-solver"',
+        ):
+            self.assertIn(authority_row, self.javascript)
+        self.assertIn('"RES"', self.javascript)
+        self.assertIn('metrics.wbc_raw_status === "MaxIterations"', self.javascript)
 
 
 if __name__ == "__main__":

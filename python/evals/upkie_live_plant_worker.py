@@ -147,6 +147,24 @@ class LiveUpkiePlant:
         # support authority, including on a paused/reset heartbeat.
         self.observed_contact_active = np.zeros(2, np.uint8)
         self.observed_contact_scratch = np.empty(2, np.uint8)
+        # Fixed-capacity causal contact history.  The mask consumed by the
+        # 50 Hz WBC is the latest completed 250 Hz observation from the prior
+        # control window; each row below is written immediately after one
+        # MuJoCo substep and never grows at runtime.
+        self.physics_contact_window = np.zeros(
+            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+        )
+        self.physics_contact_loss_window = np.zeros(
+            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+        )
+        self.physics_contact_gain_window = np.zeros(
+            (PHYSICS_STEPS_PER_CONTROL, 2), np.uint8
+        )
+        self.physics_contact_loss_mask = np.zeros(2, np.uint8)
+        self.physics_contact_gain_mask = np.zeros(2, np.uint8)
+        self.physics_contact_frame_index = 0
+        self.wbc_observation_active = np.zeros(2, np.uint8)
+        self.wbc_observation_frame_index = 0
         self.no_contact_active = np.zeros(2, np.uint8)
         self.last_result: dict[str, Any] | None = None
 
@@ -171,6 +189,12 @@ class LiveUpkiePlant:
             "control_hz": int(round(1.0 / CONTROL_DT)),
             "physics_hz": int(round(1.0 / PHYSICS_DT)),
             "physics_substeps_per_control": PHYSICS_STEPS_PER_CONTROL,
+            "contact_observation": {
+                "sample_hz": int(round(1.0 / PHYSICS_DT)),
+                "consumed_hz": int(round(1.0 / CONTROL_DT)),
+                "window_size": PHYSICS_STEPS_PER_CONTROL,
+                "wbc_source": "latest_completed_250hz_substep",
+            },
             "paused": self.paused,
             "maximum_force_n": MAX_FORCE_N,
             "maximum_application_offset_m": MAX_APPLICATION_OFFSET_M,
@@ -334,7 +358,16 @@ class LiveUpkiePlant:
         maximum_fall_safe_mode = 0
         fall_safe_reason_flags = 0
         maximum_controller_step_ns = 0
-        latest_observed_contact_active = self.observed_contact_active
+        latest_observed_contact_active = self.no_contact_active
+        latest_physics_contact_active = self.no_contact_active
+        wbc_observation_frame_index = self.physics_contact_frame_index
+        physics_contact_window_start = self.physics_contact_frame_index + 1
+        physics_contact_window_end = self.physics_contact_frame_index
+        physics_contact_window_valid = False
+        physics_contact_loss_mask = self.physics_contact_loss_mask
+        physics_contact_gain_mask = self.physics_contact_gain_mask
+        physics_contact_loss_mask.fill(0)
+        physics_contact_gain_mask.fill(0)
         # A paused frame keeps the last WBC diagnostics while explicitly
         # labelling the solve as paused below; no controller call occurs.
         latest_result: dict[str, Any] | None = self.last_result
@@ -349,13 +382,32 @@ class LiveUpkiePlant:
             root_position, root_quaternion, root_twist, q, v = plant.read_state(
                 self.model, self.data
             )
-            plant.measured_wheel_ground_contacts_into(
-                self.model,
-                self.data,
-                self.wheel_contact_body_sets,
-                self.observed_contact_scratch,
-            )
-            np.copyto(self.observed_contact_active, self.observed_contact_scratch)
+            # This is the latest completed physical observation.  It is the
+            # only contact mask passed to Rust for this WBC call; the masks
+            # produced by the five upcoming physics steps belong to the next
+            # control boundary.
+            if self.physics_contact_frame_index == 0:
+                # Frame zero is the only startup sample outside a completed
+                # physics window. After this call the WBC consumes the cached
+                # final observation of the prior five-substep window.
+                plant.measured_wheel_ground_contacts_into(
+                    self.model,
+                    self.data,
+                    self.wheel_contact_body_sets,
+                    self.observed_contact_scratch,
+                )
+                np.copyto(
+                    self.wbc_observation_active,
+                    self.observed_contact_scratch,
+                )
+            else:
+                np.copyto(
+                    self.wbc_observation_active,
+                    self.observed_contact_active,
+                )
+            np.copyto(self.observed_contact_active, self.wbc_observation_active)
+            self.wbc_observation_frame_index = self.physics_contact_frame_index
+            wbc_observation_frame_index = self.wbc_observation_frame_index
             ground_position = float(np.mean(self.data.xpos[self.wheel_bodies, 0]))
             ground_height = float(np.mean(self.data.xpos[self.wheel_bodies, 2]))
             result = self.controller.solve(
@@ -366,7 +418,7 @@ class LiveUpkiePlant:
                 v,
                 ground_position,
                 ground_height,
-                observed_contact_active=self.observed_contact_scratch,
+                observed_contact_active=self.wbc_observation_active,
                 observed_contact_available=True,
             )
             latest_result = result
@@ -389,8 +441,37 @@ class LiveUpkiePlant:
                     body_id,
                     self.data.qfrc_applied,
                 )
-            for _ in range(PHYSICS_STEPS_PER_CONTROL):
+            previous_contact = self.wbc_observation_active
+            physics_contact_window_start = self.physics_contact_frame_index + 1
+            physics_contact_loss_mask.fill(0)
+            physics_contact_gain_mask.fill(0)
+            for substep in range(PHYSICS_STEPS_PER_CONTROL):
                 mujoco.mj_step(self.model, self.data)
+                # mj_step leaves collision data at its internal solve stage;
+                # refresh it at the newly integrated state before declaring
+                # this frame a completed 250 Hz observation.
+                mujoco.mj_forward(self.model, self.data)
+                self.physics_contact_frame_index += 1
+                plant.measured_wheel_ground_contacts_into(
+                    self.model,
+                    self.data,
+                    self.wheel_contact_body_sets,
+                    self.physics_contact_window[substep],
+                )
+                current_contact = self.physics_contact_window[substep]
+                loss = self.physics_contact_loss_window[substep]
+                gain = self.physics_contact_gain_window[substep]
+                loss[...] = previous_contact & ~current_contact
+                gain[...] = ~previous_contact & current_contact
+                physics_contact_loss_mask |= loss
+                physics_contact_gain_mask |= gain
+                np.copyto(self.observed_contact_active, current_contact)
+                previous_contact = current_contact
+            np.copyto(self.observed_contact_active, self.physics_contact_window[-1])
+            physics_contact_window_end = self.physics_contact_frame_index
+            physics_contact_window_valid = True
+            latest_observed_contact_active = self.wbc_observation_active
+            latest_physics_contact_active = self.observed_contact_active
             peak_capture_pressure = max(
                 peak_capture_pressure, float(result["capture_pressure"])
             )
@@ -424,8 +505,12 @@ class LiveUpkiePlant:
             self.reset(numeric=True)
             numeric_reset = True
             latest_result = None
-            latest_observed_contact_active = self.observed_contact_active
-        mujoco.mj_forward(self.model, self.data)
+            latest_observed_contact_active = self.no_contact_active
+            latest_physics_contact_active = self.no_contact_active
+            physics_contact_window_valid = False
+        # The final substep's explicit `mj_forward` leaves kinematics and
+        # contact data valid. Avoiding another pass here keeps the final window
+        # sample identical to the state consumed at the next WBC boundary.
         root_position, root_quaternion, root_twist, q, v = plant.read_state(
             self.model, self.data
         )
@@ -444,6 +529,12 @@ class LiveUpkiePlant:
         # retained state is not current hard authority while no WBC solve ran,
         # so the stream must fail closed instead of publishing it as active.
         published_contact_state = latest_result is not None and not self.paused
+        if not published_contact_state:
+            latest_observed_contact_active = self.no_contact_active
+            latest_physics_contact_active = self.no_contact_active
+            physics_contact_window_valid = False
+            physics_contact_loss_mask.fill(0)
+            physics_contact_gain_mask.fill(0)
         published_debounced_contact_active = (
             self.controller.contact_debounced
             if published_contact_state
@@ -452,6 +543,19 @@ class LiveUpkiePlant:
         published_hard_contact_active = (
             self.controller.contact_active[0]
             if published_contact_state
+            else self.no_contact_active
+        )
+        published_wbc_admitted = bool(
+            published_contact_state
+            and latest_result is not None
+            and int(latest_result["status"]) in (0, 1)
+        )
+        # Keep the debounced/hard mask as a diagnostic of the authority stack,
+        # but never advertise it as executable when the solve was not
+        # admitted (for example MaxIterations or an explicit pause).
+        published_hard_contact_executable = (
+            published_hard_contact_active
+            if published_wbc_admitted
             else self.no_contact_active
         )
         ground_contacts = [contact for contact in contacts if contact["ground"]]
@@ -514,8 +618,15 @@ class LiveUpkiePlant:
             "joint_positions": q.tolist(),
             "joint_velocities": v.tolist(),
             "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
+            "wbc_observation": {
+                "contact_active": latest_observed_contact_active.tolist(),
+                "physics_frame_index": int(wbc_observation_frame_index),
+                "source": "latest_completed_250hz_substep",
+            },
+            "physics_contact_active": latest_physics_contact_active.tolist(),
             "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
             "wbc_hard_contact_active": published_hard_contact_active.tolist(),
+            "wbc_hard_contact_executable": published_hard_contact_executable.tolist(),
             "actuator_effort_nm": actuator_effort_nm.tolist(),
             "actuator_force": actuator_force.tolist(),
             "generalized_acceleration": generalized_acceleration.tolist(),
@@ -534,6 +645,15 @@ class LiveUpkiePlant:
                 "physics_dt_s": PHYSICS_DT,
                 "control_dt_s": CONTROL_DT,
                 "physics_substeps": PHYSICS_STEPS_PER_CONTROL,
+                "physics_frame_index": int(self.physics_contact_frame_index),
+                "contact_window_frame_start": int(physics_contact_window_start),
+                "contact_window_frame_end": int(physics_contact_window_end),
+                "contact_window_valid": physics_contact_window_valid,
+                "contact_window_masks": self.physics_contact_window.tolist(),
+                "contact_window_loss_masks": self.physics_contact_loss_window.tolist(),
+                "contact_window_gain_masks": self.physics_contact_gain_window.tolist(),
+                "contact_window_loss_mask": physics_contact_loss_mask.tolist(),
+                "contact_window_gain_mask": physics_contact_gain_mask.tolist(),
                 "solver_iterations": int(np.max(solver_niter)),
                 "solver_forward_inverse": solver_fwdinv.tolist(),
                 "constraint_count": int(self.data.nefc),
@@ -574,13 +694,36 @@ class LiveUpkiePlant:
                 else ("unavailable"
                 if latest_result is None
                 else plant.STATUS_NAMES[int(latest_result["status"])]),
-                "wbc_admitted": not self.paused and latest_result is not None
-                and int(latest_result["status"]) in (0, 1),
+                "wbc_admitted": published_wbc_admitted,
+                "wbc_raw_status": "paused"
+                if self.paused
+                else ("unavailable"
+                if latest_result is None
+                else plant.STATUS_NAMES[int(latest_result["raw_wbc_status"])]),
+                "wbc_raw_status_code": -1
+                if latest_result is None or self.paused
+                else int(latest_result["raw_wbc_status"]),
+                "wbc_allocation_calls": 0
+                if latest_result is None or self.paused
+                else int(latest_result["allocation_calls"]),
+                "wbc_allocated_bytes": 0
+                if latest_result is None or self.paused
+                else int(latest_result["allocated_bytes"]),
+                "wbc_maximum_constraint_violation": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["maximum_constraint_violation"]),
+                "wbc_dynamics_residual": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["dynamics_residual"]),
+                "wbc_contact_residual": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["contact_residual"]),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
                 "wbc_debounced_contact_active": published_debounced_contact_active.tolist(),
                 "wbc_hard_contact_active": published_hard_contact_active.tolist(),
+                "wbc_hard_contact_executable": published_hard_contact_executable.tolist(),
                 "wbc_support_active_count": 0
                 if not published_contact_state
                 else int(latest_result["support_active_count"]),

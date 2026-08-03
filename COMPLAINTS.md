@@ -3,14 +3,22 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R299 closes the actual collision-extraction seam without borrowing authored
-contact masks. Fifty `mj_forward` frames generated from root poses measure
-`11→10→01→00`; every fifth observation drives the persistent Rust adapter
-and WBC, with all 14 gates exact and allocation-free. `mj_step` is forbidden,
-so the immediate remaining complaint is a dynamically realized measured
-double→single→flight/landing transfer with tracking, contact force, solver
-deadline, and reset witnesses. See the
-[R299 report](benchmarks/results/upkie-measured-contact-kinematic-r299/UPKIE_MEASURED_CONTACT_KINEMATIC_R299.md).
+R300 closes the missing live-rate dynamic consequence fixture but leaves the
+controller behavior explicitly red. A zero-wrench control holds measured `11`
+for 1.06 s; the same initial state plus an 8 N lateral wrench for 200 ms
+produces actual `11→10→01→00`, then a fall boundary at tick 52. Transport,
+hard-row removal, no-reset-on-solver-error, exact replay, zero allocation, and
+the 20 ms worker deadline pass. Every 50 Hz solve consumes the final completed
+sample of the prior five-frame 250 Hz contact window; the whole window and its
+loss/gain edges remain visible. Controller behavior fails: right-support ticks
+48/50 hit `MaxIterations`, controller p99/max are 5.341/5.415 ms in the frozen
+artifact, and unsolved
+dynamics/contact residuals reach 91.4/12.9. The immediate complaint is a controller candidate
+that improves this frozen physical trace while preserving every fixture gate;
+the solver failures must remain non-admitted and visible. Diagnostic hard rows
+are retained for inspection, but executable hard rows now fail closed on those
+ticks. See the
+[R300 report](benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
 
 R297 closes the 5 ms deadline only for this machine's declared host-native
 local deployment: seven exact production repeats report 4.644 ms median and
@@ -19,15 +27,6 @@ R293 median remains 5.175 ms, and it does not admit walking, measured-contact
 transfer, calibrated resources, or authority. The local manager now builds
 with `-C target-cpu=native` by default and keeps an explicit override. See the
 [R297 report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
-
-The R298 sequential ingress harness is green: ten 50 Hz ticks select the newest
-sample from five-frame synthetic 250 Hz chunks, cover `11/10/01/00`, pass
-debounce and hard-subset/fail-closed checks, and pause without reset. This
-removes uncertainty in the contact-ingress/debounce harness only. The source
-buffer is consumed in one 50 Hz extractor call, so actual per-substep MuJoCo
-sampling under dynamic integration, full floating walking, measured plant transfer, tracking, and
-hardware remain open. See the
-[R298 ingress report](benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
 
 R296 closes the adjacent fixed-shape CPU experiment as negative evidence: the
 58-element Jacobi dot stayed semantically exact and allocation-free, but

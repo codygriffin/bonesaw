@@ -44,6 +44,7 @@ const plantConstraintState = document.querySelector("#plant-constraint-state");
 const previewGroundState = document.querySelector("#preview-ground-state");
 const plantGroundState = document.querySelector("#plant-ground-state");
 const groundContactState = document.querySelector("#ground-contact-state");
+const contactCadenceState = document.querySelector("#contact-cadence-state");
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
 const plantWrenchLimit = document.querySelector("#plant-wrench-limit");
@@ -210,6 +211,7 @@ function resetPlantTelemetry(status = "disconnected · ghost") {
   runtimeRates.textContent = "awaiting MuJoCo";
   plantGroundState.textContent = "awaiting simulator plane";
   groundContactState.textContent = "awaiting contact state";
+  contactCadenceState.textContent = "awaiting contact cadence";
   plantWrench.textContent = "unavailable";
   for (const [id, label] of [
     ["authority-capture", "awaiting live MuJoCo state"],
@@ -732,6 +734,26 @@ function updatePlantTelemetry(message) {
   const planeNormal = simulatorGroundPlane.normal;
   plantGroundState.textContent = `point ${planePoint.map((value) => Number(value).toFixed(3)).join(" · ")} m · normal ${planeNormal.map((value) => Number(value).toFixed(2)).join(" · ")} · ${Number.isFinite(measuredPlantMinimumGroundClearanceM) ? `${(1000 * measuredPlantMinimumGroundClearanceM).toFixed(2)} mm collision clearance` : "collision geometry pending"}`;
   groundContactState.textContent = `${Number(metrics.ground_contact_count || 0)} ground / ${Number(metrics.contact_count || 0)} total · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N normal · ${(1000 * Number(metrics.maximum_penetration_m || 0)).toFixed(2)} mm penetration`;
+  const contactMask = (mask) => Array.isArray(mask) && mask.length === 2
+    ? mask.map((value) => Number(value) ? "1" : "0").join("")
+    : "--";
+  const wbcObservation = message.wbc_observation || {};
+  const wbcMask = contactMask(
+    wbcObservation.contact_active || message.wbc_observed_contact_active,
+  );
+  const wbcFrame = metrics.wbc_observed_contact_available !== false
+    && Number.isFinite(Number(wbcObservation.physics_frame_index))
+    ? `f${Number(wbcObservation.physics_frame_index)}`
+    : "f--";
+  const physicsMask = contactMask(message.physics_contact_active);
+  const windowMasks = Array.isArray(simulator.contact_window_masks)
+    && simulator.contact_window_valid === true
+    && simulator.contact_window_masks.length >= 5
+    ? simulator.contact_window_masks.slice(0, 5).map(contactMask).join("/")
+    : "--/--/--/--/--";
+  const aggregateLoss = contactMask(simulator.contact_window_loss_mask);
+  const aggregateGain = contactMask(simulator.contact_window_gain_mask);
+  contactCadenceState.textContent = `WBC ${wbcMask}/${wbcFrame} · PHY ${physicsMask} · S ${windowMasks} · L ${aggregateLoss} G ${aggregateGain}`;
   plantWrench.textContent = message.external_load?.active
     ? `${Math.hypot(...message.external_load.force_world).toFixed(2)} N · ${Number(message.external_load.maximum_moment_nm || 0).toFixed(2)} N·m · ${message.external_load.body} · ${(message.external_load.provenance?.source || "unavailable").replaceAll("_", " ")}`
     : message.command_expired ? "expired safely" : "released";
@@ -762,6 +784,69 @@ function updatePlantTelemetry(message) {
     `odom preference authority · error ${(1000 * Number(metrics.station_error_m || 0)).toFixed(2)} mm`,
     stationPressure,
     stationPressure >= 0.99 ? "critical" : stationPressure >= 0.35 ? "warning" : "ok",
+  );
+  const observedMask = (metrics.wbc_observed_contact_active || [0, 0]).join("");
+  const debouncedMask = (metrics.wbc_debounced_contact_active || [0, 0]).join("");
+  const hardMask = (metrics.wbc_hard_contact_active || [0, 0]).join("");
+  const executableMask = (metrics.wbc_hard_contact_executable || [0, 0]).join("");
+  const supportCount = Number(metrics.wbc_support_active_count || 0);
+  const supportPressure = supportCount >= 2 ? 0 : supportCount === 1 ? 0.72 : 1;
+  setLiveAuthorityRow(
+    "authority-support",
+    `${supportCount}/2`,
+    `measured ${observedMask} · debounced ${debouncedMask} · hard ${hardMask} · exec ${executableMask} · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N sampled ground load`,
+    supportPressure,
+    supportCount === 0 ? "critical" : supportCount === 1 ? "warning" : "ok",
+  );
+  const residualParts = [
+    ["dyn", Number(metrics.wbc_dynamics_residual)],
+    ["contact", Number(metrics.wbc_contact_residual)],
+    ["ineq", Number(metrics.wbc_maximum_constraint_violation)],
+  ].filter((entry) => Number.isFinite(entry[1]));
+  const hardResidual = Math.max(...residualParts.map((entry) => Math.abs(entry[1])), 0);
+  const hardThresholds = authorityThresholds.hard_residual;
+  const hardPressure = upperPressure(hardResidual, hardThresholds);
+  setLiveAuthorityRow(
+    "authority-hard",
+    hardResidual.toExponential(1),
+    residualParts.map((entry) => `${entry[0]} ${entry[1].toExponential(1)}`).join(" · "),
+    hardPressure,
+    pressureState(
+      hardPressure,
+      hardThresholds && hardResidual > hardThresholds.warning,
+      hardThresholds && hardResidual > hardThresholds.critical,
+    ),
+  );
+  const torqueUtilization = Number(metrics.torque_utilization);
+  const torquePressure = Number.isFinite(torqueUtilization)
+    ? clampUnit(torqueUtilization)
+    : 0;
+  setLiveAuthorityRow(
+    "authority-actuator",
+    Number.isFinite(torqueUtilization) ? `${Math.round(100 * torqueUtilization)}%` : "N/A",
+    `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m max measured command · thermal calibration remains unavailable`,
+    torquePressure,
+    !Number.isFinite(torqueUtilization)
+      ? "unavailable"
+      : torquePressure >= 1 ? "critical" : torquePressure >= 0.8 ? "warning" : "ok",
+  );
+  const solveUs = Number(metrics.controller_step_us);
+  const solvePressure = upperPressure(solveUs, authorityThresholds.solver_wall_time_us);
+  const solverRejected = !metrics.wbc_admitted || metrics.wbc_raw_status === "MaxIterations";
+  setLiveAuthorityRow(
+    "authority-solver",
+    `${Number.isFinite(solveUs) ? solveUs.toFixed(1) : "N/A"} µs`,
+    `${metrics.wbc_status || "unknown"} · raw ${metrics.wbc_raw_status || "unknown"} · ${Number(metrics.wbc_allocation_calls || 0)} calls / ${Number(metrics.wbc_allocated_bytes || 0)} bytes`,
+    solverRejected ? 1 : solvePressure,
+    solverRejected
+      ? "critical"
+      : pressureState(
+        solvePressure,
+        authorityThresholds.solver_wall_time_us
+          && solveUs > authorityThresholds.solver_wall_time_us.warning,
+        authorityThresholds.solver_wall_time_us
+          && solveUs > authorityThresholds.solver_wall_time_us.critical,
+      ),
   );
 }
 
@@ -1697,6 +1782,20 @@ function drawAuthorityAnnotations() {
       upperPressure(solveUs, authorityThresholds.solver_wall_time_us),
       Number.isFinite(solveUs) ? `${Math.round(solveUs)}µs` : "N/A",
       !Number.isFinite(solveUs),
+    );
+    y += 16;
+    const residual = Math.max(
+      Math.abs(Number(physical.wbc_dynamics_residual || 0)),
+      Math.abs(Number(physical.wbc_contact_residual || 0)),
+      Math.abs(Number(physical.wbc_maximum_constraint_violation || 0)),
+    );
+    drawTinyAuthorityBar(
+      x,
+      y,
+      "RES",
+      upperPressure(residual, authorityThresholds.hard_residual),
+      Number.isFinite(residual) ? residual.toExponential(1) : "N/A",
+      !Number.isFinite(residual),
     );
     return;
   }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pathlib
 import sys
 import unittest
+from unittest.mock import patch
 
 import mujoco
 import numpy as np
@@ -126,7 +127,26 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             result["wbc_hard_contact_active"],
             result["metrics"]["wbc_hard_contact_active"],
         )
+        np.testing.assert_array_equal(
+            result["wbc_hard_contact_executable"],
+            result["metrics"]["wbc_hard_contact_executable"],
+        )
+        self.assertTrue(
+            np.all(
+                np.asarray(result["wbc_hard_contact_executable"], np.uint8)
+                <= np.asarray(result["wbc_hard_contact_active"], np.uint8)
+            )
+        )
         self.assertTrue(result["metrics"]["wbc_observed_contact_available"])
+        self.assertIn(result["metrics"]["wbc_raw_status_code"], (0, 1, 2, 3))
+        self.assertEqual(result["metrics"]["wbc_allocation_calls"], 0)
+        self.assertEqual(result["metrics"]["wbc_allocated_bytes"], 0)
+        for key in (
+            "wbc_maximum_constraint_violation",
+            "wbc_dynamics_residual",
+            "wbc_contact_residual",
+        ):
+            self.assertTrue(np.isfinite(result["metrics"][key]), key)
         self.assertTrue(
             np.all(
                 np.asarray(result["wbc_hard_contact_active"], np.uint8)
@@ -187,6 +207,67 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
 
+    def test_contact_ring_samples_each_substep_and_wbc_uses_boundary_mask(self) -> None:
+        scripted = [
+            [1, 1],  # boundary observation consumed by the first WBC call
+            [1, 1],
+            [1, 0],
+            [0, 1],
+            [0, 0],
+            [1, 1],  # five post-step samples in the first control window
+            [0, 0],
+            [0, 1],
+            [0, 1],
+            [1, 1],
+            [1, 1],
+        ]
+        calls: list[list[int]] = []
+
+        def scripted_extractor(_model, _data, _body_sets, active):
+            index = len(calls)
+            self.assertLess(index, len(scripted))
+            active[...] = scripted[index]
+            calls.append(active.tolist())
+            return active
+
+        with patch(
+            "upkie_mujoco_plant_report.measured_wheel_ground_contacts_into",
+            side_effect=scripted_extractor,
+        ):
+            first = self.worker.step({"type": "step", "command_id": 20})
+            second = self.worker.step({"type": "step", "command_id": 21})
+
+        self.assertEqual(len(calls), 1 + 2 * PHYSICS_STEPS_PER_CONTROL)
+        self.assertEqual(first["wbc_observed_contact_active"], scripted[0])
+        self.assertEqual(
+            first["wbc_observation"],
+            {
+                "contact_active": scripted[0],
+                "physics_frame_index": 0,
+                "source": "latest_completed_250hz_substep",
+            },
+        )
+        self.assertEqual(
+            first["simulator"]["contact_window_masks"], scripted[1:6]
+        )
+        self.assertEqual(first["simulator"]["physics_frame_index"], 5)
+        self.assertEqual(first["simulator"]["contact_window_frame_start"], 1)
+        self.assertEqual(first["simulator"]["contact_window_frame_end"], 5)
+        self.assertTrue(first["simulator"]["contact_window_valid"])
+        self.assertEqual(first["simulator"]["contact_window_loss_mask"], [1, 1])
+        self.assertEqual(first["simulator"]["contact_window_gain_mask"], [1, 1])
+        self.assertEqual(
+            first["simulator"]["contact_window_loss_masks"],
+            [[0, 0], [0, 1], [1, 0], [0, 1], [0, 0]],
+        )
+        self.assertEqual(
+            first["simulator"]["contact_window_gain_masks"],
+            [[0, 0], [0, 0], [0, 1], [0, 0], [1, 1]],
+        )
+        self.assertEqual(first["physics_contact_active"], scripted[5])
+        self.assertEqual(second["wbc_observed_contact_active"], scripted[5])
+        self.assertEqual(second["wbc_observation"]["physics_frame_index"], 5)
+
     def test_wbc_hard_support_fails_closed_when_mujoco_loses_both_wheels(self) -> None:
         root = mujoco.mj_name2id(
             self.worker.model, mujoco.mjtObj.mjOBJ_JOINT, "root"
@@ -215,6 +296,15 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertTrue(paused["metrics"]["paused"])
         self.assertEqual(paused["metrics"]["wbc_status"], "paused")
         self.assertFalse(paused["metrics"]["wbc_observed_contact_available"])
+        self.assertEqual(paused["metrics"]["wbc_raw_status"], "paused")
+        self.assertEqual(paused["metrics"]["wbc_raw_status_code"], -1)
+        self.assertEqual(paused["metrics"]["wbc_allocation_calls"], 0)
+        self.assertEqual(paused["metrics"]["wbc_allocated_bytes"], 0)
+        self.assertFalse(paused["simulator"]["contact_window_valid"])
+        self.assertEqual(paused["physics_contact_active"], [0, 0])
+        np.testing.assert_array_equal(
+            paused["wbc_hard_contact_executable"], [0, 0]
+        )
         np.testing.assert_array_equal(paused["wbc_debounced_contact_active"], [0, 0])
         np.testing.assert_array_equal(paused["wbc_hard_contact_active"], [0, 0])
         self.assertEqual(paused["metrics"]["wbc_support_active_count"], 0)

@@ -101,6 +101,12 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert hello["control_hz"] == 50, hello
         assert hello["stream_hz"] == 50, hello
         assert hello["physics_substeps_per_control"] == 5, hello
+        assert hello["contact_observation"] == {
+            "sample_hz": 250,
+            "consumed_hz": 50,
+            "window_size": 5,
+            "wbc_source": "latest_completed_250hz_substep",
+        }, hello["contact_observation"]
         assert hello["simulator"]["backend"] == "MuJoCo", hello
         assert hello["maximum_force_n"] == gateway["maximum_force_n"], hello
         assert (
@@ -125,6 +131,16 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             initial["constraint_force"]
         )
         assert initial["simulator"]["warning_count"] == 0, initial["simulator"]
+        assert initial["simulator"]["contact_window_valid"]
+        assert len(initial["simulator"]["contact_window_masks"]) == 5
+        assert (
+            initial["simulator"]["contact_window_frame_end"]
+            - initial["simulator"]["contact_window_frame_start"]
+            == 4
+        )
+        assert initial["wbc_observation"]["source"] == (
+            "latest_completed_250hz_substep"
+        )
         assert math.isfinite(initial["simulator"]["kinetic_energy_j"])
         assert math.isfinite(initial["simulator"]["potential_energy_j"])
         assert initial["metrics"]["ground_contact_count"] >= 1, initial["metrics"]
@@ -132,14 +148,26 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         observed_contact = initial["metrics"]["wbc_observed_contact_active"]
         debounced_contact = initial["metrics"]["wbc_debounced_contact_active"]
         hard_contact = initial["metrics"]["wbc_hard_contact_active"]
+        executable_contact = initial["metrics"]["wbc_hard_contact_executable"]
         assert initial["metrics"]["wbc_observed_contact_available"]
+        assert initial["metrics"]["wbc_raw_status_code"] in (0, 1, 2, 3)
+        assert initial["metrics"]["wbc_allocation_calls"] == 0
+        assert initial["metrics"]["wbc_allocated_bytes"] == 0
+        for key in (
+            "wbc_maximum_constraint_violation",
+            "wbc_dynamics_residual",
+            "wbc_contact_residual",
+        ):
+            assert math.isfinite(initial["metrics"][key]), key
         assert initial["wbc_observed_contact_active"] == observed_contact
         assert initial["wbc_debounced_contact_active"] == debounced_contact
         assert initial["wbc_hard_contact_active"] == hard_contact
+        assert initial["wbc_hard_contact_executable"] == executable_contact
         assert (
             len(observed_contact)
             == len(debounced_contact)
             == len(hard_contact)
+            == len(executable_contact)
             == 2
         )
         assert all(
@@ -147,6 +175,22 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             for hard, observed in zip(hard_contact, observed_contact)
         )
         assert initial["metrics"]["wbc_support_active_count"] <= sum(observed_contact)
+        assert all(
+            executable <= hard
+            for executable, hard in zip(executable_contact, hard_contact)
+        )
+        if not initial["metrics"]["wbc_admitted"]:
+            assert executable_contact == [0, 0]
+        causal_successor = receive_plant(websocket, "plant_state")
+        assert causal_successor["wbc_observation"]["physics_frame_index"] == (
+            initial["simulator"]["contact_window_frame_end"]
+        )
+        assert causal_successor["wbc_observation"]["contact_active"] == (
+            initial["simulator"]["contact_window_masks"][-1]
+        )
+        assert causal_successor["simulator"]["contact_window_frame_start"] == (
+            initial["simulator"]["contact_window_frame_end"] + 1
+        )
         assert len(initial["actuator_effort_nm"]) == 6
         assert len(initial["generalized_acceleration"]) == 12
         assert len(initial["constraint_generalized_force"]) == 12
