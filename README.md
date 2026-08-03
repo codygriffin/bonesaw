@@ -272,6 +272,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   but the ordinary 5 ms deadline, walking, contact, and authority gates remain open.
   See the
   [r293 dense matvec report](benchmarks/results/g1-dense-matvec-row-slice-r293/G1_DENSE_MATVEC_ROW_SLICE_R293.md).
+- R294 rejects an exact rejected-Jacobi-pair cache before full corpus replay.
+  The default-off candidate reuses caller-owned pseudoinverse scratch and its
+  100-tick native sentinel is non-timing byte-exact, but three CPU-4-pinned
+  AB/BA pairs retire 1.55537% more instructions and 6.81245% more branches in
+  every pair. R293 remains the production default and the 5 ms p99/authority
+  gates remain open. See the
+  [r294 rejected-pair cache report](benchmarks/results/g1-jacobi-rejected-pair-cache-r294/G1_JACOBI_REJECTED_PAIR_CACHE_R294.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

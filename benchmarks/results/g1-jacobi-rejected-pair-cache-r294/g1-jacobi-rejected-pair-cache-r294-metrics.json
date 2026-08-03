@@ -1,0 +1,80 @@
+{
+  "schema": "bonesaw.g1-jacobi-rejected-pair-cache-r294.v1",
+  "revision": "g1-jacobi-rejected-pair-cache-r294",
+  "decision": "REJECT",
+  "execution": {
+    "timing_cpu": 4,
+    "native_ticks_per_process": 2000,
+    "counter_pairs": 3,
+    "policy_steps": 0,
+    "physics_steps": 0,
+    "full_corpus_replay_executed": false
+  },
+  "candidate": {
+    "feature": "bonesaw-core/jacobi-rejected-pair-cache-experiment",
+    "default_enabled": false,
+    "hot_allocations_added": 0,
+    "storage": "caller-owned pseudoinverse output scratch",
+    "invalidation": "column rotation or bit-changing exact energy re-anchor"
+  },
+  "semantic_contract": {
+    "core_tests_default": 317,
+    "core_tests_candidate": 317,
+    "tests_passed": true,
+    "native_sentinel_ticks": 100,
+    "non_timing_exact": true,
+    "control_sha256": "f19ebca5aeba0b5b18c1f088eb39435cb28a1daa443a8fbea0f90288c4c7ecbd",
+    "candidate_sha256": "f19ebca5aeba0b5b18c1f088eb39435cb28a1daa443a8fbea0f90288c4c7ecbd"
+  },
+  "profile_motivation": {
+    "cycles_samples": 4099,
+    "lost_samples": 0,
+    "pseudo_inverse_flat_into_profiled_self_percent": 77.20,
+    "multiply_self_percent": 4.62,
+    "solver_top_level_self_percent": 4.90
+  },
+  "hardware_counters": {
+    "pairs": [
+      {
+        "repeat": 1,
+        "control": {"task_clock_ns": 2564585921, "cycles": 10724922136, "instructions": 29428934122, "branches": 2626753147, "branch_misses": 12621448, "cache_misses": 3908063},
+        "candidate": {"task_clock_ns": 2550059646, "cycles": 10653973066, "instructions": 29886665017, "branches": 2805700366, "branch_misses": 12785578, "cache_misses": 3289114},
+        "instruction_relative_delta": 0.01555377076
+      },
+      {
+        "repeat": 2,
+        "control": {"task_clock_ns": 3394618831, "cycles": 14116084310, "instructions": 29428938770, "branches": 2626755106, "branch_misses": 12530264, "cache_misses": 3651282},
+        "candidate": {"task_clock_ns": 2559168081, "cycles": 10675222693, "instructions": 29886665736, "branches": 2805700317, "branch_misses": 12837231, "cache_misses": 4308619},
+        "instruction_relative_delta": 0.01555363479,
+        "timing_admissible": false,
+        "timing_exclusion": "visible host-load transition"
+      },
+      {
+        "repeat": 3,
+        "control": {"task_clock_ns": 2608938016, "cycles": 10818831066, "instructions": 29428934414, "branches": 2626753747, "branch_misses": 12607546, "cache_misses": 3246926},
+        "candidate": {"task_clock_ns": 2600529635, "cycles": 10699991922, "instructions": 29886663873, "branches": 2805700489, "branch_misses": 12806873, "cache_misses": 3023887},
+        "instruction_relative_delta": 0.01555372181
+      }
+    ],
+    "control_average": {"instructions": 29428935768.667, "branches": 2626754000.0, "cycles": 11886612504.0},
+    "candidate_average": {"instructions": 29886664875.333, "branches": 2805700390.667, "cycles": 10676395893.667},
+    "candidate_relative_delta": {"instructions": 0.01555370912, "branches": 0.06812453342, "cycles": -0.10181341488},
+    "cycles_decision_admissible": false
+  },
+  "native_timing_us": {
+    "pairs": [
+      {"repeat": 1, "control": {"p50": 1275.399, "p99": 1345.722, "max": 1477.321}, "candidate": {"p50": 1264.689, "p99": 1578.642, "max": 2477.891}},
+      {"repeat": 2, "control": {"p50": 1690.673, "p99": 1740.568, "max": 1771.035}, "candidate": {"p50": 1267.484, "p99": 1450.489, "max": 2271.2}, "decision_admissible": false},
+      {"repeat": 3, "control": {"p50": 1273.966, "p99": 1788.759, "max": 4760.602}, "candidate": {"p50": 1287.973, "p99": 1699.149, "max": 1952.739}}
+    ],
+    "decision_admissible": false
+  },
+  "verdict": {
+    "semantic_gate_passed": true,
+    "cpu_work_gate_passed": false,
+    "production_default_promoted": false,
+    "full_corpus_replay_required": false,
+    "p99_under_5ms": false,
+    "authority_admitted": false
+  }
+}

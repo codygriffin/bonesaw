@@ -2,6 +2,18 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU optimization audit — r294 rejected Jacobi-pair cache
+
+R294 tests a default-off, allocation-free cache for Jacobi pairs that were
+rejected while both column generations remained unchanged. All 317 core tests
+pass in default and candidate builds, and a 100-tick native G1 sentinel is
+non-timing byte-exact. Three CPU-4-pinned AB/BA counter pairs nevertheless
+retire 1.55537% more instructions and 6.81245% more branches in every pair, so
+the candidate is rejected before full Python corpus replay. R293 remains the
+production default and no timing, policy, physics, contact, CUDA, or authority
+gate changes. See
+[`G1_JACOBI_REJECTED_PAIR_CACHE_R294.md`](../benchmarks/results/g1-jacobi-rejected-pair-cache-r294/G1_JACOBI_REJECTED_PAIR_CACHE_R294.md).
+
 ## Current CPU optimization checkpoint — r293 dense matvec row slices
 
 R293 promotes an exact-order dense matrix-vector/residual kernel. Each

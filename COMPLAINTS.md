@@ -145,6 +145,16 @@ Median p99 improves 5.215→5.175 ms and peak RSS is identical at 62,872 KiB,
 but the ordinary 5 ms deadline and walking/contact complaint remain open. See the
 [r293 dense matvec report](benchmarks/results/g1-dense-matvec-row-slice-r293/G1_DENSE_MATVEC_ROW_SLICE_R293.md).
 
+R294 rejects caching Jacobi pair rejections as the next exact shortcut. The
+default-off candidate is non-timing exact on the native G1 sentinel and adds no
+hot allocation, but three CPU-4-pinned AB/BA pairs retire 1.55537% more
+instructions and 6.81245% more branches in every pair. The deterministic
+CPU-work failure stops the expensive Python corpus replay; R293 stays the
+default. The unresolved complaint remains exact ordinary Preference/Style
+work reduction or a genuinely continuous cross-tick progress/tracking-debt
+supervisor, plus the repeatable sub-5 ms p99 gate. See the
+[r294 rejected-pair cache report](benchmarks/results/g1-jacobi-rejected-pair-cache-r294/G1_JACOBI_REJECTED_PAIR_CACHE_R294.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

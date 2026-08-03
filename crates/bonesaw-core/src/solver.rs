@@ -22,6 +22,8 @@ const USE_JACOBI_COLUMN_OFFSET_POINTERS: bool =
     cfg!(feature = "jacobi-column-offset-pointer-experiment");
 const USE_JACOBI_ENERGY_REANCHOR_POINTERS: bool =
     cfg!(feature = "jacobi-energy-reanchor-pointer-experiment");
+const USE_JACOBI_REJECTED_PAIR_CACHE: bool =
+    cfg!(feature = "jacobi-rejected-pair-cache-experiment");
 const USE_DENSE_MULTIPLY_ROW_SLICES: bool = !cfg!(feature = "dense-multiply-row-slice-control")
     || cfg!(feature = "dense-multiply-row-slice-experiment");
 const USE_DENSE_MATVEC_ROW_SLICES: bool = !cfg!(feature = "dense-matvec-row-slice-control")
@@ -2574,6 +2576,8 @@ fn pseudo_inverse_flat_into_profiled_with_energy_cache(
     // truncation threshold. The 1e-3 guard band preserves near-threshold
     // singular directions while bounding work on accumulated null spaces.
     let discarded_energy_floor = (tolerance * 1e-3 * frobenius_norm.max(1.0)).powi(2);
+    let mut rejected_pair_cache_hits = 0;
+    let rejected_pair_cache_elements = tall_columns * tall_columns;
     let jacobi_sweeps = one_sided_jacobi_flat(
         orthogonal_columns,
         tall_rows,
@@ -2585,7 +2589,13 @@ fn pseudo_inverse_flat_into_profiled_with_energy_cache(
         discarded_energy_floor,
         USE_JACOBI_COLUMN_SLICES,
         USE_JACOBI_COLUMN_ITERATORS,
+        USE_JACOBI_REJECTED_PAIR_CACHE,
+        &mut inverse[..rejected_pair_cache_elements],
+        &mut rejected_pair_cache_hits,
     );
+    if USE_JACOBI_REJECTED_PAIR_CACHE {
+        inverse[..columns * rows].fill(0.0);
+    }
     if !cache_column_energies {
         for column in 0..tall_columns {
             let mut norm_squared = 0.0;
@@ -2646,10 +2656,21 @@ fn one_sided_jacobi_flat(
     discarded_energy_floor: f64,
     use_column_slices: bool,
     use_column_iterators: bool,
+    use_rejected_pair_cache: bool,
+    rejected_pair_cache: &mut [f64],
+    rejected_pair_cache_hits: &mut usize,
 ) -> usize {
     if columns < 2 {
         return 0;
     }
+    if use_rejected_pair_cache {
+        debug_assert!(rejected_pair_cache.len() >= columns * columns);
+        rejected_pair_cache[..columns * columns].fill(f64::from_bits(0));
+        for column in 0..columns {
+            rejected_pair_cache[column * columns + column] = f64::from_bits(1);
+        }
+    }
+    *rejected_pair_cache_hits = 0;
     let mut sweeps = 0;
     for _ in 0..256 {
         sweeps += 1;
@@ -2665,6 +2686,12 @@ fn one_sided_jacobi_flat(
                     && skip_discarded_couplings
                     && (alpha <= discarded_energy_floor || beta <= discarded_energy_floor)
                 {
+                    continue;
+                }
+                if use_rejected_pair_cache
+                    && jacobi_pair_rejection_is_current(rejected_pair_cache, columns, p, q)
+                {
+                    *rejected_pair_cache_hits += 1;
                     continue;
                 }
                 let mut coupling = 0.0;
@@ -2727,6 +2754,9 @@ fn one_sided_jacobi_flat(
                     || scale == 0.0
                     || coupling.abs() <= 64.0 * f64::EPSILON * rows.max(1) as f64 * scale
                 {
+                    if use_rejected_pair_cache {
+                        cache_jacobi_pair_rejection(rejected_pair_cache, columns, p, q);
+                    }
                     continue;
                 }
                 rotated = true;
@@ -2827,6 +2857,10 @@ fn one_sided_jacobi_flat(
                     column_energies[q] =
                         (sine_squared * alpha + twice_cross + cosine_squared * beta).max(0.0);
                 }
+                if use_rejected_pair_cache {
+                    bump_jacobi_column_generation(rejected_pair_cache, columns, p);
+                    bump_jacobi_column_generation(rejected_pair_cache, columns, q);
+                }
             }
         }
         if cache_column_energies && rotated {
@@ -2850,6 +2884,11 @@ fn one_sided_jacobi_flat(
                         norm_squared += value * value;
                     }
                 }
+                if use_rejected_pair_cache
+                    && column_energies[column].to_bits() != norm_squared.to_bits()
+                {
+                    bump_jacobi_column_generation(rejected_pair_cache, columns, column);
+                }
                 column_energies[column] = norm_squared;
             }
         }
@@ -2858,6 +2897,34 @@ fn one_sided_jacobi_flat(
         }
     }
     sweeps
+}
+
+#[inline(always)]
+fn jacobi_pair_rejection_is_current(cache: &[f64], columns: usize, p: usize, q: usize) -> bool {
+    let p_generation = cache[p * columns + p].to_bits();
+    let q_generation = cache[q * columns + q].to_bits();
+    cache[p * columns + q].to_bits() == p_generation
+        && cache[q * columns + p].to_bits() == q_generation
+}
+
+#[inline(always)]
+fn cache_jacobi_pair_rejection(cache: &mut [f64], columns: usize, p: usize, q: usize) {
+    cache[p * columns + q] = f64::from_bits(cache[p * columns + p].to_bits());
+    cache[q * columns + p] = f64::from_bits(cache[q * columns + q].to_bits());
+}
+
+#[inline(always)]
+fn bump_jacobi_column_generation(cache: &mut [f64], columns: usize, column: usize) {
+    let diagonal = column * columns + column;
+    let generation = cache[diagonal].to_bits();
+    if generation == u64::MAX {
+        cache[..columns * columns].fill(f64::from_bits(0));
+        for reset_column in 0..columns {
+            cache[reset_column * columns + reset_column] = f64::from_bits(1);
+        }
+    } else {
+        cache[diagonal] = f64::from_bits(generation + 1);
+    }
 }
 
 #[inline(always)]
@@ -5424,6 +5491,8 @@ mod tests {
                     )
                     .sqrt();
                     let floor = (1e-12 * 1e-3 * frobenius.max(1.0)).powi(2);
+                    let mut rejected_pair_cache = vec![0.0; columns * columns];
+                    let mut rejected_pair_cache_hits = 0;
                     let sweeps = one_sided_jacobi_flat(
                         &mut matrix,
                         rows,
@@ -5435,6 +5504,9 @@ mod tests {
                         floor,
                         use_column_slices,
                         false,
+                        false,
+                        &mut rejected_pair_cache,
+                        &mut rejected_pair_cache_hits,
                     );
                     (sweeps, matrix, right, energies)
                 };
@@ -5526,6 +5598,63 @@ mod tests {
     }
 
     #[test]
+    fn rejected_jacobi_pair_cache_skips_only_unchanged_rejections() {
+        let rows = 4;
+        let columns = 4;
+        let source = [
+            1.0, 0.0, 0.0, 0.0, // column 0
+            0.0, 1.0, 0.0, 0.0, // column 1
+            0.0, 0.0, 1.0, 0.0, // column 2
+            0.0, 0.0, 1.0, 1.0, // column 3, coupled only to column 2
+        ];
+        let solve = |use_rejected_pair_cache| {
+            let mut matrix = source;
+            let mut right = [0.0; 16];
+            fill_identity(&mut right, columns);
+            let mut energies = [0.0; 4];
+            let frobenius =
+                initialize_jacobi_column_energies(&matrix, rows, columns, &mut energies, true)
+                    .sqrt();
+            let floor = (1e-12 * 1e-3 * frobenius.max(1.0)).powi(2);
+            let mut rejected_pair_cache = [0.0; 16];
+            let mut rejected_pair_cache_hits = 0;
+            let sweeps = one_sided_jacobi_flat(
+                &mut matrix,
+                rows,
+                columns,
+                &mut right,
+                &mut energies,
+                true,
+                false,
+                floor,
+                true,
+                false,
+                use_rejected_pair_cache,
+                &mut rejected_pair_cache,
+                &mut rejected_pair_cache_hits,
+            );
+            (sweeps, rejected_pair_cache_hits, matrix, right, energies)
+        };
+
+        let control = solve(false);
+        let candidate = solve(true);
+        assert_eq!(candidate.0, control.0);
+        assert!(candidate.1 > 0);
+        for (candidate_values, control_values) in [
+            (&candidate.2[..], &control.2[..]),
+            (&candidate.3[..], &control.3[..]),
+            (&candidate.4[..], &control.4[..]),
+        ] {
+            assert!(
+                candidate_values
+                    .iter()
+                    .zip(control_values)
+                    .all(|(candidate, control)| candidate.to_bits() == control.to_bits())
+            );
+        }
+    }
+
+    #[test]
     fn jacobi_column_iterators_preserve_every_rotation_bit() {
         let mut random_state = 0x5ec1_81d9_76a2_b04f_u64;
         for (rows, columns) in [(8, 2), (29, 6), (58, 14)] {
@@ -5559,6 +5688,8 @@ mod tests {
                     )
                     .sqrt();
                     let floor = (1e-12 * 1e-3 * frobenius.max(1.0)).powi(2);
+                    let mut rejected_pair_cache = vec![0.0; columns * columns];
+                    let mut rejected_pair_cache_hits = 0;
                     let sweeps = one_sided_jacobi_flat(
                         &mut matrix,
                         rows,
@@ -5570,6 +5701,9 @@ mod tests {
                         floor,
                         true,
                         use_column_iterators,
+                        false,
+                        &mut rejected_pair_cache,
+                        &mut rejected_pair_cache_hits,
                     );
                     (sweeps, matrix, right, energies)
                 };
