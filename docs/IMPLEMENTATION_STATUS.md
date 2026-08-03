@@ -2,6 +2,20 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current CPU optimization checkpoint — r293 dense matvec row slices
+
+R293 promotes an exact-order dense matrix-vector/residual kernel. Each
+contiguous matrix row is validated once before the existing scalar multiply,
+add, and store order; `dense-matvec-row-slice-control` restores the prior flat
+indexing for A/B runs. Six AB/BA CPU-4-pinned, 2,317-tick G1 decision pairs
+preserve all 112 non-timing arrays and every retained behavior/status/residual
+value. Five complete-process counter pairs reduce retired instructions by
+1.967% and branches by 8.199% in every pair; cycles fall 0.219% and cache
+misses are flat. Median p99 improves 5.215→5.175 ms and peak RSS is identical
+at 62,872 KiB, but this exact CPU-work slice does not close the 5 ms deadline,
+walking, contact, or authority gates. See
+[`G1_DENSE_MATVEC_ROW_SLICE_R293.md`](../benchmarks/results/g1-dense-matvec-row-slice-r293/G1_DENSE_MATVEC_ROW_SLICE_R293.md).
+
 ## Current CPU optimization audit — r292 Jacobi energy re-anchor pointer
 
 R292 tests a raw-pointer traversal of the sweep-boundary column-energy

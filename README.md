@@ -262,6 +262,16 @@ This is an engineering prototype, not a safety-rated robot controller.
   paired instruction delta is positive. The R284 slice-iterator re-anchor
   remains the default, and the 5 ms p99/authority gates remain open. See the
   [r292 energy re-anchor report](benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
+- R293 promotes exact dense matrix-vector row slices. Six AB/BA CPU-4-pinned,
+  2,317-tick decision pairs preserve all 112 non-timing arrays; five
+  complete-process counter pairs reduce retired instructions 1.967% and
+  branches 8.199% in every pair, with cycles down 0.219% and cache misses
+  flat. The explicit
+  `dense-matvec-row-slice-control` feature restores the flat-index kernel.
+  Median p99 improves 5.215→5.175 ms and peak RSS is identical at 62,872 KiB,
+  but the ordinary 5 ms deadline, walking, contact, and authority gates remain open.
+  See the
+  [r293 dense matvec report](benchmarks/results/g1-dense-matvec-row-slice-r293/G1_DENSE_MATVEC_ROW_SLICE_R293.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

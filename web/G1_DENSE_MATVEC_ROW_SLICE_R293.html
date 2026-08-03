@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 dense matvec row-slice promotion · R293</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 dense matvec row-slice promotion · R293</h1>
+<blockquote>Exact replay PASS · CPU work PASS · production default PROMOTED · 5 ms p99 OPEN.</blockquote>
+<p>R293 validates each dense matrix row once before the matrix-vector and residual inner loops. Scalar multiplication, addition, row, column, and store order are unchanged. The former flat-index path remains available through an explicit control feature.</p>
+<h2>Policy/physics-free semantic replay</h2>
+<p>All 6 CPU-4-pinned, 2,317-tick control/production pairs are byte-exact across all 112 non-timing arrays. Every pair has digest `6f087b0ab7fc4741450ae0f8f769e4501bd9de3cd8d9f8a1cd55cebb6233bdcf`. The corpus executes zero policy and zero physics steps.</p>
+<h2>Native timing observations</h2>
+<div class=table-wrap><table><thead><tr><th>pair</th><th>p50 control / production µs</th><th>p95</th><th>p99</th><th>max</th></tr></thead><tbody><tr><td>1</td><td>1765.8 / 1742.8</td><td>4104.1 / 4015.8</td><td>5195.8 / 5139.6</td><td>7716.0 / 7736.4</td></tr><tr><td>2</td><td>1762.9 / 1754.1</td><td>4037.5 / 4059.5</td><td>5214.9 / 5192.0</td><td>7710.9 / 7621.3</td></tr><tr><td>3</td><td>1759.9 / 1753.1</td><td>4018.8 / 4011.9</td><td>5171.8 / 5171.5</td><td>7691.9 / 7665.8</td></tr><tr><td>4</td><td>1764.5 / 1751.8</td><td>4089.7 / 4033.5</td><td>5215.3 / 5167.7</td><td>7674.5 / 7624.1</td></tr><tr><td>5</td><td>1768.4 / 1756.2</td><td>3998.2 / 3984.7</td><td>5227.4 / 5186.9</td><td>7829.1 / 7793.9</td></tr><tr><td>6</td><td>1777.9 / 1754.8</td><td>4180.5 / 4082.7</td><td>5552.0 / 5177.6</td><td>7800.3 / 7701.3</td></tr></tbody></table></div>
+<p>Median p50 moves 1765.2→1753.6 µs and improves in every pair. Median p99 moves 5215.1→5174.6 µs and also improves in every pair, but remains above 5,000 µs. P95 improves in five of six pairs. The maximum RSS is 62872 KiB for both profiles; median user time moves 3.930→3.915 seconds.</p>
+<p>Two earlier exploratory windows remain explicit non-decision evidence: one overlapped extension builds and concurrent CLI work; the other ran every control before every candidate and crossed a visible host-load transition. Both were semantically exact, but neither supplies an admissible latency comparison. The six-pair decision series was run AB/BA after builds were idle.</p>
+<h2>Complete-process hardware counters</h2>
+<p>Five alternating pairs cover the same Python admission process and frozen corpus. Every paired retired-instruction delta is negative (-1.969%, -1.967%, -1.967%, -1.969%, -1.964%). Averages are:</p>
+<div class=table-wrap><table><thead><tr><th>counter</th><th>flat control</th><th>row-slice production</th><th>delta</th></tr></thead><tbody><tr><td>instructions</td><td>45.025591 B</td><td>44.139847 B</td><td>-1.967%</td></tr><tr><td>cycles</td><td>16.982842 B</td><td>16.945607 B</td><td>-0.219%</td></tr><tr><td>branches</td><td>4.537999 B</td><td>4.165906 B</td><td>-8.199%</td></tr><tr><td>branch-misses</td><td>0.027252 B</td><td>0.026945 B</td><td>-1.127%</td></tr><tr><td>cache-misses</td><td>0.033561 B</td><td>0.033545 B</td><td>-0.045%</td></tr></tbody></table></div>
+<p>The row-slice path is promoted because it preserves every semantic byte while reducing retired instructions and branches in every measured pair. Mean cycles improve slightly; cache misses are effectively flat. This is an addressing/code-generation optimization, not task deletion, changed factorization, reduced solver work, or weakened feasibility.</p>
+<h2>Decision</h2>
+<p>Enable dense matvec row slices by default and retain `dense-matvec-row-slice-control` for reproducible A/B measurement. R280/R290 tracking, contact, timing, plant, actuator, thermal, CUDA, and hardware-authority gates remain unchanged. In particular, R293 does not close the ordinary 5 ms p99 complaint.</p></main></body></html>

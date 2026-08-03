@@ -137,6 +137,14 @@ slice-iterator re-anchor stays the default. This does not close the ordinary
 Preference/Style work or 5 ms p99 complaints. See the
 [r292 energy re-anchor report](benchmarks/results/g1-jacobi-energy-reanchor-pointer-r292/G1_JACOBI_ENERGY_REANCHOR_POINTER_R292.md).
 
+R293 closes one exact CPU-work slice. Dense matrix-vector row slices preserve
+all 112 non-timing arrays in six AB/BA decision pairs and reduce retired
+instructions 1.967% and branches 8.199% in every one of five paired counter
+processes, so they are now the default with an explicit flat-index control.
+Median p99 improves 5.215→5.175 ms and peak RSS is identical at 62,872 KiB,
+but the ordinary 5 ms deadline and walking/contact complaint remain open. See the
+[r293 dense matvec report](benchmarks/results/g1-dense-matvec-row-slice-r293/G1_DENSE_MATVEC_ROW_SLICE_R293.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

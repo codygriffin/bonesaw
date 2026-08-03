@@ -24,6 +24,8 @@ const USE_JACOBI_ENERGY_REANCHOR_POINTERS: bool =
     cfg!(feature = "jacobi-energy-reanchor-pointer-experiment");
 const USE_DENSE_MULTIPLY_ROW_SLICES: bool = !cfg!(feature = "dense-multiply-row-slice-control")
     || cfg!(feature = "dense-multiply-row-slice-experiment");
+const USE_DENSE_MATVEC_ROW_SLICES: bool = !cfg!(feature = "dense-matvec-row-slice-control")
+    || cfg!(feature = "dense-matvec-row-slice-experiment");
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[repr(u8)]
@@ -2112,6 +2114,20 @@ fn multiply_matrix_vector(
     vector: &[f64],
     output: &mut [f64],
 ) {
+    if USE_DENSE_MATVEC_ROW_SLICES {
+        multiply_matrix_vector_row_slices(matrix, rows, columns, vector, output);
+    } else {
+        multiply_matrix_vector_flat_indices(matrix, rows, columns, vector, output);
+    }
+}
+
+fn multiply_matrix_vector_flat_indices(
+    matrix: &[f64],
+    rows: usize,
+    columns: usize,
+    vector: &[f64],
+    output: &mut [f64],
+) {
     for row in 0..rows {
         let mut value = 0.0;
         for column in 0..columns {
@@ -2121,7 +2137,39 @@ fn multiply_matrix_vector(
     }
 }
 
+fn multiply_matrix_vector_row_slices(
+    matrix: &[f64],
+    rows: usize,
+    columns: usize,
+    vector: &[f64],
+    output: &mut [f64],
+) {
+    for row_index in 0..rows {
+        let row = &matrix[row_index * columns..(row_index + 1) * columns];
+        let mut value = 0.0;
+        for column in 0..columns {
+            value += row[column] * vector[column];
+        }
+        output[row_index] = value;
+    }
+}
+
 fn matrix_vector_residual(
+    matrix: &[f64],
+    rows: usize,
+    columns: usize,
+    vector: &[f64],
+    target: &[f64],
+    output: &mut [f64],
+) {
+    if USE_DENSE_MATVEC_ROW_SLICES {
+        matrix_vector_residual_row_slices(matrix, rows, columns, vector, target, output);
+    } else {
+        matrix_vector_residual_flat_indices(matrix, rows, columns, vector, target, output);
+    }
+}
+
+fn matrix_vector_residual_flat_indices(
     matrix: &[f64],
     rows: usize,
     columns: usize,
@@ -2135,6 +2183,24 @@ fn matrix_vector_residual(
             value += matrix[row * columns + column] * vector[column];
         }
         output[row] = -value;
+    }
+}
+
+fn matrix_vector_residual_row_slices(
+    matrix: &[f64],
+    rows: usize,
+    columns: usize,
+    vector: &[f64],
+    target: &[f64],
+    output: &mut [f64],
+) {
+    for row_index in 0..rows {
+        let row = &matrix[row_index * columns..(row_index + 1) * columns];
+        let mut value = -target[row_index];
+        for column in 0..columns {
+            value += row[column] * vector[column];
+        }
+        output[row_index] = -value;
     }
 }
 
@@ -5569,6 +5635,89 @@ mod tests {
                         .iter()
                         .zip(control)
                         .all(|(left, right)| left.to_bits() == right.to_bits())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dense_matvec_row_slices_preserve_every_result_bit() {
+        let mut random_state = 0x4fd9_82b1_37c6_a50e_u64;
+        for (rows, columns) in [(0, 0), (3, 0), (1, 1), (6, 29), (58, 58)] {
+            for sparse in [false, true] {
+                let mut sample = || {
+                    random_state ^= random_state << 13;
+                    random_state ^= random_state >> 7;
+                    random_state ^= random_state << 17;
+                    random_state as i64 as f64 / i64::MAX as f64
+                };
+                let mut matrix: Vec<_> = (0..rows * columns).map(|_| sample()).collect();
+                let mut vector: Vec<_> = (0..columns).map(|_| sample()).collect();
+                let mut target: Vec<_> = (0..rows).map(|_| sample()).collect();
+                if sparse {
+                    for (index, value) in matrix.iter_mut().enumerate() {
+                        if index % 3 == 0 {
+                            *value = if index % 2 == 0 { 0.0 } else { -0.0 };
+                        }
+                    }
+                    for (index, value) in vector.iter_mut().enumerate() {
+                        if index % 5 == 0 {
+                            *value = -0.0;
+                        }
+                    }
+                    for (index, value) in target.iter_mut().enumerate() {
+                        if index % 7 == 0 {
+                            *value = -0.0;
+                        }
+                    }
+                }
+
+                let mut control_product = vec![f64::NAN; rows];
+                let mut candidate_product = control_product.clone();
+                multiply_matrix_vector_flat_indices(
+                    &matrix,
+                    rows,
+                    columns,
+                    &vector,
+                    &mut control_product,
+                );
+                multiply_matrix_vector_row_slices(
+                    &matrix,
+                    rows,
+                    columns,
+                    &vector,
+                    &mut candidate_product,
+                );
+                assert!(
+                    candidate_product
+                        .iter()
+                        .zip(control_product)
+                        .all(|(candidate, control)| candidate.to_bits() == control.to_bits())
+                );
+
+                let mut control_residual = vec![f64::NAN; rows];
+                let mut candidate_residual = control_residual.clone();
+                matrix_vector_residual_flat_indices(
+                    &matrix,
+                    rows,
+                    columns,
+                    &vector,
+                    &target,
+                    &mut control_residual,
+                );
+                matrix_vector_residual_row_slices(
+                    &matrix,
+                    rows,
+                    columns,
+                    &vector,
+                    &target,
+                    &mut candidate_residual,
+                );
+                assert!(
+                    candidate_residual
+                        .iter()
+                        .zip(control_residual)
+                        .all(|(candidate, control)| candidate.to_bits() == control.to_bits())
                 );
             }
         }

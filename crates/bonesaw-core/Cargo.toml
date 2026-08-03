@@ -69,6 +69,13 @@ dense-multiply-row-slice-experiment = []
 # Explicit r74 A/B control. Production uses validated row slices by default;
 # this feature restores repeated flat indexing unless the experiment is set.
 dense-multiply-row-slice-control = []
+# Promoted R293 optimization: preserve the scalar accumulation order of dense
+# matrix-vector products and residuals while validating each row slice once
+# instead of repeating flat row offsets in the inner loop.
+dense-matvec-row-slice-experiment = []
+# Explicit R293 A/B control. Production uses row slices by default; this
+# feature restores repeated flat indexing unless the experiment is also set.
+dense-matvec-row-slice-control = []
 
 [dependencies]
 nalgebra.workspace = true
