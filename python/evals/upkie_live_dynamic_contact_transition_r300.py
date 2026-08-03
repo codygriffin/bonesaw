@@ -266,6 +266,8 @@ def run_case(
     force_world_n: tuple[float, float, float] = FORCE_WORLD_N,
     push_start_tick: int = PUSH_START_TICK,
     push_ticks: int = PUSH_TICKS,
+    application_offset_world_m: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    push_windows: tuple[tuple[int, int], ...] | None = None,
 ) -> dict[str, Any]:
     resolved_controller_options = {
         "joint_posture_priority": 1,
@@ -289,10 +291,15 @@ def run_case(
     initial_root = np.asarray(worker.data.qpos[:3], np.float64).copy()
     initial_com = np.asarray(worker.data.subtree_com[0], np.float64).copy()
     states: list[dict[str, Any]] = []
+    resolved_push_windows = push_windows or ((push_start_tick, push_ticks),)
+    application_offset = np.asarray(application_offset_world_m, np.float64)
     for tick in range(maximum_ticks):
         active = (
             disturbed
-            and push_start_tick <= tick < push_start_tick + push_ticks
+            and any(
+                start <= tick < start + duration
+                for start, duration in resolved_push_windows
+            )
         )
         request: dict[str, Any] = {"type": "step", "command_id": tick}
         if active:
@@ -300,7 +307,9 @@ def run_case(
                 "active": True,
                 "body": "base",
                 "force_world": list(force_world_n),
-                "application_point_world": worker.data.xipos[base_body].tolist(),
+                "application_point_world": (
+                    worker.data.xipos[base_body] + application_offset
+                ).tolist(),
                 "provenance": PROVENANCE,
                 "request_id": tick,
             }
@@ -312,7 +321,7 @@ def run_case(
         # because that would consume the pending automatic reset.
         if state["numeric_reset"] or state["automatic_reset_pending"] is not None:
             break
-    return {
+    result = {
         "disturbed": disturbed,
         "force_world_n": list(force_world_n),
         "push_start_tick": push_start_tick,
@@ -329,6 +338,11 @@ def run_case(
         "initial_center_of_mass_world": initial_com.tolist(),
         "states": states,
     }
+    if application_offset_world_m != (0.0, 0.0, 0.0):
+        result["application_offset_world_m"] = list(application_offset_world_m)
+    if push_windows is not None:
+        result["push_windows"] = [list(window) for window in push_windows]
+    return result
 
 
 def _semantic(case: dict[str, Any]) -> dict[str, Any]:

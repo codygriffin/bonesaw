@@ -2,6 +2,27 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current wrench capability envelope — r311 measured, not fully qualified
+
+R311 extends the policy-free live consequence matrix to off-CoM moments and
+repeated pulls without changing controller authority. It crosses both lateral
+signs at `2/4/6/8 N`, application points at the base CoM and `±250 mm`
+vertically, and either one 400 ms pull or four spaced pulls. All 48 cases carry
+an explicit world-frame force and application point; the plant independently
+reports the resulting `r×F` moment. Every harness-validity gate passes and the
+terminal boundary replay is exact.
+
+The result is a measured capability boundary, not another all-green default:
+32 cases stay inside the upright envelope, five complete outside it, four
+complete after one WBC nonadmission, and seven upper-base cases fall. Centered
+repeated pulls still finish with a bilateral/upright tail, and all tested
+moments at or below `1 N·m` are nonterminal. Upper-base pulls expose a
+repeatable `1.5 N·m`-class terminal boundary. Admitted hard residual remains
+below `1e-8`, maximum WBC/worker p99 is `0.201/2.802 ms`, and hot-path
+allocation is zero. Because four rows contain a nonadmitted tick, controller
+quality passes only five of six gates and no new authority is promoted. See
+[`UPKIE_LIVE_WRENCH_ENVELOPE_R311.md`](../benchmarks/results/upkie-live-wrench-envelope-r311/UPKIE_LIVE_WRENCH_ENVELOPE_R311.md).
+
 ## Current public lateral reserve — r310 qualified
 
 R310 composes R309's support-preserving posture hierarchy with a gentler
