@@ -78,6 +78,24 @@ lever holdout row: falls and nonadmissions remain. This is an explicit API and
 evaluation seam, not a promoted authority profile. See
 [`UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md`](../benchmarks/results/upkie-live-root-wrench-axis-scale-probe-r318/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md).
 
+## Current exact RollingWheel reference — r319 physical rows pass, optimizer parity rejected
+
+R319 independently rebuilds the current Upkie floating dynamics, wheel-center
+Jacobians and bias, exact RollingWheel acceleration rows, augmented
+virtual-work force map, and every hard bound with Pinocchio plus PlaCo's
+low-level generic QP. All 256 policy-/integration-/physics-free states solve;
+the reference hard residual is below `2.8e-13`, and the Bonesaw solution under
+the independent products stays below `2.3e-11`. The comparison retains CPU,
+memory, jitter, tracking, bounds, state-level divergence, and eight execution
+windows.
+
+Full solver parity remains rejected. Acceleration limits are near-active in
+166 reference states and 154 Bonesaw states; 17 states differ by more than one
+over the complete 24-variable solution. Thus the open reference gap is now
+bounded active-set/hierarchy semantics rather than RollingWheel row physics.
+No production authority changes. See
+[`UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.md`](../benchmarks/results/upkie-pinocchio-rolling-reference-r319/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.md).
+
 ## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
 
 R313 keeps the R312 measured-contact phase boundary and adds a fixed-size Rust

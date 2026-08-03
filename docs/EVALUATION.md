@@ -237,6 +237,28 @@ and timing arrays are retained beside the report. Exact rolling-controller
 parity remains open until an independent solver consumes the same
 nonholonomic row and force basis.
 
+### Revision r319 exact RollingWheel row reference
+
+R319 supplies that missing physical-row comparison without claiming an exact
+optimizer match. Pinocchio independently reconstructs the floating mass,
+bias, wheel-center Jacobians, contact bias, nonholonomic rolling acceleration
+rows, and augmented rolling-force map on all 256 frozen R123 states. PlaCo's
+low-level generic QP API then solves the five authority levels with the same
+acceleration, URDF effort, unilateral normal, normal-cap, and square-friction
+inequalities. It does not use PlaCo's robot, contact, task, or DynamicsSolver
+abstractions, and no policy, integration, or physics rollout participates.
+
+Every reference state is finite and hard-feasible. The reference and Bonesaw
+solutions satisfy the independently rebuilt rolling/dynamics equations below
+`2.8e-13` and `2.3e-11`, respectively. Complete optimizer parity is rejected:
+114/256 states agree within `2e-5` over the full 24-variable solution and
+239/256 agree within `1`, while 17 bound-active states exceed that threshold.
+The reference/Bonesaw near-active masks contain 166/154 states and agree on
+242/256. This localizes the open gap to bounded active-set/hierarchy semantics,
+not missing RollingWheel physics. See the
+[R319 report](../benchmarks/results/upkie-pinocchio-rolling-reference-r319/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.md)
+and its [web report](../web/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.html).
+
 ### Revision r318 root-wrench axis confidence screen
 
 R318 keeps the R314 scalar feed-forward path intact while exposing an optional

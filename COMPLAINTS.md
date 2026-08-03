@@ -55,6 +55,16 @@ shared frozen states, including CPU, memory, jitter, tracking, divergence, and
 execution windows. Its material wheel-center contact is deliberately not
 equated with Bonesaw's nonholonomic RollingWheel row.
 
+R319 now closes the missing independent physical-row reconstruction: Pinocchio
+rebuilds the exact RollingWheel acceleration and virtual-work maps, and a
+generic bounded QP satisfies every hard row and inequality on all 256 states.
+It does not close optimizer parity. The two bound-active solvers agree within
+one over the complete solution on 239/256 states, with 17 localized active-set
+divergences; their near-active masks agree on 242/256. Exact row semantics are
+therefore no longer the complaint. The remaining reference gate is bounded
+active-set/hierarchy parity on those states, followed by a shared closed-loop
+plant corpus and hardware calibration.
+
 R318 makes the next wrench hypothesis measurable without quietly promoting it:
 the Rust boundary accepts an optional six-axis confidence vector, with separate
 moment and force scales after the legacy scalar. A small centered/lever screen

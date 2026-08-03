@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "upkie-live-root-wrench-axis-scale-probe-r318",
+  "revision": "upkie-pinocchio-rolling-reference-r319",
   "updated": "2026-08-03",
-  "stage": "R318 adds an exploratory six-axis wrench-confidence seam · R317 nearby PlaCo reference retained · R316 rejects root-wrench robustness · R310 remains public",
-  "checkpoint": "R318 keeps the legacy scalar root-wrench confidence as an outer factor and adds an optional Rust-owned vector ordered root moment XYZ then root force XYZ. The small centered/lever screen changes measured actuator consequences but leaves falls and nonadmissions, so no vector profile is promoted. R317 remains an independent nearby floating PlaCo reference: its material wheel-center point contacts are not exact RollingWheel parity.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC and measured contact admission. R317 adds an isolated PlaCo floating-dynamics reference on shared frozen Upkie states while keeping its material point contact visibly distinct from RollingWheel. R318 adds only an optional six-axis delayed-wrench confidence seam and rejects promotion after its exploratory screen. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens, comparison orchestration, and replaceable MuJoCo consequence; it does not compute production actions. The live plant streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Exact rolling reference parity, robust delay/model calibration, authenticated transport, browser frame time, and hardware realization remain open.",
+  "stage": "R319 validates independent exact RollingWheel rows and localizes optimizer divergence · R318 wrench seam remains exploratory · R310 remains public",
+  "checkpoint": "R319 independently reconstructs floating Upkie products, exact nonholonomic RollingWheel acceleration/force maps, and every hard bound with Pinocchio plus a low-level generic PlaCo QP. Both solutions satisfy the independent hard rows on all 256 frozen states. Full optimizer parity is rejected: 17 acceleration-bound states differ by more than one over the complete solution, localizing the remaining gap to active-set/hierarchy semantics rather than contact-row physics.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC and measured contact admission. R319 validates Bonesaw's exact RollingWheel physical rows with independent Pinocchio products and a bounded generic QP, while retaining active-set divergence instead of forcing a false parity claim. R317 remains the nearby idiomatic PlaCo DynamicsSolver comparison. R318 adds only an optional six-axis delayed-wrench confidence seam and rejects promotion. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens and comparison orchestration; it does not compute production actions. The live plant streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Bounded optimizer parity, robust delay/model calibration, authenticated transport, browser frame time, closed-loop shared-corpus comparison, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -126,6 +126,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r319-upkie-exact-rolling-reference",
+      "title": "Validate exact rolling physics separately from bounded optimizer parity",
+      "status": "physical rows and hard bounds pass · optimizer parity rejected · no authority change",
+      "detail": "Pinocchio independently reconstructs the Upkie floating products, wheel-center bias/Jacobians, exact nonholonomic RollingWheel acceleration rows, and augmented force maps. PlaCo's low-level generic QP applies the same acceleration, URDF effort, unilateral normal, normal-cap, and square-friction bounds without using DynamicsSolver. Both implementations are hard-feasible on all 256 states and satisfy the independent rows below 2.3e-11. Complete parity remains open because 17 acceleration-bound states differ by more than one; the near-active masks agree on 242/256. The next gate is active-set/hierarchy parity, then shared closed-loop consequence."
+    },
     {
       "id": "r318-root-wrench-axis-confidence-seam",
       "title": "Separate force and moment confidence without promoting an uncalibrated wrench",

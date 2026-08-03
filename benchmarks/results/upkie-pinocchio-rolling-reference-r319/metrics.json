@@ -1,0 +1,375 @@
+{
+  "schema": 1,
+  "revision": "upkie-pinocchio-rolling-reference-r319",
+  "generated_utc": "2026-08-03T12:15:42.482623+00:00",
+  "passed": false,
+  "decision": "RETAIN_NEGATIVE_EVIDENCE",
+  "checks": {
+    "all_256_states_solved": true,
+    "independent_solution_satisfies_rolling_and_dynamics_below_2e_8": true,
+    "bonesaw_solution_satisfies_pinocchio_rolling_and_dynamics_below_2e_8": true,
+    "independent_reference_repeats_bit_exactly": true,
+    "independent_solution_satisfies_every_hard_inequality": true,
+    "generalized_acceleration_matches_bonesaw_within_2e_5": false,
+    "actuator_torque_matches_bonesaw_within_2e_4_nm": false,
+    "rolling_force_matches_bonesaw_within_2e_4_n": false
+  },
+  "evaluation_boundary": {
+    "independent_dynamics": "Pinocchio 3.8.0",
+    "independent_solver": "PlaCo low-level generic constrained QP with 2e-9 per-level achieved-image bands",
+    "contact_model": "two exact nonholonomic RollingWheel YZ+rolling-X rows and augmented force maps",
+    "states": 256,
+    "policy": false,
+    "integration": false,
+    "physics": false,
+    "inequality_solver": true
+  },
+  "bounds": {
+    "reference": {
+      "minimum_acceleration_margin": -8.526512829121202e-14,
+      "minimum_effort_margin": 1.0897043053123479,
+      "minimum_normal_force_margin": 24.902576954663342,
+      "minimum_square_friction_margin": 10.667327779843923,
+      "all_satisfied": true,
+      "active_or_near_active_state_count": 166
+    },
+    "bonesaw": {
+      "minimum_acceleration_margin": 0.0,
+      "minimum_effort_margin": 1.0897043050846995,
+      "minimum_normal_force_margin": 24.90257694785468,
+      "minimum_square_friction_margin": 0.0,
+      "all_satisfied": true,
+      "active_or_near_active_state_count": 154
+    }
+  },
+  "state_parity": {
+    "states_within_2e_5": 114,
+    "states_within_2e_4": 122,
+    "states_within_1e_3": 125,
+    "states_within_1e_2": 174,
+    "states_within_1": 239,
+    "active_state_count_reference": 166,
+    "active_state_count_bonesaw": 154,
+    "active_state_mask_agreement": 242,
+    "largest_state_deltas": [
+      {
+        "tick": 19,
+        "maximum_absolute_delta": 60.362325247641564,
+        "reference_maximum_acceleration": 249.99999999999986,
+        "bonesaw_maximum_acceleration": 249.99966897995932
+      },
+      {
+        "tick": 28,
+        "maximum_absolute_delta": 41.6401334415564,
+        "reference_maximum_acceleration": 249.99999999999991,
+        "bonesaw_maximum_acceleration": 249.99978518192918
+      },
+      {
+        "tick": 29,
+        "maximum_absolute_delta": 30.54002878615691,
+        "reference_maximum_acceleration": 249.99999999999994,
+        "bonesaw_maximum_acceleration": 249.99980385254295
+      },
+      {
+        "tick": 16,
+        "maximum_absolute_delta": 26.938491794272863,
+        "reference_maximum_acceleration": 250.00000000000003,
+        "bonesaw_maximum_acceleration": 249.99976264852597
+      },
+      {
+        "tick": 32,
+        "maximum_absolute_delta": 21.04189304908654,
+        "reference_maximum_acceleration": 250.0,
+        "bonesaw_maximum_acceleration": 249.99978945930232
+      },
+      {
+        "tick": 34,
+        "maximum_absolute_delta": 21.011980075092644,
+        "reference_maximum_acceleration": 249.99999999999994,
+        "bonesaw_maximum_acceleration": 249.99983246264904
+      },
+      {
+        "tick": 40,
+        "maximum_absolute_delta": 20.882260156910622,
+        "reference_maximum_acceleration": 249.9999993738388,
+        "bonesaw_maximum_acceleration": 249.99996477731762
+      },
+      {
+        "tick": 42,
+        "maximum_absolute_delta": 20.827108567255973,
+        "reference_maximum_acceleration": 249.99999950792278,
+        "bonesaw_maximum_acceleration": 249.9999600831788
+      },
+      {
+        "tick": 1,
+        "maximum_absolute_delta": 20.62031318623364,
+        "reference_maximum_acceleration": 249.9999997069923,
+        "bonesaw_maximum_acceleration": 249.99999997785193
+      },
+      {
+        "tick": 49,
+        "maximum_absolute_delta": 20.601788033360776,
+        "reference_maximum_acceleration": 249.99999961087954,
+        "bonesaw_maximum_acceleration": 249.9999970999841
+      },
+      {
+        "tick": 54,
+        "maximum_absolute_delta": 20.42370150679574,
+        "reference_maximum_acceleration": 249.99999976288274,
+        "bonesaw_maximum_acceleration": 249.9999851561275
+      },
+      {
+        "tick": 255,
+        "maximum_absolute_delta": 20.41505006413464,
+        "reference_maximum_acceleration": 249.9999996832777,
+        "bonesaw_maximum_acceleration": 249.99999776940507
+      }
+    ]
+  },
+  "tracking_rms": {
+    "reference": {
+      "root_angular": 6.322850784578924e-10,
+      "root_horizontal": 0.8863991175313264,
+      "root_height": 7.631207340701961e-10,
+      "joint": 142.0747658223715
+    },
+    "bonesaw": {
+      "root_angular": 0.00012641933676066247,
+      "root_horizontal": 0.8865639347035602,
+      "root_height": 0.00011969541291372033,
+      "joint": 141.78378874275543
+    }
+  },
+  "execution_windows": [
+    {
+      "start": 0,
+      "stop": 32,
+      "maximum_solution_delta": 60.362325247641564,
+      "acceleration_rms_delta": 4.629984883409966,
+      "torque_rms_delta": 0.013174945789706915,
+      "force_rms_delta": 2.1109945964288364,
+      "reference_solve_p99_us": 3764.28075,
+      "active_states_reference": 32
+    },
+    {
+      "start": 32,
+      "stop": 64,
+      "maximum_solution_delta": 21.04189304908654,
+      "acceleration_rms_delta": 1.1799995724392476,
+      "torque_rms_delta": 0.003562800679461704,
+      "force_rms_delta": 5.199994063741559,
+      "reference_solve_p99_us": 3755.807499999999,
+      "active_states_reference": 29
+    },
+    {
+      "start": 64,
+      "stop": 96,
+      "maximum_solution_delta": 0.02960277691140334,
+      "acceleration_rms_delta": 0.003191178981933005,
+      "torque_rms_delta": 1.2357489587320313e-05,
+      "force_rms_delta": 0.00015307596574929406,
+      "reference_solve_p99_us": 3612.339449999998,
+      "active_states_reference": 17
+    },
+    {
+      "start": 96,
+      "stop": 128,
+      "maximum_solution_delta": 0.06736355648240533,
+      "acceleration_rms_delta": 0.004132506926256139,
+      "torque_rms_delta": 3.441274801658583e-05,
+      "force_rms_delta": 0.00027333403931112583,
+      "reference_solve_p99_us": 3683.0824999999986,
+      "active_states_reference": 32
+    },
+    {
+      "start": 128,
+      "stop": 160,
+      "maximum_solution_delta": 0.14857574151386643,
+      "acceleration_rms_delta": 0.012419429382225634,
+      "torque_rms_delta": 7.83523432404244e-05,
+      "force_rms_delta": 0.0006941915842469674,
+      "reference_solve_p99_us": 3804.2325,
+      "active_states_reference": 13
+    },
+    {
+      "start": 160,
+      "stop": 192,
+      "maximum_solution_delta": 20.042196903729476,
+      "acceleration_rms_delta": 0.018847339546698472,
+      "torque_rms_delta": 5.428626218243212e-05,
+      "force_rms_delta": 2.0455476350073876,
+      "reference_solve_p99_us": 3816.7253499999997,
+      "active_states_reference": 9
+    },
+    {
+      "start": 192,
+      "stop": 224,
+      "maximum_solution_delta": 0.06748962650550538,
+      "acceleration_rms_delta": 0.010456078399626043,
+      "torque_rms_delta": 2.9649811385495047e-05,
+      "force_rms_delta": 0.00045318655054401647,
+      "reference_solve_p99_us": 3753.8429999999994,
+      "active_states_reference": 2
+    },
+    {
+      "start": 224,
+      "stop": 256,
+      "maximum_solution_delta": 20.41505006413464,
+      "acceleration_rms_delta": 0.012724582781212917,
+      "torque_rms_delta": 7.123668558334729e-05,
+      "force_rms_delta": 2.0836018428229095,
+      "reference_solve_p99_us": 3789.07725,
+      "active_states_reference": 32
+    }
+  ],
+  "delta": {
+    "generalized_acceleration": {
+      "rms": 1.6893033690627852,
+      "absolute": {
+        "minimum": 2.842170943040401e-14,
+        "mean": 0.10068965920283333,
+        "stddev": 1.686299933361943,
+        "mad": 1.958491744957075e-06,
+        "p50": 1.958856856276725e-06,
+        "p95": 0.012539638259477215,
+        "p99": 0.18644829706907068,
+        "p99_9": 26.38719808438696,
+        "maximum": 60.362325247641564
+      }
+    },
+    "actuator_torque": {
+      "rms": 0.004825571495334836,
+      "absolute": {
+        "minimum": 1.9184653865522705e-12,
+        "mean": 0.0007280085675552008,
+        "stddev": 0.004770340006975847,
+        "mad": 2.5955077677386473e-07,
+        "p50": 2.596249944197826e-07,
+        "p95": 0.0009399923271034456,
+        "p99": 0.02351539922092423,
+        "p99_9": 0.05766424773711009,
+        "maximum": 0.08579942784324046
+      }
+    },
+    "rolling_contact_force": {
+      "rms": 2.236679989432504,
+      "absolute": {
+        "minimum": 7.083625851010298e-11,
+        "mean": 0.24686408956722675,
+        "stddev": 2.2230149564071606,
+        "mad": 9.940277683006146e-07,
+        "p50": 9.944579757552757e-07,
+        "p95": 0.0024613016129901855,
+        "p99": 20.28454423939545,
+        "p99_9": 21.02562611393089,
+        "maximum": 21.04189304908654
+      }
+    }
+  },
+  "hard_residual": {
+    "reference_maximum": 2.7473975785369253e-13,
+    "bonesaw_under_pinocchio_maximum": 2.2560397994197956e-11
+  },
+  "timing": {
+    "solve_us": {
+      "minimum": 2555.318,
+      "mean": 2755.5726552734377,
+      "stddev": 200.71536000467907,
+      "mad": 66.31050000000027,
+      "p50": 2736.365,
+      "p95": 3051.620599999996,
+      "p99": 3789.2568499999998,
+      "p99_9": 3854.122813,
+      "maximum": 4115.526
+    },
+    "adjacent_jitter_us": {
+      "minimum": 0.03999999999996362,
+      "mean": 74.77741035661944,
+      "stddev": 167.4575659174824,
+      "mad": 14.97900000000027,
+      "p50": 21.221000000000004,
+      "p95": 366.6280999999998,
+      "p99": 918.8236999999999,
+      "p99_9": 1175.7523400000011,
+      "maximum": 1380.7889999999998
+    },
+    "deadline_misses": {
+      "0.5ms": 2048,
+      "1ms": 2048,
+      "2ms": 2048,
+      "5ms": 0,
+      "10ms": 0,
+      "20ms": 0
+    },
+    "product_build_us": 28540.244,
+    "queries_per_second": 362.7912668246405
+  },
+  "resources": {
+    "wall_seconds": 5.645119349,
+    "cpu_seconds": 5.643955317,
+    "cpu_to_wall": 0.9997937985137185,
+    "rss_before_bytes": 101834752,
+    "rss_after_bytes": 101847040,
+    "rss_delta_bytes": 12288,
+    "peak_rss_before_bytes": 101560320,
+    "peak_rss_after_bytes": 101560320,
+    "gc_collections": 0
+  },
+  "bonesaw_r317": {
+    "timing": {
+      "latency_us": {
+        "minimum": 109.637,
+        "mean": 119.05424462890625,
+        "stddev": 4.187232934373208,
+        "mad": 2.5095000000000027,
+        "p50": 118.8295,
+        "p95": 125.82584999999999,
+        "p99": 131.17743,
+        "p99_9": 144.23394100000073,
+        "maximum": 147.448
+      },
+      "adjacent_jitter_us": {
+        "minimum": 0.000999999999990564,
+        "mean": 3.6158500244259892,
+        "stddev": 3.3509070888351435,
+        "mad": 1.6540000000000106,
+        "p50": 2.664999999999992,
+        "p95": 10.845999999999977,
+        "p99": 15.0334,
+        "p99_9": 20.194320000000022,
+        "maximum": 26.299999999999997
+      },
+      "deadline_misses": {
+        "0.5ms": 0,
+        "1ms": 0,
+        "2ms": 0,
+        "5ms": 0,
+        "10ms": 0,
+        "20ms": 0
+      }
+    },
+    "resources": {
+      "queries": 2048,
+      "wall_seconds": 0.244287184,
+      "cpu_seconds": 0.244262416,
+      "cpu_to_wall": 0.9998986111363092,
+      "queries_per_second": 8383.575292267482,
+      "full_query_mean_us": 119.2808515625,
+      "rss_before_bytes": 93237248,
+      "rss_after_bytes": 93237248,
+      "rss_delta_bytes": 0,
+      "peak_rss_before_bytes": 93020160,
+      "peak_rss_after_bytes": 93020160,
+      "gc_collections": 0,
+      "native_allocation_calls": 0,
+      "native_allocated_bytes": 0
+    }
+  },
+  "source_sha256": {
+    "model": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+    "input": "f31c69dd9b1f8bab7f58a8870b53e390b45bae848c348668009440e24c1e1e3e",
+    "bonesaw": "3574846fab8ac26935cd722aa497b89bd8d4f259841d9cb14db35fa2e89232d5",
+    "bonesaw_metrics": "9d3f854ed90be8ced310f028636fabb8e2cca65d8cb54220177493f18ace2ad7",
+    "evaluator": "e890971daff108eed97c8c6892670959a5ed128fe51aee2df38a14080aa48e9e"
+  }
+}

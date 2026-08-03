@@ -428,6 +428,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   default. The exploratory split screen changes measured consequences but
   leaves falls/nonadmissions, so no vector profile is promoted. See the
   [r318 axis-scale probe](benchmarks/results/upkie-live-root-wrench-axis-scale-probe-r318/UPKIE_LIVE_ROOT_WRENCH_AXIS_SCALE_PROBE_R318.md).
+- R319 independently reconstructs Upkie's exact RollingWheel dynamics/contact
+  rows and every hard bound with Pinocchio plus PlaCo's low-level generic QP.
+  Both implementations are hard-feasible on all 256 frozen states, but 17
+  acceleration-bound states retain material active-set divergence, so full
+  optimizer parity is explicitly rejected. CPU, memory, jitter, tracking,
+  per-state deltas, and eight execution windows are retained in the
+  [r319 exact-row reference](benchmarks/results/upkie-pinocchio-rolling-reference-r319/UPKIE_PINOCCHIO_ROLLING_REFERENCE_R319.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed
