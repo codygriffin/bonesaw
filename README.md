@@ -407,14 +407,22 @@ This is an engineering prototype, not a safety-rated robot controller.
   evidence; the remaining behavior gap is continuous
   support-sustaining moment/landing rejection. See the
   [r313 envelope report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
-- R314 closes the causal external-moment seam: MuJoCo applies the declared
-  wrench after the WBC solve, the worker retains the completed `r×F` moment for
-  one 50 Hz tick, and Rust owns the opposing centroidal contact-moment target.
-  The repeated eight-force holdout is finite, zero-allocation, deadline-clean,
-  mode-firewall-clean, replay-exact, and never earlier than R313 (`80/331/—/—/—/—/322/70`
-  versus `79/236/—/—/—/—/236/69`), but still has four terminal falls. The
-  mechanism remains default-off. See the
-  [r314 causal moment report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+- R314 closes the causal external-wrench transport seam with an explicit Rust-
+  owned `0.7` confidence scale for the one-tick delay/model boundary. The
+  worker retains application point+force and Rust re-expresses the wrench about
+  the current root-body origin, matching the floating generalized tangent;
+  application-body and aggregate-CoM moments remain separate. All eight rows
+  finish 450 ticks with zero nonadmission, exact replay, and deadline-clean
+  p99s, so the root-only profile is recovery-qualified for evaluation while
+  the public controller remains unchanged. R315 rejects composing this path
+  with the qualified state-local law: terminal ticks `84/85` still fall and
+  incur four nonadmissions, while the higher-damping variant regresses -8 N to
+  tick `63`. R316 rejects robust promotion: passing scale samples are
+  discontinuous, and one of 40 independent schedule/lever rows (repeated
+  centered `+8 N`) is nonadmitted at tick `338` and falls at `351`. See the
+  [r314 feed-forward report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md),
+  [r315 composition report](benchmarks/results/upkie-live-composed-moment-rejection-r315/UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md), and
+  [r316 robustness report](benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

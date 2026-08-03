@@ -1128,6 +1128,8 @@ class RustWbcAdapter:
         root_lateral_damping: float = 8.0,
         centroidal_angular_momentum_weight: float = 0.0,
         centroidal_angular_momentum_frequency_hz: float = 1.0,
+        external_wrench_feedforward_enabled: bool = False,
+        external_wrench_feedforward_scale: float = 1.0,
         joint_posture_weight: float = 1.0,
         joint_posture_priority: int = 0,
         joint_posture_stiffness: float = 60.0,
@@ -1195,10 +1197,23 @@ class RustWbcAdapter:
         self.centroidal_angular_momentum_weight = float(
             centroidal_angular_momentum_weight
         )
+        if not isinstance(external_wrench_feedforward_enabled, bool):
+            raise ValueError("external_wrench_feedforward_enabled must be boolean")
+        self.external_wrench_feedforward_enabled = external_wrench_feedforward_enabled
+        if (
+            not math.isfinite(external_wrench_feedforward_scale)
+            or not 0.0 <= external_wrench_feedforward_scale <= 1.0
+        ):
+            raise ValueError("external_wrench_feedforward_scale must be finite in [0, 1]")
+        self.external_wrench_feedforward_scale = float(
+            external_wrench_feedforward_scale
+        )
         self.external_moment_observation_valid = False
         self.centroidal_angular_momentum_rate_world = np.zeros(
             (1, 3), np.float64
         )
+        self.external_wrench_observation_valid = False
+        self.external_wrench_world = np.zeros((1, 6), np.float64)
 
         self.session = bonesaw.FloatingWbcSession(
             str(model_path),
@@ -2148,6 +2163,12 @@ class RustWbcAdapter:
                 and self.centroidal_angular_momentum_weight > 0.0
                 else None
             ),
+            external_wrench_world=(
+                self.external_wrench_world
+                if self.external_wrench_observation_valid
+                else None
+            ),
+            external_wrench_feedforward_scale=self.external_wrench_feedforward_scale,
         )
 
     def _restore_contact_authority(self) -> None:
@@ -2299,6 +2320,12 @@ class RustWbcAdapter:
                 and self.centroidal_angular_momentum_weight > 0.0
                 else None
             ),
+            external_wrench_world=(
+                self.external_wrench_world
+                if self.external_wrench_observation_valid
+                else None
+            ),
+            external_wrench_feedforward_scale=self.external_wrench_feedforward_scale,
         )
         self.support_contingency_candidate_generalized_acceleration[:] = out[
             "generalized_acceleration"
@@ -2455,6 +2482,7 @@ class RustWbcAdapter:
         observed_contact_active: np.ndarray | None = None,
         observed_wheel_normal_force_n: np.ndarray | None = None,
         observed_external_wrench_world: np.ndarray | None = None,
+        observed_external_centroidal_moment_world: np.ndarray | None = None,
         observed_contact_available: bool = True,
         observed_contact_age_ticks: int = 0,
         observed_contact_synchronization_uncertainty_ns: int = 0,
@@ -2480,10 +2508,25 @@ class RustWbcAdapter:
             raise ValueError(
                 "observed_external_wrench_world must contain six finite values ordered moment XYZ, force XYZ"
             )
+        if observed_external_centroidal_moment_world is not None and (
+            observed_external_centroidal_moment_world.shape != (3,)
+            or not np.all(np.isfinite(observed_external_centroidal_moment_world))
+        ):
+            raise ValueError(
+                "observed_external_centroidal_moment_world must contain three finite values"
+            )
         self.external_moment_observation_valid = (
-            observed_external_wrench_world is not None
+            observed_external_centroidal_moment_world is not None
             and self.centroidal_angular_momentum_weight > 0.0
         )
+        self.external_wrench_observation_valid = (
+            observed_external_wrench_world is not None
+            and self.external_wrench_feedforward_enabled
+        )
+        if observed_external_wrench_world is not None:
+            self.external_wrench_world[0] = observed_external_wrench_world
+        else:
+            self.external_wrench_world.fill(0.0)
         if self.external_moment_observation_valid:
             # A desired centroidal angular-momentum rate is the contact moment
             # target. The external moment is supplied one control tick late by
@@ -2491,7 +2534,7 @@ class RustWbcAdapter:
             # opposed continuously while the normal zero-rate damping task is
             # retained whenever no external observation is available.
             self.centroidal_angular_momentum_rate_world[0] = (
-                -observed_external_wrench_world[:3]
+                -observed_external_centroidal_moment_world
             )
         else:
             self.centroidal_angular_momentum_rate_world.fill(0.0)

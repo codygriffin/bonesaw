@@ -17,25 +17,37 @@ and the `±2/±4 N` rows remain nonterminal. This completed slice is removed fro
 the punch list and retained in the
 [R314 report](benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 
-The independent delayed-wrench negative control also closes a useful causal
-observation seam:
-MuJoCo applies the declared wrench after each WBC solve, the worker retains the
-completed `r×F` moment for exactly one 50 Hz tick, and Rust owns the opposing
-centroidal contact-moment target. The full eight-force repeated upper-base
-holdout is finite, allocation-free, deadline-clean, mode-firewall-clean, and
-replay-exact; terminal boundaries move `79/236/236/69` (R313) to
-`80/331/322/70` for the terminal `-8/-6/+6/+8 N` cases. Four falls remain, so
-no authority is promoted. It is retained as a behavior-negative comparison to
-the state-local R314 law, not as an alternative public controller. See the
-[negative-control report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+The independent delayed-wrench follow-up closes the typed observation seam and
+is now qualified for evaluation at an explicit Rust-owned `0.7` confidence
+scale. Floating generalized coordinates use `[root angular; root-origin
+linear; joints]`, so Rust consumes moment about the root-body origin alongside
+force; application-body and aggregate-CoM moments remain separate telemetry
+and objective frames. The worker retains point+force and re-expresses the
+completed root wrench exactly one 50 Hz tick later. All eight repeated rows
+finish with zero nonadmitted solves, finite residuals, exact replay, and
+controller/worker p99 below the declared deadlines; the two `±6 N` rows retain
+upright bilateral tails without requiring a nonexistent relock after zero
+contact loss. R315 still rejects composing this feed-forward with the
+qualified state-local law: the lower-damping composition delays the two falls
+to ticks `84/85` but introduces four nonadmitted solves, while the
+higher-damping composition regresses the `-8 N` boundary to tick `63`. No
+public authority changes. R316 then rejects generalizing the exact `0.7`
+result: only sampled scales `0.62`, `0.70`, and `0.72` clear the terminal rows,
+with failures between and around them; the independent 40-case schedule/lever
+holdout retains a repeated centered `+8 N` nonadmission at tick `338` and fall
+at tick `351`. See the
+[feed-forward report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md),
+the [R315 composition report](benchmarks/results/upkie-live-composed-moment-rejection-r315/UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md),
+and the [R316 robustness report](benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
 
-The largest remaining behavior complaint is the `±8 N` overload class. Full
-promotion requires every declared holdout row to finish without inventing
-contact authority, raising solver iteration/time budgets, or weakening the
-existing guardrails. R314 therefore remains default-off despite the bounded
-behavior improvement. Calibrated actuator/thermal limits, hardware
-realization, and an independent full-body reference-controller consequence
-comparison remain separate open gates.
+The largest remaining behavior complaint is robust wrench rejection across
+schedule, lever, and scale—not the selected upper-base `±8 N` rows alone. Full
+promotion requires a contiguous parameter neighborhood and every independent
+holdout row to finish without inventing contact authority, raising solver
+budgets, or weakening guardrails. The exact R314 root-wrench profile is
+qualified selection evidence; R316 keeps public authority unchanged.
+Calibrated actuator/thermal limits, hardware realization, and an independent
+full-body reference-controller comparison remain separate gates.
 
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated

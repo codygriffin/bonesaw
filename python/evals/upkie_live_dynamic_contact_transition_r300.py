@@ -304,6 +304,13 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "external_moment_world_nm": [
             float(value) for value in state["external_load"]["moment_world_nm"]
         ],
+        "external_centroidal_moment_world_nm": [
+            float(value)
+            for value in state["external_load"]["centroidal_moment_world_nm"]
+        ],
+        "external_root_moment_world_nm": [
+            float(value) for value in state["external_load"]["root_moment_world_nm"]
+        ],
     }
 
 

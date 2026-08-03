@@ -9,7 +9,7 @@ use crate::{
         CollisionAccelerationBarrierScratch, CollisionError, CompiledCollisionModel,
     },
     history::RobotObservationErrorBound,
-    math::{Motion6, Vec3},
+    math::{Force6, Motion6, Vec3},
     model::{CompiledModel, DynamicsCache, FrameId, ModelCache, ModelError, RobotState},
     solver::{
         ConstraintBuffer, HierarchicalSolver, Priority, SolveDiagnostics, SolveResult, SolveStatus,
@@ -2058,7 +2058,30 @@ impl FloatingDynamicWbc {
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
-        self.solve_into_impl(input, None, None, output, scratch)
+        self.solve_into_impl(input, None, None, None, output, scratch)
+    }
+
+    /// Solve with a known world-expressed external wrench applied to the
+    /// floating-base equations. The wrench is ordered `[moment; force]`,
+    /// expressed in world, and its moment is about the model root-body origin.
+    /// That reference point is required by the generalized tangent ordering
+    /// `[root angular; root-origin linear; joints]`. The ordinary solve remains
+    /// the exact no-external-load path.
+    pub fn solve_into_with_external_wrench(
+        &self,
+        input: FloatingDynamicWbcInput<'_>,
+        external_wrench_world: Force6,
+        output: &mut FloatingDynamicWbcOutput,
+        scratch: &mut FloatingDynamicWbcScratch,
+    ) -> Result<(), DynamicWbcError> {
+        self.solve_into_impl(
+            input,
+            None,
+            None,
+            Some(external_wrench_world),
+            output,
+            scratch,
+        )
     }
 
     /// Solve while conservatively propagating a reconstructed-state error
@@ -2072,7 +2095,7 @@ impl FloatingDynamicWbc {
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
-        self.solve_into_impl(input, None, Some(observation_error), output, scratch)
+        self.solve_into_impl(input, None, Some(observation_error), None, output, scratch)
     }
 
     /// Solve the floating constrained-acceleration problem with generalized
@@ -2089,7 +2112,36 @@ impl FloatingDynamicWbc {
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
-        self.solve_into_impl(input, Some(fixed_generalized_effort), None, output, scratch)
+        self.solve_into_impl(
+            input,
+            Some(fixed_generalized_effort),
+            None,
+            None,
+            output,
+            scratch,
+        )
+    }
+
+    /// Solve with fixed generalized effort and a known root-origin external
+    /// wrench. This is the fixed-effort realization counterpart to
+    /// `solve_into_with_external_wrench`; ordinary fixed-effort queries remain
+    /// the exact no-external-load path.
+    pub fn solve_with_fixed_generalized_effort_and_external_wrench_into(
+        &self,
+        input: FloatingDynamicWbcInput<'_>,
+        fixed_generalized_effort: &DVector<f64>,
+        external_wrench_world: Force6,
+        output: &mut FloatingDynamicWbcOutput,
+        scratch: &mut FloatingDynamicWbcScratch,
+    ) -> Result<(), DynamicWbcError> {
+        self.solve_into_impl(
+            input,
+            Some(fixed_generalized_effort),
+            None,
+            Some(external_wrench_world),
+            output,
+            scratch,
+        )
     }
 
     fn solve_into_impl(
@@ -2097,6 +2149,7 @@ impl FloatingDynamicWbc {
         input: FloatingDynamicWbcInput<'_>,
         fixed_generalized_effort: Option<&DVector<f64>>,
         observation_error: Option<RobotObservationErrorBound>,
+        external_wrench_world: Option<Force6>,
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
@@ -2205,6 +2258,8 @@ impl FloatingDynamicWbc {
                 .validate(generalized_dof)
             || !input.torque_bounds.validate(dof)
             || observation_error.is_some_and(|bound| !bound.validate())
+            || external_wrench_world
+                .is_some_and(|wrench| !wrench.0.iter().all(|value| value.is_finite()))
             || fixed_generalized_effort.is_some_and(|effort| {
                 effort.len() != dof
                     || input.actuator_effort.is_some()
@@ -2368,6 +2423,7 @@ impl FloatingDynamicWbc {
             &scratch.bias,
             dof,
             fixed_generalized_effort,
+            external_wrench_world,
             &mut scratch.constraints,
         )?;
         if fixed_generalized_effort.is_none() {
@@ -2911,6 +2967,7 @@ fn emit_floating_dynamics_rows(
     bias: &DVector<f64>,
     dof: usize,
     fixed_generalized_effort: Option<&DVector<f64>>,
+    external_wrench_world: Option<Force6>,
     constraints: &mut ConstraintBuffer,
 ) -> Result<(), DynamicWbcError> {
     let generalized_dof = dof + 6;
@@ -2927,15 +2984,28 @@ fn emit_floating_dynamics_rows(
                 row.coefficients[generalized_dof + equation - 6] = -1.0;
             }
         }
-        row.lower = -bias[equation]
-            + fixed_generalized_effort.map_or(0.0, |effort| {
+        // Preserve the pre-existing ordinary-solve expression exactly. Apart
+        // from avoiding useless work, this retains signed-zero/bit semantics
+        // on the dormant path instead of evaluating `-bias + 0 + 0`.
+        row.lower = if external_wrench_world.is_none() && fixed_generalized_effort.is_none() {
+            -bias[equation]
+        } else {
+            let external = external_wrench_world.map_or(0.0, |wrench| {
+                if equation < 6 {
+                    wrench.0[equation]
+                } else {
+                    0.0
+                }
+            });
+            let fixed_effort = fixed_generalized_effort.map_or(0.0, |effort| {
                 if equation >= 6 {
                     effort[equation - 6]
                 } else {
                     0.0
                 }
             });
-        row.upper = -bias[equation];
+            -bias[equation] + external + fixed_effort
+        };
         row.upper = row.lower;
     }
     Ok(())
@@ -5144,6 +5214,64 @@ mod tests {
         let supported_weight =
             output.contact_force_basis[(2, 0)] + output.contact_force_basis[(2, 1)];
         assert!((supported_weight - total_weight).abs() < 1e-2);
+
+        let mut external_wrench = Force6::default();
+        external_wrench.0[3] = 2.0;
+        let mut zero_external_output = FloatingDynamicWbcOutput::workspace(
+            model.dof,
+            2,
+            controller.maximum_constraint_count(2, 0),
+        );
+        controller
+            .solve_into_with_external_wrench(
+                input,
+                Force6::default(),
+                &mut zero_external_output,
+                &mut scratch,
+            )
+            .unwrap();
+        for (ordinary, explicit_zero) in output
+            .generalized_acceleration
+            .iter()
+            .chain(output.actuator_torque.iter())
+            .chain(output.contact_force_basis.iter())
+            .zip(
+                zero_external_output
+                    .generalized_acceleration
+                    .iter()
+                    .chain(zero_external_output.actuator_torque.iter())
+                    .chain(zero_external_output.contact_force_basis.iter()),
+            )
+        {
+            assert_eq!(ordinary.to_bits(), explicit_zero.to_bits());
+        }
+        let mut external_output = FloatingDynamicWbcOutput::workspace(
+            model.dof,
+            2,
+            controller.maximum_constraint_count(2, 0),
+        );
+        controller
+            .solve_into_with_external_wrench(
+                input,
+                external_wrench,
+                &mut external_output,
+                &mut scratch,
+            )
+            .unwrap();
+        assert!(matches!(
+            external_output.status,
+            SolveStatus::Solved | SolveStatus::SolvedWithSlack
+        ));
+        assert!(external_output.dynamics_residual_linf < 1e-8);
+        assert!(external_output.contact_acceleration_residual_linf < 1e-8);
+        let external_response =
+            (&external_output.generalized_acceleration - &output.generalized_acceleration).norm()
+                + (&external_output.actuator_torque - &output.actuator_torque).norm()
+                + (&external_output.contact_force_basis - &output.contact_force_basis).norm();
+        assert!(
+            external_response > 1e-6,
+            "finite external wrench did not change the solved dynamics witness"
+        );
 
         let mut model_cache = ModelCache::new(&model);
         model.forward_kinematics(&state, &mut model_cache).unwrap();

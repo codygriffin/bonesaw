@@ -39,7 +39,7 @@ use bonesaw_core::{
     FloatingDynamicWbcInput, FloatingDynamicWbcOutput, FloatingDynamicWbcScratch,
     FloatingFrameAngularAccelerationTask, FloatingJointAccelerationTask,
     FloatingPointAccelerationTask, FloatingRobotState, FloatingTaskPriorities, FloatingTaskWeights,
-    FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache,
+    Force6, FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache,
     ModelCoupledPositiveReferenceCompliantContactImpulseInput,
     ModelCoupledPositiveReferenceContactScratch, Motion6, MotionProgram, PlanarIkOptions,
     PlanarIkScratch, PlanarPointIkTarget, PointImpulseResponseSpec,
@@ -129,6 +129,20 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyModule};
 
 fn value_error(error: impl std::fmt::Display) -> pyo3::PyErr {
     PyValueError::new_err(error.to_string())
+}
+
+fn solve_floating_wbc_into_with_optional_external_wrench(
+    controller: &FloatingDynamicWbc,
+    input: FloatingDynamicWbcInput<'_>,
+    external_wrench_world: Option<Force6>,
+    output: &mut FloatingDynamicWbcOutput,
+    scratch: &mut FloatingDynamicWbcScratch,
+) -> Result<(), bonesaw_core::DynamicWbcError> {
+    if let Some(external_wrench_world) = external_wrench_world {
+        controller.solve_into_with_external_wrench(input, external_wrench_world, output, scratch)
+    } else {
+        controller.solve_into(input, output, scratch)
+    }
 }
 
 struct CountingAllocator;
@@ -16124,7 +16138,9 @@ impl FloatingWbcSession {
         contact_bases_world=None,
         feasibility_seed_reused_out=None,
         feasibility_prefix_resumed_out=None,
-        centroidal_angular_momentum_rate_world=None
+        centroidal_angular_momentum_rate_world=None,
+        external_wrench_world=None,
+        external_wrench_feedforward_scale=1.0
     ))]
     fn run_oracle_trace(
         &mut self,
@@ -16191,6 +16207,8 @@ impl FloatingWbcSession {
         mut feasibility_seed_reused_out: Option<PyReadwriteArray1<'_, u8>>,
         mut feasibility_prefix_resumed_out: Option<PyReadwriteArray1<'_, u8>>,
         centroidal_angular_momentum_rate_world: Option<PyReadonlyArray2<'_, f64>>,
+        external_wrench_world: Option<PyReadonlyArray2<'_, f64>>,
+        external_wrench_feedforward_scale: f64,
     ) -> PyResult<()> {
         // Every call begins from the configured nominal authority. This also
         // self-heals a session after any model error returned from the middle
@@ -16312,6 +16330,16 @@ impl FloatingWbcSession {
         let centroidal_angular_momentum_rate_world = centroidal_angular_momentum_rate_world
             .as_ref()
             .map(PyReadonlyArray2::as_array);
+        let external_wrench_world = external_wrench_world
+            .as_ref()
+            .map(PyReadonlyArray2::as_array);
+        if !external_wrench_feedforward_scale.is_finite()
+            || !(0.0..=1.0).contains(&external_wrench_feedforward_scale)
+        {
+            return Err(value_error(
+                "external_wrench_feedforward_scale must be finite in [0, 1]",
+            ));
+        }
         let mut feasibility_seed_reused_out = feasibility_seed_reused_out
             .as_mut()
             .map(|values| values.as_slice_mut())
@@ -16413,6 +16441,9 @@ impl FloatingWbcSession {
             || centroidal_angular_momentum_rate_world
                 .as_ref()
                 .is_some_and(|rates| rates.shape() != [ticks, 3])
+            || external_wrench_world
+                .as_ref()
+                .is_some_and(|wrench| wrench.shape() != [ticks, 6])
             || rolling_coordinates.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_coefficients.is_some_and(|values| values.len() != target_count)
             || rolling_velocity_stabilization_gains
@@ -16455,6 +16486,9 @@ impl FloatingWbcSession {
             || centroidal_angular_momentum_rate_world
                 .as_ref()
                 .is_some_and(|rates| rates.iter().any(|value| !value.is_finite()))
+            || external_wrench_world
+                .as_ref()
+                .is_some_and(|wrench| wrench.iter().any(|value| !value.is_finite()))
             || contact_bases_world.as_ref().is_some_and(|bases| {
                 (0..ticks).any(|tick| {
                     (0..target_count).any(|target| {
@@ -16555,6 +16589,16 @@ impl FloatingWbcSession {
         let root_angular_priority = priority(root_angular_priority)?;
         let root_height_priority = priority(root_height_priority)?;
         for tick in 0..ticks {
+            let external_wrench_world = external_wrench_world.map(|wrench| {
+                Force6(nalgebra::SVector::<f64, 6>::new(
+                    wrench[[tick, 0]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 1]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 2]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 3]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 4]] * external_wrench_feedforward_scale,
+                    wrench[[tick, 5]] * external_wrench_feedforward_scale,
+                ))
+            });
             if let Some(scales) = generalized_acceleration_limit_scales.as_ref() {
                 for coordinate in 0..generalized_dof {
                     let scale = scales[[tick, coordinate]];
@@ -16905,18 +16949,35 @@ impl FloatingWbcSession {
                 support_patches: &self.support_patches,
             };
             if fixed_actuator_effort.is_some() {
-                self.controller
-                    .solve_with_fixed_generalized_effort_into(
-                        solve_input,
-                        &self.mapped_actuator_effort,
-                        &mut self.output,
-                        &mut self.realization_scratch,
-                    )
-                    .map_err(value_error)?;
+                if let Some(external_wrench_world) = external_wrench_world {
+                    self.controller
+                        .solve_with_fixed_generalized_effort_and_external_wrench_into(
+                            solve_input,
+                            &self.mapped_actuator_effort,
+                            external_wrench_world,
+                            &mut self.output,
+                            &mut self.realization_scratch,
+                        )
+                        .map_err(value_error)?;
+                } else {
+                    self.controller
+                        .solve_with_fixed_generalized_effort_into(
+                            solve_input,
+                            &self.mapped_actuator_effort,
+                            &mut self.output,
+                            &mut self.realization_scratch,
+                        )
+                        .map_err(value_error)?;
+                }
             } else {
-                self.controller
-                    .solve_into(solve_input, &mut self.output, &mut self.scratch)
-                    .map_err(value_error)?;
+                solve_floating_wbc_into_with_optional_external_wrench(
+                    &self.controller,
+                    solve_input,
+                    external_wrench_world,
+                    &mut self.output,
+                    &mut self.scratch,
+                )
+                .map_err(value_error)?;
             }
             let mut witness_squared_error = 0.0;
             for coordinate in 0..generalized_dof {

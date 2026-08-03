@@ -24,21 +24,40 @@ reset is added. Since the `±8 N` overload rows still fall, R314 remains
 default-off and R310 remains the public controller. See
 [`UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 
-## Current causal external-moment target — r314 qualified mechanism, recovery rejected
+## Current causal external-wrench feed-forward — r314 qualified evaluation, r315 composition rejected
 
-R314 exposes the existing Rust centroidal angular-momentum task to the live
-Upkie boundary. MuJoCo applies the current declared body wrench only after the
-50 Hz WBC call; the worker stores the completed moment and supplies it to the
-next solve. Rust then owns the opposing contact-moment target in fixed-size
-storage. The candidate is finite, deterministic, allocation-free, mode-firewall
-clean, replay-exact, and remains below the controller/worker deadlines.
+R314 exposes a fixed-size, one-control-tick-delayed MuJoCo wrench observation
+to the live Upkie boundary. The worker keeps three reference points explicit:
+application-body inertial moment for compatible operator telemetry, aggregate-
+CoM moment for the independent centroidal objective, and root-body-origin
+moment plus force for floating generalized dynamics. MuJoCo applies the current
+declared wrench only after the 50 Hz WBC call; Rust shifts the six floating
+dynamics rows on the next solve. The centroidal task is zero in this candidate.
 
-On the frozen eight-force repeated upper-base holdout, candidate terminal ticks
-are `80/331/—/—/—/—/322/70` for `-8/-6/-4/-2/+2/+4/+6/+8 N`, versus R313
-`79/236/—/—/—/—/236/69`; no boundary moves earlier and all active rows have
-zero nonadmission. The candidate still reaches four terminal falls, so this is
-qualified causal moment-rejection evidence, not public recovery authority. See
+The corrected root-origin convention invalidated the earlier aggregate-CoM
+qualification result at full strength. The explicit Rust-owned `0.7`
+confidence-scaled profile now passes every mechanism and promotion gate on the
+frozen eight-force holdout: all rows finish 450 ticks, zero solves are
+nonadmitted, exact replay passes, and controller/worker p99 remain below the
+declared deadlines. A no-loss ±6 N tail is accepted as stronger than a relock
+witness. R315 composes feed-forward with the qualified state-local law, but
+retains two falls: the lower-damping profile reaches ticks `84/85` with four
+nonadmissions and a controller p99 above 7 ms, while the higher-damping profile
+moves -8 N to tick `63`. The root-only result remains evaluation-qualified and
+default-off; public authority is unchanged pending independent delay/model,
+reference-controller, and hardware/thermal evidence. See
 [`UPKIE_LIVE_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+and
+[`UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md`](../benchmarks/results/upkie-live-composed-moment-rejection-r315/UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md).
+
+R316 prevents that exact selected-matrix result from being mistaken for a
+robust controller. An 11-scale terminal-row audit passes only sampled scales
+`0.62`, `0.70`, and `0.72`, with failures inside and adjacent to that set. On
+the 40 R311 schedule/lever rows not used by selection, repeated centered
+`+8 N` is nonadmitted at tick `338` and falls at `351`; the failure replays
+exactly. Deadlines and all completed upright tails pass, but scale-neighborhood
+and independent-holdout gates do not. See
+[`UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md`](../benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
 
 ## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
 

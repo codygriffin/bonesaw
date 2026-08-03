@@ -45,7 +45,15 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         body = "base"
         body_id = self.worker.body_by_name[body]
         force = np.asarray([2.0, 0.0, 0.0])
-        point = self.worker.data.xipos[body_id] + np.asarray([0.0, 0.0, 0.2])
+        body_origin = self.worker.data.xipos[body_id].copy()
+        center_of_mass = np.asarray(
+            self.worker.data.subtree_com[0], dtype=np.float64
+        ).copy()
+        root_body_id = int(self.worker.model.body_rootid[body_id])
+        root_origin = np.asarray(
+            self.worker.data.xpos[root_body_id], dtype=np.float64
+        ).copy()
+        point = body_origin + np.asarray([0.0, 0.0, 0.2])
         result = self.worker.step(
             {
                 "type": "step",
@@ -61,9 +69,35 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             }
         )
         self.assertEqual(result["type"], "plant_state")
-        self.assertGreater(result["external_load"]["moment_world_nm"][1], 0.35)
-        self.assertLess(result["external_load"]["moment_world_nm"][1], 0.45)
-        self.assertGreater(result["external_load"]["maximum_moment_nm"], 0.35)
+        expected_moment = np.cross(point - body_origin, force)
+        np.testing.assert_allclose(
+            result["external_load"]["moment_world_nm"], expected_moment, atol=1.0e-12
+        )
+        self.assertAlmostEqual(
+            result["external_load"]["maximum_moment_nm"],
+            float(np.linalg.norm(expected_moment)),
+            places=12,
+        )
+        centroidal_moment = np.cross(
+            point - center_of_mass,
+            force,
+        )
+        np.testing.assert_allclose(
+            result["external_load"]["centroidal_moment_world_nm"],
+            centroidal_moment,
+            atol=1.0e-12,
+        )
+        root_moment = np.cross(point - root_origin, force)
+        np.testing.assert_allclose(
+            result["external_load"]["root_moment_world_nm"],
+            root_moment,
+            atol=1.0e-12,
+        )
+        self.assertAlmostEqual(
+            result["external_load"]["maximum_root_moment_nm"],
+            float(np.linalg.norm(root_moment)),
+            places=12,
+        )
         self.assertLess(result["external_load"]["application_offset_m"], 0.25)
         self.assertEqual(
             result["external_load"]["provenance"], EVALUATION_PROVENANCE
@@ -82,7 +116,14 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         body_id = worker.body_by_name["base"]
         force = np.asarray([2.0, 0.0, 0.0])
         point = worker.data.xipos[body_id] + np.asarray([0.0, 0.0, 0.2])
-        expected_moment = np.cross(point - worker.data.xipos[body_id], force)
+        root_body_id = int(worker.model.body_rootid[body_id])
+        expected_root_moment = np.cross(
+            point - worker.data.xpos[root_body_id], force
+        )
+        expected_centroidal_moment = np.cross(
+            point - np.asarray(worker.data.subtree_com[0], dtype=np.float64),
+            force,
+        )
         np.testing.assert_array_equal(
             worker.controller.centroidal_angular_momentum_rate_world,
             np.zeros((1, 3)),
@@ -109,14 +150,36 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         )
         self.assertTrue(worker.last_external_wrench_valid)
         np.testing.assert_allclose(
-            worker.last_external_wrench_world[:3], expected_moment, atol=1.0e-12
+            worker.last_external_wrench_world[:3],
+            expected_root_moment,
+            atol=1.0e-12,
         )
+        np.testing.assert_allclose(
+            worker.last_external_centroidal_moment_world,
+            expected_centroidal_moment,
+            atol=1.0e-12,
+        )
+        next_root_origin = np.asarray(
+            worker.data.xpos[root_body_id], dtype=np.float64
+        ).copy()
+        next_center_of_mass = np.asarray(
+            worker.data.subtree_com[0], dtype=np.float64
+        ).copy()
         worker.step({"type": "step", "command_id": 4})
-        # The second solve consumes the completed first-tick wrench and asks
-        # the contact stack for the opposing centroidal moment in Rust.
+        # The second solve consumes the completed first-tick wrench, after
+        # re-expressing it about the current root/CoM reference points.
+        expected_next_root_moment = np.cross(point - next_root_origin, force)
+        expected_next_centroidal_moment = np.cross(
+            point - next_center_of_mass, force
+        )
         np.testing.assert_allclose(
             worker.controller.centroidal_angular_momentum_rate_world[0],
-            -expected_moment,
+            -expected_next_centroidal_moment,
+            atol=1.0e-12,
+        )
+        np.testing.assert_allclose(
+            worker.controller.external_wrench_world[0, :3],
+            expected_next_root_moment,
             atol=1.0e-12,
         )
         self.assertFalse(worker.last_external_wrench_valid)
@@ -154,7 +217,24 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(hello["physics_substeps_per_control"], 5)
         self.assertEqual(
             hello["external_load_contract"]["wbc_external_moment_observation"],
-            "last_completed_world_r_cross_F, consumed one 50 Hz solve later",
+            "external_load.root_moment_world_nm, re-expressed about current root origin and consumed one 50 Hz solve later",
+        )
+        self.assertIn(
+            "current aggregate CoM",
+            hello["external_load_contract"][
+                "wbc_external_centroidal_moment_observation"
+            ],
+        )
+        self.assertFalse(
+            hello["external_load_contract"]["wbc_external_wrench_feedforward"][
+                "enabled"
+            ]
+        )
+        self.assertEqual(
+            hello["external_load_contract"]["wbc_external_wrench_feedforward"][
+                "scale"
+            ],
+            1.0,
         )
         np.testing.assert_allclose(
             hello["simulator"]["ground_plane_point_world"], [0.0, 0.0, 0.0]

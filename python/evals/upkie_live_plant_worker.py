@@ -277,11 +277,16 @@ class LiveUpkiePlant:
         self.wbc_observation_frame_index = 0
         self.no_contact_active = np.zeros(2, np.uint8)
         self.no_wheel_normal_force_n = np.zeros(2, np.float64)
-        # A delayed, plant-owned external wrench observation.  The current
-        # command is applied only after the WBC solve; this buffer is therefore
-        # the last completed MuJoCo load and keeps any moment-rejection task
-        # causal at the 50 Hz boundary.
+        # Delayed, plant-owned external-load observations. The current command
+        # is applied only after the WBC solve, so these are the last completed
+        # MuJoCo load. Root-origin wrench drives the floating dynamics rows;
+        # aggregate-CoM moment drives the independently switchable centroidal
+        # objective. Keeping them separate prevents a reference-point mix-up.
         self.last_external_wrench_world = np.zeros(6, np.float64)
+        self.last_external_centroidal_moment_world = np.zeros(3, np.float64)
+        self.last_external_application_point_world = np.zeros(3, np.float64)
+        self.last_external_force_world = np.zeros(3, np.float64)
+        self.last_external_root_body_id = -1
         self.last_external_wrench_valid = False
         self.last_result: dict[str, Any] | None = None
 
@@ -346,8 +351,16 @@ class LiveUpkiePlant:
                 "measured_impact_impulse": "not_exposed_by_live_gateway",
                 "unobserved_model_reserve": "not_estimated_by_live_gateway",
                 "wbc_external_moment_observation": (
-                    "last_completed_world_r_cross_F, consumed one 50 Hz solve later"
+                    "external_load.root_moment_world_nm, re-expressed about current root origin and consumed one 50 Hz solve later"
                 ),
+                "wbc_external_centroidal_moment_observation": (
+                    "external_load.centroidal_moment_world_nm, re-expressed about current aggregate CoM and consumed one 50 Hz solve later"
+                ),
+                "wbc_external_wrench_feedforward": {
+                    "enabled": bool(self.controller.external_wrench_feedforward_enabled),
+                    "scale": float(self.controller.external_wrench_feedforward_scale),
+                    "moment_reference": "current root-body origin",
+                },
             },
             "simulator": {
                 "backend": "MuJoCo",
@@ -426,6 +439,10 @@ class LiveUpkiePlant:
         self.paused = requested_paused
         if self.paused:
             self.last_external_wrench_world.fill(0.0)
+            self.last_external_centroidal_moment_world.fill(0.0)
+            self.last_external_application_point_world.fill(0.0)
+            self.last_external_force_world.fill(0.0)
+            self.last_external_root_body_id = -1
             self.last_external_wrench_valid = False
         command = request.get("external_load")
         active = isinstance(command, dict) and bool(command.get("active", False))
@@ -508,9 +525,22 @@ class LiveUpkiePlant:
         # A paused frame keeps the last WBC diagnostics while explicitly
         # labelling the solve as paused below; no controller call occurs.
         latest_result: dict[str, Any] | None = self.last_result
+        # Preserve the historical application-body inertial telemetry while
+        # keeping centroidal and root-origin moments separate. The three
+        # reference points are intentional: UI/operator compatibility uses
+        # the application body's inertial origin, centroidal objectives use
+        # the aggregate system CoM, and the Rust floating dynamics equality
+        # uses the root-body origin that defines its generalized tangent.
         applied_moment_world = np.zeros(3, np.float64)
+        applied_centroidal_moment_world = np.zeros(3, np.float64)
+        applied_root_moment_world = np.zeros(3, np.float64)
+        observed_external_wrench_world = np.zeros(6, np.float64)
+        observed_external_centroidal_moment_world = np.zeros(3, np.float64)
+        observed_external_wrench_valid = False
         application_offset_m = 0.0
         maximum_moment_nm = 0.0
+        maximum_centroidal_moment_nm = 0.0
+        maximum_root_moment_nm = 0.0
         for _ in range(self.control_ticks_per_stream):
             if self.paused:
                 # Stream heartbeats still carry a frozen state while the
@@ -562,6 +592,37 @@ class LiveUpkiePlant:
             wbc_observation_frame_index = self.wbc_observation_frame_index
             ground_position = float(np.mean(self.data.xpos[self.wheel_bodies, 0]))
             ground_height = float(np.mean(self.data.xpos[self.wheel_bodies, 2]))
+            if self.last_external_wrench_valid:
+                # Re-express the completed force at the current solve
+                # boundary.  The core floating dynamics rows use the root
+                # body origin; the optional centroidal task uses the current
+                # aggregate CoM.  Storing point+force avoids using a stale
+                # reference point after the plant moves during the 20 ms
+                # delay.
+                current_root_origin = np.asarray(
+                    self.data.xpos[self.last_external_root_body_id],
+                    dtype=np.float64,
+                )
+                self.last_external_wrench_world[:3] = np.cross(
+                    self.last_external_application_point_world
+                    - current_root_origin,
+                    self.last_external_force_world,
+                )
+                self.last_external_wrench_world[3:] = self.last_external_force_world
+                self.last_external_centroidal_moment_world[...] = np.cross(
+                    self.last_external_application_point_world
+                    - np.asarray(self.data.subtree_com[0], dtype=np.float64),
+                    self.last_external_force_world,
+                )
+                np.copyto(
+                    observed_external_wrench_world,
+                    self.last_external_wrench_world,
+                )
+                np.copyto(
+                    observed_external_centroidal_moment_world,
+                    self.last_external_centroidal_moment_world,
+                )
+                observed_external_wrench_valid = True
             result = self.controller.solve(
                 root_position,
                 root_quaternion,
@@ -579,6 +640,11 @@ class LiveUpkiePlant:
                     if self.last_external_wrench_valid
                     else None
                 ),
+                observed_external_centroidal_moment_world=(
+                    self.last_external_centroidal_moment_world
+                    if self.last_external_wrench_valid
+                    else None
+                ),
                 observed_contact_available=True,
             )
             latest_result = result
@@ -589,8 +655,29 @@ class LiveUpkiePlant:
                 application_offset = point - self.data.xipos[body_id]
                 application_offset_m = float(np.linalg.norm(application_offset))
                 applied_moment_world = np.cross(application_offset, force)
+                # Centroidal angular momentum is about the aggregate system
+                # CoM, not the MuJoCo body inertial origin.  Keep this as a
+                # separate observation so existing body-COM telemetry remains
+                # compatible while Rust consumes the physically relevant r×F.
+                applied_centroidal_moment_world = np.cross(
+                    point - np.asarray(self.data.subtree_com[0], dtype=np.float64),
+                    force,
+                )
+                root_body_id = int(self.model.body_rootid[body_id])
+                applied_root_moment_world = np.cross(
+                    point - np.asarray(self.data.xpos[root_body_id], dtype=np.float64),
+                    force,
+                )
                 maximum_moment_nm = max(
                     maximum_moment_nm, float(np.linalg.norm(applied_moment_world))
+                )
+                maximum_centroidal_moment_nm = max(
+                    maximum_centroidal_moment_nm,
+                    float(np.linalg.norm(applied_centroidal_moment_world)),
+                )
+                maximum_root_moment_nm = max(
+                    maximum_root_moment_nm,
+                    float(np.linalg.norm(applied_root_moment_world)),
                 )
                 mujoco.mj_applyFT(
                     self.model,
@@ -642,11 +729,24 @@ class LiveUpkiePlant:
             physics_contact_window_end = self.physics_contact_frame_index
             physics_contact_window_valid = True
             if active:
-                self.last_external_wrench_world[:3] = applied_moment_world
+                self.last_external_wrench_world[:3] = applied_root_moment_world
                 self.last_external_wrench_world[3:] = force
+                np.copyto(
+                    self.last_external_centroidal_moment_world,
+                    applied_centroidal_moment_world,
+                )
+                np.copyto(self.last_external_application_point_world, point)
+                np.copyto(self.last_external_force_world, force)
+                self.last_external_root_body_id = int(
+                    self.model.body_rootid[body_id]
+                )
                 self.last_external_wrench_valid = True
             else:
                 self.last_external_wrench_world.fill(0.0)
+                self.last_external_centroidal_moment_world.fill(0.0)
+                self.last_external_application_point_world.fill(0.0)
+                self.last_external_force_world.fill(0.0)
+                self.last_external_root_body_id = -1
                 self.last_external_wrench_valid = False
             latest_observed_contact_active = self.wbc_observation_active
             latest_physics_contact_active = self.observed_contact_active
@@ -888,8 +988,28 @@ class LiveUpkiePlant:
                 "moment_world_nm": applied_moment_world.tolist()
                 if active
                 else [0.0, 0.0, 0.0],
+                "centroidal_moment_world_nm": applied_centroidal_moment_world.tolist()
+                if active
+                else [0.0, 0.0, 0.0],
+                "root_moment_world_nm": applied_root_moment_world.tolist()
+                if active
+                else [0.0, 0.0, 0.0],
+                "wbc_observed_root_moment_world_nm": (
+                    observed_external_wrench_world[:3].tolist()
+                    if observed_external_wrench_valid
+                    else [0.0, 0.0, 0.0]
+                ),
+                "wbc_observed_centroidal_moment_world_nm": (
+                    observed_external_centroidal_moment_world.tolist()
+                    if observed_external_wrench_valid
+                    else [0.0, 0.0, 0.0]
+                ),
                 "application_offset_m": application_offset_m if active else 0.0,
                 "maximum_moment_nm": maximum_moment_nm if active else 0.0,
+                "maximum_centroidal_moment_nm": (
+                    maximum_centroidal_moment_nm if active else 0.0
+                ),
+                "maximum_root_moment_nm": maximum_root_moment_nm if active else 0.0,
             },
             "measured_impact_impulse": {
                 "available": False,

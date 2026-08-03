@@ -23,18 +23,45 @@ terminal stays at tick `79`, the `+8 N` terminal moves later `69→72`, and all
 `±8 N` cases still fall, so the mechanism is qualified but default-off. See
 [`UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 
-### Revision r314 causal external-moment rejection
+### Revision r314 causal external-wrench feed-forward
 
 `python/evals/upkie_live_moment_rejection_r314.py` composes the R313 measured
-landing/relock boundary with an opt-in Rust centroidal angular-momentum target.
-The current declared wrench is applied after the solve, then its MuJoCo moment
-is consumed one control tick later; Python transports the fixed-size observation
-and Rust owns the contact-moment target. The eight mirrored repeated upper-base
-cases require finite moments, zero allocations/nonadmissions, mode firewall,
-deadline, exact replay, and no earlier terminal boundary than R313. Those
-mechanism gates pass. Four terminal falls remain, so promotion gates stay red
-and the profile is default-off. The retained report is
+landing/relock boundary with an opt-in Rust floating-dynamics feed-forward row.
+The current declared wrench is applied after the solve. One control tick later,
+Rust consumes force plus moment about the root-body origin, matching its
+`[root angular; root-origin linear; joints]` tangent; application-body and
+aggregate-CoM moments remain distinct telemetry/objective inputs. The
+centroidal soft task is zero in this candidate. The corrected path uses an
+explicit Rust-owned `0.7` confidence scale for the one-tick delayed/model-
+mismatch boundary. It is causal and replay-exact; all eight rows finish 450
+ticks with zero nonadmission and the deadline gates pass. The promotion gate
+accepts the no-loss ±6 N tails as stronger than a relock witness. The root-only
+profile is qualified for evaluation but remains default-off while R315's
+body-plus-root compositions remain rejected. The retained report is
 [`UPKIE_LIVE_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+
+### Revision r315 composed moment-rejection screen
+
+`python/evals/upkie_live_composed_moment_rejection_r315.py` compares the
+qualified state-local law, corrected root-wrench feed-forward, and two explicit
+compositions over the four terminal R313 rows. The lower-damping composition
+delays ±8 N terminal ticks to `84/85`, but has four nonadmitted solves and a
+controller p99 above 7 ms. Raising root damping regresses the -8 N terminal to
+tick `63`. The exact semantic replay gate passes, but no composition clears the
+fall, admission, and deadline gates. See
+[`UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md`](../benchmarks/results/upkie-live-composed-moment-rejection-r315/UPKIE_LIVE_COMPOSED_MOMENT_REJECTION_R315.md).
+
+### Revision r316 root-wrench robustness
+
+`python/evals/upkie_live_root_wrench_robustness_r316.py` separates R314's exact
+selection result from parameter and scenario robustness. Eleven scales span
+`0…1` on the four former terminal rows. Passing samples are discontinuous
+(`0.62`, `0.70`, `0.72`), while `0.64`, `0.68`, and `0.74` fail. The selected
+`0.70` profile then runs all 48 R311 schedule/lever rows; excluding the eight
+upper/repeated selection rows leaves 40 independent cases. One fails: repeated
+centered `+8 N` is nonadmitted at tick `338` and falls at `351`. The failure
+replays exactly and deadlines pass, but public promotion remains closed. See
+[`UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md`](../benchmarks/results/upkie-live-root-wrench-robustness-r316/UPKIE_LIVE_ROOT_WRENCH_ROBUSTNESS_R316.md).
 
 ### Revision r313 continuous landing-request envelope
 
