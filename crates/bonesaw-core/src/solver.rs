@@ -6018,6 +6018,212 @@ mod tests {
     }
 
     #[test]
+    fn canonical_task_and_constraint_order_is_bitwise_stable() {
+        let bounds = VelocityBounds {
+            lower: DVector::from_vec(vec![-1.0, -1.0, -1.0]),
+            upper: DVector::from_vec(vec![1.0, 1.0, 1.0]),
+        };
+        let tasks = vec![
+            Task {
+                stable_id: 40,
+                kind: TaskKind::Velocity,
+                priority: Priority::Style,
+                jacobian: DMatrix::from_row_slice(1, 3, &[0.0, 0.0, 1.0]),
+                target_velocity: DVector::from_vec(vec![-0.4]),
+                weight: 2.0,
+            },
+            Task {
+                stable_id: 10,
+                kind: TaskKind::Velocity,
+                priority: Priority::Invariant,
+                jacobian: DMatrix::from_row_slice(1, 3, &[1.0, 0.0, 0.0]),
+                target_velocity: DVector::from_vec(vec![0.8]),
+                weight: 1.0,
+            },
+            Task {
+                stable_id: 30,
+                kind: TaskKind::Velocity,
+                priority: Priority::Preference,
+                jacobian: DMatrix::from_row_slice(1, 3, &[0.0, 1.0, -1.0]),
+                target_velocity: DVector::from_vec(vec![-0.3]),
+                weight: 0.75,
+            },
+            Task {
+                stable_id: 20,
+                kind: TaskKind::Velocity,
+                priority: Priority::Intent,
+                jacobian: DMatrix::from_row_slice(1, 3, &[0.0, 1.0, 1.0]),
+                target_velocity: DVector::from_vec(vec![1.2]),
+                weight: 1.0,
+            },
+        ];
+        let permuted_tasks = vec![
+            tasks[2].clone(),
+            tasks[0].clone(),
+            tasks[3].clone(),
+            tasks[1].clone(),
+        ];
+        let constraints = vec![
+            LinearConstraint {
+                stable_id: 9,
+                coefficients: RowDVector::from_row_slice(&[0.0, 0.0, 1.0]),
+                lower: f64::NEG_INFINITY,
+                upper: 0.9,
+            },
+            LinearConstraint {
+                stable_id: 7,
+                coefficients: RowDVector::from_row_slice(&[1.0, 0.0, 0.0]),
+                lower: f64::NEG_INFINITY,
+                upper: 0.4,
+            },
+            LinearConstraint {
+                stable_id: 2,
+                coefficients: RowDVector::from_row_slice(&[0.0, 1.0, 0.0]),
+                lower: -0.8,
+                upper: f64::INFINITY,
+            },
+        ];
+        let permuted_constraints = vec![
+            constraints[1].clone(),
+            constraints[2].clone(),
+            constraints[0].clone(),
+        ];
+
+        let solver = HierarchicalSolver::default();
+        let first = solver.solve_constrained(3, &tasks, &bounds, &constraints);
+        let second = solver.solve_constrained(3, &permuted_tasks, &bounds, &permuted_constraints);
+
+        for (left, right) in first.velocity.iter().zip(second.velocity.iter()) {
+            assert_eq!(left.to_bits(), right.to_bits());
+        }
+
+        let first_diagnostics = &first.diagnostics;
+        let second_diagnostics = &second.diagnostics;
+        assert_eq!(first_diagnostics.status, second_diagnostics.status);
+        assert_eq!(
+            first_diagnostics.level_residuals.len(),
+            second_diagnostics.level_residuals.len()
+        );
+        for (left, right) in first_diagnostics
+            .level_residuals
+            .iter()
+            .zip(second_diagnostics.level_residuals.iter())
+        {
+            assert_eq!(left.priority, right.priority);
+            assert_eq!(left.rows, right.rows);
+            assert_eq!(left.l2.to_bits(), right.l2.to_bits());
+        }
+        assert_eq!(
+            first_diagnostics.minimum_bound_margin.to_bits(),
+            second_diagnostics.minimum_bound_margin.to_bits()
+        );
+        assert_eq!(
+            first_diagnostics.maximum_bound_violation.to_bits(),
+            second_diagnostics.maximum_bound_violation.to_bits()
+        );
+        assert_eq!(
+            first_diagnostics.limiting_bound_coordinate,
+            second_diagnostics.limiting_bound_coordinate
+        );
+        assert_eq!(
+            first_diagnostics.limiting_bound_is_upper,
+            second_diagnostics.limiting_bound_is_upper
+        );
+        assert_eq!(
+            first_diagnostics.clipped_levels,
+            second_diagnostics.clipped_levels
+        );
+        assert_eq!(
+            first_diagnostics.rank_by_level,
+            second_diagnostics.rank_by_level
+        );
+        assert_eq!(
+            first_diagnostics.active_constraints,
+            second_diagnostics.active_constraints
+        );
+        assert_eq!(
+            first_diagnostics
+                .maximum_linear_constraint_violation
+                .to_bits(),
+            second_diagnostics
+                .maximum_linear_constraint_violation
+                .to_bits()
+        );
+        assert_eq!(
+            first_diagnostics.limiting_linear_constraint,
+            second_diagnostics.limiting_linear_constraint
+        );
+        assert_eq!(
+            first_diagnostics.limiting_linear_constraint_is_upper,
+            second_diagnostics.limiting_linear_constraint_is_upper
+        );
+        assert_eq!(
+            first_diagnostics.maximum_constraint_violation.to_bits(),
+            second_diagnostics.maximum_constraint_violation.to_bits()
+        );
+        assert_eq!(
+            first_diagnostics.task_pseudoinverse_calls,
+            second_diagnostics.task_pseudoinverse_calls
+        );
+        assert_eq!(
+            first_diagnostics.task_pseudoinverse_calls_by_level,
+            second_diagnostics.task_pseudoinverse_calls_by_level
+        );
+        assert_eq!(
+            first_diagnostics.task_jacobi_sweeps,
+            second_diagnostics.task_jacobi_sweeps
+        );
+        assert_eq!(
+            first_diagnostics.task_jacobi_sweeps_by_level,
+            second_diagnostics.task_jacobi_sweeps_by_level
+        );
+        assert_eq!(
+            first_diagnostics.clipped_steps,
+            second_diagnostics.clipped_steps
+        );
+        assert_eq!(
+            first_diagnostics.clipped_steps_by_level,
+            second_diagnostics.clipped_steps_by_level
+        );
+        assert_eq!(
+            first_diagnostics.low_authority_budget_exhausted_level,
+            second_diagnostics.low_authority_budget_exhausted_level
+        );
+        assert_eq!(
+            first_diagnostics.equality_pseudoinverse_reused,
+            second_diagnostics.equality_pseudoinverse_reused
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_projection_sweeps,
+            second_diagnostics.feasibility_projection_sweeps
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_halfspace_projections,
+            second_diagnostics.feasibility_halfspace_projections
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_polish_iterations,
+            second_diagnostics.feasibility_polish_iterations
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_polish_pseudoinverse_calls,
+            second_diagnostics.feasibility_polish_pseudoinverse_calls
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_polish_jacobi_sweeps,
+            second_diagnostics.feasibility_polish_jacobi_sweeps
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_seed_reused,
+            second_diagnostics.feasibility_seed_reused
+        );
+        assert_eq!(
+            first_diagnostics.feasibility_prefix_resumed,
+            second_diagnostics.feasibility_prefix_resumed
+        );
+    }
+
+    #[test]
     fn projected_inverse_is_reused_until_the_nullspace_changes() {
         let task = Task {
             stable_id: 1,
