@@ -592,9 +592,10 @@ function renderArchitecture(manifest) {
   const evidence = element("div", "evidence-table");
   manifest.evidence.forEach((entry) => {
     const row = element("article");
-    const metric = element(entry.href ? "a" : "strong", null, entry.metric);
-    if (entry.href) {
-      metric.href = entry.href;
+    const href = entry.href || entry.report;
+    const metric = element(href ? "a" : "strong", null, entry.metric || entry.name);
+    if (href) {
+      metric.href = href;
       metric.target = "_blank";
       metric.rel = "noopener";
       metric.title = "Open the retained report";
@@ -602,7 +603,7 @@ function renderArchitecture(manifest) {
     row.append(
       metric,
       element("output", null, entry.result),
-      element("small", null, entry.scope),
+      element("small", null, entry.scope || entry.detail),
     );
     evidence.append(row);
   });

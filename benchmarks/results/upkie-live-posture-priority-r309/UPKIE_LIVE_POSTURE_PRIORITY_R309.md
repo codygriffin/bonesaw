@@ -1,6 +1,6 @@
 # Upkie posture priority R309
 
-Generated: 2026-08-03T08:33:55.952096+00:00
+Generated: 2026-08-03T09:07:31.649457+00:00
 
 Status: **qualified for default**
 
@@ -16,9 +16,9 @@ contact evidence, 50 Hz controller, 250 Hz MuJoCo plant, and 8 N wrench remain f
 | maximum tilt | 0.239262 | 0.013400 | 0.974199 | 0.046177 |
 | minimum root height | 0.298825 | 0.520974 | 0.287250 | 0.520974 |
 | peak torque utilization | 0.629580 | 0.152005 | 0.449056 | 0.152005 |
-| controller p99 | 151.291 µs | 203.879 µs | 205.199 µs | 202.735 µs |
-| worker p99 | 2316.529 µs | 2964.477 µs | 2544.566 µs | 2745.296 µs |
-| controller jitter p99 | 23.779 µs | 52.072 µs | 78.317 µs | 52.459 µs |
+| controller p99 | 149.995 µs | 154.053 µs | 158.237 µs | 154.161 µs |
+| worker p99 | 2261.717 µs | 2344.140 µs | 2407.760 µs | 2116.788 µs |
+| controller jitter p99 | 22.804 µs | 16.977 µs | 52.440 µs | 13.523 µs |
 | root tracking RMS | 0.034684 m | 0.001980 m | 0.049667 m | 0.003669 m |
 | CoM tracking RMS | 0.026035 m | 0.001531 m | 0.028939 m | 0.002566 m |
 

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import upkie_live_dynamic_contact_transition_r300 as r300
-import upkie_live_load_reserve_action_r305 as r305
+import upkie_live_load_reserve_action_r307 as r307
 from upkie_live_plant_worker import PRODUCTION_SUPPORT_LOAD_RESERVE_CONFIG
 
 
@@ -82,7 +82,7 @@ def summarize(case: dict[str, Any]) -> dict[str, Any]:
                 and state["root_tilt_rad"] <= 0.20
                 for state in states[-100:]
             ),
-            "load_reserve": r305._action_summary(case),
+            "load_reserve": r307._action_summary(case),
         }
     )
     return summary

@@ -1,6 +1,6 @@
 # Upkie load-reserve matrix R310
 
-Generated: 2026-08-03T08:53:51.374767+00:00
+Generated: 2026-08-03T09:07:24.493749+00:00
 
 Status: **qualified for public default**
 
@@ -19,9 +19,9 @@ durations.
 | maximum tilt | 0.183863 rad |
 | minimum root height | 0.520974 m |
 | maximum torque utilization | 0.267187 |
-| maximum WBC p99 | 192.478 µs |
-| maximum worker p99 | 2961.252 µs |
-| maximum reserve-action p99 | 7.430 µs |
+| maximum WBC p99 | 196.740 µs |
+| maximum worker p99 | 3015.707 µs |
+| maximum reserve-action p99 | 6.576 µs |
 | hot allocations | 0 |
 
 ## Gates
