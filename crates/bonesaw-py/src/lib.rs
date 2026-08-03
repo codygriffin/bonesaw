@@ -46,12 +46,13 @@ use bonesaw_core::{
     RobotObservationHistory, RobotObservationLimits, RobotObservationQueryError,
     RobotObservationQueryPolicy, RobotObservationRef, RobotObservationStamp, RobotState,
     RootPredictionErrorGrowth, SPATIAL_IMPULSE_WIDTH, SPATIAL_PATCH_TRANSITION_WITNESS_WIDTH,
-    ScalarJet, SdfOutsidePolicy, SdfSampleSource, SolveStatus, SpatialAcceleration6,
-    SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus, SupportContingencyConfig,
-    SupportPatchSpec, SupportPhase, SupportTransitionConfig, SupportTransitionState,
-    TERMINAL_IMPACT_PAIRED_COMPONENTS, TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES,
-    TerminalImpactCandidate, TerminalImpactComponentDeltaBox, TerminalImpactConfig,
-    TerminalImpactError, TerminalImpactPairedStateExemplar, TerminalImpactPairedStateTube,
+    ScalarJet, SdfOutsidePolicy, SdfSampleSource, SolveDiagnostics, SolveStatus,
+    SpatialAcceleration6, SpatialImpulseResponseSpec, SpatialPatchTransitionInput, StepStatus,
+    SupportContingencyConfig, SupportPatchSpec, SupportPhase, SupportTransitionConfig,
+    SupportTransitionState, TERMINAL_IMPACT_PAIRED_COMPONENTS,
+    TERMINAL_IMPACT_RESIDUAL_PROTOTYPE_CANDIDATES, TerminalImpactCandidate,
+    TerminalImpactComponentDeltaBox, TerminalImpactConfig, TerminalImpactError,
+    TerminalImpactPairedStateExemplar, TerminalImpactPairedStateTube,
     TerminalImpactResidualPrototypeProfile, TerminalImpactResidualPrototypeQuery,
     TerminalImpactScore, TerminalImpactState, TerminalImpactStateBox,
     TerminalImpactVelocityBoxState, TimingSpec, TouchdownPhaseRetimingConfig,
@@ -157,6 +158,103 @@ fn allocation_snapshot() -> (u64, u64) {
         ALLOCATION_CALLS.load(Ordering::Relaxed),
         ALLOCATED_BYTES.load(Ordering::Relaxed),
     )
+}
+
+const FLOATING_SOLVE_STAGE_COUNT: usize = 5;
+const FLOATING_SOLVE_STAGE_PRIMARY: usize = 0;
+const FLOATING_SOLVE_STAGE_RELOCK_RETRY: usize = 1;
+const FLOATING_SOLVE_STAGE_LOCALIZATION_PROBE: usize = 2;
+const FLOATING_SOLVE_STAGE_GLOBAL_NORMAL_RETRY: usize = 3;
+const FLOATING_SOLVE_STAGE_LOCALIZED_HANDOFF_RETRY: usize = 4;
+
+/// Allocation-free accounting for every dense solve attempted during one
+/// floating trace tick. The reusable controller output intentionally retains
+/// only the terminal attempt; this companion witness keeps earlier rejected
+/// work visible without cloning any variable-length solver diagnostics.
+#[derive(Default)]
+struct FloatingSolveAttemptDiagnostics {
+    count: u8,
+    mask: u8,
+    count_by_stage: [u8; FLOATING_SOLVE_STAGE_COUNT],
+    task_pseudoinverse_calls: usize,
+    task_pseudoinverse_calls_by_level: [usize; Priority::ALL.len()],
+    task_pseudoinverse_calls_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    task_jacobi_sweeps: usize,
+    task_jacobi_sweeps_by_level: [usize; Priority::ALL.len()],
+    task_jacobi_sweeps_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    clipped_steps: usize,
+    clipped_steps_by_level: [usize; Priority::ALL.len()],
+    feasibility_projection_sweeps: usize,
+    feasibility_projection_sweeps_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    feasibility_halfspace_projections: usize,
+    feasibility_halfspace_projections_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    feasibility_polish_iterations: usize,
+    feasibility_polish_iterations_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    feasibility_polish_pseudoinverse_calls: usize,
+    feasibility_polish_pseudoinverse_calls_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+    feasibility_polish_jacobi_sweeps: usize,
+    feasibility_polish_jacobi_sweeps_by_stage: [usize; FLOATING_SOLVE_STAGE_COUNT],
+}
+
+impl FloatingSolveAttemptDiagnostics {
+    fn record(&mut self, stage: usize, diagnostics: &SolveDiagnostics) {
+        debug_assert!(stage < FLOATING_SOLVE_STAGE_COUNT);
+        self.count = self.count.saturating_add(1);
+        self.mask |= 1_u8 << stage;
+        self.count_by_stage[stage] = self.count_by_stage[stage].saturating_add(1);
+        self.task_pseudoinverse_calls = self
+            .task_pseudoinverse_calls
+            .saturating_add(diagnostics.task_pseudoinverse_calls);
+        self.task_pseudoinverse_calls_by_stage[stage] = self.task_pseudoinverse_calls_by_stage
+            [stage]
+            .saturating_add(diagnostics.task_pseudoinverse_calls);
+        self.task_jacobi_sweeps = self
+            .task_jacobi_sweeps
+            .saturating_add(diagnostics.task_jacobi_sweeps);
+        self.task_jacobi_sweeps_by_stage[stage] =
+            self.task_jacobi_sweeps_by_stage[stage].saturating_add(diagnostics.task_jacobi_sweeps);
+        self.clipped_steps = self.clipped_steps.saturating_add(diagnostics.clipped_steps);
+        self.feasibility_projection_sweeps = self
+            .feasibility_projection_sweeps
+            .saturating_add(diagnostics.feasibility_projection_sweeps);
+        self.feasibility_projection_sweeps_by_stage[stage] = self
+            .feasibility_projection_sweeps_by_stage[stage]
+            .saturating_add(diagnostics.feasibility_projection_sweeps);
+        self.feasibility_halfspace_projections = self
+            .feasibility_halfspace_projections
+            .saturating_add(diagnostics.feasibility_halfspace_projections);
+        self.feasibility_halfspace_projections_by_stage[stage] = self
+            .feasibility_halfspace_projections_by_stage[stage]
+            .saturating_add(diagnostics.feasibility_halfspace_projections);
+        self.feasibility_polish_iterations = self
+            .feasibility_polish_iterations
+            .saturating_add(diagnostics.feasibility_polish_iterations);
+        self.feasibility_polish_iterations_by_stage[stage] = self
+            .feasibility_polish_iterations_by_stage[stage]
+            .saturating_add(diagnostics.feasibility_polish_iterations);
+        self.feasibility_polish_pseudoinverse_calls = self
+            .feasibility_polish_pseudoinverse_calls
+            .saturating_add(diagnostics.feasibility_polish_pseudoinverse_calls);
+        self.feasibility_polish_pseudoinverse_calls_by_stage[stage] = self
+            .feasibility_polish_pseudoinverse_calls_by_stage[stage]
+            .saturating_add(diagnostics.feasibility_polish_pseudoinverse_calls);
+        self.feasibility_polish_jacobi_sweeps = self
+            .feasibility_polish_jacobi_sweeps
+            .saturating_add(diagnostics.feasibility_polish_jacobi_sweeps);
+        self.feasibility_polish_jacobi_sweeps_by_stage[stage] = self
+            .feasibility_polish_jacobi_sweeps_by_stage[stage]
+            .saturating_add(diagnostics.feasibility_polish_jacobi_sweeps);
+        for priority in Priority::ALL {
+            let level = priority as usize;
+            self.task_pseudoinverse_calls_by_level[level] = self.task_pseudoinverse_calls_by_level
+                [level]
+                .saturating_add(diagnostics.task_pseudoinverse_calls_by_level[level]);
+            self.task_jacobi_sweeps_by_level[level] = self.task_jacobi_sweeps_by_level[level]
+                .saturating_add(diagnostics.task_jacobi_sweeps_by_level[level]);
+            self.clipped_steps_by_level[level] = self.clipped_steps_by_level[level]
+                .saturating_add(diagnostics.clipped_steps_by_level[level]);
+        }
+    }
 }
 
 fn intersect_directional_braking_bound(lower: &mut f64, upper: &mut f64, acceleration: f64) {
@@ -15681,6 +15779,30 @@ impl FloatingWbcSession {
         mut support_trajectory_tube_target_out: PyReadwriteArray2<'_, f64>,
         mut minimum_center_of_mass_tube_margin_out: PyReadwriteArray1<'_, f64>,
         mut limiting_center_of_mass_tube_halfspace_out: PyReadwriteArray1<'_, i8>,
+        mut solve_attempt_count_out: PyReadwriteArray1<'_, u8>,
+        mut solve_attempt_mask_out: PyReadwriteArray1<'_, u8>,
+        mut solve_attempt_count_by_stage_out: PyReadwriteArray2<'_, u8>,
+        mut cumulative_task_pseudoinverse_calls_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_task_pseudoinverse_calls_by_level_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_task_pseudoinverse_calls_by_stage_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_clipped_steps_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_clipped_steps_by_level_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_task_jacobi_sweeps_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_task_jacobi_sweeps_by_level_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_task_jacobi_sweeps_by_stage_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_feasibility_projection_sweeps_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_feasibility_projection_sweeps_by_stage_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_feasibility_halfspace_projections_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_feasibility_halfspace_projections_by_stage_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_feasibility_polish_iterations_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_feasibility_polish_pseudoinverse_calls_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_feasibility_polish_jacobi_sweeps_out: PyReadwriteArray1<'_, u32>,
+        mut cumulative_feasibility_polish_iterations_by_stage_out: PyReadwriteArray2<'_, u32>,
+        mut cumulative_feasibility_polish_pseudoinverse_calls_by_stage_out: PyReadwriteArray2<
+            '_,
+            u32,
+        >,
+        mut cumulative_feasibility_polish_jacobi_sweeps_by_stage_out: PyReadwriteArray2<'_, u32>,
     ) -> PyResult<()> {
         if !dt_seconds.is_finite() || dt_seconds <= 0.0 {
             return Err(PyValueError::new_err("dt_seconds must be positive"));
@@ -15806,6 +15928,43 @@ impl FloatingWbcSession {
             minimum_center_of_mass_tube_margin_out.as_slice_mut()?;
         let limiting_center_of_mass_tube_halfspace_out =
             limiting_center_of_mass_tube_halfspace_out.as_slice_mut()?;
+        let solve_attempt_count_out = solve_attempt_count_out.as_slice_mut()?;
+        let solve_attempt_mask_out = solve_attempt_mask_out.as_slice_mut()?;
+        let mut solve_attempt_count_by_stage_out = solve_attempt_count_by_stage_out.as_array_mut();
+        let cumulative_task_pseudoinverse_calls_out =
+            cumulative_task_pseudoinverse_calls_out.as_slice_mut()?;
+        let mut cumulative_task_pseudoinverse_calls_by_level_out =
+            cumulative_task_pseudoinverse_calls_by_level_out.as_array_mut();
+        let mut cumulative_task_pseudoinverse_calls_by_stage_out =
+            cumulative_task_pseudoinverse_calls_by_stage_out.as_array_mut();
+        let cumulative_clipped_steps_out = cumulative_clipped_steps_out.as_slice_mut()?;
+        let mut cumulative_clipped_steps_by_level_out =
+            cumulative_clipped_steps_by_level_out.as_array_mut();
+        let cumulative_task_jacobi_sweeps_out = cumulative_task_jacobi_sweeps_out.as_slice_mut()?;
+        let mut cumulative_task_jacobi_sweeps_by_level_out =
+            cumulative_task_jacobi_sweeps_by_level_out.as_array_mut();
+        let mut cumulative_task_jacobi_sweeps_by_stage_out =
+            cumulative_task_jacobi_sweeps_by_stage_out.as_array_mut();
+        let cumulative_feasibility_projection_sweeps_out =
+            cumulative_feasibility_projection_sweeps_out.as_slice_mut()?;
+        let mut cumulative_feasibility_projection_sweeps_by_stage_out =
+            cumulative_feasibility_projection_sweeps_by_stage_out.as_array_mut();
+        let cumulative_feasibility_halfspace_projections_out =
+            cumulative_feasibility_halfspace_projections_out.as_slice_mut()?;
+        let mut cumulative_feasibility_halfspace_projections_by_stage_out =
+            cumulative_feasibility_halfspace_projections_by_stage_out.as_array_mut();
+        let cumulative_feasibility_polish_iterations_out =
+            cumulative_feasibility_polish_iterations_out.as_slice_mut()?;
+        let cumulative_feasibility_polish_pseudoinverse_calls_out =
+            cumulative_feasibility_polish_pseudoinverse_calls_out.as_slice_mut()?;
+        let cumulative_feasibility_polish_jacobi_sweeps_out =
+            cumulative_feasibility_polish_jacobi_sweeps_out.as_slice_mut()?;
+        let mut cumulative_feasibility_polish_iterations_by_stage_out =
+            cumulative_feasibility_polish_iterations_by_stage_out.as_array_mut();
+        let mut cumulative_feasibility_polish_pseudoinverse_calls_by_stage_out =
+            cumulative_feasibility_polish_pseudoinverse_calls_by_stage_out.as_array_mut();
+        let mut cumulative_feasibility_polish_jacobi_sweeps_by_stage_out =
+            cumulative_feasibility_polish_jacobi_sweeps_by_stage_out.as_array_mut();
 
         let ticks = root_target_positions.shape()[0];
         let target_count = frame_ids.len();
@@ -15913,7 +16072,36 @@ impl FloatingWbcSession {
             && support_trajectory_tube_headroom_scale_out.len() == ticks
             && support_trajectory_tube_target_out.shape() == [ticks, 2]
             && minimum_center_of_mass_tube_margin_out.len() == ticks
-            && limiting_center_of_mass_tube_halfspace_out.len() == ticks;
+            && limiting_center_of_mass_tube_halfspace_out.len() == ticks
+            && solve_attempt_count_out.len() == ticks
+            && solve_attempt_mask_out.len() == ticks
+            && solve_attempt_count_by_stage_out.shape() == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_task_pseudoinverse_calls_out.len() == ticks
+            && cumulative_task_pseudoinverse_calls_by_level_out.shape()
+                == [ticks, Priority::ALL.len()]
+            && cumulative_task_pseudoinverse_calls_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_clipped_steps_out.len() == ticks
+            && cumulative_clipped_steps_by_level_out.shape() == [ticks, Priority::ALL.len()]
+            && cumulative_task_jacobi_sweeps_out.len() == ticks
+            && cumulative_task_jacobi_sweeps_by_level_out.shape() == [ticks, Priority::ALL.len()]
+            && cumulative_task_jacobi_sweeps_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_feasibility_projection_sweeps_out.len() == ticks
+            && cumulative_feasibility_projection_sweeps_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_feasibility_halfspace_projections_out.len() == ticks
+            && cumulative_feasibility_halfspace_projections_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_feasibility_polish_iterations_out.len() == ticks
+            && cumulative_feasibility_polish_pseudoinverse_calls_out.len() == ticks
+            && cumulative_feasibility_polish_jacobi_sweeps_out.len() == ticks
+            && cumulative_feasibility_polish_iterations_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_feasibility_polish_pseudoinverse_calls_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT]
+            && cumulative_feasibility_polish_jacobi_sweeps_by_stage_out.shape()
+                == [ticks, FLOATING_SOLVE_STAGE_COUNT];
         if !valid_shapes {
             return Err(PyValueError::new_err(
                 "floating run_trace array shape mismatch",
@@ -17711,6 +17899,7 @@ impl FloatingWbcSession {
             let mut localized_contact_handoff = false;
             let mut contact_solve_hold = false;
             let mut no_contact_safe_fallback = false;
+            let mut solve_attempts = FloatingSolveAttemptDiagnostics::default();
             // Keep the first hard solve's CoM-tube witness alongside the
             // post-contingency plant output.  A later release/fallback clears
             // the reusable controller workspace; losing this witness would
@@ -17762,6 +17951,7 @@ impl FloatingWbcSession {
                 self.controller
                     .solve_into(solve_input, &mut self.output, &mut self.scratch)
                     .map_err(value_error)?;
+                solve_attempts.record(FLOATING_SOLVE_STAGE_PRIMARY, &self.output.solve);
                 pre_contingency_center_of_mass_tube_margin =
                     self.output.minimum_center_of_mass_tube_margin_mps2;
                 pre_contingency_limiting_center_of_mass_tube_halfspace =
@@ -17894,6 +18084,7 @@ impl FloatingWbcSession {
                             &mut self.scratch,
                         )
                         .map_err(value_error)?;
+                    solve_attempts.record(FLOATING_SOLVE_STAGE_RELOCK_RETRY, &self.output.solve);
                     normal_fallback_relock_probe_rejected = true;
                 }
             }
@@ -17992,6 +18183,8 @@ impl FloatingWbcSession {
                                 &mut self.scratch,
                             )
                             .map_err(value_error)?;
+                        solve_attempts
+                            .record(FLOATING_SOLVE_STAGE_LOCALIZATION_PROBE, &self.output.solve);
                         if matches!(
                             self.output.status,
                             SolveStatus::Solved | SolveStatus::SolvedWithSlack
@@ -18096,6 +18289,7 @@ impl FloatingWbcSession {
                         &mut self.scratch,
                     )
                     .map_err(value_error)?;
+                solve_attempts.record(FLOATING_SOLVE_STAGE_GLOBAL_NORMAL_RETRY, &self.output.solve);
             }
             // A stale normal-only support must not take a newly arrived,
             // independently represented support down with it. If the mixed
@@ -18227,6 +18421,10 @@ impl FloatingWbcSession {
                             &mut self.scratch,
                         )
                         .map_err(value_error)?;
+                    solve_attempts.record(
+                        FLOATING_SOLVE_STAGE_LOCALIZED_HANDOFF_RETRY,
+                        &self.output.solve,
+                    );
                 }
             }
             let contact_still_unsolved = !matches!(
@@ -18520,6 +18718,70 @@ impl FloatingWbcSession {
                 task_jacobi_sweeps_by_level_out[[tick, priority as usize]] =
                     self.output.solve.task_jacobi_sweeps_by_level[priority as usize]
                         .min(u16::MAX as usize) as u16;
+            }
+            solve_attempt_count_out[tick] = solve_attempts.count;
+            solve_attempt_mask_out[tick] = solve_attempts.mask;
+            cumulative_task_pseudoinverse_calls_out[tick] = solve_attempts
+                .task_pseudoinverse_calls
+                .min(u32::MAX as usize)
+                as u32;
+            cumulative_clipped_steps_out[tick] =
+                solve_attempts.clipped_steps.min(u32::MAX as usize) as u32;
+            cumulative_task_jacobi_sweeps_out[tick] =
+                solve_attempts.task_jacobi_sweeps.min(u32::MAX as usize) as u32;
+            cumulative_feasibility_projection_sweeps_out[tick] = solve_attempts
+                .feasibility_projection_sweeps
+                .min(u32::MAX as usize)
+                as u32;
+            cumulative_feasibility_halfspace_projections_out[tick] = solve_attempts
+                .feasibility_halfspace_projections
+                .min(u32::MAX as usize)
+                as u32;
+            cumulative_feasibility_polish_iterations_out[tick] = solve_attempts
+                .feasibility_polish_iterations
+                .min(u32::MAX as usize)
+                as u32;
+            cumulative_feasibility_polish_pseudoinverse_calls_out[tick] = solve_attempts
+                .feasibility_polish_pseudoinverse_calls
+                .min(u32::MAX as usize)
+                as u32;
+            cumulative_feasibility_polish_jacobi_sweeps_out[tick] = solve_attempts
+                .feasibility_polish_jacobi_sweeps
+                .min(u32::MAX as usize)
+                as u32;
+            for priority in Priority::ALL {
+                let level = priority as usize;
+                cumulative_task_pseudoinverse_calls_by_level_out[[tick, level]] =
+                    solve_attempts.task_pseudoinverse_calls_by_level[level].min(u32::MAX as usize)
+                        as u32;
+                cumulative_clipped_steps_by_level_out[[tick, level]] =
+                    solve_attempts.clipped_steps_by_level[level].min(u32::MAX as usize) as u32;
+                cumulative_task_jacobi_sweeps_by_level_out[[tick, level]] =
+                    solve_attempts.task_jacobi_sweeps_by_level[level].min(u32::MAX as usize) as u32;
+            }
+            for stage in 0..FLOATING_SOLVE_STAGE_COUNT {
+                solve_attempt_count_by_stage_out[[tick, stage]] =
+                    solve_attempts.count_by_stage[stage];
+                cumulative_task_pseudoinverse_calls_by_stage_out[[tick, stage]] =
+                    solve_attempts.task_pseudoinverse_calls_by_stage[stage].min(u32::MAX as usize)
+                        as u32;
+                cumulative_task_jacobi_sweeps_by_stage_out[[tick, stage]] =
+                    solve_attempts.task_jacobi_sweeps_by_stage[stage].min(u32::MAX as usize) as u32;
+                cumulative_feasibility_projection_sweeps_by_stage_out[[tick, stage]] =
+                    solve_attempts.feasibility_projection_sweeps_by_stage[stage]
+                        .min(u32::MAX as usize) as u32;
+                cumulative_feasibility_halfspace_projections_by_stage_out[[tick, stage]] =
+                    solve_attempts.feasibility_halfspace_projections_by_stage[stage]
+                        .min(u32::MAX as usize) as u32;
+                cumulative_feasibility_polish_iterations_by_stage_out[[tick, stage]] =
+                    solve_attempts.feasibility_polish_iterations_by_stage[stage]
+                        .min(u32::MAX as usize) as u32;
+                cumulative_feasibility_polish_pseudoinverse_calls_by_stage_out[[tick, stage]] =
+                    solve_attempts.feasibility_polish_pseudoinverse_calls_by_stage[stage]
+                        .min(u32::MAX as usize) as u32;
+                cumulative_feasibility_polish_jacobi_sweeps_by_stage_out[[tick, stage]] =
+                    solve_attempts.feasibility_polish_jacobi_sweeps_by_stage[stage]
+                        .min(u32::MAX as usize) as u32;
             }
             reference_phase_target_rate_out[tick] = phase_target_rate;
             reference_phase_required_time_out[tick] = phase_required_time_seconds;

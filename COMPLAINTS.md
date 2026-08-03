@@ -49,6 +49,16 @@ complaint is therefore cumulative per-attempt telemetry plus exact repeated
 projected-inverse/dense-work reduction, not task-row deletion or a new
 factorization. See the [r281 localization](benchmarks/results/g1-reachable-timing-localization-r281/G1_REACHABLE_TIMING_LOCALIZATION_R281.md).
 
+R282 closes the diagnostic half of that complaint. A fixed-capacity Rust
+witness now records every bounded solve attempt, stage mask, per-priority and
+per-stage pseudoinverse/Jacobi work, clipping, feasibility projections, and
+polish work before a retry or safe fallback can overwrite the final result.
+The regenerated 2,317-tick trace keeps all pre-existing semantic arrays
+unchanged, retains nonzero release-tail feasibility work, and remains zero
+policy/zero physics with no authority. Exact reduction of the repeated
+Preference/Style work and the 5 ms p99 gate remain open. See the
+[r282 cumulative-solve report](benchmarks/results/g1-cumulative-solve-diagnostics-r282/G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

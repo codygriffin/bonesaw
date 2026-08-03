@@ -25,6 +25,13 @@ from reference_comparison import standing_posture
 
 DT = 0.005
 PRIORITY_NAMES = ("invariant", "viability", "intent", "preference", "style")
+SOLVE_STAGE_NAMES = (
+    "primary",
+    "relock_retry",
+    "localization_probe",
+    "global_normal_retry",
+    "localized_handoff_retry",
+)
 SUPPORT_PHASE_NAMES = (
     "swing",
     "precontact",
@@ -1552,6 +1559,27 @@ def summarize(
     feasibility_polish_iterations: np.ndarray,
     feasibility_polish_pseudoinverse_calls: np.ndarray,
     feasibility_polish_jacobi_sweeps: np.ndarray,
+    solve_attempt_count: np.ndarray,
+    solve_attempt_mask: np.ndarray,
+    solve_attempt_count_by_stage: np.ndarray,
+    cumulative_task_pseudoinverse_calls: np.ndarray,
+    cumulative_task_pseudoinverse_calls_by_level: np.ndarray,
+    cumulative_task_pseudoinverse_calls_by_stage: np.ndarray,
+    cumulative_clipped_steps: np.ndarray,
+    cumulative_clipped_steps_by_level: np.ndarray,
+    cumulative_task_jacobi_sweeps: np.ndarray,
+    cumulative_task_jacobi_sweeps_by_level: np.ndarray,
+    cumulative_task_jacobi_sweeps_by_stage: np.ndarray,
+    cumulative_feasibility_projection_sweeps: np.ndarray,
+    cumulative_feasibility_projection_sweeps_by_stage: np.ndarray,
+    cumulative_feasibility_halfspace_projections: np.ndarray,
+    cumulative_feasibility_halfspace_projections_by_stage: np.ndarray,
+    cumulative_feasibility_polish_iterations: np.ndarray,
+    cumulative_feasibility_polish_pseudoinverse_calls: np.ndarray,
+    cumulative_feasibility_polish_jacobi_sweeps: np.ndarray,
+    cumulative_feasibility_polish_iterations_by_stage: np.ndarray,
+    cumulative_feasibility_polish_pseudoinverse_calls_by_stage: np.ndarray,
+    cumulative_feasibility_polish_jacobi_sweeps_by_stage: np.ndarray,
     pre_contingency_status: np.ndarray,
     pre_contingency_maximum_bound_violation: np.ndarray,
     pre_contingency_limiting_bound_coordinate: np.ndarray,
@@ -1887,6 +1915,154 @@ def summarize(
                     feasibility_halfspace_projections[status == code]
                 ),
             }
+    solve_stage_names = SOLVE_STAGE_NAMES
+    cumulative_solver_work = {
+        "solve_attempts": count_distribution(solve_attempt_count),
+        "ticks_with_retry": int(np.count_nonzero(solve_attempt_count > 1)),
+        "maximum_attempts": int(np.max(solve_attempt_count)),
+        "attempt_mask_distribution": {
+            str(int(mask)): int(np.count_nonzero(solve_attempt_mask == mask))
+            for mask in sorted(set(int(value) for value in solve_attempt_mask))
+        },
+        "attempts_by_stage": {
+            name: count_distribution(solve_attempt_count_by_stage[:, index])
+            for index, name in enumerate(solve_stage_names)
+        },
+        "task_pseudoinverse_calls": count_distribution(
+            cumulative_task_pseudoinverse_calls
+        ),
+        "task_pseudoinverse_calls_by_level": {
+            PRIORITY_NAMES[index]: count_distribution(
+                cumulative_task_pseudoinverse_calls_by_level[:, index]
+            )
+            for index in range(len(PRIORITY_NAMES))
+        },
+        "task_pseudoinverse_calls_by_stage": {
+            name: count_distribution(
+                cumulative_task_pseudoinverse_calls_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "clipped_steps": count_distribution(cumulative_clipped_steps),
+        "clipped_steps_by_level": {
+            PRIORITY_NAMES[index]: count_distribution(
+                cumulative_clipped_steps_by_level[:, index]
+            )
+            for index in range(len(PRIORITY_NAMES))
+        },
+        "task_jacobi_sweeps": count_distribution(cumulative_task_jacobi_sweeps),
+        "task_jacobi_sweeps_by_level": {
+            PRIORITY_NAMES[index]: count_distribution(
+                cumulative_task_jacobi_sweeps_by_level[:, index]
+            )
+            for index in range(len(PRIORITY_NAMES))
+        },
+        "task_jacobi_sweeps_by_stage": {
+            name: count_distribution(
+                cumulative_task_jacobi_sweeps_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "feasibility_projection_sweeps": count_distribution(
+            cumulative_feasibility_projection_sweeps
+        ),
+        "feasibility_projection_sweeps_by_stage": {
+            name: count_distribution(
+                cumulative_feasibility_projection_sweeps_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "feasibility_halfspace_projections": count_distribution(
+            cumulative_feasibility_halfspace_projections
+        ),
+        "feasibility_halfspace_projections_by_stage": {
+            name: count_distribution(
+                cumulative_feasibility_halfspace_projections_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "feasibility_polish_iterations": count_distribution(
+            cumulative_feasibility_polish_iterations
+        ),
+        "feasibility_polish_iterations_by_stage": {
+            name: count_distribution(
+                cumulative_feasibility_polish_iterations_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "feasibility_polish_pseudoinverse_calls": count_distribution(
+            cumulative_feasibility_polish_pseudoinverse_calls
+        ),
+        "feasibility_polish_pseudoinverse_calls_by_stage": {
+            name: count_distribution(
+                cumulative_feasibility_polish_pseudoinverse_calls_by_stage[
+                    :, index
+                ]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+        "feasibility_polish_jacobi_sweeps": count_distribution(
+            cumulative_feasibility_polish_jacobi_sweeps
+        ),
+        "feasibility_polish_jacobi_sweeps_by_stage": {
+            name: count_distribution(
+                cumulative_feasibility_polish_jacobi_sweeps_by_stage[:, index]
+            )
+            for index, name in enumerate(solve_stage_names)
+        },
+    }
+    release_tail_ticks = np.flatnonzero(np.isin(status, (5, 12)))
+    release_tail_work = [
+        {
+            "tick": int(tick),
+            "status": int(status[tick]),
+            "pre_contingency_status": int(pre_contingency_status[tick]),
+            "solve_attempt_count": int(solve_attempt_count[tick]),
+            "solve_attempt_mask": int(solve_attempt_mask[tick]),
+            "solve_attempt_count_by_stage": {
+                name: int(solve_attempt_count_by_stage[tick, index])
+                for index, name in enumerate(solve_stage_names)
+            },
+            "final_task_pseudoinverse_calls": int(task_pseudoinverse_calls[tick]),
+            "cumulative_task_pseudoinverse_calls": int(
+                cumulative_task_pseudoinverse_calls[tick]
+            ),
+            "final_task_jacobi_sweeps": int(task_jacobi_sweeps[tick]),
+            "cumulative_task_jacobi_sweeps": int(cumulative_task_jacobi_sweeps[tick]),
+            "final_clipped_steps": int(clipped_steps[tick]),
+            "cumulative_clipped_steps": int(cumulative_clipped_steps[tick]),
+            "cumulative_feasibility_projection_sweeps": int(
+                cumulative_feasibility_projection_sweeps[tick]
+            ),
+            "cumulative_feasibility_halfspace_projections": int(
+                cumulative_feasibility_halfspace_projections[tick]
+            ),
+            "cumulative_feasibility_polish_iterations": int(
+                cumulative_feasibility_polish_iterations[tick]
+            ),
+            "cumulative_feasibility_polish_pseudoinverse_calls": int(
+                cumulative_feasibility_polish_pseudoinverse_calls[tick]
+            ),
+            "cumulative_feasibility_polish_jacobi_sweeps": int(
+                cumulative_feasibility_polish_jacobi_sweeps[tick]
+            ),
+            "cumulative_feasibility_polish_pseudoinverse_calls_by_stage": {
+                name: int(
+                    cumulative_feasibility_polish_pseudoinverse_calls_by_stage[
+                        tick, index
+                    ]
+                )
+                for index, name in enumerate(solve_stage_names)
+            },
+            "latency_us": float(step_ns[tick] / 1_000.0),
+        }
+        for tick in release_tail_ticks
+    ]
+    release_tail_diagnostics = {
+        "ticks": [row["tick"] for row in release_tail_work],
+        "rows": release_tail_work,
+        "count": len(release_tail_work),
+    }
     temporal_windows = []
     for indices in np.array_split(np.arange(len(step_ns)), min(10, len(step_ns))):
         window_status = status[indices]
@@ -2323,6 +2499,8 @@ def summarize(
         ),
         "status_latency_us": status_latency,
         "status_solver_work": status_solver_work,
+        "cumulative_solver_work": cumulative_solver_work,
+        "release_tail_work": release_tail_diagnostics,
         "solver_work": {
             "task_pseudoinverse_calls": count_distribution(
                 task_pseudoinverse_calls
@@ -3849,6 +4027,59 @@ def main() -> None:
         args.ticks, dtype=np.uint16
     )
     feasibility_polish_jacobi_sweeps = np.empty(args.ticks, dtype=np.uint16)
+    solve_attempt_count = np.empty(args.ticks, dtype=np.uint8)
+    solve_attempt_mask = np.empty(args.ticks, dtype=np.uint8)
+    solve_attempt_count_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint8
+    )
+    cumulative_task_pseudoinverse_calls = np.empty(args.ticks, dtype=np.uint32)
+    cumulative_task_pseudoinverse_calls_by_level = np.empty(
+        (args.ticks, len(PRIORITY_NAMES)), dtype=np.uint32
+    )
+    cumulative_task_pseudoinverse_calls_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_clipped_steps = np.empty(args.ticks, dtype=np.uint32)
+    cumulative_clipped_steps_by_level = np.empty_like(
+        cumulative_task_pseudoinverse_calls_by_level
+    )
+    cumulative_task_jacobi_sweeps = np.empty(args.ticks, dtype=np.uint32)
+    cumulative_task_jacobi_sweeps_by_level = np.empty_like(
+        cumulative_task_pseudoinverse_calls_by_level
+    )
+    cumulative_task_jacobi_sweeps_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_feasibility_projection_sweeps = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    cumulative_feasibility_projection_sweeps_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_feasibility_halfspace_projections = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    cumulative_feasibility_halfspace_projections_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_feasibility_polish_iterations = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    cumulative_feasibility_polish_pseudoinverse_calls = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    cumulative_feasibility_polish_jacobi_sweeps = np.empty(
+        args.ticks, dtype=np.uint32
+    )
+    cumulative_feasibility_polish_iterations_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_feasibility_polish_pseudoinverse_calls_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
+    cumulative_feasibility_polish_jacobi_sweeps_by_stage = np.empty(
+        (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint32
+    )
     pre_contingency_status = np.empty(args.ticks, dtype=np.uint8)
     pre_contingency_maximum_bound_violation = np.empty(
         args.ticks, dtype=np.float64
@@ -4035,6 +4266,27 @@ def main() -> None:
         support_trajectory_tube_target,
         minimum_center_of_mass_tube_margin,
         limiting_center_of_mass_tube_halfspace,
+        solve_attempt_count,
+        solve_attempt_mask,
+        solve_attempt_count_by_stage,
+        cumulative_task_pseudoinverse_calls,
+        cumulative_task_pseudoinverse_calls_by_level,
+        cumulative_task_pseudoinverse_calls_by_stage,
+        cumulative_clipped_steps,
+        cumulative_clipped_steps_by_level,
+        cumulative_task_jacobi_sweeps,
+        cumulative_task_jacobi_sweeps_by_level,
+        cumulative_task_jacobi_sweeps_by_stage,
+        cumulative_feasibility_projection_sweeps,
+        cumulative_feasibility_projection_sweeps_by_stage,
+        cumulative_feasibility_halfspace_projections,
+        cumulative_feasibility_halfspace_projections_by_stage,
+        cumulative_feasibility_polish_iterations,
+        cumulative_feasibility_polish_pseudoinverse_calls,
+        cumulative_feasibility_polish_jacobi_sweeps,
+        cumulative_feasibility_polish_iterations_by_stage,
+        cumulative_feasibility_polish_pseudoinverse_calls_by_stage,
+        cumulative_feasibility_polish_jacobi_sweeps_by_stage,
     )
     thread_cpu_ns = time.thread_time_ns() - thread_before_ns
     process_cpu_ns = time.process_time_ns() - process_before_ns
@@ -4099,6 +4351,27 @@ def main() -> None:
         feasibility_polish_iterations,
         feasibility_polish_pseudoinverse_calls,
         feasibility_polish_jacobi_sweeps,
+        solve_attempt_count,
+        solve_attempt_mask,
+        solve_attempt_count_by_stage,
+        cumulative_task_pseudoinverse_calls,
+        cumulative_task_pseudoinverse_calls_by_level,
+        cumulative_task_pseudoinverse_calls_by_stage,
+        cumulative_clipped_steps,
+        cumulative_clipped_steps_by_level,
+        cumulative_task_jacobi_sweeps,
+        cumulative_task_jacobi_sweeps_by_level,
+        cumulative_task_jacobi_sweeps_by_stage,
+        cumulative_feasibility_projection_sweeps,
+        cumulative_feasibility_projection_sweeps_by_stage,
+        cumulative_feasibility_halfspace_projections,
+        cumulative_feasibility_halfspace_projections_by_stage,
+        cumulative_feasibility_polish_iterations,
+        cumulative_feasibility_polish_pseudoinverse_calls,
+        cumulative_feasibility_polish_jacobi_sweeps,
+        cumulative_feasibility_polish_iterations_by_stage,
+        cumulative_feasibility_polish_pseudoinverse_calls_by_stage,
+        cumulative_feasibility_polish_jacobi_sweeps_by_stage,
         pre_contingency_status,
         pre_contingency_maximum_bound_violation,
         pre_contingency_limiting_bound_coordinate,
@@ -4467,6 +4740,51 @@ def main() -> None:
             feasibility_polish_pseudoinverse_calls
         ),
         feasibility_polish_jacobi_sweeps=feasibility_polish_jacobi_sweeps,
+        solve_attempt_count=solve_attempt_count,
+        solve_attempt_mask=solve_attempt_mask,
+        solve_attempt_count_by_stage=solve_attempt_count_by_stage,
+        cumulative_task_pseudoinverse_calls=cumulative_task_pseudoinverse_calls,
+        cumulative_task_pseudoinverse_calls_by_level=(
+            cumulative_task_pseudoinverse_calls_by_level
+        ),
+        cumulative_task_pseudoinverse_calls_by_stage=(
+            cumulative_task_pseudoinverse_calls_by_stage
+        ),
+        cumulative_clipped_steps=cumulative_clipped_steps,
+        cumulative_clipped_steps_by_level=cumulative_clipped_steps_by_level,
+        cumulative_task_jacobi_sweeps=cumulative_task_jacobi_sweeps,
+        cumulative_task_jacobi_sweeps_by_level=cumulative_task_jacobi_sweeps_by_level,
+        cumulative_task_jacobi_sweeps_by_stage=cumulative_task_jacobi_sweeps_by_stage,
+        cumulative_feasibility_projection_sweeps=(
+            cumulative_feasibility_projection_sweeps
+        ),
+        cumulative_feasibility_projection_sweeps_by_stage=(
+            cumulative_feasibility_projection_sweeps_by_stage
+        ),
+        cumulative_feasibility_halfspace_projections=(
+            cumulative_feasibility_halfspace_projections
+        ),
+        cumulative_feasibility_halfspace_projections_by_stage=(
+            cumulative_feasibility_halfspace_projections_by_stage
+        ),
+        cumulative_feasibility_polish_iterations=(
+            cumulative_feasibility_polish_iterations
+        ),
+        cumulative_feasibility_polish_pseudoinverse_calls=(
+            cumulative_feasibility_polish_pseudoinverse_calls
+        ),
+        cumulative_feasibility_polish_jacobi_sweeps=(
+            cumulative_feasibility_polish_jacobi_sweeps
+        ),
+        cumulative_feasibility_polish_iterations_by_stage=(
+            cumulative_feasibility_polish_iterations_by_stage
+        ),
+        cumulative_feasibility_polish_pseudoinverse_calls_by_stage=(
+            cumulative_feasibility_polish_pseudoinverse_calls_by_stage
+        ),
+        cumulative_feasibility_polish_jacobi_sweeps_by_stage=(
+            cumulative_feasibility_polish_jacobi_sweeps_by_stage
+        ),
         pre_contingency_status=pre_contingency_status,
         pre_contingency_maximum_bound_violation=(
             pre_contingency_maximum_bound_violation

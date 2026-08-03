@@ -2,7 +2,7 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r280 reachable-tube timing qualification
+## Current CPU checkpoint — r282 cumulative solve diagnostics
 
 R279 adds an exact discrete backward preimage of the authored support schedule.
 The fixed-size Rust fold produces a time-varying DCM box; a moving-boundary
@@ -10,6 +10,17 @@ barrier includes measured CoM velocity, reference-phase boundary velocity, and
 an explicit acceleration envelope. Observer telemetry, intent projection, soft
 task authority, and four-face hard admission are independently default-off.
 Python retains the immutable policy-free/physics-free scenarios, metrics, and
+report.
+
+R282 adds a fixed-capacity, allocation-free cumulative witness for every
+bounded floating-WBC solve attempt. It records stable stage masks and
+per-priority/per-stage task pseudoinverse, Jacobi, clipping, feasibility, and
+polish work. The regenerated 2,317-tick trace preserves all pre-existing
+semantic arrays, makes retry work visible on release tails, and remains
+policy-free/physics-free with authority closed. The measured replay is
+5.283 ms p99 with 0 Python collections and 3.891 MiB RSS growth; this is
+telemetry, not an optimization or admission result. See the
+[`G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md`](../benchmarks/results/g1-cumulative-solve-diagnostics-r282/G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md)
 report.
 
 R281 rejects and removes a bit-exact two-column Jacobi specialization: all 89

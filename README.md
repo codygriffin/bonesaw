@@ -177,6 +177,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   earlier solve-attempt diagnostics. The next CPU slice is cumulative
   per-attempt work telemetry and exact repeated-inverse reduction. See the
   [r281 timing localization](benchmarks/results/g1-reachable-timing-localization-r281/G1_REACHABLE_TIMING_LOCALIZATION_R281.md).
+- R282 closes the diagnostic blind spot with a fixed-capacity Rust witness for
+  every solve attempt and retry stage, including per-priority/per-stage
+  pseudoinverse/Jacobi work, clipping, feasibility projections, and polish.
+  The 2,317-tick trace preserves pre-existing semantic arrays, exposes
+  nonzero release-tail work, remains zero policy/zero physics, and admits no
+  authority. The 5 ms p99 gate and exact Preference/Style work reduction are
+  still open. See the
+  [r282 cumulative-solve diagnostics](benchmarks/results/g1-cumulative-solve-diagnostics-r282/G1_CUMULATIVE_SOLVE_DIAGNOSTICS_R282.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd
