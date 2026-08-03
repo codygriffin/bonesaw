@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 rejected-Jacobi-pair cache · R294</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 rejected-Jacobi-pair cache · R294</h1>
+<blockquote>Arithmetic candidate **REJECTED** · exact semantic sentinel **PASS** · CPU-work gate **FAIL** · authority **CLOSED**.</blockquote>
+<p>R294 tests whether a rejected Jacobi column pair can skip its coupling dot on a later sweep when neither column nor its bit-exact re-anchored energy changed. The cache reuses caller-owned pseudoinverse output scratch, adds no solve-loop allocation, and is available only through `jacobi-rejected-pair-cache-experiment`.</p>
+<h2>Motivation and exactness</h2>
+<p>Sampling the frozen support-transfer profile attributed 77.20% of samples to the flat pseudoinverse and concentrated the largest local instruction mass in the scalar coupling-dot dependency chain. The candidate stores a generation for each column and remembers both generations for a rejected pair. A rotation or bit-changing energy re-anchor invalidates every affected entry; generation overflow clears the fixed square cache.</p>
+<p>All 317 `bonesaw-core` tests pass in both default and feature builds. The dedicated rejection-cache test observes a real cache hit while preserving every matrix, right-vector, energy, and sweep-count bit. A separate 100-tick native G1 sentinel has identical non-timing JSON with SHA-256 `f19ebca5aeba0b5b18c1f088eb39435cb28a1daa443a8fbea0f90288c4c7ecbd` in both builds.</p>
+<h2>Pinned complete-process counter preflight</h2>
+<div class=table-wrap><table><thead><tr><th>pair</th><th>instructions control</th><th>candidate</th><th>delta</th><th>branches delta</th><th>native p50 control / candidate µs</th></tr></thead><tbody><tr><td>1</td><td>29,428,934,122</td><td>29,886,665,017</td><td>+1.55538%</td><td>+6.81245%</td><td>1275.4 / 1264.7</td></tr><tr><td>2</td><td>29,428,938,770</td><td>29,886,665,736</td><td>+1.55536%</td><td>+6.81239%</td><td>1690.7 / 1267.5</td></tr><tr><td>3</td><td>29,428,934,414</td><td>29,886,663,873</td><td>+1.55537%</td><td>+6.81252%</td><td>1274.0 / 1288.0</td></tr></tbody></table></div>
+<p>The instruction regression is stable to 0.000014 percentage points across the three CPU-4-pinned AB/BA pairs. Mean branches rise 6.81245%. Pair 2 crosses a visible host-load transition, so the apparent mean cycle improvement and wall-time values are not decision evidence. Pairs 1 and 3 also have mixed p50/p99 direction; neither can overturn a deterministic work-count failure.</p>
+<h2>Decision</h2>
+<p>Do not promote or run the expensive 2,317-tick Python corpus replay. The cache initialization, generation checks, invalidation, and extra branches cost more than the coupling dots they avoid in the native G1 workload. R293 remains the production default, the candidate remains opt-in for reproducible negative evidence, and the ordinary 5 ms support-transfer p99 gate remains open at the R293 median of 5.175 ms. No policy, physics, walking, contact, CUDA, or authority claim changes.</p></main></body></html>
