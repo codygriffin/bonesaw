@@ -2,6 +2,16 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current physical authority presentation — measured PUSH stack
+
+The hosted editor now switches its visible authority rows to the measured
+MuJoCo stream while PUSH is active. Hard dynamics/contact residual, measured
+wheel support, authored actuator-limit utilization plus mechanical power,
+solver admission/timing, and thermal state are rendered from the same plant
+frame; target-side preview values are not reused as physical evidence. The
+plant still has no calibrated persistent electrical/thermal model, so the
+thermal row remains explicitly `UNMODELED`.
+
 ## Current measured body-moment rejection — r314 bounded behavior qualified, full recovery open
 
 R314 adds a fixed-size Rust state law after the existing wheel-load-reserve

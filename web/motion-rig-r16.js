@@ -826,6 +826,7 @@ function updatePlantTelemetry(message) {
     0,
   );
   updateActuatorBudget(message);
+  updatePlantAuthorityStack(message);
   plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m command · ${actualActuatorForce.toFixed(3)} actuator force · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
   plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized · ${Number(metrics.maximum_abs_constraint_scalar_force || 0).toFixed(2)} scalar · |pos| ${Number(metrics.maximum_abs_constraint_position || 0).toExponential(1)} · |vel| ${Number(metrics.maximum_abs_constraint_velocity || 0).toExponential(1)}`;
   const planePoint = simulatorGroundPlane.point;
@@ -1013,6 +1014,135 @@ function updatePlantTelemetry(message) {
         authorityThresholds.solver_wall_time_us
           && solveUs > authorityThresholds.solver_wall_time_us.critical,
       ),
+  );
+}
+
+// The target stream and the MuJoCo stream have intentionally different
+// authority owners.  When PUSH is active, keep the visible stack tied to the
+// measured plant instead of leaving target-side rows on screen as if they were
+// executable physical evidence.  This is a presentation boundary only: Rust
+// still owns admission and the worker still owns MuJoCo integration.
+function updatePlantAuthorityStack(message) {
+  const metrics = message.metrics || {};
+  const paused = Boolean(message.paused ?? metrics.paused);
+  const unavailable = (label, detail) => {
+    setLiveAuthorityRow(label, "PAUSED", detail, 0, "unavailable");
+  };
+  if (paused) {
+    unavailable("authority-hard", "MuJoCo paused · no executable WBC solve");
+    unavailable("authority-support", "MuJoCo paused · measured support held fail-closed");
+    unavailable("authority-actuator", "MuJoCo paused · no fresh actuator sample");
+    unavailable("authority-solver", "MuJoCo paused · solver not running");
+    setLiveAuthorityRow(
+      "authority-thermal",
+      "UNMODELED",
+      "paused · no calibrated persistent electrical/thermal state",
+      0,
+      "unavailable",
+    );
+    return;
+  }
+
+  const hardParts = [
+    ["dyn", Number(metrics.wbc_dynamics_residual)],
+    ["contact", Number(metrics.wbc_contact_residual)],
+    ["ineq", Number(metrics.wbc_maximum_constraint_violation)],
+  ].filter((entry) => Number.isFinite(entry[1]));
+  if (hardParts.length) {
+    const residual = Math.max(...hardParts.map((entry) => Math.abs(entry[1])), 0);
+    const thresholds = authorityThresholds.hard_residual;
+    const pressure = upperPressure(residual, thresholds);
+    setLiveAuthorityRow(
+      "authority-hard",
+      residual.toExponential(1),
+      `${hardParts.map((entry) => `${entry[0]} ${entry[1].toExponential(1)}`).join(" · ")} · measured MuJoCo feedback`,
+      pressure,
+      pressureState(
+        pressure,
+        thresholds && residual > thresholds.warning,
+        thresholds && residual > thresholds.critical,
+      ),
+    );
+  } else {
+    setLiveAuthorityRow(
+      "authority-hard",
+      "N/A",
+      "MuJoCo has not published a fresh WBC residual",
+      0,
+      "unavailable",
+    );
+  }
+
+  const supportCount = Number(metrics.wbc_support_active_count);
+  const observedMask = (metrics.wbc_observed_contact_active || [0, 0]).join("");
+  const executableMask = (metrics.wbc_hard_contact_executable || [0, 0]).join("");
+  const supportPressure = supportCount >= 2 ? 0 : supportCount === 1 ? 0.72 : 1;
+  setLiveAuthorityRow(
+    "authority-support",
+    Number.isFinite(supportCount) ? `${supportCount}/2` : "N/A",
+    `measured ${observedMask} · executable ${executableMask} · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N ground load · finite polygon N/A for rolling wheels`,
+    supportPressure,
+    supportCount >= 2 ? "ok" : supportCount === 1 ? "warning" : "critical",
+  );
+
+  const utilization = Number(metrics.maximum_actuator_effort_utilization);
+  const effort = Number(metrics.maximum_abs_actuator_effort_nm || 0);
+  const power = Number(metrics.maximum_abs_actuator_mechanical_power_w || 0);
+  const actuatorThresholds = authorityThresholds.actuator_utilization;
+  if (Number.isFinite(utilization)) {
+    const pressure = clampUnit(utilization);
+    setLiveAuthorityRow(
+      "authority-actuator",
+      `${Math.round(100 * utilization)}%`,
+      `${effort.toFixed(3)} N·m · |P| ${power.toFixed(1)} W · measured MuJoCo saturation utilization`,
+      pressure,
+      pressureState(
+        pressure,
+        actuatorThresholds && utilization >= actuatorThresholds.warning,
+        actuatorThresholds && utilization >= actuatorThresholds.critical,
+      ),
+    );
+  } else {
+    setLiveAuthorityRow(
+      "authority-actuator",
+      "N/A",
+      "MuJoCo has not published actuator effort limits",
+      0,
+      "unavailable",
+    );
+  }
+
+  const solveUs = Number(metrics.controller_step_us);
+  const solvePressure = upperPressure(solveUs, authorityThresholds.solver_wall_time_us);
+  const admitted = Boolean(metrics.wbc_admitted);
+  setLiveAuthorityRow(
+    "authority-solver",
+    Number.isFinite(solveUs) ? `${solveUs.toFixed(1)} µs` : "N/A",
+    `${metrics.wbc_status || "unknown"} · raw ${metrics.wbc_raw_status || "unknown"} · ${admitted ? "admitted" : "held/rejected"} · measured cadence`,
+    admitted ? solvePressure : 1,
+    !admitted
+      ? "critical"
+      : pressureState(
+        solvePressure,
+        authorityThresholds.solver_wall_time_us
+          && solveUs > authorityThresholds.solver_wall_time_us.warning,
+        authorityThresholds.solver_wall_time_us
+          && solveUs > authorityThresholds.solver_wall_time_us.critical,
+      ),
+  );
+
+  const resourceModels = Array.isArray(plantHello?.actuator_resource_models)
+    ? plantHello.actuator_resource_models
+    : [];
+  const modeled = resourceModels.length > 0 && resourceModels.every(Boolean);
+  setLiveAuthorityRow(
+    "authority-thermal",
+    modeled ? "MODEL" : "UNMODELED",
+    modeled
+      ? "calibrated resource state is present; inspect actuator rows for derating"
+      : "measured effort/power only · no calibrated persistent electrical/thermal state",
+    0,
+    modeled ? "ok" : "unavailable",
   );
 }
 
@@ -1925,7 +2055,9 @@ function drawAuthorityAnnotations() {
       `${Math.abs(1000 * Number(physical.station_error_m || 0)).toFixed(0)}mm`,
     );
     y += 16;
-    const torque = Number(physical.torque_utilization);
+    const torque = Number(
+      physical.maximum_actuator_effort_utilization ?? physical.torque_utilization,
+    );
     drawTinyAuthorityBar(
       x,
       y,

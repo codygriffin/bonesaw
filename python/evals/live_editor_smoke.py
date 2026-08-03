@@ -171,6 +171,8 @@ def http_probe(base_url: str, connect_address: str | None = None) -> None:
     assert b"Bonesaw" in body, "HTTP response is not the Bonesaw editor"
     assert b"actuator-budget" in body, "hosted editor is missing actuator budget UI"
     assert b"/motion-rig-r16.js?v=235" in body, "hosted editor served stale script"
+    script = http_get_bytes(base_url, "/motion-rig-r16.js?v=235", connect_address)
+    assert b"updatePlantAuthorityStack" in script, "hosted editor lacks measured plant authority stack"
 
 
 def quaternion_rotate(rotation: list[float], vector: list[float]) -> list[float]:

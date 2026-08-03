@@ -1165,6 +1165,10 @@ The plant stream also exposes each MuJoCo actuator's authored effort limit,
 measured effort utilization, velocity, and mechanical power as small budget
 bars; thermal/reliability remains explicitly `UNMODELED` until calibrated
 electrical and temperature state exists.
+While PUSH is active, the live authority stack switches to the same measured
+plant frame: hard residual, wheel support, actuator utilization, solver
+admission, and the explicit thermal-unmodeled state no longer display stale
+TARGET-side evidence.
 The live WBC now also consumes an exact MuJoCo wheel-to-ground mask on every
 50 Hz observation. Rust owns fresh-observation provenance, positive debounce,
 and immediate hard-support removal on contact loss; raw, debounced, and hard
