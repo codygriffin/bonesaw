@@ -34,6 +34,20 @@ reaches force-backed bilateral qualification, and two terminal boundaries move
 earlier. The action is rejected and remains default-off. The retained report is
 [`UPKIE_LIVE_MEASURED_LANDING_R312.md`](../benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
 
+### Revision r310 Upkie scalar reference audit
+
+The fresh 2026-08-03 audit runs 20,000 sequential 5 ms samples through the
+pinned upstream Upkie `WheelBalancer.cpp` and the typed Rust law, then runs the
+independent Pinocchio 4.0 product oracle over 50 Upkie and 50 Unitree G1 states.
+Official Rust wheel commands are canonical-bitwise identical to upstream, with
+zero hot-loop allocations; the Pinocchio fixed/floating products pass at
+roundoff. This is intentionally narrow evidence: the C++ worker is a scalar
+wheel law, Pinocchio is a product oracle, and neither is a full-body Upkie WBC
+trajectory reference. A shared MuJoCo physical corpus with an independent
+full-body controller remains the next reference-comparison gap. See the
+[R310 audit](../benchmarks/results/upkie-reference-audit-r310/UPKIE_REFERENCE_AUDIT_R310.md)
+and its [compact metrics](../benchmarks/results/upkie-reference-audit-r310/metrics.json).
+
 ### Revision r302 strict live support-recovery falsifier
 
 `python/evals/upkie_live_support_recovery_r302.py` keeps request generation and
