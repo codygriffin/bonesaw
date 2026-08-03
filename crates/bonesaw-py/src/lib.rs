@@ -4307,6 +4307,17 @@ impl UpkieBalanceSession {
         Ok(())
     }
 
+    /// Set the optional fail-closed execution boundary for the wheel-load
+    /// reserve action.  The Rust action still retains and reports its
+    /// internal release state when evidence disappears; this switch only
+    /// suppresses executable authority on samples without exact bilateral
+    /// contact/load evidence.
+    fn configure_wheel_load_reserve_evidence_gate(&mut self, enabled: bool) {
+        self.wheel_load_reserve_config
+            .require_bilateral_evidence_for_authority = enabled;
+        self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
+    }
+
     /// Configure the default-off measured single-support touchdown request.
     /// The request only becomes active for an exact one-wheel support mask;
     /// its joint acceleration still requires ordinary floating-WBC admission.

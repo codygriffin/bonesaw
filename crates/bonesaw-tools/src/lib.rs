@@ -379,6 +379,11 @@ pub struct UpkieWheelLoadReserveConfig {
     pub bank_tracking_stiffness_per_s2: f64,
     pub bank_tracking_damping_per_s: f64,
     pub maximum_roll_acceleration_rad_s2: f64,
+    /// When enabled, callers receive no executable reserve authority unless
+    /// the current sample contains exact bilateral contact/load evidence.
+    /// The persistent state still releases smoothly, so the diagnostic
+    /// witness remains observable across a measured support transition.
+    pub require_bilateral_evidence_for_authority: bool,
 }
 
 impl Default for UpkieWheelLoadReserveConfig {
@@ -407,6 +412,7 @@ impl Default for UpkieWheelLoadReserveConfig {
             bank_tracking_stiffness_per_s2: 80.0,
             bank_tracking_damping_per_s: 14.0,
             maximum_roll_acceleration_rad_s2: 80.0,
+            require_bilateral_evidence_for_authority: false,
         }
     }
 }
@@ -686,9 +692,15 @@ pub fn step_upkie_wheel_load_reserve(
     }
     *state = next;
 
+    let effective_authority =
+        if config.require_bilateral_evidence_for_authority && !evidence_available {
+            0.0
+        } else {
+            next.authority
+        };
     Some(UpkieWheelLoadReserveOutput {
         evidence_available,
-        active: next.authority > 0.0,
+        active: effective_authority > 0.0,
         weaker_support_index: weaker_index,
         total_normal_force_n: total_normal_force,
         support_load_fractions: fractions,
@@ -710,7 +722,7 @@ pub fn step_upkie_wheel_load_reserve(
         commanded_bank_angle_rad: next.commanded_bank_angle_rad,
         commanded_roll_acceleration_rad_s2: commanded_roll_acceleration,
         activation_pressure,
-        authority: next.authority,
+        authority: effective_authority,
         zmp_was_saturated: baseline_zmp != unconstrained_baseline_zmp,
         acceleration_was_saturated: requested_lateral_acceleration != raw_lateral_acceleration,
         bank_was_saturated: target_bank != unsaturated_bank,
@@ -2321,6 +2333,47 @@ mod tests {
             positive.commanded_roll_acceleration_rad_s2,
             -negative.commanded_roll_acceleration_rad_s2
         );
+    }
+
+    #[test]
+    fn wheel_load_reserve_can_fail_closed_without_bilateral_evidence() {
+        let mut config = UpkieWheelLoadReserveConfig::default();
+        config.require_bilateral_evidence_for_authority = true;
+        let mut state = UpkieWheelLoadReserveState::default();
+        let mut output = step_upkie_wheel_load_reserve(
+            0.02,
+            true,
+            [0.18, -0.18],
+            [12.0, 38.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        assert!(output.active);
+        assert!(state.authority > 0.0);
+        output = step_upkie_wheel_load_reserve(
+            0.02,
+            false,
+            [0.18, -0.18],
+            [0.0, 38.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        assert!(!output.evidence_available);
+        assert!(!output.active);
+        assert_eq!(output.authority, 0.0);
+        assert!(state.authority > 0.0);
     }
 
     #[test]

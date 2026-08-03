@@ -1132,6 +1132,7 @@ class RustWbcAdapter:
         support_load_guard_enabled: bool = False,
         support_load_reserve_action_enabled: bool = False,
         support_load_reserve_bank_action_enabled: bool = True,
+        support_load_reserve_require_bilateral_evidence: bool = False,
         support_load_reserve_config: tuple[float, ...] | None = None,
         single_support_reacquisition_enabled: bool = False,
         single_support_reacquisition_config: tuple[float, ...] | None = None,
@@ -1732,6 +1733,9 @@ class RustWbcAdapter:
         self.support_load_reserve_bank_action_enabled = (
             support_load_reserve_bank_action_enabled
         )
+        self.support_load_reserve_require_bilateral_evidence = bool(
+            support_load_reserve_require_bilateral_evidence
+        )
         if support_load_reserve_config is not None:
             if len(support_load_reserve_config) != 18:
                 raise ValueError(
@@ -1740,6 +1744,8 @@ class RustWbcAdapter:
             self.balance.configure_wheel_load_reserve(
                 *support_load_reserve_config
             )
+        if self.support_load_reserve_require_bilateral_evidence:
+            self.balance.configure_wheel_load_reserve_evidence_gate(True)
         self.support_load_reserve_diagnostics = np.zeros(
             len(self.balance.wheel_load_reserve_diagnostic_names), np.float64
         )
