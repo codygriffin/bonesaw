@@ -200,6 +200,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   The `jacobi-column-pointer-control` feature restores the pre-R284 kernel.
   See the
   [r284 Jacobi pointer report](benchmarks/results/g1-jacobi-column-pointer-r284/G1_JACOBI_COLUMN_POINTER_R284.md).
+- R285 adds independently configurable, default-off Preference and Style
+  projected-solve ceilings. Exhaustion preserves hard feasibility and completed
+  higher authority, skips lower authority, and survives retries as typed
+  telemetry. The unbounded default is 89-array exact. Style-2 reaches 4.431 ms
+  p99 with zero hard failures, but two early truncations worsen root RMS by
+  81.81%, so every finite walking profile remains rejected and no authority is
+  admitted. See the
+  [r285 low-authority budget report](benchmarks/results/g1-low-authority-budget-r285/G1_LOW_AUTHORITY_BUDGET_R285.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

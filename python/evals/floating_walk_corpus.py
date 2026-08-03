@@ -105,6 +105,18 @@ def parse_args() -> argparse.Namespace:
         help="resume an identical exhausted Dykstra prefix in another capped controller call",
     )
     parser.add_argument(
+        "--maximum-preference-task-pseudoinverses",
+        type=int,
+        default=None,
+        help="optional hard-safe degraded-mode ceiling for Preference projected solves",
+    )
+    parser.add_argument(
+        "--maximum-style-task-pseudoinverses",
+        type=int,
+        default=None,
+        help="optional hard-safe degraded-mode ceiling for terminal Style projected solves",
+    )
+    parser.add_argument(
         "--maximum-contact-solve-hold-ticks",
         type=int,
         default=0,
@@ -1554,6 +1566,7 @@ def summarize(
     clipped_steps_by_level: np.ndarray,
     task_jacobi_sweeps: np.ndarray,
     task_jacobi_sweeps_by_level: np.ndarray,
+    low_authority_budget_exhausted_level: np.ndarray,
     feasibility_projection_sweeps: np.ndarray,
     feasibility_halfspace_projections: np.ndarray,
     feasibility_polish_iterations: np.ndarray,
@@ -1561,6 +1574,7 @@ def summarize(
     feasibility_polish_jacobi_sweeps: np.ndarray,
     solve_attempt_count: np.ndarray,
     solve_attempt_mask: np.ndarray,
+    cumulative_low_authority_budget_exhausted_mask: np.ndarray,
     solve_attempt_count_by_stage: np.ndarray,
     cumulative_task_pseudoinverse_calls: np.ndarray,
     cumulative_task_pseudoinverse_calls_by_level: np.ndarray,
@@ -1923,6 +1937,18 @@ def summarize(
         "attempt_mask_distribution": {
             str(int(mask)): int(np.count_nonzero(solve_attempt_mask == mask))
             for mask in sorted(set(int(value) for value in solve_attempt_mask))
+        },
+        "low_authority_budget_exhausted_ticks": int(
+            np.count_nonzero(cumulative_low_authority_budget_exhausted_mask)
+        ),
+        "low_authority_budget_exhausted_by_level": {
+            name: int(
+                np.count_nonzero(
+                    cumulative_low_authority_budget_exhausted_mask
+                    & np.uint8(1 << index)
+                )
+            )
+            for index, name in enumerate(PRIORITY_NAMES)
         },
         "attempts_by_stage": {
             name: count_distribution(solve_attempt_count_by_stage[:, index])
@@ -2547,6 +2573,15 @@ def summarize(
                         np.count_nonzero(clipped_steps_by_level[:, index])
                     ),
                 }
+                for index, name in enumerate(PRIORITY_NAMES)
+            },
+            "low_authority_budget_exhausted_ticks": int(
+                np.count_nonzero(low_authority_budget_exhausted_level >= 0)
+            ),
+            "low_authority_budget_exhausted_by_level": {
+                name: int(
+                    np.count_nonzero(low_authority_budget_exhausted_level == index)
+                )
                 for index, name in enumerate(PRIORITY_NAMES)
             },
         },
@@ -3826,6 +3861,10 @@ def main() -> None:
         continue_identical_exhausted_feasibility_prefix=(
             args.continue_identical_exhausted_feasibility_prefix
         ),
+        maximum_preference_task_pseudoinverses=(
+            args.maximum_preference_task_pseudoinverses
+        ),
+        maximum_style_task_pseudoinverses=args.maximum_style_task_pseudoinverses,
         maximum_contact_solve_hold_ticks=args.maximum_contact_solve_hold_ticks,
         localized_contact_fallback_target=args.localized_contact_fallback_target,
         automatic_contact_fault_localization=(
@@ -4020,6 +4059,7 @@ def main() -> None:
     task_jacobi_sweeps_by_level = np.empty_like(
         task_pseudoinverse_calls_by_level
     )
+    low_authority_budget_exhausted_level = np.empty(args.ticks, dtype=np.int8)
     feasibility_projection_sweeps = np.empty(args.ticks, dtype=np.uint16)
     feasibility_halfspace_projections = np.empty(args.ticks, dtype=np.uint32)
     feasibility_polish_iterations = np.empty(args.ticks, dtype=np.uint16)
@@ -4029,6 +4069,9 @@ def main() -> None:
     feasibility_polish_jacobi_sweeps = np.empty(args.ticks, dtype=np.uint16)
     solve_attempt_count = np.empty(args.ticks, dtype=np.uint8)
     solve_attempt_mask = np.empty(args.ticks, dtype=np.uint8)
+    cumulative_low_authority_budget_exhausted_mask = np.empty(
+        args.ticks, dtype=np.uint8
+    )
     solve_attempt_count_by_stage = np.empty(
         (args.ticks, len(SOLVE_STAGE_NAMES)), dtype=np.uint8
     )
@@ -4213,6 +4256,7 @@ def main() -> None:
         clipped_steps_by_level,
         task_jacobi_sweeps,
         task_jacobi_sweeps_by_level,
+        low_authority_budget_exhausted_level,
         feasibility_projection_sweeps,
         feasibility_halfspace_projections,
         feasibility_polish_iterations,
@@ -4268,6 +4312,7 @@ def main() -> None:
         limiting_center_of_mass_tube_halfspace,
         solve_attempt_count,
         solve_attempt_mask,
+        cumulative_low_authority_budget_exhausted_mask,
         solve_attempt_count_by_stage,
         cumulative_task_pseudoinverse_calls,
         cumulative_task_pseudoinverse_calls_by_level,
@@ -4346,6 +4391,7 @@ def main() -> None:
         clipped_steps_by_level,
         task_jacobi_sweeps,
         task_jacobi_sweeps_by_level,
+        low_authority_budget_exhausted_level,
         feasibility_projection_sweeps,
         feasibility_halfspace_projections,
         feasibility_polish_iterations,
@@ -4353,6 +4399,7 @@ def main() -> None:
         feasibility_polish_jacobi_sweeps,
         solve_attempt_count,
         solve_attempt_mask,
+        cumulative_low_authority_budget_exhausted_mask,
         solve_attempt_count_by_stage,
         cumulative_task_pseudoinverse_calls,
         cumulative_task_pseudoinverse_calls_by_level,
@@ -4733,6 +4780,9 @@ def main() -> None:
         clipped_steps_by_level=clipped_steps_by_level,
         task_jacobi_sweeps=task_jacobi_sweeps,
         task_jacobi_sweeps_by_level=task_jacobi_sweeps_by_level,
+        low_authority_budget_exhausted_level=(
+            low_authority_budget_exhausted_level
+        ),
         feasibility_projection_sweeps=feasibility_projection_sweeps,
         feasibility_halfspace_projections=feasibility_halfspace_projections,
         feasibility_polish_iterations=feasibility_polish_iterations,
@@ -4742,6 +4792,9 @@ def main() -> None:
         feasibility_polish_jacobi_sweeps=feasibility_polish_jacobi_sweeps,
         solve_attempt_count=solve_attempt_count,
         solve_attempt_mask=solve_attempt_mask,
+        cumulative_low_authority_budget_exhausted_mask=(
+            cumulative_low_authority_budget_exhausted_mask
+        ),
         solve_attempt_count_by_stage=solve_attempt_count_by_stage,
         cumulative_task_pseudoinverse_calls=cumulative_task_pseudoinverse_calls,
         cumulative_task_pseudoinverse_calls_by_level=(

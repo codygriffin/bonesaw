@@ -70,6 +70,20 @@ CPU complaint. R284 reduces that kernel's pinned retired instructions by 2.26%
 with an exact replay, but p99 remains above 5 ms. No authority is admitted. See the
 [r283 bounded-polish report](benchmarks/results/g1-feasibility-polish-budget-r283/G1_FEASIBILITY_POLISH_BUDGET_R283.md).
 
+R285 tests the explicit degraded-mode alternative instead of silently deleting
+tasks. Preference and Style now accept independent, default-off projected-solve
+ceilings; Invariant, Viability, Intent, equalities, bounds, and named hard rows
+are never capped. Exhaustion returns the current hard-feasible partial optimum
+and is retained as both a final-attempt level and cumulative retry-safe mask.
+The dormant profile is 89-array exact. Style-2 crosses the 5 ms p99 gate at
+4.431 ms with zero failed/infeasible ticks and hard residuals below 1e-8, but
+only two exhausted ticks (155/158) alter the subsequent contact path and worsen
+root RMS 81.81%. The mechanism remains available default-off; every measured
+finite walking profile is rejected. The immediate CPU complaint remains an
+exact optimization or a genuinely continuous low-authority supervisor, not a
+static call cap. See the
+[r285 anytime-budget report](benchmarks/results/g1-low-authority-budget-r285/G1_LOW_AUTHORITY_BUDGET_R285.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

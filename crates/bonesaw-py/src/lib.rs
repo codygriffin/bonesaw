@@ -175,6 +175,7 @@ const FLOATING_SOLVE_STAGE_LOCALIZED_HANDOFF_RETRY: usize = 4;
 struct FloatingSolveAttemptDiagnostics {
     count: u8,
     mask: u8,
+    low_authority_budget_exhausted_mask: u8,
     count_by_stage: [u8; FLOATING_SOLVE_STAGE_COUNT],
     task_pseudoinverse_calls: usize,
     task_pseudoinverse_calls_by_level: [usize; Priority::ALL.len()],
@@ -202,6 +203,9 @@ impl FloatingSolveAttemptDiagnostics {
         self.count = self.count.saturating_add(1);
         self.mask |= 1_u8 << stage;
         self.count_by_stage[stage] = self.count_by_stage[stage].saturating_add(1);
+        if let Some(priority) = diagnostics.low_authority_budget_exhausted_level {
+            self.low_authority_budget_exhausted_mask |= 1_u8 << priority as usize;
+        }
         self.task_pseudoinverse_calls = self
             .task_pseudoinverse_calls
             .saturating_add(diagnostics.task_pseudoinverse_calls);
@@ -13493,6 +13497,8 @@ impl FloatingWbcSession {
         use_feasibility_row_spans=false,
         reuse_identical_hard_feasibility_seed=false,
         continue_identical_exhausted_feasibility_prefix=false,
+        maximum_preference_task_pseudoinverses=None,
+        maximum_style_task_pseudoinverses=None,
         maximum_contact_solve_hold_ticks=0,
         localized_contact_fallback_target=None,
         automatic_contact_fault_localization=false,
@@ -13584,6 +13590,8 @@ impl FloatingWbcSession {
         use_feasibility_row_spans: bool,
         reuse_identical_hard_feasibility_seed: bool,
         continue_identical_exhausted_feasibility_prefix: bool,
+        maximum_preference_task_pseudoinverses: Option<usize>,
+        maximum_style_task_pseudoinverses: Option<usize>,
         maximum_contact_solve_hold_ticks: usize,
         localized_contact_fallback_target: Option<usize>,
         automatic_contact_fault_localization: bool,
@@ -13671,6 +13679,16 @@ impl FloatingWbcSession {
         if maximum_feasibility_projection_sweeps.is_some_and(|sweeps| sweeps == 0) {
             return Err(PyValueError::new_err(
                 "maximum_feasibility_projection_sweeps must be positive when provided",
+            ));
+        }
+        if maximum_preference_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls)) {
+            return Err(PyValueError::new_err(
+                "maximum_preference_task_pseudoinverses must be in 1..=64 when provided",
+            ));
+        }
+        if maximum_style_task_pseudoinverses.is_some_and(|calls| !(1..=64).contains(&calls)) {
+            return Err(PyValueError::new_err(
+                "maximum_style_task_pseudoinverses must be in 1..=64 when provided",
             ));
         }
         if maximum_contact_solve_hold_ticks > 16 {
@@ -14000,6 +14018,8 @@ impl FloatingWbcSession {
                 use_feasibility_row_spans,
                 reuse_identical_hard_feasibility_seed,
                 continue_identical_exhausted_feasibility_prefix,
+                maximum_preference_task_pseudoinverses,
+                maximum_style_task_pseudoinverses,
                 ..DynamicWbcConfig::default()
             },
         )
@@ -15726,6 +15746,7 @@ impl FloatingWbcSession {
         mut clipped_steps_by_level_out: PyReadwriteArray2<'_, u16>,
         mut task_jacobi_sweeps_out: PyReadwriteArray1<'_, u16>,
         mut task_jacobi_sweeps_by_level_out: PyReadwriteArray2<'_, u16>,
+        mut low_authority_budget_exhausted_level_out: PyReadwriteArray1<'_, i8>,
         mut feasibility_projection_sweeps_out: PyReadwriteArray1<'_, u16>,
         mut feasibility_halfspace_projections_out: PyReadwriteArray1<'_, u32>,
         mut feasibility_polish_iterations_out: PyReadwriteArray1<'_, u16>,
@@ -15781,6 +15802,7 @@ impl FloatingWbcSession {
         mut limiting_center_of_mass_tube_halfspace_out: PyReadwriteArray1<'_, i8>,
         mut solve_attempt_count_out: PyReadwriteArray1<'_, u8>,
         mut solve_attempt_mask_out: PyReadwriteArray1<'_, u8>,
+        mut cumulative_low_authority_budget_exhausted_mask_out: PyReadwriteArray1<'_, u8>,
         mut solve_attempt_count_by_stage_out: PyReadwriteArray2<'_, u8>,
         mut cumulative_task_pseudoinverse_calls_out: PyReadwriteArray1<'_, u32>,
         mut cumulative_task_pseudoinverse_calls_by_level_out: PyReadwriteArray2<'_, u32>,
@@ -15853,6 +15875,8 @@ impl FloatingWbcSession {
         let mut clipped_steps_by_level_out = clipped_steps_by_level_out.as_array_mut();
         let task_jacobi_sweeps_out = task_jacobi_sweeps_out.as_slice_mut()?;
         let mut task_jacobi_sweeps_by_level_out = task_jacobi_sweeps_by_level_out.as_array_mut();
+        let low_authority_budget_exhausted_level_out =
+            low_authority_budget_exhausted_level_out.as_slice_mut()?;
         let feasibility_projection_sweeps_out = feasibility_projection_sweeps_out.as_slice_mut()?;
         let feasibility_halfspace_projections_out =
             feasibility_halfspace_projections_out.as_slice_mut()?;
@@ -15930,6 +15954,8 @@ impl FloatingWbcSession {
             limiting_center_of_mass_tube_halfspace_out.as_slice_mut()?;
         let solve_attempt_count_out = solve_attempt_count_out.as_slice_mut()?;
         let solve_attempt_mask_out = solve_attempt_mask_out.as_slice_mut()?;
+        let cumulative_low_authority_budget_exhausted_mask_out =
+            cumulative_low_authority_budget_exhausted_mask_out.as_slice_mut()?;
         let mut solve_attempt_count_by_stage_out = solve_attempt_count_by_stage_out.as_array_mut();
         let cumulative_task_pseudoinverse_calls_out =
             cumulative_task_pseudoinverse_calls_out.as_slice_mut()?;
@@ -16020,6 +16046,7 @@ impl FloatingWbcSession {
             && clipped_steps_by_level_out.shape() == [ticks, Priority::ALL.len()]
             && task_jacobi_sweeps_out.len() == ticks
             && task_jacobi_sweeps_by_level_out.shape() == [ticks, Priority::ALL.len()]
+            && low_authority_budget_exhausted_level_out.len() == ticks
             && feasibility_projection_sweeps_out.len() == ticks
             && feasibility_halfspace_projections_out.len() == ticks
             && feasibility_polish_iterations_out.len() == ticks
@@ -16075,6 +16102,7 @@ impl FloatingWbcSession {
             && limiting_center_of_mass_tube_halfspace_out.len() == ticks
             && solve_attempt_count_out.len() == ticks
             && solve_attempt_mask_out.len() == ticks
+            && cumulative_low_authority_budget_exhausted_mask_out.len() == ticks
             && solve_attempt_count_by_stage_out.shape() == [ticks, FLOATING_SOLVE_STAGE_COUNT]
             && cumulative_task_pseudoinverse_calls_out.len() == ticks
             && cumulative_task_pseudoinverse_calls_by_level_out.shape()
@@ -18544,6 +18572,7 @@ impl FloatingWbcSession {
                 self.output.solve.task_jacobi_sweeps_by_level.fill(0);
                 self.output.solve.clipped_steps = 0;
                 self.output.solve.clipped_steps_by_level.fill(0);
+                self.output.solve.low_authority_budget_exhausted_level = None;
                 self.output.solve.equality_pseudoinverse_reused = false;
                 self.output.solve.feasibility_projection_sweeps = 0;
                 self.output.solve.feasibility_halfspace_projections = 0;
@@ -18719,8 +18748,15 @@ impl FloatingWbcSession {
                     self.output.solve.task_jacobi_sweeps_by_level[priority as usize]
                         .min(u16::MAX as usize) as u16;
             }
+            low_authority_budget_exhausted_level_out[tick] = self
+                .output
+                .solve
+                .low_authority_budget_exhausted_level
+                .map_or(-1, |priority| priority as i8);
             solve_attempt_count_out[tick] = solve_attempts.count;
             solve_attempt_mask_out[tick] = solve_attempts.mask;
+            cumulative_low_authority_budget_exhausted_mask_out[tick] =
+                solve_attempts.low_authority_budget_exhausted_mask;
             cumulative_task_pseudoinverse_calls_out[tick] = solve_attempts
                 .task_pseudoinverse_calls
                 .min(u32::MAX as usize)

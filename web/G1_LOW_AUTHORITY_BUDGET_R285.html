@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 low-authority budget · R285</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 low-authority anytime budget · R285</h1>
+<blockquote>Mechanism **RETAINED DEFAULT-OFF** · hard feasibility **PASS** · degraded profiles **REJECTED** · authority **CLOSED**.</blockquote>
+<p>R285 evaluates the suggested ‘fewer QP iterations, continue operating’ boundary at the only soft layers allowed to degrade: Preference and terminal Style. Invariant, Viability, Intent, equality, bounds, and named hard rows are never capped. Exhaustion returns the current feasible solution, preserves every completed higher optimum, skips lower authority, and emits both a final-attempt level and a cumulative retry-safe mask.</p>
+<h2>Policy-free / physics-free replay</h2>
+<div class=table-wrap><table><thead><tr><th>profile</th><th>exhausted ticks</th><th>p50 µs</th><th>p99 µs</th><th>&gt;5 ms</th><th>root RMS m</th><th>CoM RMS m</th><th>stance-foot RMS m</th><th>normal contingencies</th></tr></thead><tbody><tr><td>unbounded</td><td>0</td><td>1779.9</td><td>5226.5</td><td>39</td><td>13.288</td><td>13.176</td><td>12.353</td><td>1353</td></tr><tr><td>style1</td><td>13</td><td>18.3</td><td>3947.1</td><td>5</td><td>28.039</td><td>28.005</td><td>27.273</td><td>1829</td></tr><tr><td>style2</td><td>2</td><td>16.3</td><td>4431.5</td><td>10</td><td>24.159</td><td>24.063</td><td>23.051</td><td>1669</td></tr><tr><td>pref20+style2</td><td>2</td><td>16.4</td><td>3883.4</td><td>8</td><td>24.159</td><td>24.063</td><td>23.051</td><td>1669</td></tr></tbody></table></div>
+<p>Style-2 exhausts on only ticks `[155, 158]`. It lowers p99 by 15.21% and 5 ms misses by 74.36%, but the first omitted terminal refinement is also the first semantic divergence. Root RMS then increases by 81.81% and normal-contact contingencies rise to 1669. This is a closed-loop sensitivity result, not a hard-feasibility failure: dynamics/contact residuals stay below 1e-8 and failed/infeasible ticks remain zero.</p>
+<h2>Decision</h2>
+<p>Retain the independently configurable and fully typed mechanism as a default-off degraded-mode primitive. Reject every measured finite profile for walking promotion. A static per-level call count is too blunt: two early Style truncations alter the later contact path. The next continuous design must carry explicit low-authority progress or use a supervisor with a tracking-error budget; it cannot infer safety from a local hard-feasible solve alone.</p>
+<p>The unbounded default reproduces the established 89-array digest exactly and reports zero false exhaustion. No policy, physics, actuator command, contact authority, or hardware authority is introduced.</p></main></body></html>

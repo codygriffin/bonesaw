@@ -912,6 +912,12 @@ pub struct DynamicWbcConfig {
     /// Opt-in continuation of an exhausted, bit-identical bounded problem in
     /// another ceiling-sized slice on the next call.
     pub continue_identical_exhausted_feasibility_prefix: bool,
+    /// Optional soft projected-solve ceiling for Preference. Hard feasibility
+    /// and all completed higher authority remain executable on exhaustion.
+    pub maximum_preference_task_pseudoinverses: Option<usize>,
+    /// Independent terminal Style ceiling. `None` preserves exact reference
+    /// behavior; finite values are an explicitly degraded profile.
+    pub maximum_style_task_pseudoinverses: Option<usize>,
     /// Optional locally linearized acceleration-level self-collision barrier
     /// for the floating solve. `None` preserves an explicit collision-disabled
     /// profile; trajectory command admission remains a separate gate.
@@ -936,6 +942,8 @@ impl Default for DynamicWbcConfig {
             use_feasibility_row_spans: false,
             reuse_identical_hard_feasibility_seed: false,
             continue_identical_exhausted_feasibility_prefix: false,
+            maximum_preference_task_pseudoinverses: None,
+            maximum_style_task_pseudoinverses: None,
             floating_collision_barrier: None,
             floating_world_collision_barrier: None,
         }
@@ -961,6 +969,12 @@ impl DynamicWbcConfig {
             && self
                 .feasibility_projection_continuation_violation_threshold
                 .is_none_or(|threshold| threshold.is_finite() && threshold >= 0.0)
+            && self
+                .maximum_preference_task_pseudoinverses
+                .is_none_or(|calls| (1..=64).contains(&calls))
+            && self
+                .maximum_style_task_pseudoinverses
+                .is_none_or(|calls| (1..=64).contains(&calls))
             && self
                 .floating_collision_barrier
                 .is_none_or(CollisionAccelerationBarrierConfig::validate)
@@ -1911,6 +1925,8 @@ impl FloatingDynamicWbc {
         let reuse_identical_hard_feasibility_seed = config.reuse_identical_hard_feasibility_seed;
         let continue_identical_exhausted_feasibility_prefix =
             config.continue_identical_exhausted_feasibility_prefix;
+        let maximum_preference_task_pseudoinverses = config.maximum_preference_task_pseudoinverses;
+        let maximum_style_task_pseudoinverses = config.maximum_style_task_pseudoinverses;
         Ok(Self {
             model,
             config,
@@ -1926,6 +1942,8 @@ impl FloatingDynamicWbc {
                 use_feasibility_row_spans,
                 reuse_identical_hard_feasibility_seed,
                 continue_identical_exhausted_feasibility_prefix,
+                maximum_preference_task_pseudoinverses,
+                maximum_style_task_pseudoinverses,
             },
         })
     }

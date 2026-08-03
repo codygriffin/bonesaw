@@ -301,6 +301,7 @@ impl ControllerOutput {
                 task_jacobi_sweeps_by_level: [0; Priority::ALL.len()],
                 clipped_steps: 0,
                 clipped_steps_by_level: [0; Priority::ALL.len()],
+                low_authority_budget_exhausted_level: None,
                 equality_pseudoinverse_reused: false,
                 feasibility_projection_sweeps: 0,
                 feasibility_halfspace_projections: 0,

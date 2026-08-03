@@ -2,7 +2,18 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r283 bounded feasibility polish
+## Current CPU checkpoint — r285 typed low-authority degradation
+
+R285 adds independent, default-off Preference and Style projected-solve
+ceilings. No ceiling applies to Invariant, Viability, Intent, equality, bound,
+or named hard-row work. Exhaustion returns the current hard-feasible partial
+optimum, preserves completed higher authority, skips lower levels, and is
+retained across retries as a fixed-capacity typed mask. The unbounded default
+reproduces the established 89-array digest. A Style-2 profile exhausts only at
+ticks 155/158 and reaches 4.431 ms p99 with zero hard failures, but changes the
+later contact path and worsens root RMS by 81.81%; it is rejected. The
+mechanism is retained as a degraded-mode primitive, not walking or command
+authority. See [`G1_LOW_AUTHORITY_BUDGET_R285.md`](../benchmarks/results/g1-low-authority-budget-r285/G1_LOW_AUTHORITY_BUDGET_R285.md).
 
 R284 promotes an arithmetic-identical Jacobi column-pointer kernel. Five
 CPU-4-pinned, policy-free/physics-free repeats preserve all 89 established

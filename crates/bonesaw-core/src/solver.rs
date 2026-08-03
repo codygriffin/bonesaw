@@ -329,6 +329,10 @@ pub struct SolveDiagnostics {
     pub clipped_steps: usize,
     /// Bound/inequality truncations attributed by priority.
     pub clipped_steps_by_level: [usize; Priority::ALL.len()],
+    /// Low-authority level stopped at its explicit projected-solve budget.
+    /// The returned solution remains hard-feasible and preserves every
+    /// completed higher-priority optimum; lower levels are not entered.
+    pub low_authority_budget_exhausted_level: Option<Priority>,
     /// The equality nullspace reused the exact seed pseudoinverse this tick.
     pub equality_pseudoinverse_reused: bool,
     /// Full cyclic projection sweeps used to find a hard-feasible seed.
@@ -372,6 +376,7 @@ impl Clone for SolveDiagnostics {
             task_jacobi_sweeps_by_level: self.task_jacobi_sweeps_by_level,
             clipped_steps: self.clipped_steps,
             clipped_steps_by_level: self.clipped_steps_by_level,
+            low_authority_budget_exhausted_level: self.low_authority_budget_exhausted_level,
             equality_pseudoinverse_reused: self.equality_pseudoinverse_reused,
             feasibility_projection_sweeps: self.feasibility_projection_sweeps,
             feasibility_halfspace_projections: self.feasibility_halfspace_projections,
@@ -404,6 +409,7 @@ impl Clone for SolveDiagnostics {
         self.task_jacobi_sweeps_by_level = source.task_jacobi_sweeps_by_level;
         self.clipped_steps = source.clipped_steps;
         self.clipped_steps_by_level = source.clipped_steps_by_level;
+        self.low_authority_budget_exhausted_level = source.low_authority_budget_exhausted_level;
         self.equality_pseudoinverse_reused = source.equality_pseudoinverse_reused;
         self.feasibility_projection_sweeps = source.feasibility_projection_sweeps;
         self.feasibility_halfspace_projections = source.feasibility_halfspace_projections;
@@ -445,6 +451,7 @@ impl SolveResult {
                 task_jacobi_sweeps_by_level: [0; Priority::ALL.len()],
                 clipped_steps: 0,
                 clipped_steps_by_level: [0; Priority::ALL.len()],
+                low_authority_budget_exhausted_level: None,
                 equality_pseudoinverse_reused: false,
                 feasibility_projection_sweeps: 0,
                 feasibility_halfspace_projections: 0,
@@ -703,6 +710,13 @@ pub struct HierarchicalSolver {
     /// ceiling-sized slice; diagnostics report cumulative work so callers can
     /// observe the continuation. Disabled by default.
     pub continue_identical_exhausted_feasibility_prefix: bool,
+    /// Optional projected-pseudoinverse ceiling for Preference. Exhaustion
+    /// returns the current hard-feasible solution and skips lower authority.
+    /// `None` preserves the unbounded semantic reference.
+    pub maximum_preference_task_pseudoinverses: Option<usize>,
+    /// Independent terminal Style ceiling. This may degrade force/effort
+    /// regularization without truncating the posture Preference solve.
+    pub maximum_style_task_pseudoinverses: Option<usize>,
 }
 
 impl Default for HierarchicalSolver {
@@ -717,6 +731,8 @@ impl Default for HierarchicalSolver {
             use_feasibility_row_spans: false,
             reuse_identical_hard_feasibility_seed: false,
             continue_identical_exhausted_feasibility_prefix: false,
+            maximum_preference_task_pseudoinverses: None,
+            maximum_style_task_pseudoinverses: None,
         }
     }
 }
@@ -1400,7 +1416,7 @@ impl HierarchicalSolver {
         workspace.nullspace[..dof * dof]
             .copy_from_slice(&workspace.equality_nullspace[..dof * dof]);
 
-        for priority in Priority::ALL {
+        'priority_levels: for priority in Priority::ALL {
             let declared_rows: usize = workspace
                 .ordered_tasks
                 .iter()
@@ -1469,8 +1485,22 @@ impl HierarchicalSolver {
             let mut carry_task_correction = false;
             let mut task_projector_valid = false;
             let mut task_projector_ready = false;
+            let mut level_budget_exhausted = false;
             for _ in 0..=dof.saturating_add(workspace.ordered_constraints.len()) {
                 if !carry_task_correction {
+                    let level_budget = match priority {
+                        Priority::Preference => self.maximum_preference_task_pseudoinverses,
+                        Priority::Style => self.maximum_style_task_pseudoinverses,
+                        _ => None,
+                    };
+                    if level_budget.is_some_and(|limit| {
+                        result.diagnostics.task_pseudoinverse_calls_by_level[priority as usize]
+                            >= limit
+                    }) {
+                        result.diagnostics.low_authority_budget_exhausted_level = Some(priority);
+                        level_budget_exhausted = true;
+                        break;
+                    }
                     multiply(
                         &workspace.level_matrix,
                         rows,
@@ -1648,7 +1678,7 @@ impl HierarchicalSolver {
             // Lower levels may only move in the null space of this level in
             // addition to all previously accumulated null spaces. Style is
             // terminal, so constructing its projector cannot affect output.
-            if priority != Priority::Style && !task_projector_ready {
+            if !level_budget_exhausted && priority != Priority::Style && !task_projector_ready {
                 if !projected_matches_nullspace {
                     multiply(
                         &workspace.level_matrix,
@@ -1709,6 +1739,9 @@ impl HierarchicalSolver {
                 rows: declared_rows,
                 l2: squared_norm(&workspace.rhs[..rows]).sqrt(),
             });
+            if level_budget_exhausted {
+                break 'priority_levels;
+            }
         }
 
         for index in 0..dof {
@@ -1873,6 +1906,7 @@ fn prepare_result(result: &mut SolveResult, dof: usize) {
     result.diagnostics.task_jacobi_sweeps_by_level.fill(0);
     result.diagnostics.clipped_steps = 0;
     result.diagnostics.clipped_steps_by_level.fill(0);
+    result.diagnostics.low_authority_budget_exhausted_level = None;
     result.diagnostics.equality_pseudoinverse_reused = false;
     result.diagnostics.feasibility_projection_sweeps = 0;
     result.diagnostics.feasibility_halfspace_projections = 0;
@@ -5662,6 +5696,138 @@ mod tests {
         assert!(result.diagnostics.level_residuals[0].l2 < 1e-10);
         #[cfg(feature = "clipped-task-nullspace-repair-experiment")]
         assert_eq!(result.diagnostics.task_pseudoinverse_calls, 1);
+    }
+
+    #[test]
+    fn low_authority_budget_returns_feasible_partial_optimum_and_skips_lower_authority() {
+        let preference = Task {
+            stable_id: 1,
+            kind: TaskKind::Posture,
+            priority: Priority::Preference,
+            jacobian: DMatrix::from_row_slice(1, 2, &[1.0, 1.0]),
+            target_velocity: DVector::from_vec(vec![2.0]),
+            weight: 1.0,
+        };
+        let style = Task {
+            stable_id: 2,
+            kind: TaskKind::Posture,
+            priority: Priority::Style,
+            jacobian: DMatrix::from_row_slice(1, 2, &[0.0, 1.0]),
+            target_velocity: DVector::from_vec(vec![-5.0]),
+            weight: 1.0,
+        };
+        let solver = HierarchicalSolver {
+            maximum_preference_task_pseudoinverses: Some(1),
+            ..HierarchicalSolver::default()
+        };
+        let result = solver.solve(
+            2,
+            &[preference, style],
+            &VelocityBounds {
+                lower: DVector::from_vec(vec![-10.0, -10.0]),
+                upper: DVector::from_vec(vec![0.5, 10.0]),
+            },
+        );
+        assert_eq!(result.velocity.as_slice(), &[0.5, 0.5]);
+        assert_eq!(
+            result.diagnostics.low_authority_budget_exhausted_level,
+            Some(Priority::Preference)
+        );
+        assert_eq!(
+            result.diagnostics.task_pseudoinverse_calls_by_level[Priority::Preference as usize],
+            1
+        );
+        assert_eq!(
+            result.diagnostics.task_pseudoinverse_calls_by_level[Priority::Style as usize],
+            0
+        );
+        assert_eq!(result.diagnostics.status, SolveStatus::SolvedWithSlack);
+        assert!(result.diagnostics.maximum_constraint_violation <= HARD_CONSTRAINT_TOLERANCE);
+    }
+
+    #[test]
+    fn low_authority_budget_never_caps_intent() {
+        let task = Task {
+            stable_id: 1,
+            kind: TaskKind::Velocity,
+            priority: Priority::Intent,
+            jacobian: DMatrix::from_row_slice(1, 2, &[1.0, 1.0]),
+            target_velocity: DVector::from_vec(vec![2.0]),
+            weight: 1.0,
+        };
+        let solver = HierarchicalSolver {
+            maximum_preference_task_pseudoinverses: Some(1),
+            ..HierarchicalSolver::default()
+        };
+        let result = solver.solve(
+            2,
+            &[task],
+            &VelocityBounds {
+                lower: DVector::from_vec(vec![-10.0, -10.0]),
+                upper: DVector::from_vec(vec![0.5, 10.0]),
+            },
+        );
+        assert!((result.velocity[0] - 0.5).abs() < 1e-10);
+        assert!((result.velocity[1] - 1.5).abs() < 1e-10);
+        assert_eq!(
+            result.diagnostics.low_authority_budget_exhausted_level,
+            None
+        );
+        assert_eq!(result.diagnostics.task_pseudoinverse_calls, 2);
+    }
+
+    #[test]
+    fn style_budget_preserves_completed_preference_and_hard_feasibility() {
+        let preference = Task {
+            stable_id: 1,
+            kind: TaskKind::Posture,
+            priority: Priority::Preference,
+            jacobian: DMatrix::from_row_slice(1, 2, &[1.0, 0.0]),
+            target_velocity: DVector::from_vec(vec![1.0]),
+            weight: 1.0,
+        };
+        let style = Task {
+            stable_id: 2,
+            kind: TaskKind::Posture,
+            priority: Priority::Style,
+            jacobian: DMatrix::from_row_slice(1, 2, &[0.0, 1.0]),
+            target_velocity: DVector::from_vec(vec![2.0]),
+            weight: 1.0,
+        };
+        let solver = HierarchicalSolver {
+            maximum_style_task_pseudoinverses: Some(1),
+            ..HierarchicalSolver::default()
+        };
+        let result = solver.solve(
+            2,
+            &[preference, style],
+            &VelocityBounds {
+                lower: DVector::from_vec(vec![-10.0, -10.0]),
+                upper: DVector::from_vec(vec![10.0, 0.5]),
+            },
+        );
+        assert_eq!(result.velocity.as_slice(), &[1.0, 0.5]);
+        assert_eq!(
+            result.diagnostics.low_authority_budget_exhausted_level,
+            Some(Priority::Style)
+        );
+        assert_eq!(
+            result.diagnostics.task_pseudoinverse_calls_by_level[Priority::Preference as usize],
+            1
+        );
+        assert_eq!(
+            result.diagnostics.task_pseudoinverse_calls_by_level[Priority::Style as usize],
+            1
+        );
+        let preference_residual = result
+            .diagnostics
+            .level_residuals
+            .iter()
+            .find(|residual| residual.priority == Priority::Preference)
+            .expect("preference residual");
+        assert!(preference_residual.l2 < 1e-12);
+        assert_eq!(result.diagnostics.status, SolveStatus::SolvedWithSlack);
+        assert!(result.diagnostics.maximum_constraint_violation <= HARD_CONSTRAINT_TOLERANCE);
     }
 
     #[test]
