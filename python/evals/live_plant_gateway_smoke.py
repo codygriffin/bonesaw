@@ -106,6 +106,7 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             "consumed_hz": 50,
             "window_size": 5,
             "wbc_source": "latest_completed_250hz_substep",
+            "prestart_samples": 0,
         }, hello["contact_observation"]
         assert hello["simulator"]["backend"] == "MuJoCo", hello
         assert hello["maximum_force_n"] == gateway["maximum_force_n"], hello
