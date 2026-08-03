@@ -15,12 +15,15 @@ import pathlib
 from datetime import datetime, timezone
 from typing import Any
 
+import mujoco
+
 import upkie_live_dynamic_contact_transition_r300 as r300
 import upkie_live_load_reserve_matrix_r310 as r310
 import upkie_live_measured_landing_r312 as r312
 
 
 REVISION = "upkie-live-force-backed-relock-r313"
+FROZEN_MUJOCO_VERSION = "3.3.7"
 TICKS = r312.COMPOSITION_TICKS
 FORCES_N = r312.COMPOSITION_FORCES_N
 TERMINAL_FORCES_N = (-8.0, -6.0, 6.0, 8.0)
@@ -199,6 +202,8 @@ def evaluate(
     selected_profiles = [item for item in screen if item["selected"]]
     row_by_force = {item["force_y_n"]: item for item in rows}
     mechanism_gates = {
+        "frozen_mujoco_version_matches": mujoco.__version__
+        == FROZEN_MUJOCO_VERSION,
         "candidate_is_default_off": not bool(
             r312.PUBLIC_CONTROLLER_OPTIONS.get("measured_landing_enabled", False)
         ),
@@ -282,6 +287,10 @@ def evaluate(
     return {
         "revision": REVISION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "environment": {
+            "mujoco_version": mujoco.__version__,
+            "frozen_mujoco_version": FROZEN_MUJOCO_VERSION,
+        },
         "candidate_default_enabled": False,
         "wheel_radius_m": WHEEL_RADIUS_M,
         "preload_depth_m": PRELOAD_DEPTH_M,
@@ -312,6 +321,9 @@ def markdown(metrics: dict[str, Any]) -> str:
         "Status: **BOUNDED RELOCK QUALIFIED; FULL RECOVERY REJECTED; DEFAULT-OFF**.",
         "",
         metrics["finding"],
+        "",
+        f'Frozen simulator: **MuJoCo {metrics["environment"]["frozen_mujoco_version"]}** '
+        f'(observed `{metrics["environment"]["mujoco_version"]}`).',
         "",
         "## Selected public-profile consequence",
         "",

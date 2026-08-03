@@ -4,6 +4,8 @@ Status: **BOUNDED RELOCK QUALIFIED; FULL RECOVERY REJECTED; DEFAULT-OFF**.
 
 R313 keeps a bounded normal request active through measured-load debounce. A model-radius-minus-0.9-mm target uniquely passes the frozen screen, force-qualifies at least three mirrored ±6 N relocks, and moves their terminal boundaries to tick 236 without moving the ±8 N guardrails earlier. All four terminal cases still fall, so the mechanism remains default-off.
 
+Frozen simulator: **MuJoCo 3.3.7** (observed `3.3.7`).
+
 ## Selected public-profile consequence
 
 | force Y N | baseline terminal | R312 terminal | R313 terminal | force-qualified ticks |
@@ -19,6 +21,7 @@ R313 keeps a bounded normal request active through measured-load debounce. A mod
 
 ## Mechanism gates
 
+- PASS `frozen_mujoco_version_matches`
 - PASS `candidate_is_default_off`
 - PASS `model_radius_minus_declared_preload_is_target`
 - PASS `screen_selects_exactly_declared_profile`

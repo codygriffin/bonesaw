@@ -17,6 +17,10 @@ class UpkieForceBackedRelockR313Test(unittest.TestCase):
                 forces=r313.TERMINAL_FORCES_N,
             )
         self.assertTrue(metrics["bounded_relock_qualified"])
+        self.assertEqual(
+            metrics["environment"]["mujoco_version"],
+            r313.FROZEN_MUJOCO_VERSION,
+        )
         self.assertFalse(metrics["recovery_promoted"])
         self.assertTrue(all(metrics["mechanism_gates"].values()))
         self.assertFalse(all(metrics["promotion_gates"].values()))

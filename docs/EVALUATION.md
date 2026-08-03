@@ -14,7 +14,10 @@ that force-qualifies both mirrored `6 N` cases, never moves the frozen R312
 terminal guardrails earlier, and adds no nonadmission. Both signs qualify at
 ticks `57`, `137`, and `154`; their terminal boundaries move to tick `236`.
 The Rust unit is policy- and physics-free; MuJoCo is used only for replaceable
-physical consequence. Four falls remain, so recovery promotion stays red. See
+physical consequence. That frozen consequence fixture is explicitly pinned to
+MuJoCo 3.3.7: even sub-ulp first-step changes can diverge later contact events,
+so a version mismatch is an environment failure rather than a WBC regression.
+Four falls remain, so recovery promotion stays red. See
 [`UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md`](../benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
 
 ### Revision r312 measured landing/reload phase boundary

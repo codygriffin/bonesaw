@@ -17,7 +17,8 @@ minus 0.9 mm preload. On the current R310 controller plus R311 repeated
 upper-base holdout, both `±6 N` cases force-qualify at ticks `57`, `137`, and
 `154`, moving their R312 terminal boundaries from `84/83` to `236`. The `±8 N`
 boundaries remain at `79/69`; no active row adds a nonadmission or reset;
-controller/worker p99 stay below `0.172/2.694 ms`; and exact replay passes.
+controller/worker p99 stay below `0.207/2.830 ms`; and exact replay passes on
+the explicitly frozen MuJoCo 3.3.7 consequence fixture.
 Falls remain four of eight, so R313 is a qualified default-off relock mechanism,
 not public recovery authority. The next slice is continuous body-moment
 rejection before the third loss. See

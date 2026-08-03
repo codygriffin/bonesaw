@@ -376,6 +376,9 @@ This is an engineering prototype, not a safety-rated robot controller.
   move their R312 terminal boundaries from `84/83` to `236`; `±8 N` guardrails
   do not move earlier, active rows remain admitted, and allocation stays zero.
   All four terminal cases still fall, so the mechanism remains default-off.
+  The replaceable consequence fixture is pinned to MuJoCo 3.3.7 and records
+  that version as a mechanism gate, preventing simulator drift from being
+  reported as a WBC regression.
   See the [r313 force-backed relock report](benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
 - R312 qualifies the causal phase boundary without promoting its recovery
   action. Persistent Rust consumes the prior contact window and measured load,
