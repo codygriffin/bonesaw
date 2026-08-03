@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "landing-relock-boundaries-r313",
+  "revision": "causal-moment-rejection-r314",
   "updated": "2026-08-03",
-  "stage": "R313 qualifies repeated force-backed relock and a fail-closed landing envelope mechanism · both physical recovery candidates remain default-off · R310 remains public",
-  "checkpoint": "R313 closes two mechanism boundaries while keeping physical promotion separate. The bounded Rust normal request now survives geometric recontact until measured-load debounce, force-qualifying three mirrored ±6 N relocks and delaying those terminal boundaries to tick 236 without moving ±8 N guardrails earlier. A separate fixed-size tilt/speed/height envelope is causal, finite, allocation-free, deadline-safe, and replay exact, but still yields four falls and moves three terminal boundaries earlier. The relock mechanism is qualified; the attenuation policy is rejected; neither grants public authority. The next slice is continuous support-sustaining body-moment rejection before the third loss.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's persistent force-backed relock request and fail-closed landing envelope, strict lexicographic support authority, the continuous wheel-load reserve request, bounded feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask never becomes contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo 3.3.7 consequence; it does not compute actions. Continuous body-moment rejection, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
+  "stage": "R314 qualifies causal external-moment observation and Rust contact-moment targeting · physical recovery remains default-off · R310 remains public",
+  "checkpoint": "R314 closes the delayed-wrench observation seam. MuJoCo applies a declared wrench after each 50 Hz WBC solve; the worker retains the completed r×F moment for exactly one control tick, and Rust owns the opposing centroidal angular-momentum target. The mechanism is finite, allocation-free, deadline-safe, mode-firewall-clean, and replay exact. On the frozen repeated upper-base holdout terminal boundaries move R313 79/236/236/69 to 80/331/322/70 for -8/-6/+6/+8 N, but four falls remain. No public authority is promoted; the next slice is physical support/moment capacity before the third loss.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the measured-mask firewall, R313's persistent force-backed relock request and fail-closed landing envelope, R314's delayed external-moment target, strict lexicographic support authority, the continuous wheel-load reserve request, bounded feasibility, typed hard witnesses, and allocation-free telemetry. The private relock request mask never becomes contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel promotion. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310 remains the public controller. Python owns immutable screens, wrench schedules, and replaceable MuJoCo 3.3.7 consequence; it does not compute actions. Physical support/moment capacity, calibrated actuation/thermal state, authenticated transport, browser frame time, broader external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -25,6 +25,10 @@
     {
       "name": "Continuous landing-request envelope",
       "detail": "R312's bounded request → Rust-owned smoothstep attenuation from measured root tilt, horizontal speed, and height · fail-closed at declared limits · fixed caller-owned authority/qdd scaling and diagnostic witness · no contact promotion, reset, timeout, or solver-budget change · R313 passes causal, mode-firewall, finite, deadline, zero-allocation, and exact-replay gates but remains default-off because the eight-force R311 holdout still has four terminal falls and three earlier boundaries"
+    },
+    {
+      "name": "Causal external-moment rejection",
+      "detail": "MuJoCo applies the current declared body wrench only after the WBC solve · the worker retains the completed world r×F moment for one 50 Hz tick · fixed-size observation crosses the PyO3 boundary · Rust's centroidal angular-momentum task requests the opposing contact moment · finite, mode-firewall, zero-allocation, deadline, and replay gates pass · R314 terminal boundaries 80/331/—/—/—/—/322/70 versus R313 79/236/—/—/—/—/236/69 · four falls remain and the profile is default-off"
     },
     {
       "name": "Measured contact admission",
@@ -118,6 +122,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r314-causal-external-moment-rejection",
+      "title": "Feed the last completed MuJoCo moment into Rust without anticipation",
+      "status": "mechanism qualified · recovery rejected · default-off",
+      "detail": "The live worker applies a declared wrench after each WBC solve, stores the completed world r×F moment, and passes it to the next 50 Hz call. Rust owns the fixed-size centroidal angular-momentum target and Python only transports the observation. The eight-force repeated upper-base holdout is finite, zero-allocation, deadline-clean, mode-firewall-clean, replay-exact, and never earlier than R313, but still has four terminal falls. R310 remains public and no authority follows."
+    },
     {
       "id": "r313-force-backed-relock-persistence",
       "title": "Keep landing effort through measured-load debounce without granting support",

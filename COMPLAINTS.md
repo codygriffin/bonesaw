@@ -3,6 +3,18 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R314 closes the causal observation seam for continuous body-moment rejection:
+MuJoCo applies the declared wrench after each WBC solve, the worker retains the
+completed `r×F` moment for exactly one 50 Hz tick, and Rust owns the opposing
+centroidal contact-moment target. The full eight-force repeated upper-base
+holdout is finite, allocation-free, deadline-clean, mode-firewall-clean, and
+replay-exact; terminal boundaries move `79/236/236/69` (R313) to
+`80/331/322/70` for the terminal `-8/-6/+6/+8 N` cases. Four falls remain, so
+no authority is promoted. The unresolved complaint is now the physical
+support/moment capacity needed to survive the third loss, not missing wrench
+transport, timeout, or reset tolerance. See the
+[R314 report](benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+
 R313 closes the force-backed relock-persistence seam without closing recovery.
 Persistent Rust remembers the one relocking leg and continues its bounded
 normal request through geometric recontact and positive debounce; measured

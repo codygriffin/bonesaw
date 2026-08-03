@@ -277,6 +277,12 @@ class LiveUpkiePlant:
         self.wbc_observation_frame_index = 0
         self.no_contact_active = np.zeros(2, np.uint8)
         self.no_wheel_normal_force_n = np.zeros(2, np.float64)
+        # A delayed, plant-owned external wrench observation.  The current
+        # command is applied only after the WBC solve; this buffer is therefore
+        # the last completed MuJoCo load and keeps any moment-rejection task
+        # causal at the 50 Hz boundary.
+        self.last_external_wrench_world = np.zeros(6, np.float64)
+        self.last_external_wrench_valid = False
         self.last_result: dict[str, Any] | None = None
 
     def reset(self, *, numeric: bool = False, fall: bool = False) -> None:
@@ -339,6 +345,9 @@ class LiveUpkiePlant:
                 "application_point_frame": "world",
                 "measured_impact_impulse": "not_exposed_by_live_gateway",
                 "unobserved_model_reserve": "not_estimated_by_live_gateway",
+                "wbc_external_moment_observation": (
+                    "last_completed_world_r_cross_F, consumed one 50 Hz solve later"
+                ),
             },
             "simulator": {
                 "backend": "MuJoCo",
@@ -415,6 +424,9 @@ class LiveUpkiePlant:
         if requested_reset:
             self.reset()
         self.paused = requested_paused
+        if self.paused:
+            self.last_external_wrench_world.fill(0.0)
+            self.last_external_wrench_valid = False
         command = request.get("external_load")
         active = isinstance(command, dict) and bool(command.get("active", False))
         if self.paused and active:
@@ -562,6 +574,11 @@ class LiveUpkiePlant:
                 observed_wheel_normal_force_n=(
                     self.wbc_observation_wheel_normal_force_n
                 ),
+                observed_external_wrench_world=(
+                    self.last_external_wrench_world
+                    if self.last_external_wrench_valid
+                    else None
+                ),
                 observed_contact_available=True,
             )
             latest_result = result
@@ -624,6 +641,13 @@ class LiveUpkiePlant:
             )
             physics_contact_window_end = self.physics_contact_frame_index
             physics_contact_window_valid = True
+            if active:
+                self.last_external_wrench_world[:3] = applied_moment_world
+                self.last_external_wrench_world[3:] = force
+                self.last_external_wrench_valid = True
+            else:
+                self.last_external_wrench_world.fill(0.0)
+                self.last_external_wrench_valid = False
             latest_observed_contact_active = self.wbc_observation_active
             latest_physics_contact_active = self.observed_contact_active
             latest_wbc_observed_wheel_normal_force_n = (

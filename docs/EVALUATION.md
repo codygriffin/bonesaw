@@ -4,6 +4,19 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r314 causal external-moment rejection
+
+`python/evals/upkie_live_moment_rejection_r314.py` composes the R313 measured
+landing/relock boundary with an opt-in Rust centroidal angular-momentum target.
+The current declared wrench is applied after the solve, then its MuJoCo moment
+is consumed one control tick later; Python transports the fixed-size observation
+and Rust owns the contact-moment target. The eight mirrored repeated upper-base
+cases require finite moments, zero allocations/nonadmissions, mode firewall,
+deadline, exact replay, and no earlier terminal boundary than R313. Those
+mechanism gates pass. Four terminal falls remain, so promotion gates stay red
+and the profile is default-off. The retained report is
+[`UPKIE_LIVE_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+
 ### Revision r313 continuous landing-request envelope
 
 `python/evals/upkie_live_landing_envelope_r313.py` compares R310, the R312

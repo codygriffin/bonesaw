@@ -2,6 +2,22 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current causal external-moment target — r314 qualified mechanism, recovery rejected
+
+R314 exposes the existing Rust centroidal angular-momentum task to the live
+Upkie boundary. MuJoCo applies the current declared body wrench only after the
+50 Hz WBC call; the worker stores the completed moment and supplies it to the
+next solve. Rust then owns the opposing contact-moment target in fixed-size
+storage. The candidate is finite, deterministic, allocation-free, mode-firewall
+clean, replay-exact, and remains below the controller/worker deadlines.
+
+On the frozen eight-force repeated upper-base holdout, candidate terminal ticks
+are `80/331/—/—/—/—/322/70` for `-8/-6/-4/-2/+2/+4/+6/+8 N`, versus R313
+`79/236/—/—/—/—/236/69`; no boundary moves earlier and all active rows have
+zero nonadmission. The candidate still reaches four terminal falls, so this is
+qualified causal moment-rejection evidence, not public recovery authority. See
+[`UPKIE_LIVE_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-moment-rejection-r314/UPKIE_LIVE_MOMENT_REJECTION_R314.md).
+
 ## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
 
 R313 keeps the R312 measured-contact phase boundary and adds a fixed-size Rust
