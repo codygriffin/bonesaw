@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import pathlib
+import sys
 import tempfile
 import unittest
+
+EVALS = pathlib.Path(__file__).resolve().parent
+if str(EVALS) not in sys.path:
+    sys.path.insert(0, str(EVALS))
 
 import upkie_live_force_backed_relock_r313 as r313
 
