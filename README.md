@@ -765,6 +765,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   roundoff and the aligned upstream Upkie law has zero canonical bit
   mismatches over 100,000 samples. Results remain boundary-labeled: lower
   Bonesaw latency/RSS does not erase PlaCo's lower tracking error on two tasks.
+- An r317 floating Upkie reference audit. Isolated Bonesaw and PlaCo workers
+  consume the same 256 policy-, integration-, and physics-free states for
+  2,048 timed queries each. Both solve 256/256 states. PlaCo's independent
+  weighted point-contact QP has lower solve-only latency and joint-target RMS;
+  Bonesaw has lower full-query mean cost, roughly 4.6x lower process RSS, exact
+  nonholonomic rolling rows, and zero Rust allocations. The report retains
+  output divergence and eight execution-order windows. Because PlaCo anchors
+  material wheel-center points while Bonesaw models rolling contact, this is a
+  nearby full-body reference, not falsely exact controller parity.
 - An r90 correction to live compute authority. A streamed 50 Hz flat-foot
   frame contains four 5 ms state-local queries; the server now times them
   independently and streams maximum-query latency, query count, and summed

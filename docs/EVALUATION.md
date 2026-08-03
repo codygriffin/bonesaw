@@ -216,6 +216,27 @@ renders seven latency/tracking charts; its machine-readable companion retains
 it with `scripts/run_reference_trace_report.sh` from
 `benchmarks/results/reference-r89`.
 
+### Revision r317 floating Upkie PlaCo reference
+
+R317 closes part of the full-body reference gap without pretending that two
+different wheel-contact laws are equivalent. Two isolated processes consume
+the same 256 frozen Upkie states and acceleration targets for 2,048 measured
+queries each. There is no policy, state integration, simulator, or physics
+rollout. Bonesaw uses its Rust hierarchical WBC and nonholonomic RollingWheel
+rows; PlaCo uses its independently implemented floating DynamicsSolver with
+two stiff unilateral material-point contacts at the wheel centers.
+
+Both implementations solve 256/256 states with zero 0.5 ms misses. On the
+recorded host, Bonesaw solve p50/p99 is about 120/138 us and full-query mean is
+121 us, versus PlaCo 56/68 us solve-only and 133 us full-query mean. Bonesaw's
+peak process RSS is about 87 MiB versus PlaCo 405 MiB, with zero Rust
+allocations and zero collections in either measured loop. PlaCo records much
+lower joint-acceleration target RMS; root-horizontal tracking is mixed across
+the eight lossless 32-state windows. Raw qdd, torque, contact force, success,
+and timing arrays are retained beside the report. Exact rolling-controller
+parity remains open until an independent solver consumes the same
+nonholonomic row and force basis.
+
 ### Revision r90 live query timing contract
 
 R88's physical trace was valid, but its `solve_us` timing label was not: the

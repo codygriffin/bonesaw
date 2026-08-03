@@ -49,8 +49,11 @@ qualified selection evidence; R316 keeps public authority unchanged.
 The live stream now exposes authored per-actuator effort limits and measured
 effort/velocity/mechanical-power utilization for the browser budget bars, but
 that is still evidence only: calibrated actuator/thermal limits, hardware
-realization, and an independent full-body reference-controller comparison
-remain separate gates.
+realization, and exact rolling-controller parity remain separate gates. R317
+now supplies a first independent floating full-body PlaCo comparison on 256
+shared frozen states, including CPU, memory, jitter, tracking, divergence, and
+execution windows. Its material wheel-center contact is deliberately not
+equated with Bonesaw's nonholonomic RollingWheel row.
 
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated

@@ -2743,6 +2743,16 @@ Also implemented:
   typing, friction/effort sweeps, task/nullspace residuals, memory, CPU,
   latency/jitter, work correlation, execution-order windows, and the pinned
   official Upkie scalar-law comparison;
+- an r317 isolated floating Upkie reference comparison on the retained r123
+  256-state corpus. Current Rust Bonesaw and PlaCo DynamicsSolver workers each
+  execute 2,048 timed queries in separate processes and solve every state.
+  The report retains solve-only latency/jitter, full-query wall cost, CPU/RSS,
+  GC/allocation evidence, target tracking, qdd/torque/normal-force divergence,
+  and eight lossless execution windows. PlaCo is faster inside its weighted
+  point-contact solve and tracks the joint-acceleration target more closely;
+  Bonesaw uses much less process memory and preserves exact nonholonomic wheel
+  rows. PlaCo's material wheel-center contacts are not RollingWheel, so this
+  admits an independent nearby full-body reference but not exact parity;
 - an r124 long contact-transition replay over the same policy-, estimator-,
   integration-, and physics-free boundary. The PyO3 trace accepts an optional
   fixed-shape `[ticks, targets]` mode array while keeping activity and rolling

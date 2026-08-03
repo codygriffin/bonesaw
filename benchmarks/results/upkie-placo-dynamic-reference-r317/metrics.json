@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "revision": "upkie-placo-dynamic-reference-r317",
+  "host": {
+    "platform": "Linux-6.18.7-76061807-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]"
+  },
+  "input": "benchmarks/results/upkie-state-local-wbc-r123/upkie-state-local-wbc-raw.npz",
+  "samples": 256,
+  "policy": null,
+  "physics": null,
+  "integration": null,
+  "bonesaw": {
+    "implementation": "Bonesaw Rust floating rolling WBC",
+    "version": "0.1.0",
+    "contact_model": "two nonholonomic RollingWheel YZ+rolling-X rows",
+    "samples": 256,
+    "success_count": 256,
+    "status_counts": {
+      "0": 89,
+      "1": 167
+    },
+    "tracking": {
+      "root_angular_rad_s2": {
+        "rms": 0.00012641933676066247,
+        "norm": {
+          "minimum": 1.0330144571070358e-15,
+          "mean": 5.6003343124268574e-05,
+          "stddev": 0.0002116817698336888,
+          "mad": 2.170324035739671e-06,
+          "p50": 2.170324039530106e-06,
+          "p95": 0.0002102242612003413,
+          "p99": 0.001123005058056605,
+          "p99_9": 0.0018131735699077475,
+          "maximum": 0.0019065159181367159
+        }
+      },
+      "root_horizontal_m_s2": {
+        "rms": 0.8865639347035602,
+        "norm": {
+          "minimum": 2.151026538218737e-08,
+          "mean": 0.8069335505058809,
+          "stddev": 0.959609017101283,
+          "mad": 0.42948602545607295,
+          "p50": 0.42949878174666345,
+          "p95": 2.8445384962814027,
+          "p99": 2.9283874325929835,
+          "p99_9": 2.932868592352741,
+          "maximum": 2.9329536875319095
+        }
+      },
+      "root_height_m_s2": {
+        "rms": 0.00011969541291372033,
+        "norm": {
+          "minimum": 2.7755575615628914e-17,
+          "mean": 3.7968251717366e-05,
+          "stddev": 0.00011351389225162153,
+          "mad": 1.175289924092245e-06,
+          "p50": 1.1752899254383903e-06,
+          "p95": 0.00016565747887991103,
+          "p99": 0.0007068321177702032,
+          "p99_9": 0.0008592805928987207,
+          "maximum": 0.0008958470122432394
+        }
+      },
+      "joint_rad_s2": {
+        "rms": 141.78378874275543,
+        "norm": {
+          "minimum": 6.8791647892159125,
+          "mean": 335.84573383964937,
+          "stddev": 88.45054868800536,
+          "mad": 15.029293593136828,
+          "p50": 374.17821290465713,
+          "p95": 390.94168712587583,
+          "p99": 391.90818358470074,
+          "p99_9": 391.9763917543561,
+          "maximum": 391.97712908245006
+        }
+      }
+    },
+    "timing": {
+      "latency_us": {
+        "minimum": 109.637,
+        "mean": 119.05424462890625,
+        "stddev": 4.187232934373208,
+        "mad": 2.5095000000000027,
+        "p50": 118.8295,
+        "p95": 125.82584999999999,
+        "p99": 131.17743,
+        "p99_9": 144.23394100000073,
+        "maximum": 147.448
+      },
+      "adjacent_jitter_us": {
+        "minimum": 0.000999999999990564,
+        "mean": 3.6158500244259892,
+        "stddev": 3.3509070888351435,
+        "mad": 1.6540000000000106,
+        "p50": 2.664999999999992,
+        "p95": 10.845999999999977,
+        "p99": 15.0334,
+        "p99_9": 20.194320000000022,
+        "maximum": 26.299999999999997
+      },
+      "deadline_misses": {
+        "0.5ms": 0,
+        "1ms": 0,
+        "2ms": 0,
+        "5ms": 0,
+        "10ms": 0,
+        "20ms": 0
+      }
+    },
+    "resources": {
+      "queries": 2048,
+      "wall_seconds": 0.244287184,
+      "cpu_seconds": 0.244262416,
+      "cpu_to_wall": 0.9998986111363092,
+      "queries_per_second": 8383.575292267482,
+      "full_query_mean_us": 119.2808515625,
+      "rss_before_bytes": 93237248,
+      "rss_after_bytes": 93237248,
+      "rss_delta_bytes": 0,
+      "peak_rss_before_bytes": 93020160,
+      "peak_rss_after_bytes": 93020160,
+      "gc_collections": 0,
+      "native_allocation_calls": 0,
+      "native_allocated_bytes": 0
+    }
+  },
+  "placo": {
+    "implementation": "PlaCo floating DynamicsSolver",
+    "version": "0.9.23",
+    "contact_model": "two stiff unilateral material point contacts at wheel centers",
+    "samples": 256,
+    "success_count": 256,
+    "tracking": {
+      "root_angular_rad_s2": {
+        "rms": 1.08093484173207e-16,
+        "norm": {
+          "minimum": 2.9916365996083135e-22,
+          "mean": 1.416155764873209e-16,
+          "stddev": 1.224648213091165e-16,
+          "mad": 7.479570640140578e-17,
+          "p50": 1.1102230248004888e-16,
+          "p95": 3.9005622967704864e-16,
+          "p99": 5.551115123152295e-16,
+          "p99_9": 6.173869985679191e-16,
+          "maximum": 6.383782391705656e-16
+        }
+      },
+      "root_horizontal_m_s2": {
+        "rms": 0.990485856975165,
+        "norm": {
+          "minimum": 0.0012701146332232478,
+          "mean": 1.2176512391611292,
+          "stddev": 0.6924232271559215,
+          "mad": 0.616053501771803,
+          "p50": 1.2595561823786534,
+          "p95": 2.2298535940685937,
+          "p99": 2.3121988152609494,
+          "p99_9": 2.388523496758061,
+          "maximum": 2.3967387757902507
+        }
+      },
+      "root_height_m_s2": {
+        "rms": 2.764125614482451e-15,
+        "norm": {
+          "minimum": 0.0,
+          "mean": 2.1215608818890043e-15,
+          "stddev": 1.771826694989196e-15,
+          "mad": 1.0512424264419451e-15,
+          "p50": 1.779826286352204e-15,
+          "p95": 5.752343046339092e-15,
+          "p99": 7.829847881168911e-15,
+          "p99_9": 9.679063106560197e-15,
+          "maximum": 9.71445146547012e-15
+        }
+      },
+      "joint_rad_s2": {
+        "rms": 39.28397900092479,
+        "norm": {
+          "minimum": 0.3172564587067588,
+          "mean": 87.76253339171646,
+          "stddev": 39.460407620024064,
+          "mad": 25.557939548004683,
+          "p50": 94.85476028137401,
+          "p95": 146.0459086694449,
+          "p99": 149.34844653763457,
+          "p99_9": 149.51635170329104,
+          "maximum": 149.51867547941814
+        }
+      }
+    },
+    "timing": {
+      "latency_us": {
+        "minimum": 52.73,
+        "mean": 55.31928759765625,
+        "stddev": 2.841296719397445,
+        "mad": 0.9015000000000057,
+        "p50": 54.703500000000005,
+        "p95": 60.64049999999999,
+        "p99": 65.23619999999998,
+        "p99_9": 81.26280100000065,
+        "maximum": 103.195
+      },
+      "adjacent_jitter_us": {
+        "minimum": 0.0,
+        "mean": 1.563829018075232,
+        "stddev": 2.924076434483656,
+        "mad": 0.340999999999994,
+        "p50": 0.48099999999999454,
+        "p95": 7.557999999999995,
+        "p99": 11.390799999999988,
+        "p99_9": 25.35005600000046,
+        "maximum": 45.19599999999999
+      },
+      "deadline_misses": {
+        "0.5ms": 0,
+        "1ms": 0,
+        "2ms": 0,
+        "5ms": 0,
+        "10ms": 0,
+        "20ms": 0
+      }
+    },
+    "resources": {
+      "queries": 2048,
+      "wall_seconds": 0.257223991,
+      "cpu_seconds": 0.257103443,
+      "cpu_to_wall": 0.9995313500909019,
+      "queries_per_second": 7961.932291144647,
+      "full_query_mean_us": 125.59765185546875,
+      "rss_before_bytes": 426160128,
+      "rss_after_bytes": 426160128,
+      "rss_delta_bytes": 0,
+      "peak_rss_before_bytes": 425918464,
+      "peak_rss_after_bytes": 425918464,
+      "gc_collections": 0
+    }
+  },
+  "divergence": {
+    "generalized_acceleration": {
+      "rms": 101.97872058506765,
+      "maximum_absolute": 272.061369043504
+    },
+    "actuator_torque": {
+      "rms": 0.35106542543479613,
+      "maximum_absolute": 0.6922978370046021
+    },
+    "contact_normal_force": {
+      "rms": 2.913330073088847,
+      "maximum_absolute": 5.7217156301978775
+    }
+  },
+  "execution_windows": [
+    {
+      "start": 0,
+      "stop": 32,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 121.0035,
+        "latency_p99_us": 143.78938000000002,
+        "root_horizontal_rms": 1.9120511832242295,
+        "joint_rms": 157.47881986052366,
+        "maximum_abs_torque_nm": 0.8381189108764109,
+        "mean_normal_force_n": 26.166686682383734
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 54.8285,
+        "latency_p99_us": 89.52927000000005,
+        "root_horizontal_rms": 1.3504905794943092,
+        "joint_rms": 26.89636318433911,
+        "maximum_abs_torque_nm": 1.1579565394203835,
+        "mean_normal_force_n": 23.077480834021667
+      }
+    },
+    {
+      "start": 32,
+      "stop": 64,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 119.4305,
+        "latency_p99_us": 125.19570999999999,
+        "root_horizontal_rms": 1.1745945878922273,
+        "joint_rms": 147.04781341731254,
+        "maximum_abs_torque_nm": 1.1905520149688247,
+        "mean_normal_force_n": 25.822660281017136
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 55.12,
+        "latency_p99_us": 62.973090000000006,
+        "root_horizontal_rms": 0.6645735751759319,
+        "joint_rms": 40.491663096624215,
+        "maximum_abs_torque_nm": 1.5232032294560398,
+        "mean_normal_force_n": 22.392736013795297
+      }
+    },
+    {
+      "start": 64,
+      "stop": 96,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 118.674,
+        "latency_p99_us": 125.77927000000001,
+        "root_horizontal_rms": 0.30949866720133345,
+        "joint_rms": 126.83720996024964,
+        "maximum_abs_torque_nm": 1.1091570621886873,
+        "mean_normal_force_n": 27.630391349586986
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 53.902,
+        "latency_p99_us": 64.10137,
+        "root_horizontal_rms": 1.471415495232725,
+        "joint_rms": 32.963372377489186,
+        "maximum_abs_torque_nm": 1.594051931430682,
+        "mean_normal_force_n": 25.45789468192867
+      }
+    },
+    {
+      "start": 96,
+      "stop": 128,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 120.257,
+        "latency_p99_us": 134.89391,
+        "root_horizontal_rms": 0.7230747975669097,
+        "joint_rms": 158.53286156249348,
+        "maximum_abs_torque_nm": 0.9838240079049513,
+        "mean_normal_force_n": 28.244004745927256
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 53.6215,
+        "latency_p99_us": 59.746370000000006,
+        "root_horizontal_rms": 0.909115396606217,
+        "joint_rms": 32.71906118629859,
+        "maximum_abs_torque_nm": 1.2357458280861726,
+        "mean_normal_force_n": 27.232618549821524
+      }
+    },
+    {
+      "start": 128,
+      "stop": 160,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 117.09649999999999,
+        "latency_p99_us": 122.57027000000001,
+        "root_horizontal_rms": 0.16896330268133092,
+        "joint_rms": 119.2447686371067,
+        "maximum_abs_torque_nm": 1.2113064432969571,
+        "mean_normal_force_n": 27.61526822121545
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 53.576,
+        "latency_p99_us": 58.51867,
+        "root_horizontal_rms": 0.9740418840572778,
+        "joint_rms": 58.287460924352686,
+        "maximum_abs_torque_nm": 0.7292545335809749,
+        "mean_normal_force_n": 30.96600377224733
+      }
+    },
+    {
+      "start": 160,
+      "stop": 192,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 116.37950000000001,
+        "latency_p99_us": 125.25738,
+        "root_horizontal_rms": 0.00413571738042511,
+        "joint_rms": 126.24213273039202,
+        "maximum_abs_torque_nm": 1.270009649518433,
+        "mean_normal_force_n": 25.224719651579846
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 53.476,
+        "latency_p99_us": 59.54708,
+        "root_horizontal_rms": 1.1379601327239806,
+        "joint_rms": 32.81932646842193,
+        "maximum_abs_torque_nm": 1.0023401741988116,
+        "mean_normal_force_n": 29.179675911785488
+      }
+    },
+    {
+      "start": 192,
+      "stop": 224,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 117.527,
+        "latency_p99_us": 128.23387000000002,
+        "root_horizontal_rms": 0.0041639759190228946,
+        "joint_rms": 134.0603065339878,
+        "maximum_abs_torque_nm": 1.223490753944864,
+        "mean_normal_force_n": 25.066385683152312
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 53.8815,
+        "latency_p99_us": 59.91697,
+        "root_horizontal_rms": 0.45405232356778025,
+        "joint_rms": 34.26575444846221,
+        "maximum_abs_torque_nm": 1.4887894834137416,
+        "mean_normal_force_n": 24.788264197259515
+      }
+    },
+    {
+      "start": 224,
+      "stop": 256,
+      "bonesaw": {
+        "successful": 32,
+        "latency_p50_us": 119.491,
+        "latency_p99_us": 128.29524,
+        "root_horizontal_rms": 0.7779094298046946,
+        "joint_rms": 158.27065782769532,
+        "maximum_abs_torque_nm": 1.1520076766178526,
+        "mean_normal_force_n": 25.144518123843113
+      },
+      "placo": {
+        "successful": 32,
+        "latency_p50_us": 54.959,
+        "latency_p99_us": 79.8082,
+        "root_horizontal_rms": 0.3762795353933648,
+        "joint_rms": 46.65897356463737,
+        "maximum_abs_torque_nm": 1.466407574820685,
+        "mean_normal_force_n": 23.198166217311083
+      }
+    }
+  ],
+  "provenance": {
+    "Bonesaw": "0.1.0",
+    "PlaCo": "0.9.23",
+    "model": "d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483",
+    "input corpus": "f31c69dd9b1f8bab7f58a8870b53e390b45bae848c348668009440e24c1e1e3e",
+    "evaluator": "d638209f10b7002b3808fa946b489c9b2a2dfa48a7d0d2750a18b0969ab121c7",
+    "Bonesaw raw": "3574846fab8ac26935cd722aa497b89bd8d4f259841d9cb14db35fa2e89232d5",
+    "PlaCo raw": "7a3cdf0f7ccc2f61ffa7caa8f0d234f26d2cc95ab0462eabce5ba859311e07d8"
+  }
+}

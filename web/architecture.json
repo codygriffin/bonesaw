@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "root-wrench-robustness-r316",
+  "revision": "upkie-placo-dynamic-reference-r317",
   "updated": "2026-08-03",
-  "stage": "R314 root-wrench scale 0.7 clears its frozen matrix · R316 scale/schedule robustness rejected · R310 remains public",
-  "checkpoint": "R314's correctly referenced, Rust-owned 0.7-scaled root wrench finishes all eight selected rows with zero nonadmission and clean deadlines. R316 prevents that result from being generalized: sampled passing scales are discontinuous (0.62/0.70/0.72), and one of 40 independent R311 schedule/lever rows fails. Repeated centered +8 N is nonadmitted at tick 338 and falls at 351, with exact replay. R315 body-plus-root compositions also remain rejected. The root-only result is behavior-positive selection evidence, not robust authority; R310 remains public.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission, R313 force-backed relock, R314 state-local correction, and the default-off confidence-scaled root-wrench path. Application-body, aggregate-CoM, and root-origin moments are explicit rather than interchangeable. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens and replaceable MuJoCo consequence; it does not compute actions. The live plant now streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Robust delay/model calibration, authenticated transport, browser frame time, broader reference parity, and hardware realization remain open.",
+  "stage": "R317 adds an independent floating Upkie PlaCo reference · exact rolling parity remains open · R316 rejects root-wrench robustness · R310 remains public",
+  "checkpoint": "R317 runs current Rust Bonesaw and PlaCo DynamicsSolver in isolated processes on the same 256 policy-, integration-, and physics-free Upkie states. Both solve every row and retain latency, jitter, CPU, RSS, GC/allocation, tracking, divergence, and eight execution windows. PlaCo's independently implemented weighted QP uses material wheel-center point contacts, not Bonesaw's nonholonomic RollingWheel rows, so the comparison is a nearby full-body reference rather than false exact parity. R316 still rejects root-wrench scale/schedule robustness and R310 remains public.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange geometry, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC and measured contact admission. R317 adds an isolated PlaCo floating-dynamics reference on shared frozen Upkie states while keeping its material point contact visibly distinct from RollingWheel. R314 scale 0.7 clears its selected matrix, R315 rejects body-plus-root composition, and R316 rejects scale/schedule robustness. Private requests never become contact authority: measured raw/stable/hard masks own WBC rows and RollingWheel. R310 remains public. Python owns immutable screens, comparison orchestration, and replaceable MuJoCo consequence; it does not compute production actions. The live plant streams authored per-actuator effort limits plus measured effort, velocity, mechanical power, and saturation utilization; PUSH authority rows switch to that measured frame; thermal/reliability remains explicitly unmodeled. Exact rolling reference parity, robust delay/model calibration, authenticated transport, browser frame time, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -126,6 +126,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r317-upkie-placo-dynamic-reference",
+      "title": "Compare floating whole-body implementations without erasing contact semantics",
+      "status": "independent nearby reference passed · exact rolling parity open",
+      "detail": "Isolated current Bonesaw and PlaCo workers consume the same 256 frozen Upkie states for 2,048 timed queries each with no policy, integration, simulator, or physics rollout. Both solve every state. The report retains solve-only latency/jitter, full-query cost, CPU/RSS, GC/allocation, acceleration tracking, qdd/torque/normal-force divergence, and eight execution windows. PlaCo uses stiff unilateral material point contacts at wheel centers; Bonesaw uses nonholonomic RollingWheel rows. Results are compared, not declared command-equivalent."
+    },
     {
       "id": "r316-root-wrench-robustness",
       "title": "Separate an exact selected-matrix recovery from robust authority",
