@@ -17,6 +17,18 @@ closes the typed joint-headroom input seam, but does not admit walking,
 contact, timing, thermal, plant, or hardware authority. See
 [`JOINT_MOTION_HEADROOM_R288.md`](../benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).
 
+## Current CPU optimization audit — r289 direct-offset Jacobi pointer
+
+R289 tests direct base-pointer offsets around the arithmetic-identical R284
+Jacobi loops. Four CPU-4-pinned, 2,317-tick pairs preserve all 112 current
+non-timing arrays byte-for-byte. Three pinned complete-process counter pairs,
+however, show +0.243% retired instructions in every candidate run. The
+candidate is rejected and remains available only through
+`jacobi-column-offset-pointer-experiment`; R284 stays the production default.
+No timing, authority, policy, physics, contact-transfer, or CUDA gate changes.
+See
+[`G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md`](../benchmarks/results/g1-jacobi-column-offset-pointer-r289/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md).
+
 ## Current CPU architecture slice — r287 allocation-stable historical queries
 
 R287 closes R286's legacy reconstruction-allocation caveat with

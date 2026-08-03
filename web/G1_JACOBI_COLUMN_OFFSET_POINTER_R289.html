@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 direct-offset Jacobi pointer experiment · R289</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 direct-offset Jacobi pointer experiment · R289</h1>
+<blockquote>Exact replay PASS · CPU instruction reduction FAIL · candidate REJECTED.</blockquote>
+<p>R289 tested whether addressing each Jacobi column pair from one base pointer could remove the split/slice wrapper retained by R284. The candidate preserves column traversal, scalar operation order, rotation order, stores, tolerances, rank selection, clipping, feasibility, and task hierarchy. It is retained only behind an explicit experiment feature; the established R284 kernel remains the default.</p>
+<h2>Semantic replay</h2>
+<p>All 4 CPU-4-pinned, 2,317-tick control/candidate pairs are byte-exact across all 112 non-timing arrays. Every pair has digest `6f087b0ab7fc4741450ae0f8f769e4501bd9de3cd8d9f8a1cd55cebb6233bdcf`. The corpus executes no policy and no physics; timing is the only permitted difference.</p>
+<h2>Native timing observations</h2>
+<div class=table-wrap><table><thead><tr><th>pair</th><th>p50 control / candidate µs</th><th>p95</th><th>p99</th><th>max</th></tr></thead><tbody><tr><td>1</td><td>1870.9 / 1766.3</td><td>6635.5 / 4059.0</td><td>10523.4 / 5263.8</td><td>12836.6 / 7670.9</td></tr><tr><td>2</td><td>1774.7 / 1797.9</td><td>4015.4 / 6456.9</td><td>5224.8 / 10887.6</td><td>7761.6 / 16739.9</td></tr><tr><td>3</td><td>1771.8 / 1771.1</td><td>4015.7 / 6004.5</td><td>5215.4 / 7758.3</td><td>7707.4 / 16771.3</td></tr><tr><td>4</td><td>1788.9 / 1774.1</td><td>4032.6 / 4092.5</td><td>5259.3 / 5310.0</td><td>7810.0 / 7892.3</td></tr></tbody></table></div>
+<p>The median repeat p99 is 5242.1 µs for control and 6534.1 µs for candidate. Large isolated tails appear in both builds, so wall-clock movement is treated as host scheduling evidence rather than the decision signal. The universal 5 ms p99 gate remains open.</p>
+<h2>Pinned hardware counters</h2>
+<p>Three complete-process pairs use the same corpus and CPU pin. Averages are:</p>
+<div class=table-wrap><table><thead><tr><th>counter</th><th>R284 control</th><th>R289 candidate</th><th>delta</th></tr></thead><tbody><tr><td>instructions</td><td>44.496389 B</td><td>44.604707 B</td><td>+0.243%</td></tr><tr><td>cycles</td><td>16.988825 B</td><td>16.744910 B</td><td>-1.436%</td></tr><tr><td>cache-misses</td><td>0.025452 B</td><td>0.025286 B</td><td>-0.650%</td></tr><tr><td>branches</td><td>4.434187 B</td><td>4.404005 B</td><td>-0.681%</td></tr><tr><td>branch-misses</td><td>0.024866 B</td><td>0.024585 B</td><td>-1.128%</td></tr></tbody></table></div>
+<p>The candidate retires +0.243% more instructions (108318523 extra per process), and every paired instruction delta is positive (+0.244%, +0.243%, +0.244%). Fewer dynamic branches do not compensate for the larger executed instruction stream.</p>
+<h2>Decision</h2>
+<p>The direct-offset kernel is rejected as a production optimization. R284&#x27;s split/slice raw-pointer kernel remains the CPU default. The candidate stays opt-in solely so the negative result can be reproduced without reconstructing the patch. No timing, authority, contact-transfer, CUDA, plant, or hardware-realization gate changes.</p></main></body></html>

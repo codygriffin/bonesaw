@@ -1102,6 +1102,12 @@
   ],
   "evidence": [
     {
+      "name": "R289 rejected direct-offset Jacobi pointer experiment",
+      "result": "112-array exact · retired-instruction regression · default unchanged",
+      "detail": "Four CPU-4-pinned, 2,317-tick control/candidate pairs preserve every current non-timing byte. Three complete-process hardware-counter pairs show the direct-offset candidate retiring 0.243% more instructions in every run despite fewer branches. The experiment remains opt-in; R284 stays the production default, and the 5 ms p99 and authority gates remain open.",
+      "report": "/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.html"
+    },
+    {
       "name": "R287 allocation-stable historical frame queries",
       "result": "strict caller-owned query path pass · zero measured allocations · authority unchanged",
       "detail": "RobotHistory and ExternalFrameHistory reconstruct into one fixed-layout HistoricalFrameQueryWorkspace; strict scalar and batch entry points reject undersized layout/capacity before reconstruction and commit retained output only after successful atlas evaluation. Twenty-one independent CPU-4-pinned Upkie processes each run 64 queries × 32 measured batches after warmup: all observe zero allocation calls, zero allocated bytes, zero deallocations, bitwise repeatability, stable 2→2 capacities, and a 1.380 microsecond/query median. The R286 2.918 microsecond sample is contextual only, not a paired statistical baseline.",

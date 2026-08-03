@@ -18,6 +18,8 @@ const USE_JACOBI_COLUMN_SLICES: bool = !cfg!(feature = "jacobi-column-slice-cont
 const USE_JACOBI_COLUMN_ITERATORS: bool = cfg!(feature = "jacobi-column-iterator-experiment");
 const USE_JACOBI_COLUMN_POINTERS: bool = !cfg!(feature = "jacobi-column-pointer-control")
     || cfg!(feature = "jacobi-column-pointer-experiment");
+const USE_JACOBI_COLUMN_OFFSET_POINTERS: bool =
+    cfg!(feature = "jacobi-column-offset-pointer-experiment");
 const USE_DENSE_MULTIPLY_ROW_SLICES: bool = !cfg!(feature = "dense-multiply-row-slice-control")
     || cfg!(feature = "dense-multiply-row-slice-experiment");
 
@@ -2599,17 +2601,21 @@ fn one_sided_jacobi_flat(
                 }
                 let mut coupling = 0.0;
                 if use_column_slices {
-                    let p_column = &matrix[p * rows..(p + 1) * rows];
-                    let q_column = &matrix[q * rows..(q + 1) * rows];
-                    if USE_JACOBI_COLUMN_POINTERS {
-                        coupling = scalar_dot_raw(p_column, q_column);
-                    } else if use_column_iterators {
-                        for (p_value, q_value) in p_column.iter().zip(q_column) {
-                            coupling += p_value * q_value;
-                        }
+                    if USE_JACOBI_COLUMN_POINTERS && USE_JACOBI_COLUMN_OFFSET_POINTERS {
+                        coupling = scalar_dot_offsets_raw(matrix, p * rows, q * rows, rows);
                     } else {
-                        for row in 0..rows {
-                            coupling += p_column[row] * q_column[row];
+                        let p_column = &matrix[p * rows..(p + 1) * rows];
+                        let q_column = &matrix[q * rows..(q + 1) * rows];
+                        if USE_JACOBI_COLUMN_POINTERS {
+                            coupling = scalar_dot_raw(p_column, q_column);
+                        } else if use_column_iterators {
+                            for (p_value, q_value) in p_column.iter().zip(q_column) {
+                                coupling += p_value * q_value;
+                            }
+                        } else {
+                            for row in 0..rows {
+                                coupling += p_column[row] * q_column[row];
+                            }
                         }
                     }
                 } else {
@@ -2665,24 +2671,35 @@ fn one_sided_jacobi_flat(
                 let cosine = 1.0 / (1.0 + tangent * tangent).sqrt();
                 let sine = tangent * cosine;
                 if use_column_slices {
-                    let (before_q, q_and_after) = matrix.split_at_mut(q * rows);
-                    let p_column = &mut before_q[p * rows..(p + 1) * rows];
-                    let q_column = &mut q_and_after[..rows];
-                    if USE_JACOBI_COLUMN_POINTERS {
-                        rotate_column_pair_raw(p_column, q_column, cosine, sine);
-                    } else if use_column_iterators {
-                        for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
-                            let previous_p = *p_value;
-                            let previous_q = *q_value;
-                            *p_value = cosine * previous_p - sine * previous_q;
-                            *q_value = sine * previous_p + cosine * previous_q;
-                        }
+                    if USE_JACOBI_COLUMN_POINTERS && USE_JACOBI_COLUMN_OFFSET_POINTERS {
+                        rotate_column_pair_offsets_raw(
+                            matrix,
+                            p * rows,
+                            q * rows,
+                            rows,
+                            cosine,
+                            sine,
+                        );
                     } else {
-                        for row in 0..rows {
-                            let p_value = p_column[row];
-                            let q_value = q_column[row];
-                            p_column[row] = cosine * p_value - sine * q_value;
-                            q_column[row] = sine * p_value + cosine * q_value;
+                        let (before_q, q_and_after) = matrix.split_at_mut(q * rows);
+                        let p_column = &mut before_q[p * rows..(p + 1) * rows];
+                        let q_column = &mut q_and_after[..rows];
+                        if USE_JACOBI_COLUMN_POINTERS {
+                            rotate_column_pair_raw(p_column, q_column, cosine, sine);
+                        } else if use_column_iterators {
+                            for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
+                                let previous_p = *p_value;
+                                let previous_q = *q_value;
+                                *p_value = cosine * previous_p - sine * previous_q;
+                                *q_value = sine * previous_p + cosine * previous_q;
+                            }
+                        } else {
+                            for row in 0..rows {
+                                let p_value = p_column[row];
+                                let q_value = q_column[row];
+                                p_column[row] = cosine * p_value - sine * q_value;
+                                q_column[row] = sine * p_value + cosine * q_value;
+                            }
                         }
                     }
                 } else {
@@ -2694,24 +2711,35 @@ fn one_sided_jacobi_flat(
                     }
                 }
                 if use_column_slices {
-                    let (before_q, q_and_after) = right_vectors.split_at_mut(q * columns);
-                    let p_column = &mut before_q[p * columns..(p + 1) * columns];
-                    let q_column = &mut q_and_after[..columns];
-                    if USE_JACOBI_COLUMN_POINTERS {
-                        rotate_column_pair_raw(p_column, q_column, cosine, sine);
-                    } else if use_column_iterators {
-                        for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
-                            let previous_p = *p_value;
-                            let previous_q = *q_value;
-                            *p_value = cosine * previous_p - sine * previous_q;
-                            *q_value = sine * previous_p + cosine * previous_q;
-                        }
+                    if USE_JACOBI_COLUMN_POINTERS && USE_JACOBI_COLUMN_OFFSET_POINTERS {
+                        rotate_column_pair_offsets_raw(
+                            right_vectors,
+                            p * columns,
+                            q * columns,
+                            columns,
+                            cosine,
+                            sine,
+                        );
                     } else {
-                        for row in 0..columns {
-                            let p_value = p_column[row];
-                            let q_value = q_column[row];
-                            p_column[row] = cosine * p_value - sine * q_value;
-                            q_column[row] = sine * p_value + cosine * q_value;
+                        let (before_q, q_and_after) = right_vectors.split_at_mut(q * columns);
+                        let p_column = &mut before_q[p * columns..(p + 1) * columns];
+                        let q_column = &mut q_and_after[..columns];
+                        if USE_JACOBI_COLUMN_POINTERS {
+                            rotate_column_pair_raw(p_column, q_column, cosine, sine);
+                        } else if use_column_iterators {
+                            for (p_value, q_value) in p_column.iter_mut().zip(q_column) {
+                                let previous_p = *p_value;
+                                let previous_q = *q_value;
+                                *p_value = cosine * previous_p - sine * previous_q;
+                                *q_value = sine * previous_p + cosine * previous_q;
+                            }
+                        } else {
+                            for row in 0..columns {
+                                let p_value = p_column[row];
+                                let q_value = q_column[row];
+                                p_column[row] = cosine * p_value - sine * q_value;
+                                q_column[row] = sine * p_value + cosine * q_value;
+                            }
                         }
                     }
                 } else {
@@ -2777,6 +2805,29 @@ fn scalar_dot_raw(left: &[f64], right: &[f64]) -> f64 {
 }
 
 #[inline(always)]
+fn scalar_dot_offsets_raw(
+    values: &[f64],
+    left_offset: usize,
+    right_offset: usize,
+    len: usize,
+) -> f64 {
+    debug_assert!(left_offset + len <= values.len());
+    debug_assert!(right_offset + len <= values.len());
+    let mut value = 0.0;
+    let mut index = 0;
+    unsafe {
+        let base = values.as_ptr();
+        let left = base.add(left_offset);
+        let right = base.add(right_offset);
+        while index < len {
+            value += *left.add(index) * *right.add(index);
+            index += 1;
+        }
+    }
+    value
+}
+
+#[inline(always)]
 fn rotate_column_pair_raw(left: &mut [f64], right: &mut [f64], cosine: f64, sine: f64) {
     debug_assert_eq!(left.len(), right.len());
     let mut index = 0;
@@ -2788,6 +2839,33 @@ fn rotate_column_pair_raw(left: &mut [f64], right: &mut [f64], cosine: f64, sine
             let previous_right = *right_ptr.add(index);
             *left_ptr.add(index) = cosine * previous_left - sine * previous_right;
             *right_ptr.add(index) = sine * previous_left + cosine * previous_right;
+            index += 1;
+        }
+    }
+}
+
+#[inline(always)]
+fn rotate_column_pair_offsets_raw(
+    values: &mut [f64],
+    left_offset: usize,
+    right_offset: usize,
+    len: usize,
+    cosine: f64,
+    sine: f64,
+) {
+    debug_assert!(left_offset + len <= values.len());
+    debug_assert!(right_offset + len <= values.len());
+    debug_assert!(left_offset + len <= right_offset || right_offset + len <= left_offset);
+    let mut index = 0;
+    unsafe {
+        let base = values.as_mut_ptr();
+        let left = base.add(left_offset);
+        let right = base.add(right_offset);
+        while index < len {
+            let previous_left = *left.add(index);
+            let previous_right = *right.add(index);
+            *left.add(index) = cosine * previous_left - sine * previous_right;
+            *right.add(index) = sine * previous_left + cosine * previous_right;
             index += 1;
         }
     }
@@ -5289,6 +5367,53 @@ mod tests {
                             .all(|(left, right)| left.to_bits() == right.to_bits())
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn jacobi_column_offset_pointers_preserve_dot_and_rotation_bits() {
+        let mut random_state = 0xecc4_3c8b_15d9_70a2_u64;
+        for len in [1, 2, 8, 29, 58] {
+            for gap in [0, 3] {
+                let left_offset = 2;
+                let right_offset = left_offset + len + gap;
+                let mut values = Vec::with_capacity(right_offset + len + 2);
+                for _ in 0..right_offset + len + 2 {
+                    random_state ^= random_state << 13;
+                    random_state ^= random_state >> 7;
+                    random_state ^= random_state << 17;
+                    values.push(random_state as i64 as f64 / i64::MAX as f64);
+                }
+                let expected_dot = scalar_dot_raw(
+                    &values[left_offset..left_offset + len],
+                    &values[right_offset..right_offset + len],
+                );
+                let actual_dot = scalar_dot_offsets_raw(&values, left_offset, right_offset, len);
+                assert_eq!(actual_dot.to_bits(), expected_dot.to_bits());
+
+                let mut expected = values.clone();
+                let (before_right, right_and_after) = expected.split_at_mut(right_offset);
+                rotate_column_pair_raw(
+                    &mut before_right[left_offset..left_offset + len],
+                    &mut right_and_after[..len],
+                    0.8125,
+                    -0.4375,
+                );
+                rotate_column_pair_offsets_raw(
+                    &mut values,
+                    left_offset,
+                    right_offset,
+                    len,
+                    0.8125,
+                    -0.4375,
+                );
+                assert!(
+                    values
+                        .iter()
+                        .zip(expected.iter())
+                        .all(|(actual, expected)| actual.to_bits() == expected.to_bits())
+                );
             }
         }
     }

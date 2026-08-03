@@ -94,6 +94,14 @@ authority. This is mechanism evidence only: the R280 release/tracking/timing
 profile and the remaining contact, actuator, thermal, plant, and hardware
 gates are unchanged.
 
+R289 rejects another exact kernel shortcut without weakening the complaint.
+Direct base-pointer offsets preserve all 112 non-timing arrays across four
+pinned A/B pairs, but retire 0.243% more instructions in each of three
+complete-process counter pairs. The candidate remains opt-in as negative
+evidence and R284 stays the default. Ordinary exact Preference/Style work
+reduction and the 5 ms p99 gate remain open. See the
+[r289 direct-offset report](benchmarks/results/g1-jacobi-column-offset-pointer-r289/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

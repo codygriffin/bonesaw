@@ -226,6 +226,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   walking, timing, contact, thermal, plant, and hardware gates remain open.
   See the
   [r288 motion-headroom report](benchmarks/results/joint-motion-headroom-r288/JOINT_MOTION_HEADROOM_R288.md).
+- R289 rejects a second arithmetic-identical Jacobi pointer shortcut. Four
+  CPU-4-pinned control/candidate pairs preserve all 112 current non-timing
+  arrays byte-for-byte, but three complete-process counter pairs show the
+  direct-offset candidate retiring 0.243% more instructions in every run.
+  The R284 split/slice pointer kernel therefore remains the default; R289 is
+  retained only as an opt-in negative experiment. The 5 ms p99 and authority
+  gates remain open. See the
+  [r289 direct-offset report](benchmarks/results/g1-jacobi-column-offset-pointer-r289/G1_JACOBI_COLUMN_OFFSET_POINTER_R289.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed
