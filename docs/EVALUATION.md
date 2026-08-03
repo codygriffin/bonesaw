@@ -4,6 +4,21 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r313 continuous landing-request envelope
+
+`python/evals/upkie_live_landing_envelope_r313.py` compares R310, the R312
+phase boundary, and a candidate Rust-owned continuous envelope on the full
+eight-force R311 upper-base holdout at 50 Hz WBC / 250 Hz MuJoCo. The candidate
+attenuates the bounded request from root tilt, horizontal speed, and height;
+Python only sequences the measured plant and scores consequences. The harness
+requires exact prior-window causality, mode firewalling, finite output,
+allocation-free landing code, landing/controller/worker deadlines, and exact
+replay. Promotion additionally requires no earlier terminal boundary, fewer
+falls, and completion of every force case. All mechanism gates pass, but all
+three physical promotion gates remain open, so the candidate stays default-off.
+The retained report is
+[`UPKIE_LIVE_LANDING_ENVELOPE_R313.md`](../benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+
 ### Revision r312 measured landing/reload phase boundary
 
 `python/evals/upkie_live_measured_landing_r312.py` compares an explicit

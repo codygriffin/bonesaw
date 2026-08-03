@@ -17,6 +17,17 @@ rejection that sustains measured wheel load, reduces the four terminal cases,
 and never moves a terminal boundary earlier. See the
 [R312 report](benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
 
+R313 adds the next bounded mechanism: a Rust-owned, allocation-free continuous
+landing-request envelope that attenuates authority as measured root tilt,
+horizontal speed, or height approaches declared limits. Its causal, mode-
+firewall, finite, deadline, zero-allocation, and replay gates all pass, but the
+same eight-force R311 holdout remains negative: terminal falls are not removed,
+the `-6 N`, `+6 N`, and `+8 N` boundaries move earlier, and no public authority
+is promoted. The envelope is retained as default-off safety evidence. The open
+behavior complaint is still continuous support-sustaining landing/moment
+rejection, not a larger timeout or solver budget. See the
+[R313 report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated
 pulls finish with an upright tail and all tested moments at or below `1 N·m`
