@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 reachable timing localization · R281</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1215;--panel:#151a1e;--line:#293138;--text:#d8dfdc;--muted:#8c9994;--accent:#78d5ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 32px));min-width:0;margin:0 auto;padding:42px 0 80px}h1{font-size:clamp(28px,5vw,52px);line-height:1.05;margin:0 0 36px}
+h2{margin:48px 0 18px;padding-top:16px;border-top:1px solid var(--line);font-size:24px}h3{margin:32px 0 14px;color:var(--accent)}
+p,li,blockquote{max-width:90ch;overflow-wrap:anywhere}p{color:#bcc6c2}blockquote{margin:22px 0;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel);color:#b9c5c0}
+ul{padding-left:22px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;margin:16px 0 30px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{position:sticky;top:0;background:#1b2227;color:var(--accent)}tr:last-child td{border-bottom:0}
+@media(max-width:600px){main{width:min(100% - 20px,1180px);padding-top:24px}h2{font-size:20px}.table-wrap{margin-left:-2px;margin-right:-2px}th,td{min-width:115px;padding:9px;font-size:11px}}
+</style></head><body><main><h1>G1 reachable-tube timing localization · R281</h1>
+<blockquote>Exact candidate **REJECTED AND REMOVED** · timing cause narrowed · authority **NO**.</blockquote>
+<p>R281 profiles the behavior-positive R280 two-axis support profile without policy or physics. It separates ordinary p99 work from two deterministic contact-release tails, then tests a scalar-order-identical two-column Jacobi specialization against the installed established build.</p>
+<h2>Exact A/B</h2>
+<div class=table-wrap><table><thead><tr><th>build</th><th>p50 µs</th><th>p95 µs</th><th>p99 µs</th><th>max µs</th><th>&gt;5 ms</th><th>Jacobi sweeps</th><th>pseudoinverses</th></tr></thead><tbody><tr><td>established</td><td>1773.3</td><td>4098.9</td><td>5199.9</td><td>189059.7</td><td>40</td><td>56422</td><td>9368</td></tr><tr><td>two-column specialization</td><td>1803.1</td><td>4156.1</td><td>5364.0</td><td>192880.0</td><td>46</td><td>56422</td><td>9368</td></tr></tbody></table></div>
+<p>All 89 non-timing arrays are bit-for-bit identical. The specialization removes only vacuous pair-loop/feature branches and changes no mathematical work; it is slower on every displayed percentile and is removed. This rules out two-column dispatch overhead as the missing 0.2–0.7 ms.</p>
+<h2>Work localization</h2>
+<div class=table-wrap><table><thead><tr><th>priority</th><th>Invariant</th><th>Safety</th><th>Viability</th><th>Preference</th><th>Style</th></tr></thead><tbody><tr><td>pseudoinverse calls</td><td>1620</td><td>1192</td><td>2942</td><td>2310</td><td>1304</td></tr><tr><td>Jacobi sweeps</td><td>6500</td><td>5923</td><td>5999</td><td>19531</td><td>18469</td></tr><tr><td>clipped steps</td><td>524</td><td>947</td><td>2402</td><td>1934</td><td>839</td></tr></tbody></table></div>
+<p>Ordinary step latency correlates more with task Jacobi/pseudoinverse work (0.225/0.217) than bounded feasibility sweeps/halfspace projections (0.150/0.153). Preference and Style account for 67.3% of task Jacobi sweeps, while Viability produces the most clipped steps. The next exact optimization must remove repeated projected-task inversions or dense arithmetic after active-limit hits—not alter support behavior or factorization order.</p>
+<h2>Deterministic release tails</h2>
+<p>Ticks 1694 and 2296 are status 5 after a pre-contingency status-2 failure. Their exported solver counters are all zero because the contact-free fallback overwrites diagnostics from the failed contact solve and retry. The 171–189 ms events are controller work, not a sleep or network pause. A cumulative per-attempt diagnostic is required before optimizing this tail; final-attempt counters alone are misleading.</p>
+<h2>Decision</h2>
+<p>No controller or authority change is promoted. Preserve R280&#x27;s full X/Y task. Next: add allocation-free cumulative solve-attempt/work telemetry, localize the repeated Preference/Style inverse rebuilds, and accept an optimization only if the 89-array trace remains exact and five pinned p99 repeats pass 5 ms.</p></main></body></html>

@@ -12,6 +12,14 @@ task authority, and four-face hard admission are independently default-off.
 Python retains the immutable policy-free/physics-free scenarios, metrics, and
 report.
 
+R281 rejects and removes a bit-exact two-column Jacobi specialization: all 89
+non-timing arrays match, but p99 worsens 5.200→5.364 ms. Preference/Style own
+67.3% of task Jacobi sweeps, and deterministic status-5 tails at ticks
+1694/2296 overwrite the failed solve/retry counters with the final fallback's
+zeros. The next implementation seam is allocation-free cumulative per-attempt
+work telemetry, followed by an exact reduction in repeated projected-task
+inverse or dense-product work.
+
 R280 qualifies the full two-axis soft construction on five CPU-4-pinned,
 policy-free/physics-free processes. Every semantic trace is bit-exact. Release
 moves 1108→1234 and root/CoM/foot RMS improves by 14.35%/14.90%/16.87%, but all

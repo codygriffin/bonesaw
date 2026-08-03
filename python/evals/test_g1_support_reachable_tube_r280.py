@@ -4,6 +4,8 @@ import json
 import pathlib
 import unittest
 
+from g1_support_reachable_tube_r280 import validate_result
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RESULT = ROOT / "benchmarks/results/g1-support-reachable-tube-r280/g1-support-reachable-tube-r280-metrics.json"
@@ -15,6 +17,7 @@ class SupportReachableTubeR280Test(unittest.TestCase):
         cls.result = json.loads(RESULT.read_text())
 
     def test_behavior_passes_without_authority(self) -> None:
+        validate_result(self.result)
         p = self.result["profiles"]
         self.assertGreater(p["soft_two_axis"]["release"], p["dormant"]["release"])
         for field in ("root_rms_m", "com_rms_m", "foot_rms_m"):

@@ -40,6 +40,15 @@ only 662/1832 active ticks. A lateral-only shortcut regressed tracking and was
 removed. Contact, joint, effort/resource, plant, and hardware composition remain
 open. See the [r280 timing qualification](benchmarks/results/g1-support-reachable-tube-r280/G1_SUPPORT_REACHABLE_TUBE_R280.md).
 
+R281 rejects the first exact timing shortcut: a two-column Jacobi
+specialization is 89/89-array bit-exact but worsens p99 5.200→5.364 ms and is
+removed. Preference/Style account for 67.3% of task Jacobi sweeps. Release
+ticks 1694/2296 export zero solver work only because the final contact-free
+fallback overwrites the failed solve/retry diagnostics. The open timing
+complaint is therefore cumulative per-attempt telemetry plus exact repeated
+projected-inverse/dense-work reduction, not task-row deletion or a new
+factorization. See the [r281 localization](benchmarks/results/g1-reachable-timing-localization-r281/G1_REACHABLE_TIMING_LOCALIZATION_R281.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible

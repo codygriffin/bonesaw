@@ -7,11 +7,11 @@ R280 qualifies the default-off R279 exact discrete DCM backward-reachable suppor
 ## Behavior and switch independence
 
 | profile | active | clipped | conflict | release | root RMS m | CoM RMS m | foot RMS m | p99 µs |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
+|---|---|---|---|---|---|---|---|---|
 | dormant | 0 | 0 | 875 | 1108 | 15.514 | 15.483 | 15.467 | 4768.9 |
 | observer | 1832 | 0 | 875 | 1108 | exact | exact | exact | 4645.6 |
 | request only | 1832 | 1205 | 875 | 1108 | exact | exact | exact | 4648.2 |
-| soft two-axis | 1832 | 1205 | 875 | 1234 | 13.288 | 13.176 | 12.858 | repeated below |
+| soft two axis | 1832 | 1205 | 875 | 1234 | 13.288 | 13.176 | 12.858 | repeated below |
 | hard | 1832 | 0 | 325 | 326 | 16.227 | 16.119 | 15.652 | 4655.8 |
 
 The two-axis soft profile delays release 1108→1234 and improves root/CoM/foot RMS by 14.35%/14.90%/16.87%. Observer and request-only integrated state/status are bit-exact to dormant; request-only changes bounded command telemetry on 1,205 ticks without gaining execution authority.
@@ -19,7 +19,7 @@ The two-axis soft profile delays release 1108→1234 and improves root/CoM/foot 
 ## Pinned CPU, jitter, memory, and GC
 
 | repeat | p99 µs | max µs | >5 ms | wall ms/tick | CPU ms/tick | RSS Δ MiB | Python GC |
-|---:|---:|---:|---:|---:|---:|---:|---:|
+|---|---|---|---|---|---|---|---|
 | 0 | 5226.3 | 187989.3 | 42 | 1.765 | 1.764 | 3.547 | 0 |
 | 1 | 5500.6 | 192120.5 | 55 | 1.821 | 1.821 | 3.547 | 0 |
 | 2 | 5729.8 | 197385.1 | 57 | 1.826 | 1.826 | 3.621 | 0 |

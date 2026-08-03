@@ -170,6 +170,13 @@ This is an engineering prototype, not a safety-rated robot controller.
   662/1832 active ticks, so no authority is granted. A lateral-only timing
   shortcut was removed after it regressed all tracking metrics. See the
   [r280 timing qualification](benchmarks/results/g1-support-reachable-tube-r280/G1_SUPPORT_REACHABLE_TUBE_R280.md).
+- R281 localizes that timing miss. A scalar-order-identical two-column Jacobi
+  specialization preserves all 89 non-timing arrays but worsens p99
+  5.200→5.364 ms and is removed. Preference/Style own 67.3% of task Jacobi
+  sweeps; deterministic release tails at ticks 1694/2296 currently overwrite
+  earlier solve-attempt diagnostics. The next CPU slice is cumulative
+  per-attempt work telemetry and exact repeated-inverse reduction. See the
+  [r281 timing localization](benchmarks/results/g1-reachable-timing-localization-r281/G1_REACHABLE_TIMING_LOCALIZATION_R281.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd
