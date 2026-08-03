@@ -263,9 +263,13 @@ def run_case(
     controller_options: dict[str, Any] | None = None,
     controller_balance_mode: str = "capture",
     worker_options: dict[str, Any] | None = None,
+    force_world_n: tuple[float, float, float] = FORCE_WORLD_N,
+    push_start_tick: int = PUSH_START_TICK,
+    push_ticks: int = PUSH_TICKS,
 ) -> dict[str, Any]:
     resolved_controller_options = {
         "joint_posture_priority": 1,
+        "support_load_reserve_action_enabled": False,
         **(controller_options or {}),
     }
     resolved_worker_options = dict(worker_options or {})
@@ -286,13 +290,16 @@ def run_case(
     initial_com = np.asarray(worker.data.subtree_com[0], np.float64).copy()
     states: list[dict[str, Any]] = []
     for tick in range(maximum_ticks):
-        active = disturbed and PUSH_START_TICK <= tick < PUSH_START_TICK + PUSH_TICKS
+        active = (
+            disturbed
+            and push_start_tick <= tick < push_start_tick + push_ticks
+        )
         request: dict[str, Any] = {"type": "step", "command_id": tick}
         if active:
             request["external_load"] = {
                 "active": True,
                 "body": "base",
-                "force_world": list(FORCE_WORLD_N),
+                "force_world": list(force_world_n),
                 "application_point_world": worker.data.xipos[base_body].tolist(),
                 "provenance": PROVENANCE,
                 "request_id": tick,
@@ -307,6 +314,9 @@ def run_case(
             break
     return {
         "disturbed": disturbed,
+        "force_world_n": list(force_world_n),
+        "push_start_tick": push_start_tick,
+        "push_ticks": push_ticks,
         "hello": {
             "physics_hz": int(hello["physics_hz"]),
             "control_hz": int(hello["control_hz"]),
@@ -329,6 +339,9 @@ def _semantic(case: dict[str, Any]) -> dict[str, Any]:
             "worker_step_us",
             "support_contingency_author_step_us",
             "support_contingency_step_us",
+            "support_load_reserve_step_us",
+            "single_support_recovery_step_us",
+            "single_support_reacquisition_step_us",
         ):
             state.pop(timing_key, None)
     return copy

@@ -31,6 +31,26 @@ MAX_FORCE_N = 8.0
 MAX_APPLICATION_OFFSET_M = 0.75
 FALL_HEIGHT_M = 0.30
 FALL_TILT_RAD = math.radians(75.0)
+PRODUCTION_SUPPORT_LOAD_RESERVE_CONFIG = (
+    0.47,  # activation release load fraction
+    0.38,  # activation full load fraction
+    0.005,  # activation release DCM [m]
+    0.030,  # activation full DCM [m]
+    0.040,  # load-filter time constant [s]
+    0.012,  # prediction lookahead [s]
+    1.50,  # unloading-rate release [/s]
+    5.00,  # unloading-rate full [/s]
+    0.020,  # support reserve [m]
+    10.0,  # authority attack [/s]
+    6.0,  # authority release [/s]
+    8.0,  # maximum lateral acceleration [m/s2]
+    4.0,  # lateral-acceleration slew [m/s3]
+    math.radians(25.0),  # maximum bank angle
+    3.0,  # bank-angle slew [rad/s]
+    80.0,  # bank stiffness [/s2]
+    14.0,  # bank damping [/s]
+    80.0,  # maximum roll acceleration [rad/s2]
+)
 
 
 def finite_vector(value: object, length: int) -> np.ndarray | None:
@@ -148,6 +168,8 @@ class LiveUpkiePlant:
         controller_options: dict[str, Any] = {
             "fall_safe_enabled": True,
             "fall_safe_primary_blend": False,
+            "support_load_reserve_action_enabled": True,
+            "support_load_reserve_config": PRODUCTION_SUPPORT_LOAD_RESERVE_CONFIG,
             "control_dt": self.control_dt,
         }
         # Keep the historical adapter standing target in the public profile;

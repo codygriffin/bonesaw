@@ -2,6 +2,30 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current public lateral reserve — r310 qualified
+
+R310 composes R309's support-preserving posture hierarchy with a gentler
+continuous Rust wheel-load reserve profile. The policy-free matrix crosses
+both lateral signs, `2/4/6/8 N`, and `200/300/400/600/800 ms` holds at the
+public 50 Hz WBC / 250 Hz MuJoCo / 50 Hz stream cadence. The priority-correct
+baseline falls in 20 of 40 cases. The candidate completes all 40 for 6 s,
+enters flight in none, and turns every one of six transient single-support
+episodes into a measured two-second bilateral/upright tail. Maximum tilt is
+`0.183863 rad`, minimum root height `0.520974 m`, peak torque utilization
+`26.72%`, maximum WBC/worker p99 `0.193/2.961 ms`, reserve-action p99
+`7.430 µs`, and hot-path allocation is zero. Hard residual stays below
+`3.12e-10`; exact semantic replay passes.
+
+The public worker now enables that exact profile: authority attack `10/s`,
+release `6/s`, lateral acceleration cap `8 m/s²`, and lateral slew `4 m/s³`.
+Nominal authority remains exactly zero. Frozen R300–R309 fixtures explicitly
+disable it unless they are evaluating reserve behavior. Exact raw single
+support may author a bounded landing request before positive debounce, but
+hard contact rows and reacquisition qualification remain separately gated.
+R308's missing-wheel landing layer is still default-off because it is
+unnecessary and non-monotonic in this matrix. See
+[`UPKIE_LIVE_LOAD_RESERVE_MATRIX_R310.md`](../benchmarks/results/upkie-live-load-reserve-matrix-r310/UPKIE_LIVE_LOAD_RESERVE_MATRIX_R310.md).
+
 ## Current live hierarchy — r309 posture authority qualified
 
 R309 fixes the live hierarchy defect that allowed floating root/contact
