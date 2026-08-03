@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -14,9 +15,32 @@ import ssl
 import statistics
 import struct
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+
+
+HTTP_ASSET_ATTEMPTS = 3
+HTTP_ASSET_TIMEOUT_S = 12.0
+
+
+def chunked_message_length(body: bytes | bytearray) -> int | None:
+    """Return the framed chunked-body length once its zero chunk has arrived."""
+    cursor = 0
+    while True:
+        line_end = body.find(b"\r\n", cursor)
+        if line_end < 0:
+            return None
+        size = int(body[cursor:line_end].split(b";", 1)[0], 16)
+        payload_end = line_end + 2 + size
+        if len(body) < payload_end + 2:
+            return None
+        assert body[payload_end : payload_end + 2] == b"\r\n"
+        cursor = payload_end + 2
+        if size == 0:
+            return cursor
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -26,13 +50,15 @@ def percentile(values: list[float], fraction: float) -> float:
     return ordered[min(len(ordered) - 1, max(0, math.ceil(fraction * len(ordered)) - 1))]
 
 
-def http_get_bytes(
+def _http_get_bytes_once(
     base_url: str, path: str, connect_address: str | None = None
 ) -> bytes:
     parsed = urlparse(base_url)
     secure = parsed.scheme == "https"
     port = parsed.port or (443 if secure else 80)
-    stream = socket.create_connection((connect_address or parsed.hostname, port), timeout=10)
+    stream = socket.create_connection(
+        (connect_address or parsed.hostname, port), timeout=HTTP_ASSET_TIMEOUT_S
+    )
     if secure:
         stream = ssl.create_default_context().wrap_socket(stream, server_hostname=parsed.hostname)
     host = parsed.hostname if parsed.port is None else f"{parsed.hostname}:{parsed.port}"
@@ -46,11 +72,44 @@ def http_get_bytes(
         ).encode("ascii")
     )
     response = bytearray()
-    while True:
-        chunk = stream.recv(65536)
-        if not chunk:
-            break
-        response.extend(chunk)
+    header_end: int | None = None
+    content_length: int | None = None
+    chunked = False
+    try:
+        while True:
+            chunk = stream.recv(65536)
+            if not chunk:
+                break
+            response.extend(chunk)
+            if header_end is None:
+                marker = response.find(b"\r\n\r\n")
+                if marker >= 0:
+                    header_end = marker + 4
+                    preliminary_headers: dict[str, str] = {}
+                    for line in response[:marker].decode("latin1").split("\r\n")[1:]:
+                        name, separator, value = line.partition(":")
+                        if separator:
+                            preliminary_headers[name.strip().lower()] = value.strip()
+                    if "content-length" in preliminary_headers:
+                        content_length = int(preliminary_headers["content-length"])
+                    chunked = (
+                        preliminary_headers.get("transfer-encoding", "").lower()
+                        == "chunked"
+                    )
+            if header_end is not None and content_length is not None:
+                if len(response) >= header_end + content_length:
+                    del response[header_end + content_length :]
+                    break
+            if header_end is not None and chunked:
+                framed_length = chunked_message_length(response[header_end:])
+                if framed_length is not None:
+                    del response[header_end + framed_length :]
+                    break
+    except TimeoutError as error:
+        stream.close()
+        raise TimeoutError(
+            f"HTTP read for {path!r} exceeded {HTTP_ASSET_TIMEOUT_S:.0f} seconds"
+        ) from error
     stream.close()
     header, separator, body = bytes(response).partition(b"\r\n\r\n")
     assert separator and header.startswith(b"HTTP/1.1 200"), header.decode(
@@ -61,6 +120,12 @@ def http_get_bytes(
         name, separator, value = line.partition(":")
         if separator:
             headers[name.strip().lower()] = value.strip()
+    if "content-length" in headers:
+        expected_length = int(headers["content-length"])
+        if len(body) != expected_length:
+            raise ConnectionError(
+                f"HTTP body for {path!r} ended at {len(body)} of {expected_length} bytes"
+            )
     if headers.get("transfer-encoding", "").lower() == "chunked":
         decoded = bytearray()
         cursor = 0
@@ -76,10 +141,36 @@ def http_get_bytes(
     return body
 
 
+def http_get_bytes(
+    base_url: str, path: str, connect_address: str | None = None
+) -> bytes:
+    """Read one asset with bounded retries for transient quick-tunnel stalls."""
+    for attempt in range(1, HTTP_ASSET_ATTEMPTS + 1):
+        try:
+            if connect_address is not None:
+                return _http_get_bytes_once(base_url, path, connect_address)
+            url = urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+            with urllib.request.urlopen(url, timeout=HTTP_ASSET_TIMEOUT_S) as response:
+                assert response.status == 200, f"HTTP {response.status} for {path!r}"
+                return response.read()
+        except (
+            TimeoutError,
+            ConnectionError,
+            http.client.IncompleteRead,
+            ssl.SSLError,
+            urllib.error.URLError,
+        ):
+            if attempt == HTTP_ASSET_ATTEMPTS:
+                raise
+    raise AssertionError("unreachable HTTP retry state")
+
+
 def http_probe(base_url: str, connect_address: str | None = None) -> None:
     parsed = urlparse(base_url)
     body = http_get_bytes(base_url, parsed.path or "/", connect_address)
     assert b"Bonesaw" in body, "HTTP response is not the Bonesaw editor"
+    assert b"actuator-budget" in body, "hosted editor is missing actuator budget UI"
+    assert b"/motion-rig-r16.js?v=235" in body, "hosted editor served stale script"
 
 
 def quaternion_rotate(rotation: list[float], vector: list[float]) -> list[float]:

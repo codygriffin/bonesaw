@@ -101,6 +101,27 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert hello["control_hz"] == 50, hello
         assert hello["stream_hz"] == 50, hello
         assert hello["physics_substeps_per_control"] == 5, hello
+        assert hello["actuator_names"] == [
+            "left_hip_motor",
+            "left_knee_motor",
+            "left_wheel_motor",
+            "right_hip_motor",
+            "right_knee_motor",
+            "right_wheel_motor",
+        ], hello["actuator_names"]
+        assert hello["actuator_effort_limits_nm"] == [
+            16.0,
+            16.0,
+            1.7,
+            16.0,
+            16.0,
+            1.7,
+        ], hello["actuator_effort_limits_nm"]
+        assert hello["actuator_resource_models"] == [False] * 6
+        assert (
+            hello["actuator_resource_contract"]["thermal_reliability"]
+            == "unmodeled; no calibrated electrical/thermal state"
+        )
         assert hello["contact_observation"] == {
             "sample_hz": 250,
             "consumed_hz": 50,
@@ -202,6 +223,14 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
             initial["simulator"]["contact_window_frame_end"] + 1
         )
         assert len(initial["actuator_effort_nm"]) == 6
+        assert len(initial["actuator_effort_limit_nm"]) == 6
+        assert len(initial["actuator_effort_utilization"]) == 6
+        assert len(initial["actuator_velocity_rad_s"]) == 6
+        assert len(initial["actuator_mechanical_power_w"]) == 6
+        assert all(
+            math.isfinite(value) and 0.0 <= value <= 1.0 + 1.0e-12
+            for value in initial["actuator_effort_utilization"]
+        )
         assert len(initial["generalized_acceleration"]) == 12
         assert len(initial["constraint_generalized_force"]) == 12
         assert len(initial["actuator_generalized_force"]) == 12
@@ -216,6 +245,8 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         for key in (
             "maximum_abs_joint_speed_rad_s",
             "maximum_abs_actuator_effort_nm",
+            "maximum_actuator_effort_utilization",
+            "maximum_abs_actuator_mechanical_power_w",
             "maximum_abs_generalized_acceleration",
             "maximum_abs_constraint_force",
         ):

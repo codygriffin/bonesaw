@@ -215,6 +215,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(hello["control_hz"], 50)
         self.assertEqual(hello["physics_hz"], 250)
         self.assertEqual(hello["physics_substeps_per_control"], 5)
+        self.assertEqual(hello["actuator_names"], [
+            "left_hip_motor",
+            "left_knee_motor",
+            "left_wheel_motor",
+            "right_hip_motor",
+            "right_knee_motor",
+            "right_wheel_motor",
+        ])
+        np.testing.assert_allclose(
+            hello["actuator_effort_limits_nm"], [16.0, 16.0, 1.7, 16.0, 16.0, 1.7]
+        )
+        self.assertEqual(hello["actuator_resource_models"], [False] * 6)
+        self.assertEqual(
+            hello["actuator_resource_contract"]["thermal_reliability"],
+            "unmodeled; no calibrated electrical/thermal state",
+        )
         self.assertEqual(
             hello["external_load_contract"]["wbc_external_moment_observation"],
             "external_load.root_moment_world_nm, re-expressed about current root origin and consumed one 50 Hz solve later",
@@ -304,6 +320,27 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertGreaterEqual(settled["metrics"]["wbc_support_active_count"], 1)
         self.assertTrue(np.isfinite(result["metrics"]["maximum_penetration_m"]))
         self.assertEqual(len(result["actuator_effort_nm"]), 6)
+        self.assertEqual(len(result["actuator_effort_limit_nm"]), 6)
+        self.assertEqual(len(result["actuator_effort_utilization"]), 6)
+        self.assertEqual(len(result["actuator_velocity_rad_s"]), 6)
+        self.assertEqual(len(result["actuator_mechanical_power_w"]), 6)
+        self.assertTrue(
+            np.all(np.isfinite(np.asarray(result["actuator_effort_utilization"])))
+        )
+        self.assertTrue(
+            np.all(np.asarray(result["actuator_effort_utilization"]) >= 0.0)
+        )
+        self.assertTrue(
+            np.all(
+                np.asarray(result["actuator_effort_utilization"]) <= 1.0 + 1.0e-12
+            )
+        )
+        self.assertTrue(
+            np.isfinite(result["metrics"]["maximum_actuator_effort_utilization"])
+        )
+        self.assertTrue(
+            np.isfinite(result["metrics"]["maximum_abs_actuator_mechanical_power_w"])
+        )
         self.assertEqual(
             len(result["generalized_acceleration"]), self.worker.model.nv
         )

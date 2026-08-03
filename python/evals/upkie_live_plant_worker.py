@@ -229,6 +229,26 @@ class LiveUpkiePlant:
             ],
             np.int64,
         )
+        # These are measured plant limits, not a second controller authority
+        # path.  Keep the fixed actuator order and expose the authored MuJoCo
+        # control range so the browser can show which coordinate is closest
+        # to saturation without inventing calibrated thermal limits.
+        self.actuator_names = [
+            mujoco.mj_id2name(
+                self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, int(actuator_id)
+            )
+            or f"actuator_{index}"
+            for index, actuator_id in enumerate(self.actuator_ids)
+        ]
+        actuator_ranges = np.asarray(
+            self.model.actuator_ctrlrange[self.actuator_ids], dtype=np.float64
+        )
+        actuator_limited = np.asarray(
+            self.model.actuator_ctrllimited[self.actuator_ids], dtype=np.uint8
+        )
+        actuator_limits = np.max(np.abs(actuator_ranges), axis=1)
+        actuator_limits[actuator_limited == 0] = np.inf
+        self.actuator_effort_limits_nm = actuator_limits
         self.body_by_name = {
             name: body
             for body in range(1, self.model.nbody)
@@ -339,6 +359,17 @@ class LiveUpkiePlant:
                 "policy": "report_fall_then_reset_on_next_stream_step",
             },
             "body_names": sorted(self.body_by_name),
+            "actuator_names": list(self.actuator_names),
+            "actuator_effort_limits_nm": [
+                float(limit) if np.isfinite(limit) else None
+                for limit in self.actuator_effort_limits_nm
+            ],
+            "actuator_resource_models": [False] * len(self.actuator_names),
+            "actuator_resource_contract": {
+                "effort_source": "MuJoCo actuator ctrl/force range",
+                "mechanical_power_source": "measured actuator effort × actuator velocity",
+                "thermal_reliability": "unmodeled; no calibrated electrical/thermal state",
+            },
             "boundary": "python_mujoco_plant__rust_capture_wbc",
             "external_load_contract": {
                 "executable_class": "declared_continuous_wrench",
@@ -870,6 +901,19 @@ class LiveUpkiePlant:
         actuator_effort_nm = np.asarray(
             self.data.ctrl[self.actuator_ids], dtype=np.float64
         ).copy()
+        actuator_velocity_rad_s = np.asarray(
+            self.data.actuator_velocity[self.actuator_ids], dtype=np.float64
+        ).copy()
+        actuator_mechanical_power_w = (
+            actuator_effort_nm * actuator_velocity_rad_s
+        )
+        actuator_effort_utilization = np.divide(
+            np.abs(actuator_effort_nm),
+            self.actuator_effort_limits_nm,
+            out=np.zeros_like(actuator_effort_nm),
+            where=np.isfinite(self.actuator_effort_limits_nm)
+            & (self.actuator_effort_limits_nm > 0.0),
+        )
         actuator_force = np.asarray(self.data.actuator_force, dtype=np.float64).copy()
         generalized_acceleration = np.asarray(
             self.data.qacc, dtype=np.float64
@@ -937,6 +981,13 @@ class LiveUpkiePlant:
             "wbc_hard_contact_active": published_hard_contact_active.tolist(),
             "wbc_hard_contact_executable": published_hard_contact_executable.tolist(),
             "actuator_effort_nm": actuator_effort_nm.tolist(),
+            "actuator_effort_limit_nm": [
+                float(limit) if np.isfinite(limit) else None
+                for limit in self.actuator_effort_limits_nm
+            ],
+            "actuator_effort_utilization": actuator_effort_utilization.tolist(),
+            "actuator_velocity_rad_s": actuator_velocity_rad_s.tolist(),
+            "actuator_mechanical_power_w": actuator_mechanical_power_w.tolist(),
             "actuator_force": actuator_force.tolist(),
             "generalized_acceleration": generalized_acceleration.tolist(),
             "actuator_generalized_force": actuator_generalized_force.tolist(),
@@ -1344,6 +1395,12 @@ class LiveUpkiePlant:
                 ),
                 "maximum_abs_actuator_effort_nm": float(
                     np.max(np.abs(actuator_effort_nm), initial=0.0)
+                ),
+                "maximum_actuator_effort_utilization": float(
+                    np.max(actuator_effort_utilization, initial=0.0)
+                ),
+                "maximum_abs_actuator_mechanical_power_w": float(
+                    np.max(np.abs(actuator_mechanical_power_w), initial=0.0)
                 ),
                 "maximum_abs_generalized_acceleration": float(
                     np.max(np.abs(generalized_acceleration), initial=0.0)

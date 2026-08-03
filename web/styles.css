@@ -158,6 +158,36 @@ h2 { font-size: 10px; margin: 0; text-transform: uppercase; letter-spacing: .14e
   display: block; color: #b9e8d2; font: 8px/1.45 "SFMono-Regular", Consolas, monospace;
   white-space: normal; overflow-wrap: anywhere;
 }
+.actuator-budget-panel {
+  margin-top: 12px; padding: 9px; border: 1px solid #28332f;
+  background: #101714; overflow: hidden;
+}
+.actuator-budget-heading {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin-bottom: 7px; color: var(--muted); font-size: 8px;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.actuator-budget-heading small {
+  overflow: hidden; color: #65736c; font: 8px "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0; text-overflow: ellipsis; text-transform: none; white-space: nowrap;
+}
+.actuator-budget { display: grid; gap: 5px; }
+.actuator-budget-empty, .actuator-budget-note {
+  color: #65736c; font: 8px/1.4 "SFMono-Regular", Consolas, monospace;
+}
+.actuator-budget-note { display: block; margin-top: 7px; color: #52635c; }
+.actuator-budget-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 6px; align-items: center; }
+.actuator-budget-label {
+  overflow: hidden; color: #9aa9a1; font: 8px "SFMono-Regular", Consolas, monospace;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.actuator-budget-track { height: 4px; overflow: hidden; background: #242c2f; }
+.actuator-budget-fill { width: 0; height: 100%; background: #77d4ae; transition: width .12s linear, background .12s linear; }
+.actuator-budget-row.warning .actuator-budget-fill { background: #e0b15a; }
+.actuator-budget-row.critical .actuator-budget-fill { background: #ef756a; }
+.actuator-budget-value { color: #b9e8d2; font: 8px "SFMono-Regular", Consolas, monospace; text-align: right; white-space: nowrap; }
+.actuator-budget-row.warning .actuator-budget-value { color: #e0b15a; }
+.actuator-budget-row.critical .actuator-budget-value { color: #ef756a; }
 .observation-transport > span {
   display: block; margin-bottom: 7px; color: var(--muted); font-size: 9px;
   letter-spacing: .08em; text-transform: uppercase;

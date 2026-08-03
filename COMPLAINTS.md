@@ -46,8 +46,11 @@ promotion requires a contiguous parameter neighborhood and every independent
 holdout row to finish without inventing contact authority, raising solver
 budgets, or weakening guardrails. The exact R314 root-wrench profile is
 qualified selection evidence; R316 keeps public authority unchanged.
-Calibrated actuator/thermal limits, hardware realization, and an independent
-full-body reference-controller comparison remain separate gates.
+The live stream now exposes authored per-actuator effort limits and measured
+effort/velocity/mechanical-power utilization for the browser budget bars, but
+that is still evidence only: calibrated actuator/thermal limits, hardware
+realization, and an independent full-body reference-controller comparison
+remain separate gates.
 
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated

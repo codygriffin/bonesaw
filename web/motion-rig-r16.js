@@ -46,6 +46,8 @@ const plantGroundState = document.querySelector("#plant-ground-state");
 const groundContactState = document.querySelector("#ground-contact-state");
 const contactCadenceState = document.querySelector("#contact-cadence-state");
 const contactLoadState = document.querySelector("#contact-load-state");
+const actuatorBudget = document.querySelector("#actuator-budget");
+const actuatorBudgetSummary = document.querySelector("#actuator-budget-summary");
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
 const plantWrenchLimit = document.querySelector("#plant-wrench-limit");
@@ -90,6 +92,8 @@ let bodyNames = [];
 let coordinateNames = [];
 let actuatorNames = [];
 let actuatorResourceModels = [];
+let actuatorEffortLimits = [];
+let actuatorBudgetRows = [];
 let interactionHandles = new Map();
 let selected = null;
 let drag = null;
@@ -164,6 +168,94 @@ let authorityThresholds = {
 };
 const PUSH_FORCE_GAIN_N_PER_M = 60;
 
+function resetActuatorBudget(label = "awaiting MuJoCo") {
+  actuatorEffortLimits = [];
+  actuatorBudgetRows = [];
+  actuatorBudgetSummary.textContent = label;
+  actuatorBudget.innerHTML = "";
+  const empty = document.createElement("div");
+  empty.className = "actuator-budget-empty";
+  empty.textContent = "Measured effort limits arrive with the plant stream.";
+  actuatorBudget.append(empty);
+}
+
+function initializeActuatorBudget(message) {
+  const names = Array.isArray(message.actuator_names)
+    ? message.actuator_names
+    : [];
+  const limits = Array.isArray(message.actuator_effort_limits_nm)
+    ? message.actuator_effort_limits_nm
+    : [];
+  if (!names.length || names.length !== limits.length) {
+    resetActuatorBudget("limits unavailable");
+    return;
+  }
+  actuatorEffortLimits = limits.map((value) => Number(value));
+  actuatorBudgetRows = [];
+  actuatorBudget.innerHTML = "";
+  names.forEach((name, index) => {
+    const row = document.createElement("div");
+    row.className = "actuator-budget-row";
+    const label = document.createElement("span");
+    label.className = "actuator-budget-label";
+    label.textContent = String(name).replace(/_motor$/, "");
+    const track = document.createElement("span");
+    track.className = "actuator-budget-track";
+    const fill = document.createElement("b");
+    fill.className = "actuator-budget-fill";
+    track.append(fill);
+    const value = document.createElement("output");
+    value.className = "actuator-budget-value";
+    value.textContent = "—";
+    row.append(label, track, value);
+    actuatorBudget.append(row);
+    actuatorBudgetRows.push({ row, fill, value, name: String(name), index });
+  });
+  actuatorBudgetSummary.textContent = "measured · thermal N/A";
+}
+
+function updateActuatorBudget(message) {
+  if (!actuatorBudgetRows.length && plantHello) initializeActuatorBudget(plantHello);
+  if (!actuatorBudgetRows.length) return;
+  const efforts = Array.isArray(message.actuator_effort_nm)
+    ? message.actuator_effort_nm.map(Number)
+    : [];
+  const utilizations = Array.isArray(message.actuator_effort_utilization)
+    ? message.actuator_effort_utilization.map(Number)
+    : [];
+  const velocities = Array.isArray(message.actuator_velocity_rad_s)
+    ? message.actuator_velocity_rad_s.map(Number)
+    : [];
+  const powers = Array.isArray(message.actuator_mechanical_power_w)
+    ? message.actuator_mechanical_power_w.map(Number)
+    : [];
+  let maximumUtilization = 0;
+  let maximumPower = 0;
+  actuatorBudgetRows.forEach(({ row, fill, value, name, index }) => {
+    const effort = Number.isFinite(efforts[index]) ? efforts[index] : 0;
+    const limit = actuatorEffortLimits[index];
+    const fallbackUtilization = Number.isFinite(limit) && limit > 0
+      ? Math.abs(effort) / limit
+      : Number.NaN;
+    const utilization = Number.isFinite(utilizations[index])
+      ? Math.max(0, utilizations[index])
+      : fallbackUtilization;
+    const bounded = Number.isFinite(utilization) ? Math.min(1, utilization) : 0;
+    const power = Number.isFinite(powers[index]) ? powers[index] : 0;
+    const velocity = Number.isFinite(velocities[index]) ? velocities[index] : 0;
+    maximumUtilization = Math.max(maximumUtilization, bounded);
+    maximumPower = Math.max(maximumPower, Math.abs(power));
+    row.classList.toggle("warning", bounded >= 0.8 && bounded < 1);
+    row.classList.toggle("critical", bounded >= 1);
+    fill.style.width = `${Math.round(100 * bounded)}%`;
+    value.textContent = Number.isFinite(limit)
+      ? `${effort.toFixed(2)}/${limit.toFixed(1)} · ${Math.round(100 * bounded)}%`
+      : `${effort.toFixed(2)} · N/A`;
+    row.title = `${name}: ${effort.toFixed(3)} N·m, ${velocity.toFixed(2)} rad/s, ${power.toFixed(2)} W mechanical; thermal reliability unmodeled`;
+  });
+  actuatorBudgetSummary.textContent = `max ${Math.round(100 * maximumUtilization)}% · |P| ${maximumPower.toFixed(1)} W · thermal N/A`;
+}
+
 function baseExecutionLabel() {
   return baseExecution === "guided_preview"
     ? "Cartesian base target · WBC preview"
@@ -215,6 +307,7 @@ function resetPlantTelemetry(status = "disconnected · ghost") {
   contactCadenceState.textContent = "awaiting contact cadence";
   contactLoadState.textContent = "awaiting wheel loads";
   plantWrench.textContent = "unavailable";
+  resetActuatorBudget(status);
   for (const [id, label] of [
     ["authority-capture", "awaiting live MuJoCo state"],
     ["authority-fall-safe", "awaiting prior-command lease evidence"],
@@ -371,6 +464,7 @@ function connectPlant() {
     const message = JSON.parse(event.data);
     if (message.type === "plant_hello") {
       plantHello = message;
+      initializeActuatorBudget(message);
       plantConnected = true;
       plantStateFresh = false;
       plantPaused = Boolean(message.paused);
@@ -731,6 +825,7 @@ function updatePlantTelemetry(message) {
     ...(message.actuator_force || []).map((value) => Math.abs(Number(value))),
     0,
   );
+  updateActuatorBudget(message);
   plantEffortState.textContent = `${Number(metrics.maximum_abs_actuator_effort_nm || 0).toFixed(3)} N·m command · ${actualActuatorForce.toFixed(3)} actuator force · q̈ ${Number(metrics.maximum_abs_generalized_acceleration || 0).toFixed(2)} max`;
   plantConstraintState.textContent = `${Number(metrics.maximum_abs_constraint_force || 0).toFixed(2)} generalized · ${Number(metrics.maximum_abs_constraint_scalar_force || 0).toFixed(2)} scalar · |pos| ${Number(metrics.maximum_abs_constraint_position || 0).toExponential(1)} · |vel| ${Number(metrics.maximum_abs_constraint_velocity || 0).toExponential(1)}`;
   const planePoint = simulatorGroundPlane.point;
@@ -966,6 +1061,10 @@ function connect() {
       coordinateNames = message.coordinate_names || [];
       actuatorNames = message.actuator_names || coordinateNames;
       actuatorResourceModels = message.actuator_resource_models || [];
+      initializeActuatorBudget({
+        actuator_names: plantHello?.actuator_names || actuatorNames,
+        actuator_effort_limits_nm: plantHello?.actuator_effort_limits_nm || [],
+      });
       applyAuthorityContract(message.authority_contract);
       interactionHandles = new Map(
         (message.interaction_handles || []).map((handle) => [handle.frame, handle]),

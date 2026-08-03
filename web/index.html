@@ -9,7 +9,7 @@
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%2318251f'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-size='13' font-weight='700' fill='%238fe6c0'%3EBS%3C/text%3E%3C/svg%3E" />
     <title>Bonesaw · Motion Rig Lab</title>
-    <link rel="stylesheet" href="/styles.css?v=13" />
+    <link rel="stylesheet" href="/styles.css?v=14" />
   </head>
   <body>
     <div class="shell">
@@ -112,6 +112,16 @@
             <div class="contact-cadence" aria-label="Measured wheel load reserve">
               <span>Wheel load reserve</span>
               <output id="contact-load-state">awaiting wheel loads</output>
+            </div>
+            <div class="actuator-budget-panel" aria-label="Measured actuator effort budget">
+              <div class="actuator-budget-heading">
+                <span>Actuator effort budget</span>
+                <small id="actuator-budget-summary">awaiting MuJoCo</small>
+              </div>
+              <div id="actuator-budget" class="actuator-budget" aria-live="polite">
+                <div class="actuator-budget-empty">Measured effort limits arrive with the plant stream.</div>
+              </div>
+              <small class="actuator-budget-note">Measured effort / velocity / mechanical power. Thermal reliability is unmodeled.</small>
             </div>
             <div class="observation-transport" aria-label="Robot observation transport mode">
               <span>Observation transport</span>
@@ -514,6 +524,6 @@
       </header>
       <div id="architecture-content" class="architecture-content"></div>
     </aside>
-    <script src="/motion-rig-r16.js?v=234" defer></script>
+    <script src="/motion-rig-r16.js?v=235" defer></script>
   </body>
 </html>

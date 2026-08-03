@@ -1161,6 +1161,10 @@ physical z=0 plane: MuJoCo advances at 250 Hz, persistent Rust WBC runs at
 streams at 50 Hz. Contact points, normals, normal force, ground-contact count,
 penetration, sim time, solver iterations, backend/version, wrench force and
 moment are rendered separately from the diagnostic TARGET state.
+The plant stream also exposes each MuJoCo actuator's authored effort limit,
+measured effort utilization, velocity, and mechanical power as small budget
+bars; thermal/reliability remains explicitly `UNMODELED` until calibrated
+electrical and temperature state exists.
 The live WBC now also consumes an exact MuJoCo wheel-to-ground mask on every
 50 Hz observation. Rust owns fresh-observation provenance, positive debounce,
 and immediate hard-support removal on contact loss; raw, debounced, and hard
