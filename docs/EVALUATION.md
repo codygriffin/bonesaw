@@ -4,6 +4,23 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r312 measured landing/reload phase boundary
+
+`python/evals/upkie_live_measured_landing_r312.py` compares an explicit
+default-off R312 candidate with the same public-rate worker profile: five 4 ms
+MuJoCo substeps feed one 50 Hz Rust WBC solve. Rust consumes the exact prior
+window snapshot, raw/stable/hard contact masks, measured wheel loads, wheel
+FK/Jacobians, and persistent phase state; Python only sequences the fixture and
+scores the MuJoCo consequence. The gates require nominal dormancy, causal
+precontact activation, current-hard-mask mode firewall, exact window/snapshot
+alignment, finite outputs, exact replay, zero timed Rust allocations, and
+non-admitted WBC rows to remain non-executable. A second composition runs the
+current R310 public controller on R311's mirrored repeated upper-base pulls.
+The mechanism passes every gate, but falls remain `4→4`, no activated case
+reaches force-backed bilateral qualification, and two terminal boundaries move
+earlier. The action is rejected and remains default-off. The retained report is
+[`UPKIE_LIVE_MEASURED_LANDING_R312.md`](../benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
+
 ### Revision r302 strict live support-recovery falsifier
 
 `python/evals/upkie_live_support_recovery_r302.py` keeps request generation and

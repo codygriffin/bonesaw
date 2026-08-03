@@ -369,6 +369,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   rejected. The PyO3 query is opt-in and diagnostic only: it emits no command,
   does not change the public 250/50 worker, and does not claim physical
   recovery. See the [r305 contact-reacquisition observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+- R312 qualifies the causal phase boundary without promoting its recovery
+  action. Persistent Rust consumes the prior contact window and measured load,
+  keeps a missing/relocking wheel in `NormalPoint`, and requires the existing
+  force-backed observer before `RollingWheel` returns. All 17 mechanism gates
+  pass with zero Rust allocation and `3.768 µs` worst-case p99. On the R310
+  public controller plus R311 upper-base holdout, however, falls remain `4→4`,
+  no activated case force-qualifies bilateral support, and two terminal
+  boundaries move earlier. R312 remains default-off negative evidence. See the
+  [r312 measured-landing report](benchmarks/results/upkie-live-measured-landing-r312/UPKIE_LIVE_MEASURED_LANDING_R312.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

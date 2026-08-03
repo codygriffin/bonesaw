@@ -827,6 +827,20 @@ function updatePlantTelemetry(message) {
     supportPressure,
     supportCount === 0 ? "critical" : supportCount === 1 ? "warning" : "ok",
   );
+  const landingEnabled = Boolean(metrics.measured_landing_enabled);
+  const landingDiagnostics = Array.isArray(metrics.measured_landing_diagnostics)
+    ? metrics.measured_landing_diagnostics
+    : [];
+  const landingActive = Boolean(metrics.measured_landing_active);
+  const landingPrecontact = Boolean(metrics.measured_landing_precontact_active);
+  const landingTouchdownNormal = Boolean(metrics.measured_landing_touchdown_normal_active);
+  const landingQualified = Boolean(metrics.measured_landing_reacquisition_qualified);
+  const landingAuthority = clampUnit(Number(landingDiagnostics[19] || 0));
+  const landingError = Number(landingDiagnostics[20]);
+  const landingAcceleration = Number(landingDiagnostics[21]);
+  const landingModes = Array.isArray(metrics.measured_landing_contact_modes)
+    ? metrics.measured_landing_contact_modes.join("")
+    : "—";
   const touchdownEnabled = Boolean(metrics.wbc_single_support_reacquisition_enabled);
   const touchdownDiagnostics = Array.isArray(metrics.wbc_single_support_reacquisition_diagnostics)
     ? metrics.wbc_single_support_reacquisition_diagnostics
@@ -836,15 +850,25 @@ function updatePlantTelemetry(message) {
   const touchdownError = Number(touchdownDiagnostics[7]);
   const touchdownAcceleration = Number(touchdownDiagnostics[9]);
   const touchdownTransition = Number(touchdownDiagnostics[13]);
-  setLiveAuthorityRow(
-    "authority-touchdown",
-    touchdownEnabled ? (touchdownActive ? `${Math.round(100 * touchdownAuthority)}%` : "ARMED") : "OFF",
-    touchdownEnabled
-      ? `${touchdownActive ? "measured single support" : "waiting for exact single support"} · Δz ${Number.isFinite(touchdownError) ? `${(1000 * touchdownError).toFixed(1)} mm` : "N/A"} · aᵥ ${Number.isFinite(touchdownAcceleration) ? `${touchdownAcceleration.toFixed(2)} m/s²` : "N/A"} · transition ${Number.isFinite(touchdownTransition) ? touchdownTransition : "N/A"}`
-      : "default-off evaluation request · no command authority",
-    touchdownEnabled ? (touchdownActive ? touchdownAuthority : 0) : 0,
-    !touchdownEnabled ? "unavailable" : touchdownActive ? "warning" : "ok",
-  );
+  if (landingEnabled) {
+    setLiveAuthorityRow(
+      "authority-touchdown",
+      landingActive ? `${Math.round(100 * landingAuthority)}%` : "ARMED",
+      `${landingPrecontact ? "precontact" : landingTouchdownNormal ? "touchdown-normal" : "phase idle"} · modes ${landingModes} · ${landingQualified ? "load-qualified" : "awaiting measured load"} · Δz ${Number.isFinite(landingError) ? `${(1000 * landingError).toFixed(1)} mm` : "N/A"} · aᵥ ${Number.isFinite(landingAcceleration) ? `${landingAcceleration.toFixed(2)} m/s²` : "N/A"}`,
+      landingActive ? landingAuthority : 0,
+      landingActive && !landingQualified ? "warning" : "ok",
+    );
+  } else {
+    setLiveAuthorityRow(
+      "authority-touchdown",
+      touchdownEnabled ? (touchdownActive ? `${Math.round(100 * touchdownAuthority)}%` : "ARMED") : "OFF",
+      touchdownEnabled
+        ? `${touchdownActive ? "measured single support" : "waiting for exact single support"} · Δz ${Number.isFinite(touchdownError) ? `${(1000 * touchdownError).toFixed(1)} mm` : "N/A"} · aᵥ ${Number.isFinite(touchdownAcceleration) ? `${touchdownAcceleration.toFixed(2)} m/s²` : "N/A"} · transition ${Number.isFinite(touchdownTransition) ? touchdownTransition : "N/A"}`
+        : "default-off evaluation request · no command authority",
+      touchdownEnabled ? (touchdownActive ? touchdownAuthority : 0) : 0,
+      !touchdownEnabled ? "unavailable" : touchdownActive ? "warning" : "ok",
+    );
+  }
   const residualParts = [
     ["dyn", Number(metrics.wbc_dynamics_residual)],
     ["contact", Number(metrics.wbc_contact_residual)],
@@ -1857,7 +1881,22 @@ function drawAuthorityAnnotations() {
         false,
       );
     }
-    if (Boolean(physical.wbc_single_support_reacquisition_enabled)) {
+    if (Boolean(physical.measured_landing_enabled)) {
+      y += 16;
+      const active = Boolean(physical.measured_landing_active);
+      const precontact = Boolean(physical.measured_landing_precontact_active);
+      const touchdownNormal = Boolean(physical.measured_landing_touchdown_normal_active);
+      const qualified = Boolean(physical.measured_landing_reacquisition_qualified);
+      const authority = clampUnit(Number((physical.measured_landing_diagnostics || [])[19] || 0));
+      drawTinyAuthorityBar(
+        x,
+        y,
+        "LAND",
+        active ? authority : 0,
+        active ? (precontact ? "PRE" : touchdownNormal ? "TDN" : qualified ? "LOCK" : "idle") : "idle",
+        false,
+      );
+    } else if (Boolean(physical.wbc_single_support_reacquisition_enabled)) {
       y += 16;
       const active = Boolean(physical.wbc_single_support_reacquisition_active);
       const authority = clampUnit(Number(physical.wbc_single_support_reacquisition_authority || 0));

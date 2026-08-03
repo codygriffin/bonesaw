@@ -107,8 +107,8 @@ R308 is therefore not a precontact landing controller. Causal activation,
 finite output, and hot-path gates pass, but the candidate still falls at tick
 `56`, has no ten-tick bilateral/upright tail, and retains two non-admitted
 `MaxIterations` ticks. It is therefore retained as negative evidence and
-remains evaluation-only/default-off. The next behavior slice is a phase-aware,
-physically sustained landing/reload policy. See
+remains evaluation-only/default-off. R312 supersedes its phase boundary while
+retaining the failed physical recovery result. See
 [`UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md`](../benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
 
 ## Current contact-reacquisition evidence — r305 fail-closed observer

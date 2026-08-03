@@ -31,10 +31,6 @@
       "detail": "exact bilateral contact evidence + per-wheel MuJoCo normal load + Rust FK/CoM velocity + wheel-heading support geometry → low-pass signed load balance, weaker-load trend prediction, lateral DCM, bounded ZMP/lateral acceleration, and slew-limited continuous authority · caller-owned diagnostics and output buffers · measured geometry derives sign without a left/right array assumption · ordinary floating WBC remains final torque admission · R310 public profile attack/release 10/6 per second, 8 m/s² cap, 4 m/s³ slew · nominal authority exactly zero · 40-case mirrored consequence matrix qualified"
     },
     {
-      "name": "Measured single-support touchdown request",
-      "detail": "An exact measured one-wheel mask, free-wheel height/velocity, and a compiled six-joint Jacobian enter persistent Rust state · Rust owns authority slew, damped height/velocity control, vertical/joint acceleration caps, and diagnostics · Python adds only the returned bounded candidate before the ordinary floating WBC · geometric touch and hypothetical masks never grant support · R308 activates causally and allocation-free but remains default-off because the frozen MuJoCo trace has no sustained bilateral/upright tail"
-    },
-    {
       "name": "Support-preserving task hierarchy",
       "detail": "measured wheel-contact equalities + bounded six-coordinate hip/knee posture stabilization share priority 0 · floating root/CoM tracking remains priority 1 · strict lexicographic solve cannot spend physical support freedom on a lower-authority base target · R309 changes no gains, limits, model, contact evidence, solver budget, policy, or plant · old priority-1 posture remains pinned only in frozen R300-R308 consequence fixtures"
     },
@@ -118,6 +114,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r312-measured-landing-phase-boundary",
+      "title": "Separate causal landing state from physical recovery promotion",
+      "status": "mechanism qualified · recovery rejected · default-off",
+      "detail": "R312 consumes the exact prior-window contact snapshot, measured loads, and monotonic identity in persistent allocation-free Rust. Missing or relocking wheels remain NormalPoint; RollingWheel requires the three-sample force-backed reacquisition witness. Every mechanism gate passes. On the current R310 controller plus R311 upper-base holdout, candidate and baseline both fall in four of eight cases, zero activated cases requalify bilateral support, and the -6 N/+6 N terminal boundaries move 80/4 ticks earlier. No public authority, timeout, reset, or iteration budget changes."
+    },
     {
       "id": "r311-live-wrench-envelope",
       "title": "Report continuous feasibility separately from transport and solver health",
@@ -1227,6 +1229,12 @@
     }
   ],
   "evidence": [
+    {
+      "metric": "R312 measured landing phase boundary",
+      "result": "17/17 mechanism gates · 4→4 falls · 0/4 activated cases force-qualified · recovery rejected",
+      "scope": "public 50/250/50 cadence · exact prior-window contact snapshot · persistent Rust phase state · missing-wheel NormalPoint firewall · force-backed RollingWheel promotion · 3.768 µs worst-case p99 · zero Rust allocation · exact replay · R310 controller plus R311 ±2/4/6/8 N upper-base repeated-pull holdout · -6 N boundary 80 ticks earlier · no public authority or hardware claim",
+      "href": "/UPKIE_LIVE_MEASURED_LANDING_R312.html"
+    },
     {
       "metric": "R311 live wrench capability envelope",
       "result": "harness 6/6 · controller quality 6/7 · 48 cases · 32 stable · 5 outside envelope · 4 one-tick retained/recovered · 7 falls",
@@ -2838,8 +2846,16 @@
   ],
   "authority_stack_example": {
     "note": "R308 MEASURED SINGLE-SUPPORT TOUCHDOWN REQUEST + R307 MEASURED WHEEL-LOAD RESERVE ACTION + R305 FAIL-CLOSED REACQUISITION EVIDENCE + R304 1 KHZ PLANT / 250 HZ WBC CADENCE + R283 BOUNDED FEASIBILITY-POLISH PROFILE + R282 CUMULATIVE SOLVE-ATTEMPT TELEMETRY + R279 SCHEDULE-REACHABLE DCM OBSERVER/REQUEST/SOFT/HARD SPLIT + R278 SUPPORT-TRANSFER TRAJECTORY TUBE + R277 SCHEDULE-BOUNDED DCM + R276 AUTOMATIC CONTACT LOCALIZATION + R275 HARD-FEASIBILITY WITNESS + R274 JOINT-POSITION STOPPING-HEADROOM CAPTURE + R273 BOUNDED NORMALFALLBACK RELOCK PROBE + R272 NORMALFALLBACK TASK-SCALE CAUSAL SPLIT + R271 PER-PATCH SUPPORT-LOAD FLOOR FALSIFIER + R216 G1 CAUSAL-CENTER + SPLIT-KINETIC ZERO-PLANT REPLAY + R215 G1 FINITE-PATCH SPATIAL TRANSITION HOLDOUT + R214 G1 KINETIC IMPULSE ELLIPSOID HOLDOUT + R213 G1 FROZEN GROUPED TRANSITION HOLDOUT + R212 UPKIE GROUPED REACHABLE SET + R211 CROSS-MORPHOLOGY MODEL ORACLE + R210 SPATIAL-CONDITIONED MOMENTUM RESIDUAL + R209 GENERALIZED-MOMENTUM RESIDUAL TUBE + R208 PHYSICS-FREE CONTACT REGULARIZATION + R207 COUPLED DELASSUS CONTACT RESPONSE + R206 SPATIAL CONTACT WRENCH + R205 CONTACT-RESPONSE LOCALIZATION + R204 PASSIVE DIRECTIONAL CONTACT TUBE + R203 CONTINUOUS ACCELERATION INTERVAL + R202 MODEL-OWNED CONTACT RESPONSE + R201 PHYSICAL CONTACT-TRANSITION INTERVAL + R200 EXACT CONTACT-PRESTATE CONDITIONING REJECTION + R199 CAUSAL IMPULSE/VELOCITY-JUMP HOLDOUT + R198 LAGGED-IMPULSE REJECTION + R197 CONTACT-IMPULSE RESIDUAL LOCALIZATION + R196 TERMINAL RESIDUAL CONDITIONING + R195 EXPLICIT SUPPORT-HYPOTHESIS TERMINAL ENVELOPE + R194 ZERO-EFFORT SUPPORT-REALIZATION CALIBRATION + R193 EXACT ZERO-EFFORT TERMINAL BASELINE + R192 TERMINAL-CANDIDATE REALIZATION CALIBRATION + R191 EXACT TERMINAL-IMPACT THREE-WAY CHOOSER + R190 FRESH SUPPORT-FREE BRAKE + R189 CAUSAL FORECAST-IMPROVEMENT GATE + R188 CAUSAL SUPPORT-FREE RETAINED-EFFORT FORECAST SELECTOR + R187 FUTURE-DURATION ORACLE NEGATIVE CONTROL + R186 CONTINUOUS Q15 INEXACT-HOLD AUTHORITY SWEEP + R185 TYPED INEXACT-OBSERVATION HOLD ABLATION + R184 DROPOUT-PHASE CONSEQUENCE + R183 STEADY-DELAY / LATENCY-ONSET CLASSIFICATION + R182 DELAY/DROPOUT/MIRRORED ROBUSTNESS + R181 CURRENT-SUPPORT REALIZATION ABLATION + R180 MEASURED-CONTACT PROGRAM COMPOSITION + R179 GUARDED FLIGHT ACTION + R178 RUST CONTACT-PROGRAM AUTHORITY + MEASURED R177 ENABLE/REACQUISITION DIAGNOSTIC + R176 CAUSAL SELECTION CONSEQUENCE + R175 OBSERVED-SUPPORT REQUEST / SEPARATE WBC ADMISSION + R151–R174 VIABILITY / FORECAST / COMPUTE AUTHORITY + R139 CAUSAL CONTACT + R143 BOUNDED LEASE + R138 CONTACT TRUTH + R137 STALE-COMMAND EXPIRY + R136 FALL-SAFE SUPERVISOR + R135 POLICY-FREE STATE-LOCAL AUTHORITY + R130–R134 ROOTED PHYSICAL EXAMPLES + R90/R97/R98/R99–R121 CPU/BACKEND/OBSERVATION/COMMAND/GEOMETRY AUTHORITY · Observation age, timestamp continuity, joint stopping headroom, fallback/relock state, fallback-task activation time, support load, physical/support hypotheses, candidate availability, contact transition, spatial impulse, response provenance, acceleration uncertainty, interval width, terminal consequence, measured realization, impulse localization, typed WBC admission, retained-command freshness, causal plant consequence, timing, cumulative solver work, and hardware realization remain independent witnesses. No witnesses are aggregated.",
-    "current_note": "R310 PROMOTED CONTINUOUS LOAD RESERVE + R309 PROMOTED SUPPORT HIERARCHY + R308 DEFAULT-OFF LANDING/REACQUISITION + R300 MEASURED CONTACT · Physical support, leg posture, root/CoM intent, reserve pressure, raw/debounced/hard contact, solver admission, resource margins, timing, allocation, plant consequence, and hardware realization remain separate witnesses. No aggregate health score grants authority.",
+    "current_note": "R312 QUALIFIED DEFAULT-OFF LANDING BOUNDARY + R311 MEASURED MOMENT ENVELOPE + R310 PROMOTED CONTINUOUS LOAD RESERVE + R309 PROMOTED SUPPORT HIERARCHY · Physical support, landing phase, force-backed reacquisition, root/CoM intent, reserve pressure, raw/debounced/hard contact, solver admission, resource margins, timing, allocation, plant consequence, and hardware realization remain separate witnesses. No aggregate health score grants authority.",
     "layers": [
+      {
+        "name": "Measured landing phase · R312 qualified mechanism, rejected action",
+        "detail": "Prior-window measured contact and loads drive persistent Rust precontact, touchdown-normal, relock, and locked state. Missing or relocking wheels cannot enter RollingWheel until the force-backed observer qualifies. Every mechanism gate passes, but the public-controller holdout retains four falls, produces zero bilateral requalifications, and moves two terminal boundaries earlier.",
+        "signal": "raw/stable/hard mask · normal loads · phase · relock bits · contact modes · qualification · residual · p99 · allocation · terminal tick",
+        "value": "17/17 MECHANISM · 4→4 FALLS · 0/4 FORCE-QUALIFIED · DEFAULT-OFF",
+        "pressure": 1.0,
+        "state": "bad"
+      },
       {
         "name": "Continuous wheel-load reserve · R310 promoted public profile",
         "detail": "Exact bilateral contact and per-wheel normal load drive a morphology-signed, filtered, trend-aware lateral DCM reserve request in Rust. Authority attacks at 10/s, releases at 6/s, acceleration is capped at 8 m/s² and slewed at 4 m/s³. Ordinary floating WBC still owns torque admission. Missing/nonbilateral evidence releases reserve authority; no cached contact is fabricated.",
@@ -2856,14 +2872,6 @@
         "pressure": 0.153,
         "state": "ok"
       },
-    {
-      "name": "Measured single-support touchdown request · R308",
-      "detail": "An exact one-wheel measured mask enables a Rust-owned free-leg height/velocity request through the compiled wheel Jacobian. Authority slew, Jacobian damping, joint/vertical acceleration caps, and transition diagnostics are caller-buffered and allocation-free; the ordinary WBC still admits the candidate. Causal activation passes, but the frozen physical trace has no sustained bilateral/upright tail, so this layer is default-off.",
-      "signal": "exact support mask · free-wheel height/velocity · Jacobian gain · target error · requested/commanded vertical acceleration · authority · saturation · transition count",
-      "value": "ACTIVATION TICK 40 · P99 2.202 µS · 0 B · RECOVERY RED",
-      "pressure": 0.82,
-      "state": "critical"
-    },
     {
       "name": "Measured wheel-load reserve action · R307",
       "detail": "Filtered wheel loads and their trend expose weak-support pressure before contact loss. Rust combines that evidence with measured wheel geometry and lateral DCM, clips the desired ZMP to the usable support interval, bounds lateral acceleration and bank, slews authority, and releases smoothly on invalid or non-bilateral evidence. The layer is default-off because its delayed loss does not become sustained recovery.",
@@ -3959,8 +3967,8 @@
     ]
   },
   "gaps": [
-    "R310 qualifies lateral base-COM wrench holds only. Sagittal/vertical forces, off-COM moments, slopes, friction/model variation, delay/noise, repeated pulses, cross-morphology transfer, and hardware realization remain separate gates.",
-    "R309 prevents nominal and 8 N support loss at the public cadence, but R308 has not yet demonstrated deliberate lost-wheel landing followed by a five-second bilateral/upright tail; reacquisition remains default-off.",
+    "R311 maps lateral off-CoM moments and repeated pulls, but sagittal/vertical forces, slopes, friction/model variation, delay/noise, cross-morphology transfer, and hardware realization remain separate gates.",
+    "R312 qualifies a causal measured-landing phase boundary, but its action retains four terminal falls, produces no force-backed bilateral requalification, and moves two boundaries earlier. Continuous moment rejection/recovery remains default-off and open.",
     "R296's sequential measured-contact replay passes all 14 cadence, newest-frame edge, 11/10/01/00, debounce, hard-subset, fail-closed pause, no-reset, and exact-replay gates. This closes the contact-admission harness boundary, not the full MuJoCo/WBC floating transfer, tracking, thermal, or hardware gate.",
     "R296 rejects a fixed 58-element Jacobi dot after five pinned pairs preserve 56-array semantics and zero allocations but increase retired instructions in every pair. R293 remains the CPU default; ordinary Preference/Style work, the sub-5 ms p99 gate, and floating walking/contact transfer remain open.",
     "R294 rejects a generation-checked Jacobi rejected-pair cache after every pinned pair increases instructions 1.55537% and branches 6.81245%. R293 therefore remains the exact dense-matvec production default at a 5.175 ms median p99, still above target; ordinary Preference/Style work, walking/contact transfer, and authority gates remain open.",
