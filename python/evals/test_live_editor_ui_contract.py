@@ -43,12 +43,19 @@ class LiveEditorUiContractTest(unittest.TestCase):
             "disconnectPlant({ preserveGhost: true, closeSocket: false })",
             self.javascript,
         )
-        self.assertIn("plantStatus.textContent = \"disconnected · ghost\"", self.javascript)
+        self.assertIn("function resetPlantTelemetry(status = \"disconnected · ghost\")", self.javascript)
+        self.assertIn("simulatorState.textContent = \"awaiting MuJoCo\"", self.javascript)
+        self.assertIn("groundContactState.textContent = \"awaiting contact state\"", self.javascript)
         self.assertIn("plantWrench.textContent = \"unavailable\"", self.javascript)
         self.assertIn("connectionLabel.textContent = \"Plant reconnecting\"", self.javascript)
         self.assertIn("setRobotControlsEnabled(false)", self.javascript)
         self.assertIn("if (!preserveGhost)", self.javascript)
         self.assertIn("measuredPlantFrames = []", self.javascript)
+        self.assertIn("let plantStateFresh = false", self.javascript)
+        self.assertIn("plantStateFresh = true", self.javascript)
+        self.assertIn("const stalePlantSnapshot = latestSnapshot.message.source === \"plant\"", self.javascript)
+        self.assertIn("latestMetrics = stalePlantSnapshot ? null : latestSnapshot.message.metrics", self.javascript)
+        self.assertIn("if (!robotControlsEnabled && socket?.readyState === WebSocket.OPEN)", self.javascript)
 
     def test_handles_are_visible_and_only_visible_frames_are_hit_tested(self) -> None:
         self.assertIn('id="target-guide"', self.html)

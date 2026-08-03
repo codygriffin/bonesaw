@@ -55,6 +55,9 @@ let plantConnected = false;
 let plantGateway = null;
 let plantHello = null;
 let plantState = null;
+// A hello only describes the stream schema.  Controls may be re-enabled after
+// a reconnect once a post-reconnect plant_state has actually arrived.
+let plantStateFresh = false;
 let plantPaused = false;
 let interactionMode = "target";
 let pushReturnMode = null;
@@ -196,9 +199,31 @@ function sendPlant(message) {
   return requestId;
 }
 
+function resetPlantTelemetry(status = "disconnected · ghost") {
+  plantStatus.textContent = status;
+  simulatorState.textContent = "awaiting MuJoCo";
+  plantRootState.textContent = "awaiting MuJoCo";
+  plantComState.textContent = "awaiting MuJoCo";
+  plantMotionState.textContent = "awaiting MuJoCo";
+  plantEffortState.textContent = "awaiting MuJoCo";
+  plantConstraintState.textContent = "awaiting MuJoCo";
+  runtimeRates.textContent = "awaiting MuJoCo";
+  plantGroundState.textContent = "awaiting simulator plane";
+  groundContactState.textContent = "awaiting contact state";
+  plantWrench.textContent = "unavailable";
+  for (const [id, label] of [
+    ["authority-capture", "awaiting live MuJoCo state"],
+    ["authority-fall-safe", "awaiting prior-command lease evidence"],
+    ["authority-station", "awaiting live MuJoCo state"],
+  ]) {
+    setLiveAuthorityRow(id, "UNAVAILABLE", label, 0, "unavailable");
+  }
+}
+
 function disconnectPlant({ preserveGhost = false, closeSocket = true } = {}) {
   plantConnected = false;
   plantHello = null;
+  plantStateFresh = false;
   plantContacts = [];
   plantState = null;
   plantPaused = false;
@@ -214,11 +239,13 @@ function disconnectPlant({ preserveGhost = false, closeSocket = true } = {}) {
   activeForceArrow = null;
   pendingPushCommand = null;
   pushDrag = null;
+  pushReturnMode = null;
   if (closeSocket && plantSocket) {
     plantSocket.onclose = null;
     plantSocket.close();
     plantSocket = null;
   }
+  resetPlantTelemetry();
   updateInteractionUi();
 }
 
@@ -252,6 +279,7 @@ function plantFrames(message) {
 
 function enqueuePlantState(message) {
   const firstPlantState = plantState === null;
+  plantStateFresh = true;
   plantState = message;
   plantPaused = Boolean(message.paused ?? message.simulator?.paused ?? message.metrics?.paused);
   plantContacts = message.contacts || [];
@@ -319,12 +347,15 @@ function enqueuePlantState(message) {
     pendingPushCommand = null;
     activeForceArrow = null;
   }
+  if (!robotControlsEnabled && socket?.readyState === WebSocket.OPEN) {
+    setRobotControlsEnabled(true);
+  }
   scheduleRender();
   updateInteractionUi();
 }
 
 function connectPlant() {
-  if (!plantGateway?.available) return;
+  if (!plantGateway?.available || socket?.readyState !== WebSocket.OPEN) return;
   if (plantSocket?.readyState === WebSocket.CONNECTING
       || plantSocket?.readyState === WebSocket.OPEN) return;
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -337,6 +368,7 @@ function connectPlant() {
     if (message.type === "plant_hello") {
       plantHello = message;
       plantConnected = true;
+      plantStateFresh = false;
       plantPaused = Boolean(message.paused);
       const simulator = message.simulator || {};
       if (Array.isArray(simulator.ground_plane_point_world)
@@ -351,7 +383,6 @@ function connectPlant() {
       simulatorState.textContent = `${simulator.backend || "MuJoCo"} ${simulator.version || ""} · ${simulator.integrator || "unknown integrator"}`.trim();
       runtimeRates.textContent = `${message.control_hz} / ${message.physics_hz} Hz · ${message.physics_substeps_per_control} substeps`;
       connectionLabel.textContent = interactionMode === "push" ? "Streaming · plant" : "Streaming";
-      setRobotControlsEnabled(true);
       updateInteractionUi();
     } else if (message.type === "plant_state") {
       enqueuePlantState(message);
@@ -359,8 +390,12 @@ function connectPlant() {
       showToast(message.message || "Plant command rejected");
     } else if (message.type === "plant_unavailable") {
       showToast(message.reason || "Physical plant unavailable");
-      plantStatus.textContent = "unavailable";
-      setInteractionMode("target");
+      disconnectPlant({ preserveGhost: true });
+      connectionLabel.textContent = "Plant reconnecting";
+      setRobotControlsEnabled(false);
+      if (socket?.readyState === WebSocket.OPEN) {
+        setTimeout(connectPlant, 800);
+      }
     }
   };
   plantSocket.onerror = () => {
@@ -374,8 +409,6 @@ function connectPlant() {
     // enabled controls on screen.
     plantSocket = null;
     disconnectPlant({ preserveGhost: true, closeSocket: false });
-    plantStatus.textContent = "disconnected · ghost";
-    plantWrench.textContent = "unavailable";
     connectionLabel.textContent = "Plant reconnecting";
     setRobotControlsEnabled(false);
     if (socket?.readyState === WebSocket.OPEN) {
@@ -2353,7 +2386,11 @@ function renderFrame(now) {
   }
   viewportPerformance.lastFrameAt = now;
   if (latestSnapshot) {
-    latestMetrics = latestSnapshot.message.metrics;
+    // Preserve the last plant frame for the disconnected ghost, but do not
+    // let its metrics continue to feed authority bars or collision overlays.
+    const stalePlantSnapshot = latestSnapshot.message.source === "plant"
+      && !plantStateFresh;
+    latestMetrics = stalePlantSnapshot ? null : latestSnapshot.message.metrics;
     frames = interpolatedFrames(now);
     if (
       latestSnapshot.message.tick !== lastTelemetryTick
