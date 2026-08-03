@@ -10,6 +10,11 @@ pub use upkie_landing::{
     UpkieMeasuredLandingOutput, UpkieMeasuredLandingState,
     apply_upkie_measured_landing_request_envelope, step_upkie_measured_landing,
 };
+mod upkie_moment;
+pub use upkie_moment::{
+    UPKIE_BODY_MOMENT_DIAGNOSTIC_WIDTH, UpkieBodyMomentRejectionConfig,
+    UpkieBodyMomentRejectionOutput, step_upkie_body_moment_rejection,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpkieWheelBalancerConfig {

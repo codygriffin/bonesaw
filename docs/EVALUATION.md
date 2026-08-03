@@ -4,6 +4,25 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r314 measured body-moment rejection
+
+`python/evals/upkie_live_body_moment_rejection_r314.py` evaluates a pure Rust,
+state-local correction using only measured root roll and measured roll rate.
+The law itself has no policy or physics dependency; Python declares a finite
+gain/cap screen and MuJoCo 3.3.7 supplies only the replaceable plant
+consequence. The full frozen eight-force upper-base holdout compares R313 and
+R314 at 50 Hz WBC / 250 Hz physics. Gates cover exact nominal dormancy,
+prior-window measured-contact/mode firewalling, finite output, zero hot-path
+allocation, action/controller/worker deadlines, bounded acceleration and
+torque, exact replay, and zero new nonadmission/reset.
+
+Falls decrease `4→2`: both mirrored `±6 N` cases finish 450 ticks, force-relock
+five times, and retain a final two-second bilateral upright tail. The `−8 N`
+terminal stays at tick `79`, the `+8 N` terminal moves later `69→72`, and all
+`±2/±4 N` rows remain nonterminal. Full recovery remains open because the two
+`±8 N` cases still fall, so the mechanism is qualified but default-off. See
+[`UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
+
 ### Revision r313 continuous landing-request envelope
 
 `python/evals/upkie_live_landing_envelope_r313.py` compares R310, the R312

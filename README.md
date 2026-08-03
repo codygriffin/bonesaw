@@ -369,6 +369,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   rejected. The PyO3 query is opt-in and diagnostic only: it emits no command,
   does not change the public 250/50 worker, and does not claim physical
   recovery. See the [r305 contact-reacquisition observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+- R314 adds a bounded Rust body-moment correction using only measured root roll
+  and roll rate. The nominal physical path is bit-exact, the hot path allocates
+  zero bytes, and the action cannot author contact or bypass ordinary WBC
+  admission. On the frozen eight-force Upkie holdout, falls decrease `4→2`:
+  both `±6 N` cases finish 450 ticks with five force-backed relocks and stable
+  two-second upright tails; `−8 N` stays at tick `79`, `+8 N` moves `69→72`,
+  and `±2/±4 N` remain nonterminal. The `±8 N` overload class keeps full
+  recovery open, so R314 remains default-off. See the
+  [r314 report](benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 - R313 keeps the bounded Rust normal request active through geometric
   recontact and measured-load debounce without authoring WBC support. A frozen
   nine-depth screen selects a 0.9 mm preload below the 50 mm model radius.

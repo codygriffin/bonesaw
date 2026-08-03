@@ -201,6 +201,27 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "support_load_reserve_allocated_bytes": int(
             metrics.get("wbc_support_load_reserve_allocated_bytes", 0)
         ),
+        "body_moment_rejection_enabled": bool(
+            metrics.get("wbc_body_moment_rejection_enabled", False)
+        ),
+        "body_moment_rejection_active": bool(
+            metrics.get("wbc_body_moment_rejection_active", False)
+        ),
+        "body_moment_rejection_authority": float(
+            metrics.get("wbc_body_moment_rejection_authority", 0.0)
+        ),
+        "body_moment_rejection_diagnostics": list(
+            metrics.get("wbc_body_moment_rejection_diagnostics", [0.0] * 11)
+        ),
+        "body_moment_rejection_step_us": float(
+            metrics.get("wbc_body_moment_rejection_step_us", 0.0)
+        ),
+        "body_moment_rejection_allocation_calls": int(
+            metrics.get("wbc_body_moment_rejection_allocation_calls", 0)
+        ),
+        "body_moment_rejection_allocated_bytes": int(
+            metrics.get("wbc_body_moment_rejection_allocated_bytes", 0)
+        ),
         "single_support_reacquisition_enabled": bool(
             metrics.get("wbc_single_support_reacquisition_enabled", False)
         ),
@@ -385,6 +406,7 @@ def _semantic(case: dict[str, Any]) -> dict[str, Any]:
             "support_contingency_author_step_us",
             "support_contingency_step_us",
             "support_load_reserve_step_us",
+            "body_moment_rejection_step_us",
             "single_support_recovery_step_us",
             "single_support_reacquisition_step_us",
             "measured_landing_step_us",

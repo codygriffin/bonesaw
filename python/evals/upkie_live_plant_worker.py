@@ -1026,6 +1026,29 @@ class LiveUpkiePlant:
                 "wbc_support_load_reserve_allocated_bytes": 0
                 if latest_result is None or self.paused
                 else int(latest_result["support_load_reserve_allocated_bytes"]),
+                "wbc_body_moment_rejection_enabled": bool(
+                    self.controller.body_moment_rejection_enabled
+                ),
+                "wbc_body_moment_rejection_active": bool(
+                    latest_result is not None
+                    and not self.paused
+                    and latest_result["body_moment_rejection_active"]
+                ),
+                "wbc_body_moment_rejection_authority": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["body_moment_rejection_authority"]),
+                "wbc_body_moment_rejection_diagnostics": (
+                    self.controller.body_moment_rejection_diagnostics.tolist()
+                ),
+                "wbc_body_moment_rejection_step_us": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["body_moment_rejection_step_ns"]) / 1.0e3,
+                "wbc_body_moment_rejection_allocation_calls": 0
+                if latest_result is None or self.paused
+                else int(latest_result["body_moment_rejection_allocation_calls"]),
+                "wbc_body_moment_rejection_allocated_bytes": 0
+                if latest_result is None or self.paused
+                else int(latest_result["body_moment_rejection_allocated_bytes"]),
                 "wbc_single_support_reacquisition_enabled": bool(
                     self.controller.single_support_reacquisition_enabled
                 ),

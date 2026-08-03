@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bonesaw R314 · measured body-moment rejection</title>
+<style>
+:root{color-scheme:dark;--bg:#090d0f;--panel:#11181b;--line:#263338;--text:#d7e3df;--muted:#91a19b;--green:#82e0b6;--amber:#f4c574;--red:#ff857e}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.58 system-ui,sans-serif;overflow-wrap:anywhere}main{width:min(980px,100%);margin:auto;padding:clamp(20px,5vw,62px)}h1{font-size:clamp(2.25rem,8vw,5rem);line-height:.96;letter-spacing:-.052em;margin:.25em 0}.kicker{color:var(--amber);font:700 12px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}.lede{max-width:790px;color:var(--muted);font-size:clamp(1rem,2.5vw,1.14rem)}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:28px 0}.card,.layer{min-width:0;border:1px solid var(--line);background:var(--panel);padding:16px;border-radius:11px}.card b{display:block;font-size:1.42rem}.card small{color:var(--muted)}section{margin-top:38px}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:.76rem;text-transform:uppercase}.pass{color:var(--green)}.open{color:var(--red)}code{color:var(--amber)}.stack{display:grid;gap:8px}.layer strong{color:var(--green)}.note{border-left:3px solid var(--amber);padding:12px 16px;background:var(--panel)}a{color:var(--green)}
+@media(max-width:700px){main{padding:20px max(14px,env(safe-area-inset-left)) 36px}.cards{grid-template-columns:1fr 1fr}.card{padding:13px}.card b{font-size:1.18rem}.table-scroll{margin-inline:-14px;padding-inline:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}table{min-width:590px;font-size:.82rem}th,td{padding:9px 8px}section{margin-top:30px}.layer{padding:14px}h2{font-size:1.25rem}}
+@media(max-width:380px){.cards{grid-template-columns:1fr}.kicker{font-size:11px}}
+</style>
+</head>
+<body><main>
+<div class="kicker">Bonesaw · R314 · bounded behavior · default-off</div>
+<h1>Two falls gone.<br>Two overloads left.</h1>
+<p class="lede">A continuous Rust correction now rejects accumulated body moment before the third support loss. Both mirrored 6 N rows finish; the 8 N overload class remains the honest promotion boundary.</p>
+<div class="cards"><div class="card"><b>4 → 2</b><small>terminal falls</small></div><div class="card"><b>450 × 2</b><small>±6 N ticks completed</small></div><div class="card"><b>5 × 2</b><small>force-backed relocks</small></div><div class="card"><b>0 B</b><small>action allocations</small></div></div>
+<section><h2>Frozen eight-force holdout</h2><div class="table-scroll"><table><thead><tr><th>Upper-base pull</th><th>R313 terminal</th><th>R314 terminal</th><th>Relocks</th><th>Max torque</th><th>Action cap</th></tr></thead><tbody>
+<tr><td>−8 N</td><td>79</td><td class="open">79</td><td>0</td><td>21.9%</td><td>10.5 rad/s²</td></tr>
+<tr><td>−6 N</td><td>236</td><td class="pass">finish 450</td><td>5</td><td>16.5%</td><td>5.64 rad/s²</td></tr>
+<tr><td>−4 / −2 N</td><td>finish 450</td><td class="pass">finish 450</td><td>0</td><td>15.2%</td><td>≤0.91 rad/s²</td></tr>
+<tr><td>+2 / +4 N</td><td>finish 450</td><td class="pass">finish 450</td><td>0</td><td>15.2%</td><td>≤0.91 rad/s²</td></tr>
+<tr><td>+6 N</td><td>236</td><td class="pass">finish 450</td><td>5</td><td>16.7%</td><td>5.66 rad/s²</td></tr>
+<tr><td>+8 N</td><td>69</td><td class="open">72</td><td>0</td><td>25.6%</td><td>10.5 rad/s²</td></tr>
+</tbody></table></div></section>
+<section><h2>Architecture decision</h2><div class="stack">
+<div class="layer"><strong>Measured state in; one bounded delta out</strong><br>Current root roll and roll rate feed smooth tilt and outward-rate pressure. Restoring stiffness always points upright; damping is spent only while angular velocity points farther away.</div>
+<div class="layer"><strong>Composes below authority boundaries</strong><br>The delta is added after continuous wheel-load reserve and before the ordinary floating-WBC solve. It cannot author contact, mutate solver rows, promote <code>RollingWheel</code>, extend a timeout, or bypass admission.</div>
+<div class="layer"><strong>Action and consequence stay separate</strong><br>The state law is pure Rust with no policy, forecast, or physics dependency. Python owns the finite screen and pinned MuJoCo 3.3.7 plant consequence. Nominal physical output is bit-exact and exact replay passes.</div>
+</div><p class="note">R310 remains the public controller. R314 is retained default-off because both ±8 N overload rows still terminate. “Fewer falls” qualifies bounded behavior; it does not silently redefine full recovery.</p></section>
+<section><h2>Example authority stack</h2><div class="stack">
+<div class="layer"><strong>1 · Measured physical support</strong><br>Prior-window raw, stable, and hard masks plus measured wheel loads own contact rows and support modes.</div>
+<div class="layer"><strong>2 · Support-preserving task authority</strong><br>Wheel constraints and bounded leg posture share priority 0. Root/CoM intent is priority 1 and yields first.</div>
+<div class="layer"><strong>3 · Continuous reserve requests</strong><br>R310 wheel-load reserve and default-off R314 body-moment rejection author bounded task deltas, never contact truth.</div>
+<div class="layer"><strong>4 · Exact WBC admission</strong><br>Dynamics, contact, effort, friction, joint, residual, and finite-work gates decide whether the composed request becomes effort.</div>
+<div class="layer"><strong>5 · Persistent resources and realization</strong><br>Thermal/reliability calibration and hardware consequence remain unmodeled for Upkie and cannot be inferred from one successful QP tick.</div>
+</div></section>
+<section><h2>Next slice</h2><p>Localize the ±8 N overload without spending more solver iterations or fabricating support. In parallel, expand independent full-body reference-controller parity so memory, CPU, jitter, latency, tracking error, and per-step execution time share one report.</p><p><a href="/">Live editor</a> · <a href="/architecture.json">Architecture manifest</a> · <a href="/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.html">R313 relock boundary</a></p></section>
+</main></body></html>

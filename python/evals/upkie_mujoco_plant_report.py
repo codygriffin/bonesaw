@@ -1122,6 +1122,8 @@ class RustWbcAdapter:
         root_angular_task_weight: float = 10.0,
         root_roll_stiffness: float = 24.0,
         root_roll_damping: float = 4.4,
+        body_moment_rejection_enabled: bool = False,
+        body_moment_rejection_config: tuple[float, ...] | None = None,
         root_lateral_stiffness: float = 18.0,
         root_lateral_damping: float = 8.0,
         joint_posture_weight: float = 1.0,
@@ -1715,6 +1717,27 @@ class RustWbcAdapter:
         self.balance_mode = balance_mode
         self.root_roll_stiffness = root_roll_stiffness
         self.root_roll_damping = root_roll_damping
+        self.body_moment_rejection_enabled = bool(body_moment_rejection_enabled)
+        if body_moment_rejection_config is not None:
+            if len(body_moment_rejection_config) != 7:
+                raise ValueError(
+                    "body_moment_rejection_config must contain exactly 7 values"
+                )
+            self.balance.configure_body_moment_rejection(
+                *body_moment_rejection_config
+            )
+        self.body_moment_rejection_diagnostics = np.zeros(
+            len(self.balance.body_moment_rejection_diagnostic_names), np.float64
+        )
+        self.body_moment_rejection_index = {
+            name: index
+            for index, name in enumerate(
+                self.balance.body_moment_rejection_diagnostic_names
+            )
+        }
+        self.body_moment_rejection_step_ns = 0
+        self.body_moment_rejection_allocation_calls = 0
+        self.body_moment_rejection_allocated_bytes = 0
         self.root_lateral_stiffness = root_lateral_stiffness
         self.root_lateral_damping = root_lateral_damping
         if (
@@ -2916,6 +2939,26 @@ class RustWbcAdapter:
             self.support_load_reserve_step_ns = 0
             self.support_load_reserve_allocation_calls = 0
             self.support_load_reserve_allocated_bytes = 0
+        if self.body_moment_rejection_enabled:
+            (
+                self.body_moment_rejection_step_ns,
+                self.body_moment_rejection_allocation_calls,
+                self.body_moment_rejection_allocated_bytes,
+            ) = self.balance.step_body_moment_rejection(
+                float(rotation_error[0]),
+                float(root_twist[0]),
+                self.body_moment_rejection_diagnostics,
+            )
+            self.root_angular_acceleration[0, 0] += self.body_moment_rejection_diagnostics[
+                self.body_moment_rejection_index[
+                    "commanded_roll_acceleration_rad_s2"
+                ]
+            ]
+        else:
+            self.body_moment_rejection_diagnostics.fill(0.0)
+            self.body_moment_rejection_step_ns = 0
+            self.body_moment_rejection_allocation_calls = 0
+            self.body_moment_rejection_allocated_bytes = 0
         self.joint_acceleration[0, ROLLING_COORDINATES] = self.wheel_acceleration
         if self.measured_landing_enabled and bool(
             self.measured_landing_diagnostics[
@@ -4623,6 +4666,27 @@ class RustWbcAdapter:
             ),
             "support_load_reserve_allocated_bytes": int(
                 self.support_load_reserve_allocated_bytes
+            ),
+            "body_moment_rejection_enabled": self.body_moment_rejection_enabled,
+            "body_moment_rejection_diagnostics": self.body_moment_rejection_diagnostics,
+            "body_moment_rejection_active": bool(
+                self.body_moment_rejection_diagnostics[
+                    self.body_moment_rejection_index["active"]
+                ]
+            ),
+            "body_moment_rejection_authority": float(
+                self.body_moment_rejection_diagnostics[
+                    self.body_moment_rejection_index["authority"]
+                ]
+            ),
+            "body_moment_rejection_step_ns": int(
+                self.body_moment_rejection_step_ns
+            ),
+            "body_moment_rejection_allocation_calls": int(
+                self.body_moment_rejection_allocation_calls
+            ),
+            "body_moment_rejection_allocated_bytes": int(
+                self.body_moment_rejection_allocated_bytes
             ),
             "single_support_reacquisition_enabled": (
                 self.single_support_reacquisition_enabled

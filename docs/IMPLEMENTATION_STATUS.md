@@ -2,6 +2,28 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current measured body-moment rejection — r314 bounded behavior qualified, full recovery open
+
+R314 adds a fixed-size Rust state law after the existing wheel-load-reserve
+composition. It reads measured root roll and roll rate, smoothly activates from
+tilt or outward angular velocity, applies restoring stiffness, spends damping
+only while motion travels farther from upright, and clips the authored delta to
+`10.5 rad/s²`. The output is caller-owned, allocation-free telemetry plus one
+root-roll acceleration delta. It cannot create contact, alter task rows,
+promote `RollingWheel`, change reset/timeout/iteration budgets, or bypass the
+ordinary floating-WBC solve.
+
+The full frozen eight-force R311 upper-base holdout reduces R313's four
+terminal falls to two. Mirrored `±6 N` cases change from tick-236 termination
+to a complete 450-tick run, each with five force-backed relocks and a stable
+final two-second bilateral/upright tail. `−8 N` remains tick `79`; `+8 N` moves
+later from `69` to `72`; `±2/±4 N` remain nonterminal. Nominal physical
+consequence is bit-exact, action allocations are zero, deadlines and replay
+pass, maximum torque utilization is `0.2563`, and no nonadmission or numeric
+reset is added. Since the `±8 N` overload rows still fall, R314 remains
+default-off and R310 remains the public controller. See
+[`UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md`](../benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
+
 ## Current continuous landing envelope — r313 qualified mechanism, rejected recovery
 
 R313 keeps the R312 measured-contact phase boundary and adds a fixed-size Rust

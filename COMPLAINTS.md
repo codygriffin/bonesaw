@@ -3,33 +3,27 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
-R313 closes the force-backed relock-persistence seam without closing recovery.
-Persistent Rust remembers the one relocking leg and continues its bounded
-normal request through geometric recontact and positive debounce; measured
-raw/stable/hard masks still own WBC contact rows and `RollingWheel` promotion.
-A frozen nine-depth screen uniquely selects a model-radius-minus-0.9 mm target.
-Both `±6 N` repeated upper-base cases now force-qualify three relocks and move
-their R312 terminal boundaries from ticks `84/83` to `236`; the `±8 N`
-guardrails do not move earlier, active rows have zero nonadmission, and all
-causality, allocation, deadline, and replay gates pass. All four terminal cases
-still fall, however. The largest remaining behavior chunk is no longer contact
-reacquisition: it is continuous body-moment rejection that prevents the third
-loss after successful relock, reduces the four falls, and preserves the frozen
-guardrails. See the
-[R313 report](benchmarks/results/upkie-live-force-backed-relock-r313/UPKIE_LIVE_FORCE_BACKED_RELOCK_R313.md).
+R314 closes the continuous body-moment-rejection complaint for the mirrored
+`±6 N` class. A pure Rust state law consumes only measured root roll and roll
+rate, spends damping only while motion is outward, and contributes one bounded
+roll-acceleration delta after load-reserve composition. The dormant nominal
+path is physically bit-exact; the action allocates zero bytes, stays below its
+`10.5 rad/s²` cap, and cannot author contact, change solver rows, promote a
+support mode, or bypass admission. On the frozen eight-force MuJoCo 3.3.7
+holdout, terminal falls fall from four to two: both `±6 N` rows now finish all
+450 ticks with five force-backed relocks and stable two-second bilateral tails.
+The `-8 N` boundary stays at tick `79`, `+8 N` moves later from `69` to `72`,
+and the `±2/±4 N` rows remain nonterminal. This completed slice is removed from
+the punch list and retained in the
+[R314 report](benchmarks/results/upkie-live-body-moment-rejection-r314/UPKIE_LIVE_BODY_MOMENT_REJECTION_R314.md).
 
-R313 adds the next bounded mechanism: a Rust-owned, allocation-free continuous
-landing-request envelope that attenuates authority as measured root tilt,
-horizontal speed, or height approaches declared limits. Its causal, mode-
-firewall, finite, deadline, zero-allocation, and replay gates all pass, but the
-envelope is explicitly opt-in and its dormant path is bit-exact. Large finite
-limits are not used as a fake disabled state. The
-same eight-force R311 holdout remains negative: terminal falls are not removed,
-the `-6 N`, `+6 N`, and `+8 N` boundaries move earlier, and no public authority
-is promoted. The envelope is retained as default-off safety evidence. The open
-behavior complaint is still continuous support-sustaining landing/moment
-rejection, not a larger timeout or solver budget. See the
-[R313 report](benchmarks/results/upkie-live-landing-envelope-r313/UPKIE_LIVE_LANDING_ENVELOPE_R313.md).
+The largest remaining behavior complaint is the `±8 N` overload class. Full
+promotion requires every declared holdout row to finish without inventing
+contact authority, raising solver iteration/time budgets, or weakening the
+existing guardrails. R314 therefore remains default-off despite the bounded
+behavior improvement. Calibrated actuator/thermal limits, hardware
+realization, and an independent full-body reference-controller consequence
+comparison remain separate open gates.
 
 R311 narrows the retained live-controller envelope to off-CoM moment authority.
 The 48-case policy-free wrench matrix is a valid harness: centered repeated

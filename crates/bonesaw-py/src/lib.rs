@@ -107,14 +107,15 @@ use bonesaw_cuda::{
     derive_rigid_patch_contact_modes,
 };
 use bonesaw_tools::{
+    UPKIE_BODY_MOMENT_DIAGNOSTIC_WIDTH, UpkieBodyMomentRejectionConfig,
     UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
     UpkieFallSafeState, UpkieLateralViabilityConfig, UpkieLateralViabilityState,
     UpkieMeasuredLandingConfig, UpkieMeasuredLandingState, UpkiePlanarCaptureConfig,
     UpkiePlanarCaptureState, UpkieSingleSupportReacquisitionConfig,
     UpkieSingleSupportReacquisitionState, UpkieWheelBalancer, UpkieWheelBalancerState,
     UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState,
-    apply_upkie_measured_landing_request_envelope, step_upkie_fall_safe,
-    step_upkie_lateral_viability, step_upkie_measured_landing,
+    apply_upkie_measured_landing_request_envelope, step_upkie_body_moment_rejection,
+    step_upkie_fall_safe, step_upkie_lateral_viability, step_upkie_measured_landing,
     step_upkie_single_support_reacquisition, step_upkie_wheel_load_reserve,
     write_upkie_fall_safe_contingency,
 };
@@ -3860,6 +3861,7 @@ struct UpkieBalanceSession {
     lateral_viability_state: UpkieLateralViabilityState,
     wheel_load_reserve_config: UpkieWheelLoadReserveConfig,
     wheel_load_reserve_state: UpkieWheelLoadReserveState,
+    body_moment_rejection_config: UpkieBodyMomentRejectionConfig,
     single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig,
     single_support_reacquisition_state: UpkieSingleSupportReacquisitionState,
     measured_landing_config: UpkieMeasuredLandingConfig,
@@ -3964,6 +3966,7 @@ impl UpkieBalanceSession {
             lateral_viability_state: UpkieLateralViabilityState::default(),
             wheel_load_reserve_config: UpkieWheelLoadReserveConfig::default(),
             wheel_load_reserve_state: UpkieWheelLoadReserveState::default(),
+            body_moment_rejection_config: UpkieBodyMomentRejectionConfig::default(),
             single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig::default(),
             single_support_reacquisition_state: UpkieSingleSupportReacquisitionState::default(),
             measured_landing_config: UpkieMeasuredLandingConfig::default(),
@@ -4319,6 +4322,38 @@ impl UpkieBalanceSession {
         self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
     }
 
+    /// Configure the default-off, state-local body-moment rejection request.
+    /// This authors only a bounded roll-acceleration delta; contact rows and
+    /// execution authority remain owned by measured evidence and the WBC.
+    #[allow(clippy::too_many_arguments)]
+    fn configure_body_moment_rejection(
+        &mut self,
+        activation_release_tilt_rad: f64,
+        activation_full_tilt_rad: f64,
+        activation_release_outward_rate_rad_s: f64,
+        activation_full_outward_rate_rad_s: f64,
+        restoring_stiffness_per_s2: f64,
+        outward_damping_per_s: f64,
+        maximum_roll_acceleration_rad_s2: f64,
+    ) -> PyResult<()> {
+        let config = UpkieBodyMomentRejectionConfig {
+            activation_release_tilt_rad,
+            activation_full_tilt_rad,
+            activation_release_outward_rate_rad_s,
+            activation_full_outward_rate_rad_s,
+            restoring_stiffness_per_s2,
+            outward_damping_per_s,
+            maximum_roll_acceleration_rad_s2,
+        };
+        if step_upkie_body_moment_rejection(0.0, 0.0, config).is_none() {
+            return Err(PyValueError::new_err(
+                "body-moment rejection configuration must have finite ordered activation bounds, nonnegative gains, and a positive acceleration cap",
+            ));
+        }
+        self.body_moment_rejection_config = config;
+        Ok(())
+    }
+
     /// Configure the default-off measured single-support touchdown request.
     /// The request only becomes active for an exact one-wheel support mask;
     /// its joint acceleration still requires ordinary floating-WBC admission.
@@ -4551,6 +4586,25 @@ impl UpkieBalanceSession {
             "acceleration_was_saturated",
             "bank_was_saturated",
             "heading_world_rad",
+        ]
+    }
+
+    #[getter]
+    fn body_moment_rejection_diagnostic_names(
+        &self,
+    ) -> [&'static str; UPKIE_BODY_MOMENT_DIAGNOSTIC_WIDTH] {
+        [
+            "active",
+            "measured_roll_rad",
+            "measured_roll_rate_rad_s",
+            "outward_direction",
+            "outward_rate_rad_s",
+            "tilt_pressure",
+            "outward_rate_pressure",
+            "authority",
+            "requested_roll_acceleration_rad_s2",
+            "commanded_roll_acceleration_rad_s2",
+            "acceleration_was_saturated",
         ]
     }
 
@@ -7457,6 +7511,59 @@ impl UpkieBalanceSession {
             ),
         ]);
         Ok(())
+    }
+
+    /// Author a bounded roll-acceleration delta from current measured state.
+    /// Caller-owned diagnostics and the allocation sentinel keep this query
+    /// usable in the 50/250 Hz plant loop without Python hot-path objects.
+    fn step_body_moment_rejection(
+        &mut self,
+        measured_roll_rad: f64,
+        measured_roll_rate_rad_s: f64,
+        mut diagnostics_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let diagnostics_out = diagnostics_out.as_slice_mut()?;
+        if diagnostics_out.len() != UPKIE_BODY_MOMENT_DIAGNOSTIC_WIDTH {
+            return Err(PyValueError::new_err(format!(
+                "body-moment rejection expects diagnostics[{UPKIE_BODY_MOMENT_DIAGNOSTIC_WIDTH}]"
+            )));
+        }
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        let Some(output) = step_upkie_body_moment_rejection(
+            measured_roll_rad,
+            measured_roll_rate_rad_s,
+            self.body_moment_rejection_config,
+        ) else {
+            return Err(PyValueError::new_err(
+                "body-moment rejection input is invalid",
+            ));
+        };
+        diagnostics_out.copy_from_slice(&[
+            f64::from(output.active),
+            output.measured_roll_rad,
+            output.measured_roll_rate_rad_s,
+            output.outward_direction,
+            output.outward_rate_rad_s,
+            output.tilt_pressure,
+            output.outward_rate_pressure,
+            output.authority,
+            output.requested_roll_acceleration_rad_s2,
+            output.commanded_roll_acceleration_rad_s2,
+            f64::from(output.acceleration_was_saturated),
+        ]);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "body-moment rejection allocated inside the Rust hot path",
+            ));
+        }
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
     }
 
     /// Author one bounded lateral/bank request from causal bilateral wheel-load
