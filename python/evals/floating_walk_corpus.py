@@ -179,6 +179,29 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--support-trajectory-tube",
+        action="store_true",
+        help=(
+            "enforce the previewed support-intersection DCM acceleration barrier"
+        ),
+    )
+    parser.add_argument(
+        "--support-trajectory-tube-project-intent",
+        action="store_true",
+        help="also apply the bounded preview target to authored root/CoM intent",
+    )
+    parser.add_argument("--support-trajectory-tube-preview-ticks", type=int, default=0)
+    parser.add_argument("--support-trajectory-tube-margin", type=float, default=0.0)
+    parser.add_argument(
+        "--support-trajectory-tube-max-velocity", type=float, default=0.0
+    )
+    parser.add_argument(
+        "--support-trajectory-tube-max-acceleration", type=float, default=0.0
+    )
+    parser.add_argument(
+        "--support-trajectory-tube-headroom-floor", type=float, default=0.0
+    )
+    parser.add_argument(
         "--center-of-mass-zero-reference-derivatives",
         action="store_true",
         help="track only the CoM position reference; zero preview velocity/acceleration jets",
@@ -1335,7 +1358,17 @@ def rms(values: np.ndarray) -> float:
 
 
 def percentile(values: np.ndarray, q: float) -> float:
-    return float(np.percentile(np.asarray(values, dtype=np.float64), q))
+    values = np.asarray(values, dtype=np.float64)
+    if values.size == 0:
+        return float("nan")
+    return float(np.percentile(values, q))
+
+
+def maximum(values: np.ndarray) -> float:
+    values = np.asarray(values, dtype=np.float64)
+    if values.size == 0:
+        return float("nan")
+    return float(np.max(values))
 
 
 def distribution_us(step_ns: np.ndarray) -> dict[str, float]:
@@ -1471,6 +1504,7 @@ def summarize(
     cadence_scale: np.ndarray,
     root_out: np.ndarray,
     center_of_mass_targets: np.ndarray,
+    authored_center_of_mass_targets: np.ndarray,
     center_of_mass_tracked: np.ndarray,
     tracked: np.ndarray,
     root_quaternion: np.ndarray,
@@ -1523,6 +1557,12 @@ def summarize(
     dcm_support_vertices: np.ndarray,
     dcm_support_margin: np.ndarray,
     dcm_pre_liftoff_active: np.ndarray,
+    support_trajectory_tube_active: np.ndarray,
+    support_trajectory_tube_clipped: np.ndarray,
+    support_trajectory_tube_headroom_scale: np.ndarray,
+    support_trajectory_tube_target: np.ndarray,
+    minimum_center_of_mass_tube_margin: np.ndarray,
+    limiting_center_of_mass_tube_halfspace: np.ndarray,
     landing_retarget_anchor: np.ndarray,
     landing_retarget_capture_scale: np.ndarray,
     landing_retarget_offset: np.ndarray,
@@ -1778,16 +1818,14 @@ def summarize(
             foot_error[nominal][nominal_swing]
         ),
         "hand_tracking_rms_m": rms(hand_error[nominal]),
-        "maximum_root_rotation_rad": float(np.max(rotation_angle[nominal])),
-        "maximum_joint_velocity_rad_s": float(
-            np.max(np.abs(joint_velocity[nominal]))
+        "maximum_root_rotation_rad": maximum(rotation_angle[nominal]),
+        "maximum_joint_velocity_rad_s": maximum(
+            np.abs(joint_velocity[nominal])
         ),
         "latency_p99_us": percentile(step_ns[nominal], 99) / 1_000.0,
-        "maximum_dynamics_residual": float(
-            np.max(dynamics_residual[nominal])
-        ),
-        "maximum_contact_acceleration_residual": float(
-            np.max(contact_residual[nominal])
+        "maximum_dynamics_residual": maximum(dynamics_residual[nominal]),
+        "maximum_contact_acceleration_residual": maximum(
+            contact_residual[nominal]
         ),
     }
     latency = distribution_us(step_ns)
@@ -2111,6 +2149,68 @@ def summarize(
             )
         },
     }
+    tube_active_mask = support_trajectory_tube_active != 0
+    tube_witness_mask = tube_active_mask & np.isfinite(
+        minimum_center_of_mass_tube_margin
+    )
+    tube_solved_mask = (
+        tube_witness_mask & np.isin(pre_contingency_status, (0, 1))
+    )
+    tube_margins = minimum_center_of_mass_tube_margin[tube_solved_mask]
+    tube_witness_margins = minimum_center_of_mass_tube_margin[tube_witness_mask]
+    support_trajectory_tube_metrics = {
+        "active_ticks": int(np.count_nonzero(support_trajectory_tube_active)),
+        "clipped_ticks": int(np.count_nonzero(support_trajectory_tube_clipped)),
+        "hard_solved_ticks": int(np.count_nonzero(tube_solved_mask)),
+        "hard_unresolved_ticks": int(
+            np.count_nonzero(tube_active_mask) - np.count_nonzero(tube_solved_mask)
+        ),
+        "hard_witness_ticks": int(np.count_nonzero(tube_witness_mask)),
+        "headroom_scale_minimum": float(
+            np.min(support_trajectory_tube_headroom_scale)
+        ),
+        "headroom_scale_p05": percentile(
+            support_trajectory_tube_headroom_scale, 5
+        ),
+        "target_displacement_rms_m": rms(
+            np.linalg.norm(
+                support_trajectory_tube_target
+                - authored_center_of_mass_targets[:, :2],
+                axis=1,
+            )
+        ),
+        "hard_margin_minimum_mps2": (
+            float(np.min(tube_margins)) if tube_margins.size else None
+        ),
+        "hard_witness_margin_minimum_mps2": (
+            float(np.min(tube_witness_margins))
+            if tube_witness_margins.size
+            else None
+        ),
+        "hard_boundary_violation_ticks": int(
+            np.count_nonzero(tube_margins < -1.0e-7)
+        ),
+        "hard_witness_violation_ticks": int(
+            np.count_nonzero(tube_witness_margins < -1.0e-7)
+        ),
+        "limiting_halfspace_counts": {
+            str(face): int(
+                np.count_nonzero(
+                    limiting_center_of_mass_tube_halfspace[tube_solved_mask] == face
+                )
+            )
+            for face in range(4)
+        },
+        "limiting_witness_halfspace_counts": {
+            str(face): int(
+                np.count_nonzero(
+                    limiting_center_of_mass_tube_halfspace[tube_witness_mask]
+                    == face
+                )
+            )
+            for face in range(4)
+        },
+    }
     metrics: dict[str, Any] = {
         "ticks": len(step_ns),
         "dt_seconds": DT,
@@ -2125,6 +2225,7 @@ def summarize(
         "touchdown_viability": touchdown_viability,
         "hard_feasibility_witness": hard_feasibility_witness,
         "automatic_contact_localization": contact_localization_metrics,
+        "support_trajectory_tube": support_trajectory_tube_metrics,
         "foot_tracking_rms_m": rms(foot_error),
         "hand_tracking_rms_m": rms(hand_error),
         "hand_task_commanded": hand_task_weight > 0.0,
@@ -2387,6 +2488,37 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         if dcm_metrics["enabled"]
         else []
     )
+    tube_metrics = metrics["support_trajectory_tube"]
+    support_tube_lines = [
+        "## Support-transfer trajectory tube",
+        "",
+        f"- Hard tube active on `{tube_metrics['active_ticks']}` ticks. Optional "
+        f"intent projection is `{metadata.get('support_trajectory_tube_project_intent', False)}` "
+        f"and changed the authored CoM/root request on "
+        f"`{tube_metrics['clipped_ticks']}` ticks.",
+        f"- Measured joint-headroom slew scale minimum / p05: "
+        f"`{tube_metrics['headroom_scale_minimum']:.3f}` / "
+        f"`{tube_metrics['headroom_scale_p05']:.3f}`; projected target displacement "
+        f"RMS is `{tube_metrics['target_displacement_rms_m'] * 100:.3f} cm`.",
+        f"- Hard acceleration-tube minimum margin: "
+        f"`{tube_metrics['hard_margin_minimum_mps2'] if tube_metrics['hard_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
+        f"violations beyond tolerance: `{tube_metrics['hard_boundary_violation_ticks']}` ticks; "
+        f"limiting face counts (+x/-x/+y/-y): "
+        f"`{tube_metrics['limiting_halfspace_counts']}`.",
+        f"- First-hard-solve witness margin minimum across all active attempts: "
+        f"`{tube_metrics['hard_witness_margin_minimum_mps2'] if tube_metrics['hard_witness_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
+        f"witness violations: `{tube_metrics['hard_witness_violation_ticks']}` ticks; "
+        f"limiting witness faces (+x/-x/+y/-y): "
+        f"`{tube_metrics['limiting_witness_halfspace_counts']}`.",
+        f"- Hard rows returned an admitted solve on "
+        f"`{tube_metrics['hard_solved_ticks']}` active ticks; "
+        f"`{tube_metrics['hard_unresolved_ticks']}` active requests remained unresolved "
+        f"and are not misreported as boundary violations.",
+        "- Four allocation-free hard WBC rows bound realized CoM acceleration. "
+        "The separately switchable preview projector may shape intent; neither layer "
+        "admits contact or grants actuator authority, and failed solves remain visible.",
+        "",
+    ]
 
     def mib(value: int | None) -> str:
         return "n/a" if value is None else f"{value / (1024 * 1024):.3f}"
@@ -2620,6 +2752,7 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"{metrics['maximum_touchdown_admission_delay_ticks']} ticks |",
         "",
         *dcm_lines,
+        *support_tube_lines,
         "## Coupled touchdown phase retiming",
         "",
         f"- Enabled: `{metrics['touchdown_phase_retiming']['enabled']}` "
@@ -3084,6 +3217,31 @@ def main() -> None:
         or not 0.0 <= args.support_reference_blend <= 1.0
     ):
         raise SystemExit("support preview settings are invalid")
+    if (
+        args.support_trajectory_tube_preview_ticks < 0
+        or args.support_trajectory_tube_preview_ticks > 512
+        or not np.isfinite(args.support_trajectory_tube_margin)
+        or args.support_trajectory_tube_margin < 0.0
+        or not np.isfinite(args.support_trajectory_tube_max_velocity)
+        or args.support_trajectory_tube_max_velocity < 0.0
+        or not np.isfinite(args.support_trajectory_tube_max_acceleration)
+        or args.support_trajectory_tube_max_acceleration < 0.0
+        or not np.isfinite(args.support_trajectory_tube_headroom_floor)
+        or not 0.0 <= args.support_trajectory_tube_headroom_floor <= 0.5
+        or (
+            args.support_trajectory_tube
+            and (
+                args.support_trajectory_tube_preview_ticks == 0
+                or args.support_trajectory_tube_max_velocity <= 0.0
+                or args.support_trajectory_tube_max_acceleration <= 0.0
+            )
+        )
+        or (
+            args.support_trajectory_tube_project_intent
+            and not args.support_trajectory_tube
+        )
+    ):
+        raise SystemExit("support trajectory tube settings are invalid")
     if not np.isfinite(args.friction) or args.friction < 0.0:
         raise SystemExit("--friction must be finite and nonnegative")
     if (
@@ -3454,6 +3612,23 @@ def main() -> None:
         center_of_mass_frequency_hz=args.center_of_mass_frequency_hz,
         dcm_balance_enabled=args.center_of_mass_controller == "dcm-zmp",
         dcm_pre_liftoff_activation_ticks=args.dcm_pre_liftoff_activation_ticks,
+        support_trajectory_tube_enabled=args.support_trajectory_tube,
+        support_trajectory_tube_project_intent=(
+            args.support_trajectory_tube_project_intent
+        ),
+        support_trajectory_tube_preview_ticks=(
+            args.support_trajectory_tube_preview_ticks
+        ),
+        support_trajectory_tube_margin_m=args.support_trajectory_tube_margin,
+        support_trajectory_tube_max_velocity_mps=(
+            args.support_trajectory_tube_max_velocity
+        ),
+        support_trajectory_tube_max_acceleration_mps2=(
+            args.support_trajectory_tube_max_acceleration
+        ),
+        support_trajectory_tube_headroom_floor=(
+            args.support_trajectory_tube_headroom_floor
+        ),
         dcm_feedback_gain_per_second=args.dcm_feedback_gain_per_second,
         dcm_support_margin_m=args.dcm_support_margin,
         dcm_maximum_horizontal_acceleration_mps2=(
@@ -3648,6 +3823,14 @@ def main() -> None:
     dcm_support_vertices = np.empty(args.ticks, dtype=np.uint8)
     dcm_support_margin = np.empty(args.ticks, dtype=np.float64)
     dcm_pre_liftoff_active = np.empty(args.ticks, dtype=np.uint8)
+    support_trajectory_tube_active = np.empty(args.ticks, dtype=np.uint8)
+    support_trajectory_tube_clipped = np.empty(args.ticks, dtype=np.uint8)
+    support_trajectory_tube_headroom_scale = np.empty(
+        args.ticks, dtype=np.float64
+    )
+    support_trajectory_tube_target = np.empty((args.ticks, 2), dtype=np.float64)
+    minimum_center_of_mass_tube_margin = np.empty(args.ticks, dtype=np.float64)
+    limiting_center_of_mass_tube_halfspace = np.empty(args.ticks, dtype=np.int8)
     landing_retarget_anchor = np.empty(
         (args.ticks, len(frame_ids), 3), dtype=np.float64
     )
@@ -3786,6 +3969,12 @@ def main() -> None:
         reference_phase_acceleration,
         reference_phase_required_time,
         reference_phase_flags,
+        support_trajectory_tube_active,
+        support_trajectory_tube_clipped,
+        support_trajectory_tube_headroom_scale,
+        support_trajectory_tube_target,
+        minimum_center_of_mass_tube_margin,
+        limiting_center_of_mass_tube_halfspace,
     )
     thread_cpu_ns = time.thread_time_ns() - thread_before_ns
     process_cpu_ns = time.process_time_ns() - process_before_ns
@@ -3818,6 +4007,7 @@ def main() -> None:
         effective_cadence_scale,
         root_out,
         effective_center_of_mass_targets,
+        center_of_mass_targets,
         center_of_mass_tracked,
         tracked,
         root_quaternion,
@@ -3870,6 +4060,12 @@ def main() -> None:
         dcm_support_vertices,
         dcm_support_margin,
         dcm_pre_liftoff_active,
+        support_trajectory_tube_active,
+        support_trajectory_tube_clipped,
+        support_trajectory_tube_headroom_scale,
+        support_trajectory_tube_target,
+        minimum_center_of_mass_tube_margin,
+        limiting_center_of_mass_tube_halfspace,
         landing_retarget_anchor,
         landing_retarget_capture_scale,
         landing_retarget_offset,
@@ -3943,6 +4139,23 @@ def main() -> None:
             args.dcm_maximum_horizontal_acceleration
         ),
         "dcm_pre_liftoff_activation_ticks": args.dcm_pre_liftoff_activation_ticks,
+        "support_trajectory_tube_enabled": args.support_trajectory_tube,
+        "support_trajectory_tube_project_intent": (
+            args.support_trajectory_tube_project_intent
+        ),
+        "support_trajectory_tube_preview_ticks": (
+            args.support_trajectory_tube_preview_ticks
+        ),
+        "support_trajectory_tube_margin_m": args.support_trajectory_tube_margin,
+        "support_trajectory_tube_max_velocity_mps": (
+            args.support_trajectory_tube_max_velocity
+        ),
+        "support_trajectory_tube_max_acceleration_mps2": (
+            args.support_trajectory_tube_max_acceleration
+        ),
+        "support_trajectory_tube_headroom_floor": (
+            args.support_trajectory_tube_headroom_floor
+        ),
         "center_of_mass_zero_reference_derivatives": (
             args.center_of_mass_zero_reference_derivatives
         ),
@@ -4118,6 +4331,16 @@ def main() -> None:
         dcm_support_vertices=dcm_support_vertices,
         dcm_support_margin=dcm_support_margin,
         dcm_pre_liftoff_active=dcm_pre_liftoff_active,
+        support_trajectory_tube_active=support_trajectory_tube_active,
+        support_trajectory_tube_clipped=support_trajectory_tube_clipped,
+        support_trajectory_tube_headroom_scale=(
+            support_trajectory_tube_headroom_scale
+        ),
+        support_trajectory_tube_target=support_trajectory_tube_target,
+        minimum_center_of_mass_tube_margin=minimum_center_of_mass_tube_margin,
+        limiting_center_of_mass_tube_halfspace=(
+            limiting_center_of_mass_tube_halfspace
+        ),
         minimum_support_margin=minimum_support_margin,
         landing_retarget_anchor=landing_retarget_anchor,
         landing_retarget_capture_scale=landing_retarget_capture_scale,

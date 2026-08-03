@@ -723,6 +723,7 @@ impl CompiledTaskProgram {
                         horizontal_only: false,
                         priority,
                         weight,
+                        acceleration_tube: None,
                     });
                 }
                 TaskOp::Point { .. }

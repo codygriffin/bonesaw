@@ -116,10 +116,12 @@ pub use dynamic_controller::{
 };
 pub use dynamic_wbc::{
     ActuatorEffortInput, BalanceFeedbackAuthorityConfig, BalanceFeedbackAuthorityOutput,
-    ContactMode, ContactPhaseAuthorityConfig, ContactPhaseAuthorityOutput, ContactSpec,
-    DcmBalanceConfig, DcmBalanceOutput, DynamicWbc, DynamicWbcConfig, DynamicWbcError,
-    DynamicWbcInput, DynamicWbcOutput, DynamicWbcScratch, FLOATING_ANGULAR_TASK_CAPACITY,
-    FLOATING_POINT_TASK_CAPACITY, FLOATING_TASK_DIAGNOSTIC_CAPACITY, FloatingCenterOfMassTask,
+    CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY, ContactMode, ContactPhaseAuthorityConfig,
+    ContactPhaseAuthorityOutput, ContactSpec, DcmBalanceConfig, DcmBalanceOutput, DynamicWbc,
+    DynamicWbcConfig, DynamicWbcError, DynamicWbcInput, DynamicWbcOutput, DynamicWbcScratch,
+    FLOATING_ANGULAR_TASK_CAPACITY, FLOATING_POINT_TASK_CAPACITY,
+    FLOATING_TASK_DIAGNOSTIC_CAPACITY, FloatingCenterOfMassAccelerationHalfspace,
+    FloatingCenterOfMassAccelerationTube, FloatingCenterOfMassTask,
     FloatingCentroidalAngularMomentumTask, FloatingDynamicWbc, FloatingDynamicWbcInput,
     FloatingDynamicWbcOutput, FloatingDynamicWbcScratch, FloatingFrameAngularAccelerationTask,
     FloatingJointAccelerationTask, FloatingPointAccelerationTask, FloatingTaskPriorities,

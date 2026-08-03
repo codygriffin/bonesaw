@@ -15,6 +15,8 @@ from floating_walk_corpus import (
     center_of_mass_reference,
     load_standalone_initial_state,
     load_standalone_reference,
+    maximum,
+    percentile,
 )
 
 
@@ -72,6 +74,13 @@ class FixedHorizonDcmPreviewTest(unittest.TestCase):
         modified = dcm_preview(root, feet, changed, horizon=20)
         for baseline_array, modified_array in zip(baseline, modified, strict=True):
             np.testing.assert_array_equal(baseline_array[:48], modified_array[:48])
+
+
+class EmptyFailurePrefixTest(unittest.TestCase):
+    def test_empty_failed_prefix_statistics_remain_reportable(self) -> None:
+        empty = np.empty(0, dtype=np.float64)
+        self.assertTrue(np.isnan(maximum(empty)))
+        self.assertTrue(np.isnan(percentile(empty, 99)))
 
 
 class StandaloneReferenceAdmissionTest(unittest.TestCase):

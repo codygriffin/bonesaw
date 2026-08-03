@@ -152,6 +152,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   The mechanism stays experimental/default-off; every DCM profile and authority
   is rejected. See the
   [r277 transition-gate report](benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md).
+- R278 adds independently switchable, default-off support-transfer layers: an
+  optional preview projector and four allocation-free hard CoM-acceleration
+  halfspaces built from a DCM control barrier over the current/previewed support
+  intersection. Stable face and first-solve witnesses survive retries. The
+  dormant G1 replay is exact on 83 shared non-timing arrays. The least damaging
+  hard-only h5 row admits 233/936 active requests with no admitted face leakage,
+  leaves 703 unresolved, moves conflict/release to tick 324, and reaches
+  5.113 ms p99 in the latest replay. The walking profile is rejected and authority stays closed. See the
+  [r278 trajectory-tube report](benchmarks/results/g1-support-trajectory-tube-r278/G1_SUPPORT_TRAJECTORY_TUBE_R278.md).
 - The r268 integrated native-reference bridge preserves independently authored
   pelvis and CoM jets, accepts an explicitly correlated morphology-witness
   initial state/root twist, and optionally samples the policy-free q/v/qdd

@@ -25,8 +25,10 @@ const DYNAMICS_ROW_BASE: u32 = 0x1000_0000;
 const CONTACT_ROW_BASE: u32 = 0x2000_0000;
 const FRICTION_ROW_BASE: u32 = 0x3000_0000;
 const SUPPORT_ROW_BASE: u32 = 0x4000_0000;
+const CENTER_OF_MASS_TUBE_ROW_BASE: u32 = 0x4f00_0000;
 const ACTUATOR_EFFORT_ROW_BASE: u32 = 0x5000_0000;
 const SUPPORT_PATCH_POINT_CAPACITY: usize = 16;
+pub const CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY: usize = 16;
 pub const FLOATING_POINT_TASK_CAPACITY: usize = 4;
 /// Fixed slots for simultaneous swing-frame orientation objectives. Two are
 /// required by the canonical two-wheel support-loss transition; the previous
@@ -1116,6 +1118,38 @@ pub struct FloatingCenterOfMassTask {
     pub priority: Priority,
     /// Multiplier relative to the configured acceleration-task weight.
     pub weight: f64,
+    /// Optional hard horizontal acceleration tube. These rows remain active
+    /// when `weight == 0`, so feasibility never depends on a soft gain.
+    pub acceleration_tube: Option<FloatingCenterOfMassAccelerationTube>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FloatingCenterOfMassAccelerationHalfspace {
+    /// World-horizontal outward normal. It need not be unit length.
+    pub outward_normal_world: Vector2<f64>,
+    /// `normal · com_acceleration <= maximum` in world units.
+    pub maximum_acceleration_mps2: f64,
+}
+
+/// Fixed-capacity hard horizontal CoM-acceleration polytope.
+///
+/// Only `halfspaces[..count]` is active. Stable solver row IDs are assigned in
+/// that exact order, making the limiting face deterministic and observable.
+#[derive(Clone, Copy, Debug)]
+pub struct FloatingCenterOfMassAccelerationTube {
+    pub halfspaces:
+        [FloatingCenterOfMassAccelerationHalfspace; CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY],
+    pub count: usize,
+}
+
+impl Default for FloatingCenterOfMassAccelerationTube {
+    fn default() -> Self {
+        Self {
+            halfspaces: [FloatingCenterOfMassAccelerationHalfspace::default();
+                CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY],
+            count: 0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1246,6 +1280,11 @@ pub struct FloatingDynamicWbcOutput {
     /// Stable ID of the loaded patch that owns `minimum_support_margin_m`.
     /// `None` means that no declared patch carried appreciable normal load.
     pub limiting_support_patch: Option<u32>,
+    /// Minimum acceleration-space headroom across the optional hard CoM tube.
+    /// Infinity means no tube row was supplied.
+    pub minimum_center_of_mass_tube_margin_mps2: f64,
+    /// Stable halfspace index that owns the minimum tube margin.
+    pub limiting_center_of_mass_tube_halfspace: Option<usize>,
     pub minimum_torque_margin: f64,
     /// Minimum actuator-space effort headroom after the exact transmission
     /// map. Infinity means no actuator-space constraint was supplied.
@@ -1278,6 +1317,8 @@ impl FloatingDynamicWbcOutput {
             minimum_friction_margin: f64::NEG_INFINITY,
             minimum_support_margin_m: f64::NEG_INFINITY,
             limiting_support_patch: None,
+            minimum_center_of_mass_tube_margin_mps2: f64::INFINITY,
+            limiting_center_of_mass_tube_halfspace: None,
             minimum_torque_margin: f64::NEG_INFINITY,
             minimum_actuator_effort_margin: f64::INFINITY,
             limiting_actuator: None,
@@ -1316,6 +1357,9 @@ impl FloatingDynamicWbcOutput {
         self.minimum_friction_margin = source.minimum_friction_margin;
         self.minimum_support_margin_m = source.minimum_support_margin_m;
         self.limiting_support_patch = source.limiting_support_patch;
+        self.minimum_center_of_mass_tube_margin_mps2 =
+            source.minimum_center_of_mass_tube_margin_mps2;
+        self.limiting_center_of_mass_tube_halfspace = source.limiting_center_of_mass_tube_halfspace;
         self.minimum_torque_margin = source.minimum_torque_margin;
         self.minimum_actuator_effort_margin = source.minimum_actuator_effort_margin;
         self.limiting_actuator = source.limiting_actuator;
@@ -1526,6 +1570,7 @@ impl FloatingDynamicWbcScratch {
         let maximum_constraints = generalized_dof
             .saturating_add(maximum_contacts.saturating_mul(8))
             .saturating_add(maximum_actuators)
+            .saturating_add(CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY)
             .saturating_add(collision_pair_capacity)
             .saturating_add(world_collision_probe_capacity);
         let semantic_task_rows = generalized_dof
@@ -1917,6 +1962,7 @@ impl FloatingDynamicWbc {
             .saturating_add(6)
             .saturating_add(maximum_contacts.saturating_mul(8))
             .saturating_add(maximum_actuators)
+            .saturating_add(CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY)
             .saturating_add(self.collision_pair_count())
             .saturating_add(self.world_collision_probe_count())
     }
@@ -2053,6 +2099,20 @@ impl FloatingDynamicWbc {
                     .all(|value| value.is_finite())
                     || !task.weight.is_finite()
                     || task.weight < 0.0
+                    || task.acceleration_tube.is_some_and(|tube| {
+                        tube.count > CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY
+                            || tube.halfspaces
+                                [..tube.count.min(CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY)]
+                                .iter()
+                                .any(|halfspace| {
+                                    !halfspace
+                                        .outward_normal_world
+                                        .iter()
+                                        .all(|value| value.is_finite())
+                                        || halfspace.outward_normal_world.norm_squared() <= 1e-24
+                                        || !halfspace.maximum_acceleration_mps2.is_finite()
+                                })
+                    })
             })
             || input.joint_acceleration_task.is_some_and(|task| {
                 task.coordinates.len() != task.desired_accelerations.len()
@@ -2325,6 +2385,17 @@ impl FloatingDynamicWbc {
                     observation_error.map_or(0.0, |bound| bound.center_of_mass_position_error_m),
                 )?;
             }
+        }
+        if let Some(tube) = input
+            .center_of_mass_task
+            .and_then(|task| task.acceleration_tube)
+        {
+            emit_floating_center_of_mass_tube_rows(
+                &mut scratch.constraints,
+                tube,
+                &scratch.center_of_mass_jacobian,
+                scratch.center_of_mass_bias_acceleration_world,
+            )?;
         }
         if let (Some(collision), Some(config)) =
             (&self.collision, self.config.floating_collision_barrier)
@@ -3226,6 +3297,30 @@ fn emit_floating_support_patch_rows(
     Ok(())
 }
 
+fn emit_floating_center_of_mass_tube_rows(
+    constraints: &mut ConstraintBuffer,
+    tube: FloatingCenterOfMassAccelerationTube,
+    center_of_mass_jacobian: &DMatrix<f64>,
+    center_of_mass_bias_acceleration_world: Vec3,
+) -> Result<(), DynamicWbcError> {
+    for (index, halfspace) in tube.halfspaces[..tube.count].iter().copied().enumerate() {
+        let row = constraints
+            .push()
+            .ok_or(DynamicWbcError::ConstraintCapacity)?;
+        row.stable_id = CENTER_OF_MASS_TUBE_ROW_BASE | index as u32;
+        for coordinate in 0..center_of_mass_jacobian.ncols() {
+            row.coefficients[coordinate] = halfspace.outward_normal_world.x
+                * center_of_mass_jacobian[(0, coordinate)]
+                + halfspace.outward_normal_world.y * center_of_mass_jacobian[(1, coordinate)];
+        }
+        row.lower = f64::NEG_INFINITY;
+        row.upper = halfspace.maximum_acceleration_mps2
+            - halfspace.outward_normal_world.x * center_of_mass_bias_acceleration_world.x
+            - halfspace.outward_normal_world.y * center_of_mass_bias_acceleration_world.y;
+    }
+    Ok(())
+}
+
 fn emit_friction_rows(
     constraints: &mut ConstraintBuffer,
     contact: ContactSpec,
@@ -3443,6 +3538,26 @@ fn fill_floating_output(
                 output.minimum_support_margin_m = margin;
                 output.limiting_support_patch = Some(patch.stable_id);
             }
+        }
+    }
+    output.minimum_center_of_mass_tube_margin_mps2 = f64::INFINITY;
+    output.limiting_center_of_mass_tube_halfspace = None;
+    for row in constraints
+        .active()
+        .iter()
+        .filter(|row| row.stable_id & 0xff00_0000 == CENTER_OF_MASS_TUBE_ROW_BASE)
+    {
+        let value = row
+            .coefficients
+            .iter()
+            .zip(solve.velocity.iter())
+            .map(|(coefficient, variable)| coefficient * variable)
+            .sum::<f64>();
+        let margin = row.upper - value;
+        if margin < output.minimum_center_of_mass_tube_margin_mps2 {
+            output.minimum_center_of_mass_tube_margin_mps2 = margin;
+            output.limiting_center_of_mass_tube_halfspace =
+                Some((row.stable_id & 0x00ff_ffff) as usize);
         }
     }
     output.dynamics_residual_linf = constraints
@@ -4738,6 +4853,112 @@ mod tests {
     }
 
     #[test]
+    fn center_of_mass_acceleration_tube_emits_stable_bias_corrected_rows() {
+        let variables = 10;
+        let mut constraints = ConstraintBuffer::new(variables, 2);
+        let mut jacobian = DMatrix::zeros(3, variables);
+        jacobian[(0, 0)] = 2.0;
+        jacobian[(1, 0)] = 3.0;
+        jacobian[(0, 4)] = -1.0;
+        jacobian[(1, 4)] = 0.5;
+        let mut tube = FloatingCenterOfMassAccelerationTube::default();
+        tube.count = 2;
+        tube.halfspaces[0] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(1.0, 2.0),
+            maximum_acceleration_mps2: 5.0,
+        };
+        tube.halfspaces[1] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(-1.0, 0.0),
+            maximum_acceleration_mps2: 1.0,
+        };
+
+        emit_floating_center_of_mass_tube_rows(
+            &mut constraints,
+            tube,
+            &jacobian,
+            Vec3::new(0.1, -0.2, 7.0),
+        )
+        .unwrap();
+
+        let rows = constraints.active();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].stable_id, CENTER_OF_MASS_TUBE_ROW_BASE);
+        assert_eq!(rows[1].stable_id, CENTER_OF_MASS_TUBE_ROW_BASE | 1);
+        assert_eq!(rows[0].coefficients[0], 8.0);
+        assert_eq!(rows[0].coefficients[4], 0.0);
+        assert!((rows[0].upper - 5.3).abs() < 1e-12);
+        assert_eq!(rows[1].coefficients[0], -2.0);
+        assert_eq!(rows[1].coefficients[4], 1.0);
+        assert!((rows[1].upper - 1.1).abs() < 1e-12);
+        assert!(rows.iter().all(|row| row.lower == f64::NEG_INFINITY));
+    }
+
+    #[test]
+    fn center_of_mass_acceleration_tube_rejects_invalid_halfspaces_atomically() {
+        let model = upkie();
+        let controller =
+            FloatingDynamicWbc::new(model.clone(), DynamicWbcConfig::default()).unwrap();
+        let state = RobotState::zeros(&model);
+        let generalized_dof = model.dof + 6;
+        let desired_acceleration = DVector::zeros(generalized_dof);
+        let acceleration_bounds = VelocityBounds {
+            lower: DVector::from_element(generalized_dof, -100.0),
+            upper: DVector::from_element(generalized_dof, 100.0),
+        };
+        let torque_bounds = VelocityBounds {
+            lower: DVector::from_element(model.dof, -1_000.0),
+            upper: DVector::from_element(model.dof, 1_000.0),
+        };
+        let mut invalid_tube = FloatingCenterOfMassAccelerationTube::default();
+        invalid_tube.count = 1;
+        invalid_tube.halfspaces[0].maximum_acceleration_mps2 = 1.0;
+        let input = FloatingDynamicWbcInput {
+            state: &state,
+            root_twist_world: Motion6::default(),
+            desired_generalized_acceleration: &desired_acceleration,
+            task_priorities: FloatingTaskPriorities::default(),
+            task_weights: FloatingTaskWeights::default(),
+            joint_posture_weight: 0.0,
+            joint_acceleration_task: None,
+            center_of_mass_task: Some(FloatingCenterOfMassTask {
+                desired_acceleration_world: Vec3::zeros(),
+                horizontal_only: true,
+                priority: Priority::Viability,
+                weight: 0.0,
+                acceleration_tube: Some(invalid_tube),
+            }),
+            centroidal_angular_momentum_task: None,
+            frame_angular_acceleration_tasks: &[],
+            point_acceleration_tasks: &[],
+            generalized_acceleration_bounds: &acceleration_bounds,
+            torque_bounds: &torque_bounds,
+            actuator_effort: None,
+            contacts: &[],
+            support_patches: &[],
+        };
+        let mut scratch = controller.scratch(0, 0);
+        let mut output = FloatingDynamicWbcOutput::workspace(
+            model.dof,
+            0,
+            controller.maximum_constraint_count(0, 0),
+        );
+        output.generalized_acceleration.fill(123.0);
+
+        let error = controller
+            .solve_into(input, &mut output, &mut scratch)
+            .unwrap_err();
+
+        assert!(matches!(error, DynamicWbcError::InvalidInput));
+        assert!(
+            output
+                .generalized_acceleration
+                .iter()
+                .all(|value| *value == 123.0)
+        );
+        assert_eq!(output.status, SolveStatus::InvalidProblem);
+    }
+
+    #[test]
     fn floating_base_solve_supports_upkie_without_a_root_actuator() {
         let model = upkie();
         let controller =
@@ -4904,6 +5125,7 @@ mod tests {
                         horizontal_only: false,
                         priority: Priority::Style,
                         weight: 1.0,
+                        acceleration_tube: None,
                     }),
                     centroidal_angular_momentum_task: None,
                     ..input
@@ -4922,6 +5144,65 @@ mod tests {
             "CoM acceleration row was not honored: target {com_target:?}, achieved \
              {achieved_com_acceleration:?}"
         );
+
+        let mut acceleration_tube = FloatingCenterOfMassAccelerationTube::default();
+        acceleration_tube.count = 4;
+        acceleration_tube.halfspaces[0] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(1.0, 0.0),
+            maximum_acceleration_mps2: baseline_com_acceleration[0] + 0.01,
+        };
+        acceleration_tube.halfspaces[1] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(-1.0, 0.0),
+            maximum_acceleration_mps2: -baseline_com_acceleration[0] + 0.01,
+        };
+        acceleration_tube.halfspaces[2] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(0.0, 1.0),
+            maximum_acceleration_mps2: baseline_com_acceleration[1] + 0.01,
+        };
+        acceleration_tube.halfspaces[3] = FloatingCenterOfMassAccelerationHalfspace {
+            outward_normal_world: Vector2::new(0.0, -1.0),
+            maximum_acceleration_mps2: -baseline_com_acceleration[1] + 0.01,
+        };
+        let mut tube_output = FloatingDynamicWbcOutput::workspace(
+            model.dof,
+            2,
+            controller.maximum_constraint_count(2, 0),
+        );
+        controller
+            .solve_into(
+                FloatingDynamicWbcInput {
+                    center_of_mass_task: Some(FloatingCenterOfMassTask {
+                        desired_acceleration_world: Vec3::new(
+                            baseline_com_acceleration[0] + 10.0,
+                            baseline_com_acceleration[1],
+                            baseline_com_acceleration[2],
+                        ),
+                        horizontal_only: true,
+                        priority: Priority::Style,
+                        weight: 1.0,
+                        acceleration_tube: Some(acceleration_tube),
+                    }),
+                    ..input
+                },
+                &mut tube_output,
+                &mut scratch,
+            )
+            .unwrap();
+        assert!(matches!(
+            tube_output.status,
+            SolveStatus::Solved | SolveStatus::SolvedWithSlack
+        ));
+        let tube_com_acceleration = &com_jacobian * &tube_output.generalized_acceleration;
+        assert!(
+            tube_com_acceleration[0] <= baseline_com_acceleration[0] + 0.010_000_01,
+            "hard CoM tube leaked: baseline {}, achieved {}, margin {}, active {:?}",
+            baseline_com_acceleration[0],
+            tube_com_acceleration[0],
+            tube_output.minimum_center_of_mass_tube_margin_mps2,
+            tube_output.solve.active_constraints,
+        );
+        assert!(tube_output.minimum_center_of_mass_tube_margin_mps2 >= -1e-8);
+        assert!(tube_output.limiting_center_of_mass_tube_halfspace.is_some());
 
         let contact_moment_about_com = |result: &FloatingDynamicWbcOutput| {
             contacts
@@ -5405,6 +5686,7 @@ mod tests {
                         horizontal_only: true,
                         priority: Priority::Viability,
                         weight: 1.0,
+                        acceleration_tube: None,
                     }),
                     centroidal_angular_momentum_task: None,
                     frame_angular_acceleration_tasks: &[],

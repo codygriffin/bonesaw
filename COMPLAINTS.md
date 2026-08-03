@@ -17,6 +17,19 @@ locked support through at least tick 1108, improves bounded tracking, remains
 fail-closed, and meets the sub-5 ms p99 CPU gate. See the
 [r277 transition-gate report](benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md).
 
+R278 now supplies the missing mechanism as two independently switchable,
+default-off layers: a preview target generator and four fixed-capacity,
+bias-corrected hard CoM-acceleration rows built from a DCM control barrier over
+the current/previewed support intersection. Stable limiting-face and first-solve
+witnesses survive contingency retries. The dormant replay is exact on 83 shared
+non-timing arrays. The least damaging hard-only row admits 233/936 active
+requests without admitted face leakage, but leaves 703 unresolved, moves the
+first conflict/release to tick 324 versus control 875/1108, and reaches 5.113 ms
+p99 in the latest replay. The one negative first-solve witness belongs to an unsolved tick and is
+never integrated. This knocks off the missing typed boundary and telemetry,
+not the behavior gate; time-varying support reachability, tracking, and the
+50 Hz timing gate remain open. See the [r278 tube report](benchmarks/results/g1-support-trajectory-tube-r278/G1_SUPPORT_TRAJECTORY_TUBE_R278.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible
