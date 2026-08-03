@@ -202,6 +202,22 @@ def parse_args() -> argparse.Namespace:
         "--support-trajectory-tube-headroom-floor", type=float, default=0.0
     )
     parser.add_argument(
+        "--support-reachable-tube",
+        action="store_true",
+        help=(
+            "replace the local intersection barrier with an exact discrete DCM "
+            "backward-reachable tube over the authored support preview"
+        ),
+    )
+    parser.add_argument(
+        "--support-reachable-tube-hard",
+        action="store_true",
+        help="also admit the reachable-tube acceleration interval as hard WBC rows",
+    )
+    parser.add_argument(
+        "--support-reachable-tube-barrier-rate", type=float, default=0.0
+    )
+    parser.add_argument(
         "--center-of-mass-zero-reference-derivatives",
         action="store_true",
         help="track only the CoM position reference; zero preview velocity/acceleration jets",
@@ -2489,10 +2505,49 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         else []
     )
     tube_metrics = metrics["support_trajectory_tube"]
+    reachable_tube_enabled = bool(
+        metadata.get("support_reachable_tube_enabled", False)
+    )
+    hard_tube_enabled = bool(
+        metadata.get("support_trajectory_tube_enabled", False)
+        or metadata.get("support_reachable_tube_hard", False)
+    )
+    tube_formulation = (
+        "exact discrete DCM backward-reachable set"
+        if reachable_tube_enabled
+        else "finite-horizon support-intersection position tube"
+    )
+    hard_status_lines = (
+        [
+            f"- Hard acceleration-tube minimum margin: "
+            f"`{tube_metrics['hard_margin_minimum_mps2'] if tube_metrics['hard_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
+            f"violations beyond tolerance: `{tube_metrics['hard_boundary_violation_ticks']}` ticks; "
+            f"limiting face counts (+x/-x/+y/-y): "
+            f"`{tube_metrics['limiting_halfspace_counts']}`.",
+            f"- First-hard-solve witness margin minimum across all active attempts: "
+            f"`{tube_metrics['hard_witness_margin_minimum_mps2'] if tube_metrics['hard_witness_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
+            f"witness violations: `{tube_metrics['hard_witness_violation_ticks']}` ticks; "
+            f"limiting witness faces (+x/-x/+y/-y): "
+            f"`{tube_metrics['limiting_witness_halfspace_counts']}`.",
+            f"- Hard rows returned an admitted solve on "
+            f"`{tube_metrics['hard_solved_ticks']}` active ticks; "
+            f"`{tube_metrics['hard_unresolved_ticks']}` active requests remained unresolved "
+            f"and are not misreported as boundary violations.",
+        ]
+        if hard_tube_enabled
+        else [
+            "- Hard acceleration rows are observer-only in this profile; no "
+            "admitted margin or boundary-violation count is claimed.",
+            f"- The observer retained `{tube_metrics['active_ticks']}` active "
+            "requests without installing hard rows or changing the integrated state.",
+        ]
+    )
     support_tube_lines = [
         "## Support-transfer trajectory tube",
         "",
-        f"- Hard tube active on `{tube_metrics['active_ticks']}` ticks. Optional "
+        f"- `{tube_formulation}` telemetry is active on "
+        f"`{tube_metrics['active_ticks']}` ticks; hard enforcement is "
+        f"`{hard_tube_enabled}`. Optional "
         f"intent projection is `{metadata.get('support_trajectory_tube_project_intent', False)}` "
         f"and changed the authored CoM/root request on "
         f"`{tube_metrics['clipped_ticks']}` ticks.",
@@ -2500,23 +2555,11 @@ def render_report(metrics: dict[str, Any], metadata: dict[str, Any]) -> str:
         f"`{tube_metrics['headroom_scale_minimum']:.3f}` / "
         f"`{tube_metrics['headroom_scale_p05']:.3f}`; projected target displacement "
         f"RMS is `{tube_metrics['target_displacement_rms_m'] * 100:.3f} cm`.",
-        f"- Hard acceleration-tube minimum margin: "
-        f"`{tube_metrics['hard_margin_minimum_mps2'] if tube_metrics['hard_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
-        f"violations beyond tolerance: `{tube_metrics['hard_boundary_violation_ticks']}` ticks; "
-        f"limiting face counts (+x/-x/+y/-y): "
-        f"`{tube_metrics['limiting_halfspace_counts']}`.",
-        f"- First-hard-solve witness margin minimum across all active attempts: "
-        f"`{tube_metrics['hard_witness_margin_minimum_mps2'] if tube_metrics['hard_witness_margin_minimum_mps2'] is not None else 'inactive'}` m/s²; "
-        f"witness violations: `{tube_metrics['hard_witness_violation_ticks']}` ticks; "
-        f"limiting witness faces (+x/-x/+y/-y): "
-        f"`{tube_metrics['limiting_witness_halfspace_counts']}`.",
-        f"- Hard rows returned an admitted solve on "
-        f"`{tube_metrics['hard_solved_ticks']}` active ticks; "
-        f"`{tube_metrics['hard_unresolved_ticks']}` active requests remained unresolved "
-        f"and are not misreported as boundary violations.",
-        "- Four allocation-free hard WBC rows bound realized CoM acceleration. "
-        "The separately switchable preview projector may shape intent; neither layer "
-        "admits contact or grants actuator authority, and failed solves remain visible.",
+        *hard_status_lines,
+        "- When hard enforcement is enabled, four allocation-free WBC rows bound "
+        "realized CoM acceleration. The separately switchable preview projector may "
+        "shape intent; neither layer admits contact or grants actuator authority, "
+        "and failed solves remain visible.",
         "",
     ]
 
@@ -3228,8 +3271,10 @@ def main() -> None:
         or args.support_trajectory_tube_max_acceleration < 0.0
         or not np.isfinite(args.support_trajectory_tube_headroom_floor)
         or not 0.0 <= args.support_trajectory_tube_headroom_floor <= 0.5
+        or not np.isfinite(args.support_reachable_tube_barrier_rate)
+        or args.support_reachable_tube_barrier_rate < 0.0
         or (
-            args.support_trajectory_tube
+            (args.support_trajectory_tube or args.support_reachable_tube)
             and (
                 args.support_trajectory_tube_preview_ticks == 0
                 or args.support_trajectory_tube_max_velocity <= 0.0
@@ -3237,8 +3282,18 @@ def main() -> None:
             )
         )
         or (
+            args.support_reachable_tube
+            and (
+                args.support_trajectory_tube
+                or args.support_reachable_tube_barrier_rate <= 0.0
+            )
+        )
+        or (args.support_reachable_tube_hard and not args.support_reachable_tube)
+        or (
             args.support_trajectory_tube_project_intent
-            and not args.support_trajectory_tube
+            and not (
+                args.support_trajectory_tube or args.support_reachable_tube
+            )
         )
     ):
         raise SystemExit("support trajectory tube settings are invalid")
@@ -3628,6 +3683,11 @@ def main() -> None:
         ),
         support_trajectory_tube_headroom_floor=(
             args.support_trajectory_tube_headroom_floor
+        ),
+        support_reachable_tube_enabled=args.support_reachable_tube,
+        support_reachable_tube_hard=args.support_reachable_tube_hard,
+        support_reachable_tube_barrier_rate_per_second=(
+            args.support_reachable_tube_barrier_rate
         ),
         dcm_feedback_gain_per_second=args.dcm_feedback_gain_per_second,
         dcm_support_margin_m=args.dcm_support_margin,
@@ -4155,6 +4215,11 @@ def main() -> None:
         ),
         "support_trajectory_tube_headroom_floor": (
             args.support_trajectory_tube_headroom_floor
+        ),
+        "support_reachable_tube_enabled": args.support_reachable_tube,
+        "support_reachable_tube_hard": args.support_reachable_tube_hard,
+        "support_reachable_tube_barrier_rate_per_second": (
+            args.support_reachable_tube_barrier_rate
         ),
         "center_of_mass_zero_reference_derivatives": (
             args.center_of_mass_zero_reference_derivatives

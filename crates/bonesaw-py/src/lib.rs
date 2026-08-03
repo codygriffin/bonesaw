@@ -26,12 +26,13 @@ use bonesaw_core::{
     ContactTransitionResponseScratch, Controller, ControllerInput, ControllerOutputBuffer,
     ControllerScratch, ControllerState, CoupledContactHypothesisEnvelopeInput,
     CoupledContactImpulseInput, CoupledPositiveReferenceCompliantContactImpulseInput,
-    DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DcmBalanceConfig, DenseSdfGrid,
-    DirectionalContactTransitionInput, DistanceQuality, DistanceSample,
-    DynamicTrajectoryValidationConfig, DynamicWbcConfig, DynamicsCache, ExternalFrameInputs,
-    ExternalFrameSlotId, FLOATING_POINT_TASK_CAPACITY, FLOATING_TASK_DIAGNOSTIC_CAPACITY,
-    FloatingCenterOfMassAccelerationHalfspace, FloatingCenterOfMassAccelerationTube,
-    FloatingCenterOfMassTask, FloatingCentroidalAngularMomentumTask, FloatingDynamicController,
+    DIRECTIONAL_CONTACT_TRANSITION_WITNESS_WIDTH, DcmAxisAlignedBox, DcmBalanceConfig,
+    DcmMovingBoxAccelerationBounds, DenseSdfGrid, DirectionalContactTransitionInput,
+    DistanceQuality, DistanceSample, DynamicTrajectoryValidationConfig, DynamicWbcConfig,
+    DynamicsCache, ExternalFrameInputs, ExternalFrameSlotId, FLOATING_POINT_TASK_CAPACITY,
+    FLOATING_TASK_DIAGNOSTIC_CAPACITY, FloatingCenterOfMassAccelerationHalfspace,
+    FloatingCenterOfMassAccelerationTube, FloatingCenterOfMassTask,
+    FloatingCentroidalAngularMomentumTask, FloatingDynamicController,
     FloatingDynamicControllerInput, FloatingDynamicControllerOutput,
     FloatingDynamicControllerScratch, FloatingDynamicControllerState, FloatingDynamicWbc,
     FloatingDynamicWbcInput, FloatingDynamicWbcOutput, FloatingDynamicWbcScratch,
@@ -61,12 +62,13 @@ use bonesaw_core::{
     ViabilityForecastState, ViabilityHybridGuardConfig, ViabilityHybridGuardState,
     ViabilityPollConfig, ViabilityPollState, ViabilityRequestConfig, ViabilityRequestState,
     WholeBodyIkOptions, WholeBodyIkScratch, WholeBodyJetOptions, WholeBodyPointIkTarget,
-    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, balance_feedback_authority,
-    bound_terminal_impact_paired_state_delta, capture_landing_retarget, contact_phase_authority,
-    cubic_precontact_acceleration, dcm_balance_acceleration, joint_acceleration_interval,
-    joint_position_capture_acceleration, joint_position_capture_required_acceleration,
-    joint_velocity_envelope_acceleration, maximum_actuator_effort_utilization,
-    minimum_joint_position_headroom, next_viability_poll, predict_viability_forecast_path,
+    WholeBodyPointJetTarget, WorldSceneStamp, WorldSceneValidity, backward_reachable_dcm_box_step,
+    balance_feedback_authority, bound_terminal_impact_paired_state_delta, capture_landing_retarget,
+    contact_phase_authority, cubic_precontact_acceleration, dcm_balance_acceleration,
+    joint_acceleration_interval, joint_position_capture_acceleration,
+    joint_position_capture_required_acceleration, joint_velocity_envelope_acceleration,
+    maximum_actuator_effort_utilization, minimum_joint_position_headroom,
+    moving_dcm_box_acceleration_bounds, next_viability_poll, predict_viability_forecast_path,
     sample_quintic_scalar_jet, sample_quintic_vector_jet, score_terminal_impact,
     score_terminal_impact_paired_state_exemplar_delta, score_terminal_impact_state_box_upper,
     score_terminal_impact_velocity_box_upper, score_viability_forecast,
@@ -392,6 +394,11 @@ struct FloatingWbcSession {
     support_trajectory_tube_max_velocity_mps: f64,
     support_trajectory_tube_max_acceleration_mps2: f64,
     support_trajectory_tube_headroom_floor: f64,
+    /// R279: fold the authored support schedule backward under exact discrete
+    /// DCM dynamics, then enforce its moving boundary with hard CoM rows.
+    support_reachable_tube_enabled: bool,
+    support_reachable_tube_hard: bool,
+    support_reachable_tube_barrier_rate_per_second: f64,
     dcm_balance_config: DcmBalanceConfig,
     protected_joint_posture_weight: f64,
     protected_joint_posture_priority: Priority,
@@ -13412,6 +13419,9 @@ impl FloatingWbcSession {
         support_trajectory_tube_max_velocity_mps=0.0,
         support_trajectory_tube_max_acceleration_mps2=0.0,
         support_trajectory_tube_headroom_floor=0.0,
+        support_reachable_tube_enabled=false,
+        support_reachable_tube_hard=false,
+        support_reachable_tube_barrier_rate_per_second=0.0,
         dcm_feedback_gain_per_second=3.5,
         dcm_support_margin_m=0.01,
         dcm_maximum_horizontal_acceleration_mps2=25.0,
@@ -13500,6 +13510,9 @@ impl FloatingWbcSession {
         support_trajectory_tube_max_velocity_mps: f64,
         support_trajectory_tube_max_acceleration_mps2: f64,
         support_trajectory_tube_headroom_floor: f64,
+        support_reachable_tube_enabled: bool,
+        support_reachable_tube_hard: bool,
+        support_reachable_tube_barrier_rate_per_second: f64,
         dcm_feedback_gain_per_second: f64,
         dcm_support_margin_m: f64,
         dcm_maximum_horizontal_acceleration_mps2: f64,
@@ -13652,6 +13665,8 @@ impl FloatingWbcSession {
             || !support_trajectory_tube_max_acceleration_mps2.is_finite()
             || !support_trajectory_tube_headroom_floor.is_finite()
             || !(0.0..=0.5).contains(&support_trajectory_tube_headroom_floor)
+            || !support_reachable_tube_barrier_rate_per_second.is_finite()
+            || support_reachable_tube_barrier_rate_per_second < 0.0
             || !protected_joint_posture_weight.is_finite()
             || protected_joint_posture_weight < 0.0
             || !joint_velocity_envelope_weight.is_finite()
@@ -13739,7 +13754,7 @@ impl FloatingWbcSession {
                 "dcm_pre_liftoff_activation_ticks must be in 0..=512",
             ));
         }
-        if support_trajectory_tube_enabled
+        if (support_trajectory_tube_enabled || support_reachable_tube_enabled)
             && (support_trajectory_tube_preview_ticks == 0
                 || support_trajectory_tube_preview_ticks > 512
                 || support_trajectory_tube_max_velocity_mps <= 0.0
@@ -13748,10 +13763,24 @@ impl FloatingWbcSession {
                     >= contact_patch_half_length.min(contact_patch_half_width))
         {
             return Err(PyValueError::new_err(
-                "enabled support trajectory tube requires a four-point patch, positive preview/velocity/acceleration, and margin inside both half extents",
+                "enabled support tube requires a four-point patch, positive preview/velocity/acceleration, and margin inside both half extents",
+            ));
+        }
+        if support_reachable_tube_enabled
+            && (support_trajectory_tube_enabled
+                || support_reachable_tube_barrier_rate_per_second <= 0.0)
+        {
+            return Err(PyValueError::new_err(
+                "reachable and local support tubes are mutually exclusive, and reachable mode requires a positive barrier rate",
+            ));
+        }
+        if support_reachable_tube_hard && !support_reachable_tube_enabled {
+            return Err(PyValueError::new_err(
+                "hard reachable-tube enforcement requires reachable-tube observation",
             ));
         }
         if !support_trajectory_tube_enabled
+            && !support_reachable_tube_enabled
             && (support_trajectory_tube_preview_ticks > 512
                 || support_trajectory_tube_max_velocity_mps < 0.0
                 || support_trajectory_tube_max_acceleration_mps2 < 0.0)
@@ -13992,6 +14021,9 @@ impl FloatingWbcSession {
             support_trajectory_tube_max_velocity_mps,
             support_trajectory_tube_max_acceleration_mps2,
             support_trajectory_tube_headroom_floor,
+            support_reachable_tube_enabled,
+            support_reachable_tube_hard,
+            support_reachable_tube_barrier_rate_per_second,
             dcm_balance_config: DcmBalanceConfig {
                 feedback_gain_per_second: dcm_feedback_gain_per_second,
                 support_margin_m: dcm_support_margin_m,
@@ -15312,6 +15344,7 @@ impl FloatingWbcSession {
                     // the same priority creates a redundant, morphology-
                     // dependent trade instead of measuring either behavior.
                     horizontal_only: true,
+                    lateral_only: false,
                     priority: self.center_of_mass_task_priority,
                     weight: self.center_of_mass_task_weight,
                     acceleration_tube: None,
@@ -16082,8 +16115,195 @@ impl FloatingWbcSession {
                 center_of_mass_target_position.x,
                 center_of_mass_target_position.y,
             ];
+            let mut support_reachable_tube_acceleration_bounds: Option<
+                DcmMovingBoxAccelerationBounds,
+            > = None;
             let mut center_of_mass_acceleration_tube = None;
-            if self.support_trajectory_tube_enabled && self.contact_points_per_target == 4 {
+            if self.support_reachable_tube_enabled && self.contact_points_per_target == 4 {
+                let current_support_count = (0..target_count)
+                    .filter(|target| {
+                        contact_active[[reference_tick, *target]] != 0
+                            && target_active[[reference_tick, *target]] != 0
+                    })
+                    .count();
+                let transition_in_preview = (1..=self
+                    .support_trajectory_tube_preview_ticks
+                    .min(ticks.saturating_sub(reference_tick + 1)))
+                    .any(|offset| {
+                        let candidate_tick = reference_tick + offset;
+                        let candidate_count = (0..target_count)
+                            .filter(|target| {
+                                contact_active[[candidate_tick, *target]] != 0
+                                    && target_active[[candidate_tick, *target]] != 0
+                            })
+                            .count();
+                        candidate_count != current_support_count
+                    });
+                // The reachable tube is a support-transfer guard, not a
+                // second always-on balance controller. Keep the dormant
+                // multi-support prefix bit-exact, then carry the guard
+                // through single support where a future schedule edge may
+                // not yet be visible inside the short preview window.
+                let reachable_guard_active = current_support_count == 1 || transition_in_preview;
+                if !reachable_guard_active {
+                    support_trajectory_tube_active = false;
+                }
+                if reachable_guard_active {
+                    let patch_center =
+                        (self.contact_patch_points[0] + self.contact_patch_points[3]) * 0.5;
+                    let support_box_at = |schedule_tick: usize| {
+                        let mut lower = [f64::INFINITY; 2];
+                        let mut upper = [f64::NEG_INFINITY; 2];
+                        let mut height = 0.0_f64;
+                        let mut count = 0usize;
+                        for target in 0..target_count {
+                            if contact_active[[schedule_tick, target]] == 0
+                                || target_active[[schedule_tick, target]] == 0
+                            {
+                                continue;
+                            }
+                            let center_x =
+                                target_positions[[schedule_tick, target, 0]] + patch_center.x;
+                            let center_y =
+                                target_positions[[schedule_tick, target, 1]] + patch_center.y;
+                            lower[0] = lower[0].min(
+                                center_x - self.contact_patch_half_length
+                                    + self.support_trajectory_tube_margin_m,
+                            );
+                            upper[0] = upper[0].max(
+                                center_x + self.contact_patch_half_length
+                                    - self.support_trajectory_tube_margin_m,
+                            );
+                            lower[1] = lower[1].min(
+                                center_y - self.contact_patch_half_width
+                                    + self.support_trajectory_tube_margin_m,
+                            );
+                            upper[1] = upper[1].max(
+                                center_y + self.contact_patch_half_width
+                                    - self.support_trajectory_tube_margin_m,
+                            );
+                            height += target_positions[[schedule_tick, target, 2]] + patch_center.z;
+                            count += 1;
+                        }
+                        if count == 0 {
+                            None
+                        } else {
+                            Some((
+                                DcmAxisAlignedBox {
+                                    lower_world: lower,
+                                    upper_world: upper,
+                                },
+                                height / count as f64,
+                            ))
+                        }
+                    };
+                    if let Some((_, support_height)) = support_box_at(reference_tick) {
+                        let com_height = (center_of_mass_world.z - support_height).clamp(
+                            self.dcm_balance_config.minimum_com_height_m,
+                            self.dcm_balance_config.maximum_com_height_m,
+                        );
+                        let natural_frequency =
+                            (self.dcm_balance_config.gravity_mps2 / com_height).sqrt();
+                        let discrete_growth = (natural_frequency * dt_seconds).exp();
+                        let reachable_box_at = |start_tick: usize| {
+                            let end_tick = start_tick
+                                .saturating_add(self.support_trajectory_tube_preview_ticks)
+                                .min(ticks.saturating_sub(1));
+                            let (mut reachable, _) = support_box_at(end_tick)?;
+                            for schedule_tick in (start_tick..end_tick).rev() {
+                                let (support, _) = support_box_at(schedule_tick)?;
+                                reachable = backward_reachable_dcm_box_step(
+                                    reachable,
+                                    support,
+                                    discrete_growth,
+                                )?;
+                            }
+                            Some(reachable)
+                        };
+                        if let Some(current_reachable) = reachable_box_at(reference_tick) {
+                            let next_reachable = if reference_next_tick == reference_tick {
+                                current_reachable
+                            } else {
+                                reachable_box_at(reference_next_tick).unwrap_or(current_reachable)
+                            };
+                            if self.support_trajectory_tube_headroom_floor > 0.0 {
+                                support_trajectory_tube_headroom_scale =
+                                    minimum_joint_position_headroom(
+                                        &self.program.model,
+                                        &self.state.robot,
+                                    )
+                                    .map_err(value_error)?
+                                    .map(|headroom| {
+                                        (headroom.fraction_of_range
+                                            / self.support_trajectory_tube_headroom_floor)
+                                            .clamp(0.0, 1.0)
+                                    })
+                                    .unwrap_or(0.0);
+                            }
+                            let maximum_acceleration = self
+                                .support_trajectory_tube_max_acceleration_mps2
+                                * support_trajectory_tube_headroom_scale;
+                            let dcm = [
+                                center_of_mass_world.x
+                                    + center_of_mass_velocity_world.x / natural_frequency,
+                                center_of_mass_world.y
+                                    + center_of_mass_velocity_world.y / natural_frequency,
+                            ];
+                            if maximum_acceleration > 0.0 {
+                                if let Some(bounds) = moving_dcm_box_acceleration_bounds(
+                                    current_reachable,
+                                    next_reachable,
+                                    dcm,
+                                    [
+                                        center_of_mass_velocity_world.x,
+                                        center_of_mass_velocity_world.y,
+                                    ],
+                                    natural_frequency,
+                                    dt_seconds,
+                                    phase_rate,
+                                    self.support_reachable_tube_barrier_rate_per_second,
+                                    maximum_acceleration,
+                                ) {
+                                    support_trajectory_tube_active = true;
+                                    support_reachable_tube_acceleration_bounds = Some(bounds);
+                                    support_trajectory_tube_target = [
+                                        0.5 * (current_reachable.lower_world[0]
+                                            + current_reachable.upper_world[0]),
+                                        0.5 * (current_reachable.lower_world[1]
+                                            + current_reachable.upper_world[1]),
+                                    ];
+                                    if self.support_reachable_tube_hard {
+                                        let mut hard_tube =
+                                            FloatingCenterOfMassAccelerationTube::default();
+                                        hard_tube.count = 4;
+                                        hard_tube.halfspaces[0] =
+                                            FloatingCenterOfMassAccelerationHalfspace {
+                                                outward_normal_world: Vector2::new(1.0, 0.0),
+                                                maximum_acceleration_mps2: bounds.upper_mps2[0],
+                                            };
+                                        hard_tube.halfspaces[1] =
+                                            FloatingCenterOfMassAccelerationHalfspace {
+                                                outward_normal_world: Vector2::new(-1.0, 0.0),
+                                                maximum_acceleration_mps2: -bounds.lower_mps2[0],
+                                            };
+                                        hard_tube.halfspaces[2] =
+                                            FloatingCenterOfMassAccelerationHalfspace {
+                                                outward_normal_world: Vector2::new(0.0, 1.0),
+                                                maximum_acceleration_mps2: bounds.upper_mps2[1],
+                                            };
+                                        hard_tube.halfspaces[3] =
+                                            FloatingCenterOfMassAccelerationHalfspace {
+                                                outward_normal_world: Vector2::new(0.0, -1.0),
+                                                maximum_acceleration_mps2: -bounds.lower_mps2[1],
+                                            };
+                                        center_of_mass_acceleration_tube = Some(hard_tube);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if self.support_trajectory_tube_enabled && self.contact_points_per_target == 4 {
                 let authored_support_count = (0..target_count)
                     .filter(|target| {
                         contact_active[[reference_tick, *target]] != 0
@@ -16117,7 +16337,6 @@ impl FloatingWbcSession {
                         let patch_center =
                             (self.contact_patch_points[0] + self.contact_patch_points[3]) * 0.5;
                         let mut future_center = [0.0_f64; 2];
-                        let mut future_support_height = 0.0_f64;
                         let mut future_lower = [f64::INFINITY; 2];
                         let mut future_upper = [f64::NEG_INFINITY; 2];
                         let mut future_count = 0usize;
@@ -16131,8 +16350,6 @@ impl FloatingWbcSession {
                                     target_positions[[preview_tick, target, 1]] + patch_center.y;
                                 future_center[0] += center_x;
                                 future_center[1] += center_y;
-                                future_support_height +=
-                                    target_positions[[preview_tick, target, 2]] + patch_center.z;
                                 future_lower[0] =
                                     future_lower[0].min(center_x - self.contact_patch_half_length);
                                 future_upper[0] =
@@ -16164,7 +16381,6 @@ impl FloatingWbcSession {
                         if future_count > 0 && lower[0].is_finite() && lower[1].is_finite() {
                             future_center[0] /= future_count as f64;
                             future_center[1] /= future_count as f64;
-                            future_support_height /= future_count as f64;
                             // The admissible handoff is the intersection of
                             // today's support envelope and the previewed
                             // reduced-support envelope.  Using the current
@@ -16218,62 +16434,55 @@ impl FloatingWbcSession {
                                     preview_tick - reference_tick
                                 };
                                 let horizon_seconds = horizon_ticks.max(1) as f64 * dt_seconds;
-                                let com_height = (center_of_mass_world.z - future_support_height)
-                                    .clamp(
-                                        self.dcm_balance_config.minimum_com_height_m,
-                                        self.dcm_balance_config.maximum_com_height_m,
-                                    );
-                                let natural_frequency =
-                                    (self.dcm_balance_config.gravity_mps2 / com_height).sqrt();
-                                let dcm = [
+                                // Finite-horizon position tube: bound the
+                                // acceleration needed to keep the measured
+                                // CoM inside the current/previewed support
+                                // intersection at the end of the preview
+                                // window. This deliberately preserves
+                                // transient velocity instead of treating a
+                                // DCM boundary as an instantaneous hard stop;
+                                // the velocity and acceleration envelopes still
+                                // limit the requested correction below.
+                                let terminal_without_acceleration = [
                                     center_of_mass_world.x
-                                        + center_of_mass_velocity_world.x / natural_frequency,
+                                        + center_of_mass_velocity_world.x * horizon_seconds,
                                     center_of_mass_world.y
-                                        + center_of_mass_velocity_world.y / natural_frequency,
+                                        + center_of_mass_velocity_world.y * horizon_seconds,
                                 ];
-                                // Continuous DCM control-barrier condition:
-                                // ṁ >= -αm with ξ̇ = v + a/ω. The factor of
-                                // four gives an e^-4 response over the preview
-                                // horizon while permitting transient
-                                // accelerations that a constant-acceleration
-                                // terminal projection incorrectly forbids.
-                                let barrier_rate = 4.0 / horizon_seconds;
+                                let acceleration_position_scale =
+                                    2.0 / (horizon_seconds * horizon_seconds);
                                 let mut hard_tube = FloatingCenterOfMassAccelerationTube::default();
                                 hard_tube.count = 4;
                                 hard_tube.halfspaces[0] =
                                     FloatingCenterOfMassAccelerationHalfspace {
                                         outward_normal_world: Vector2::new(1.0, 0.0),
                                         maximum_acceleration_mps2: maximum_acceleration.min(
-                                            natural_frequency
-                                                * (barrier_rate * (safe_upper[0] - dcm[0])
-                                                    - center_of_mass_velocity_world.x),
+                                            (safe_upper[0] - terminal_without_acceleration[0])
+                                                * acceleration_position_scale,
                                         ),
                                     };
                                 hard_tube.halfspaces[1] =
                                     FloatingCenterOfMassAccelerationHalfspace {
                                         outward_normal_world: Vector2::new(-1.0, 0.0),
                                         maximum_acceleration_mps2: maximum_acceleration.min(
-                                            natural_frequency
-                                                * (barrier_rate * (dcm[0] - safe_lower[0])
-                                                    + center_of_mass_velocity_world.x),
+                                            (terminal_without_acceleration[0] - safe_lower[0])
+                                                * acceleration_position_scale,
                                         ),
                                     };
                                 hard_tube.halfspaces[2] =
                                     FloatingCenterOfMassAccelerationHalfspace {
                                         outward_normal_world: Vector2::new(0.0, 1.0),
                                         maximum_acceleration_mps2: maximum_acceleration.min(
-                                            natural_frequency
-                                                * (barrier_rate * (safe_upper[1] - dcm[1])
-                                                    - center_of_mass_velocity_world.y),
+                                            (safe_upper[1] - terminal_without_acceleration[1])
+                                                * acceleration_position_scale,
                                         ),
                                     };
                                 hard_tube.halfspaces[3] =
                                     FloatingCenterOfMassAccelerationHalfspace {
                                         outward_normal_world: Vector2::new(0.0, -1.0),
                                         maximum_acceleration_mps2: maximum_acceleration.min(
-                                            natural_frequency
-                                                * (barrier_rate * (dcm[1] - safe_lower[1])
-                                                    + center_of_mass_velocity_world.y),
+                                            (terminal_without_acceleration[1] - safe_lower[1])
+                                                * acceleration_position_scale,
                                         ),
                                     };
                                 center_of_mass_acceleration_tube = Some(hard_tube);
@@ -17234,6 +17443,32 @@ impl FloatingWbcSession {
             } else {
                 self.last_dcm_observation_valid = false;
             }
+            if self.support_trajectory_tube_project_intent {
+                if let Some(bounds) = support_reachable_tube_acceleration_bounds {
+                    for axis in 0..2 {
+                        let requested = desired_center_of_mass[axis];
+                        let projected = if bounds.lower_mps2[axis] <= bounds.upper_mps2[axis] {
+                            requested.clamp(bounds.lower_mps2[axis], bounds.upper_mps2[axis])
+                        } else {
+                            // No acceleration satisfies both faces.  A soft
+                            // request uses the minimax midpoint and leaves the
+                            // empty interval visible to independently switchable
+                            // hard admission instead of panicking or resetting.
+                            0.5 * (bounds.lower_mps2[axis] + bounds.upper_mps2[axis])
+                        }
+                        .clamp(
+                            -self.support_trajectory_tube_max_acceleration_mps2
+                                * support_trajectory_tube_headroom_scale,
+                            self.support_trajectory_tube_max_acceleration_mps2
+                                * support_trajectory_tube_headroom_scale,
+                        );
+                        support_trajectory_tube_clipped |= (projected - requested).abs() > 1.0e-12;
+                        desired_center_of_mass[axis] = projected;
+                    }
+                    support_trajectory_tube_clipped_out[tick] =
+                        u8::from(support_trajectory_tube_clipped);
+                }
+            }
             if self.balance_phase_retiming_enabled
                 && contact_phase_authority.phase != bonesaw_core::MeasuredContactPhase::MultiSupport
                 && dcm_support_margin_out[tick].is_finite()
@@ -17443,12 +17678,18 @@ impl FloatingWbcSession {
             for axis in 0..3 {
                 center_of_mass_command_out[[tick, axis]] = desired_center_of_mass[axis];
             }
+            let soft_center_of_mass_task_active = if self.support_reachable_tube_enabled {
+                dcm_balance_active || support_trajectory_tube_clipped
+            } else {
+                !self.dcm_balance_enabled || dcm_balance_active
+            };
             let center_of_mass_task = (center_of_mass_acceleration_tube.is_some()
-                || (self.center_of_mass_task_weight > 0.0
-                    && (!self.dcm_balance_enabled || dcm_balance_active)))
+                || (self.center_of_mass_task_weight > 0.0 && soft_center_of_mass_task_active))
                 .then_some(FloatingCenterOfMassTask {
                     desired_acceleration_world: desired_center_of_mass,
-                    horizontal_only: self.dcm_balance_enabled,
+                    horizontal_only: self.dcm_balance_enabled
+                        || self.support_reachable_tube_enabled,
+                    lateral_only: self.support_reachable_tube_enabled,
                     priority: self.center_of_mass_task_priority,
                     weight: self.center_of_mass_task_weight,
                     acceleration_tube: center_of_mass_acceleration_tube,

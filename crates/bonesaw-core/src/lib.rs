@@ -182,10 +182,11 @@ pub use solver::{
     SolveResult, SolveStatus, SolverWorkspace, Task, TaskBuffer, TaskKind, VelocityBounds,
 };
 pub use support::{
-    CaptureLandingRetargetConfig, CaptureLandingRetargetOutput, SupportPhase,
-    SupportTransitionConfig, SupportTransitionError, SupportTransitionObservation,
-    SupportTransitionState, TouchdownPhaseRetimingConfig, TouchdownPhaseRetimingInput,
-    TouchdownPhaseRetimingOutput, capture_landing_retarget, cubic_precontact_acceleration,
+    CaptureLandingRetargetConfig, CaptureLandingRetargetOutput, DcmAxisAlignedBox,
+    DcmMovingBoxAccelerationBounds, SupportPhase, SupportTransitionConfig, SupportTransitionError,
+    SupportTransitionObservation, SupportTransitionState, TouchdownPhaseRetimingConfig,
+    TouchdownPhaseRetimingInput, TouchdownPhaseRetimingOutput, backward_reachable_dcm_box_step,
+    capture_landing_retarget, cubic_precontact_acceleration, moving_dcm_box_acceleration_bounds,
     sample_quintic_scalar_jet, sample_quintic_vector_jet, slew_touchdown_phase_rate,
     support_margin_phase_rate, time_warp_scalar_jet, time_warp_vector_jet,
     touchdown_phase_retiming,

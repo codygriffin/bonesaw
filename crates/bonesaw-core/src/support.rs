@@ -6,6 +6,142 @@ use crate::{
     signal::{ScalarJet, VectorJet},
 };
 
+/// Horizontal axis-aligned DCM set used by the schedule-reachable support
+/// construction.  The representation is deliberately fixed-size so a caller
+/// can fold an authored support sequence backward without allocating.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DcmAxisAlignedBox {
+    pub lower_world: [f64; 2],
+    pub upper_world: [f64; 2],
+}
+
+impl DcmAxisAlignedBox {
+    pub fn validate(self) -> Option<Self> {
+        if self
+            .lower_world
+            .iter()
+            .chain(self.upper_world.iter())
+            .any(|value| !value.is_finite())
+            || (0..2).any(|axis| self.lower_world[axis] > self.upper_world[axis])
+        {
+            return None;
+        }
+        Some(self)
+    }
+}
+
+/// Per-axis CoM acceleration interval induced by a moving DCM tube.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DcmMovingBoxAccelerationBounds {
+    pub lower_mps2: [f64; 2],
+    pub upper_mps2: [f64; 2],
+    pub lower_boundary_velocity_mps: [f64; 2],
+    pub upper_boundary_velocity_mps: [f64; 2],
+    pub minimum_dcm_margin_m: f64,
+}
+
+/// One exact backward-reachability step for piecewise-constant ZMP support.
+///
+/// With `xi_next = growth * xi + (1 - growth) * z` and `growth > 1`, this
+/// returns every current DCM whose next value can lie in `next` for some ZMP
+/// in `support`.  Axis-aligned support boxes remain axis aligned under this
+/// affine preimage.
+pub fn backward_reachable_dcm_box_step(
+    next: DcmAxisAlignedBox,
+    support: DcmAxisAlignedBox,
+    growth: f64,
+) -> Option<DcmAxisAlignedBox> {
+    let next = next.validate()?;
+    let support = support.validate()?;
+    if !growth.is_finite() || growth <= 1.0 {
+        return None;
+    }
+    let support_weight = growth - 1.0;
+    let mut output = DcmAxisAlignedBox {
+        lower_world: [0.0; 2],
+        upper_world: [0.0; 2],
+    };
+    for axis in 0..2 {
+        output.lower_world[axis] =
+            (next.lower_world[axis] + support_weight * support.lower_world[axis]) / growth;
+        output.upper_world[axis] =
+            (next.upper_world[axis] + support_weight * support.upper_world[axis]) / growth;
+    }
+    output.validate()
+}
+
+/// Convert two consecutive schedule-reachable DCM boxes into a continuous
+/// moving-boundary control-barrier acceleration interval.
+///
+/// The bounds enforce `m_dot >= -rate * m` for each face while accounting for
+/// the authored tube boundary velocity.  They are clipped to the declared
+/// horizontal acceleration envelope; an empty returned interval is a useful
+/// fail-closed infeasibility witness rather than an input-validation failure.
+pub fn moving_dcm_box_acceleration_bounds(
+    current: DcmAxisAlignedBox,
+    next: DcmAxisAlignedBox,
+    dcm_world: [f64; 2],
+    center_of_mass_velocity_world_mps: [f64; 2],
+    natural_frequency_per_second: f64,
+    dt_seconds: f64,
+    reference_phase_rate: f64,
+    barrier_rate_per_second: f64,
+    maximum_acceleration_mps2: f64,
+) -> Option<DcmMovingBoxAccelerationBounds> {
+    let current = current.validate()?;
+    let next = next.validate()?;
+    if dcm_world
+        .iter()
+        .chain(center_of_mass_velocity_world_mps.iter())
+        .any(|value| !value.is_finite())
+        || !natural_frequency_per_second.is_finite()
+        || natural_frequency_per_second <= 0.0
+        || !dt_seconds.is_finite()
+        || dt_seconds <= 0.0
+        || !reference_phase_rate.is_finite()
+        || reference_phase_rate < 0.0
+        || !barrier_rate_per_second.is_finite()
+        || barrier_rate_per_second <= 0.0
+        || !maximum_acceleration_mps2.is_finite()
+        || maximum_acceleration_mps2 <= 0.0
+    {
+        return None;
+    }
+    let mut output = DcmMovingBoxAccelerationBounds {
+        lower_mps2: [0.0; 2],
+        upper_mps2: [0.0; 2],
+        lower_boundary_velocity_mps: [0.0; 2],
+        upper_boundary_velocity_mps: [0.0; 2],
+        minimum_dcm_margin_m: f64::INFINITY,
+    };
+    for axis in 0..2 {
+        let lower_velocity = (next.lower_world[axis] - current.lower_world[axis])
+            * reference_phase_rate
+            / dt_seconds;
+        let upper_velocity = (next.upper_world[axis] - current.upper_world[axis])
+            * reference_phase_rate
+            / dt_seconds;
+        let lower_margin = dcm_world[axis] - current.lower_world[axis];
+        let upper_margin = current.upper_world[axis] - dcm_world[axis];
+        output.lower_boundary_velocity_mps[axis] = lower_velocity;
+        output.upper_boundary_velocity_mps[axis] = upper_velocity;
+        output.minimum_dcm_margin_m = output
+            .minimum_dcm_margin_m
+            .min(lower_margin)
+            .min(upper_margin);
+        output.lower_mps2[axis] = (natural_frequency_per_second
+            * (lower_velocity
+                - barrier_rate_per_second * lower_margin
+                - center_of_mass_velocity_world_mps[axis]))
+            .max(-maximum_acceleration_mps2);
+        output.upper_mps2[axis] = (natural_frequency_per_second
+            * (upper_velocity + barrier_rate_per_second * upper_margin
+                - center_of_mass_velocity_world_mps[axis]))
+            .min(maximum_acceleration_mps2);
+    }
+    Some(output)
+}
+
 /// Contact-side state owned by the controller rather than inferred from solve
 /// status codes after the fact.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -1071,5 +1207,123 @@ mod tests {
         assert_eq!(warped.value, 1.0);
         assert_eq!(warped.velocity, 1.0);
         assert_eq!(warped.acceleration, -3.0);
+    }
+
+    #[test]
+    fn backward_reachable_dcm_box_matches_exact_discrete_dynamics() {
+        let support = DcmAxisAlignedBox {
+            lower_world: [-0.2, -0.1],
+            upper_world: [0.4, 0.3],
+        };
+        let next = DcmAxisAlignedBox {
+            lower_world: [0.1, -0.3],
+            upper_world: [0.5, 0.2],
+        };
+        let growth = 1.25;
+        let current = backward_reachable_dcm_box_step(next, support, growth).unwrap();
+        for (actual, expected) in current
+            .lower_world
+            .into_iter()
+            .zip([0.04, -0.26])
+            .chain(current.upper_world.into_iter().zip([0.48, 0.22]))
+        {
+            assert!((actual - expected).abs() <= 1e-12);
+        }
+
+        // Each corner maps exactly to the corresponding next-set corner when
+        // the matching support corner is selected.
+        for axis in 0..2 {
+            let mapped_lower =
+                growth * current.lower_world[axis] + (1.0 - growth) * support.lower_world[axis];
+            let mapped_upper =
+                growth * current.upper_world[axis] + (1.0 - growth) * support.upper_world[axis];
+            assert!((mapped_lower - next.lower_world[axis]).abs() <= 1e-12);
+            assert!((mapped_upper - next.upper_world[axis]).abs() <= 1e-12);
+        }
+    }
+
+    #[test]
+    fn backward_reachable_dcm_box_rejects_invalid_inputs_atomically() {
+        let valid = DcmAxisAlignedBox {
+            lower_world: [-0.1, -0.1],
+            upper_world: [0.1, 0.1],
+        };
+        let invalid = DcmAxisAlignedBox {
+            lower_world: [0.2, -0.1],
+            upper_world: [0.1, 0.1],
+        };
+        assert!(backward_reachable_dcm_box_step(invalid, valid, 1.1).is_none());
+        assert!(backward_reachable_dcm_box_step(valid, invalid, 1.1).is_none());
+        assert!(backward_reachable_dcm_box_step(valid, valid, 1.0).is_none());
+    }
+
+    #[test]
+    fn moving_dcm_box_barrier_accounts_for_boundary_velocity() {
+        let current = DcmAxisAlignedBox {
+            lower_world: [-0.2, -0.1],
+            upper_world: [0.2, 0.1],
+        };
+        let next = DcmAxisAlignedBox {
+            lower_world: [-0.19, -0.12],
+            upper_world: [0.23, 0.09],
+        };
+        let output = moving_dcm_box_acceleration_bounds(
+            current,
+            next,
+            [0.0, 0.0],
+            [0.1, -0.2],
+            4.0,
+            0.01,
+            0.5,
+            2.0,
+            20.0,
+        )
+        .unwrap();
+        for (actual, expected) in output
+            .lower_boundary_velocity_mps
+            .into_iter()
+            .zip([0.5, -1.0])
+            .chain(
+                output
+                    .upper_boundary_velocity_mps
+                    .into_iter()
+                    .zip([1.5, -0.5]),
+            )
+        {
+            assert!((actual - expected).abs() <= 1e-12);
+        }
+        assert!((output.lower_mps2[0] - 0.0).abs() <= 1e-12);
+        assert!((output.upper_mps2[0] - 7.2).abs() <= 1e-12);
+        assert!((output.lower_mps2[1] + 4.0).abs() <= 1e-12);
+        assert!((output.upper_mps2[1] + 0.4).abs() <= 1e-12);
+        assert!((output.minimum_dcm_margin_m - 0.1).abs() <= 1e-12);
+    }
+
+    #[test]
+    fn moving_dcm_box_barrier_preserves_an_empty_interval_as_evidence() {
+        let current = DcmAxisAlignedBox {
+            lower_world: [-0.5, -0.5],
+            upper_world: [0.5, 0.5],
+        };
+        let next = DcmAxisAlignedBox {
+            lower_world: [-0.0005, -0.0005],
+            upper_world: [0.0005, 0.0005],
+        };
+        let output = moving_dcm_box_acceleration_bounds(
+            current,
+            next,
+            [0.0, 0.0],
+            [0.0, 0.0],
+            4.0,
+            0.01,
+            1.0,
+            2.0,
+            20.0,
+        )
+        .unwrap();
+        assert!(
+            (0..2).any(|axis| output.lower_mps2[axis] > output.upper_mps2[axis]),
+            "the valid but unrealizable request must remain visible"
+        );
     }
 }

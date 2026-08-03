@@ -2,28 +2,35 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current CPU checkpoint — r277 schedule-bounded DCM transition shaping
+## Current CPU checkpoint — r279 schedule-reachable DCM tube
 
-R277 adds a default-off, allocation-free Rust schedule gate around the existing
-DCM/virtual-ZMP task. Zero retains historical continuous behavior. A positive
-horizon activates before an authored multi-to-single support loss and stays
-active through the resulting single-support interval. The caller-owned byte
-witness remains separate from DCM residual, support margin, contact admission,
-release, tracking, and timing; no policy or physics step is added.
-
-Dormant replay is bit-exact against R276 on all 82 shared non-timing arrays. A
-frozen eight-profile screen spans weights 1e-5–1e-4 and 5/10-tick previews. The
-best release is still tick 959 versus control 1108. Its tick-874 state is
-causally better—lateral CoM velocity changes from 0.542 to 0.333 m/s, CoM y from
-0.14338 to 0.10696 m, and the right knee leaves its lower limit—so the original
-conflict moves from tick 875 to 926. But root/foot RMS regress to
-19.280/19.059 m, p99 reaches 6.726 ms, and two samples exceed 20 ms. Continuous
-DCM releases at 466. The gate is retained experimental/default-off; every DCM
-profile and authority gate is rejected. The remaining WBC slice is an explicit
-support-feasible root/CoM trajectory tube with velocity and joint-headroom
-state, not another scalar DCM gain. See the
-[`G1_DCM_TRANSITION_GATE_R277.md`](../benchmarks/results/g1-dcm-transition-gate-r277/G1_DCM_TRANSITION_GATE_R277.md)
+R279 adds an exact discrete backward preimage of the authored support schedule.
+The fixed-size Rust fold produces a time-varying DCM box; a moving-boundary
+barrier includes measured CoM velocity, reference-phase boundary velocity, and
+an explicit acceleration envelope. Observer telemetry, intent projection, soft
+task authority, and four-face hard admission are independently default-off.
+Python retains the immutable policy-free/physics-free scenarios, metrics, and
 report.
+
+Dormant replay is exact against R278 on 89 shared non-timing arrays. The
+reachable observer is state-exact and active on 936 ticks. The local
+finite-horizon h5 hard tube reaches conflict/release at 874/874 with
+17.427/17.127 m root/foot RMS; the reachable h5 hard row fails closed on all
+936 active requests and reaches conflict/release at 295 with 26.629/26.555 m
+RMS. Observer p99 is 4.751 ms; every authority profile is rejected. The next
+slice must construct a WBC-achievable tube by composing support geometry with
+contact kinematics, joint/effort headroom, and bounded cross-tick progress.
+See the
+[`G1_SUPPORT_TRAJECTORY_TUBE_R279.md`](../benchmarks/results/g1-support-trajectory-tube-r279/G1_SUPPORT_TRAJECTORY_TUBE_R279.md)
+report.
+
+## Prior CPU checkpoint — r278 local support-transfer tube
+
+R278 introduced the fixed-capacity, bias-corrected hard CoM-acceleration
+halfspaces and independent preview request used by R279. Its best five-tick
+local-intersection DCM barrier admitted 233/936 active requests but moved
+conflict/release to tick 324 and missed the 5 ms p99 gate. R279 retains that
+typed-boundary baseline and replaces its local geometry with schedule reachability.
 
 ## Prior CPU checkpoint — r276 automatic contact localization
 

@@ -30,6 +30,18 @@ never integrated. This knocks off the missing typed boundary and telemetry,
 not the behavior gate; time-varying support reachability, tracking, and the
 50 Hz timing gate remain open. See the [r278 tube report](benchmarks/results/g1-support-trajectory-tube-r278/G1_SUPPORT_TRAJECTORY_TUBE_R278.md).
 
+R279 closes the time-varying support-geometry seam without claiming a behavior
+positive transfer. Rust now folds the authored support schedule backward under
+exact discrete DCM dynamics and accounts for the moving tube boundary.
+Observer, projected request, soft task, and hard admission are independently
+switchable. Dormant is exact; the observer is state-exact on 936 active ticks.
+The local finite-horizon h5 hard row reaches conflict/release at 874/874 with
+17.427/17.127 m root/foot RMS. The reachable h5 hard row fails closed on all
+936 active requests, with its first witness and conflict/release at tick 295
+and 26.629/26.555 m RMS. Every authority profile is rejected; contact, joint,
+effort/resource, plant, and timing composition remain open. See the
+[r279 trajectory-tube report](benchmarks/results/g1-support-trajectory-tube-r279/G1_SUPPORT_TRAJECTORY_TUBE_R279.md).
+
 ## Open browser gate: viewport frame time
 
 Scheduling, interpolation, cached geometry, disconnected ghost state, visible
