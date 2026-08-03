@@ -343,6 +343,374 @@ pub fn step_upkie_lateral_viability(
     })
 }
 
+/// Measured wheel-load reserve action for a two-wheel support. This action is
+/// deliberately upstream of torque admission: it authors bounded lateral and
+/// bank accelerations, while the ordinary floating WBC remains the execution
+/// authority. Wheel identity is derived from measured support positions, not
+/// from a left/right array convention.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UpkieWheelLoadReserveConfig {
+    pub gravity_mps2: f64,
+    pub minimum_com_height_m: f64,
+    pub maximum_com_height_m: f64,
+    pub minimum_total_normal_force_n: f64,
+    pub activation_release_load_fraction: f64,
+    pub activation_full_load_fraction: f64,
+    pub activation_release_dcm_m: f64,
+    pub activation_full_dcm_m: f64,
+    pub load_filter_time_constant_s: f64,
+    pub prediction_lookahead_s: f64,
+    pub unloading_rate_release_per_s: f64,
+    pub unloading_rate_full_per_s: f64,
+    pub support_reserve_m: f64,
+    pub dcm_decay_rate_per_s: f64,
+    pub authority_attack_per_s: f64,
+    pub authority_release_per_s: f64,
+    pub maximum_lateral_acceleration_m_s2: f64,
+    pub lateral_acceleration_slew_m_s3: f64,
+    pub maximum_bank_angle_rad: f64,
+    pub bank_angle_slew_rad_s: f64,
+    pub bank_tracking_stiffness_per_s2: f64,
+    pub bank_tracking_damping_per_s: f64,
+    pub maximum_roll_acceleration_rad_s2: f64,
+}
+
+impl Default for UpkieWheelLoadReserveConfig {
+    fn default() -> Self {
+        Self {
+            gravity_mps2: 9.81,
+            minimum_com_height_m: 0.20,
+            maximum_com_height_m: 0.80,
+            minimum_total_normal_force_n: 1.0,
+            activation_release_load_fraction: 0.47,
+            activation_full_load_fraction: 0.38,
+            activation_release_dcm_m: 0.005,
+            activation_full_dcm_m: 0.030,
+            load_filter_time_constant_s: 0.04,
+            prediction_lookahead_s: 0.012,
+            unloading_rate_release_per_s: 1.50,
+            unloading_rate_full_per_s: 5.00,
+            support_reserve_m: 0.02,
+            dcm_decay_rate_per_s: 4.0,
+            authority_attack_per_s: 25.0,
+            authority_release_per_s: 12.0,
+            maximum_lateral_acceleration_m_s2: 8.0,
+            lateral_acceleration_slew_m_s3: 80.0,
+            maximum_bank_angle_rad: 25.0_f64.to_radians(),
+            bank_angle_slew_rad_s: 3.0,
+            bank_tracking_stiffness_per_s2: 80.0,
+            bank_tracking_damping_per_s: 14.0,
+            maximum_roll_acceleration_rad_s2: 80.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UpkieWheelLoadReserveState {
+    pub filtered_load_balance: f64,
+    pub previous_weaker_load_fraction: f64,
+    pub has_previous_load_fraction: bool,
+    pub authority: f64,
+    pub commanded_lateral_acceleration_m_s2: f64,
+    pub commanded_bank_angle_rad: f64,
+}
+
+impl Default for UpkieWheelLoadReserveState {
+    fn default() -> Self {
+        Self {
+            filtered_load_balance: 0.0,
+            previous_weaker_load_fraction: 0.5,
+            has_previous_load_fraction: false,
+            authority: 0.0,
+            commanded_lateral_acceleration_m_s2: 0.0,
+            commanded_bank_angle_rad: 0.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UpkieWheelLoadReserveOutput {
+    pub evidence_available: bool,
+    pub active: bool,
+    pub weaker_support_index: u8,
+    pub total_normal_force_n: f64,
+    pub support_load_fractions: [f64; 2],
+    pub raw_load_balance: f64,
+    pub filtered_load_balance: f64,
+    pub weaker_load_fraction: f64,
+    pub weaker_load_fraction_rate_per_s: f64,
+    pub predicted_weaker_load_fraction: f64,
+    pub support_center_m: f64,
+    pub half_support_track_m: f64,
+    pub measured_cop_m: f64,
+    pub lateral_dcm_m: f64,
+    pub baseline_zmp_m: f64,
+    pub restoring_zmp_m: f64,
+    pub commanded_zmp_m: f64,
+    pub requested_lateral_acceleration_m_s2: f64,
+    pub commanded_lateral_acceleration_m_s2: f64,
+    pub target_bank_angle_rad: f64,
+    pub commanded_bank_angle_rad: f64,
+    pub commanded_roll_acceleration_rad_s2: f64,
+    pub activation_pressure: f64,
+    pub authority: f64,
+    pub zmp_was_saturated: bool,
+    pub acceleration_was_saturated: bool,
+    pub bank_was_saturated: bool,
+}
+
+fn smoothstep_unit(value: f64) -> f64 {
+    let phase = value.clamp(0.0, 1.0);
+    phase * phase * (3.0 - 2.0 * phase)
+}
+
+/// Advance the measured wheel-load reserve action once. `support_lateral_m`
+/// and the CoM state share one wheel-heading lateral coordinate. Missing or
+/// non-bilateral evidence releases authority smoothly; non-finite or invalid
+/// input is atomic and returns `None`.
+#[allow(clippy::too_many_arguments)]
+pub fn step_upkie_wheel_load_reserve(
+    timestep_seconds: f64,
+    bilateral_contact_evidence: bool,
+    support_lateral_m: [f64; 2],
+    support_normal_force_n: [f64; 2],
+    lateral_com_m: f64,
+    lateral_com_velocity_m_s: f64,
+    center_of_mass_height_m: f64,
+    measured_roll_rad: f64,
+    measured_roll_rate_rad_s: f64,
+    config: UpkieWheelLoadReserveConfig,
+    state: &mut UpkieWheelLoadReserveState,
+) -> Option<UpkieWheelLoadReserveOutput> {
+    let values = [
+        timestep_seconds,
+        support_lateral_m[0],
+        support_lateral_m[1],
+        support_normal_force_n[0],
+        support_normal_force_n[1],
+        lateral_com_m,
+        lateral_com_velocity_m_s,
+        center_of_mass_height_m,
+        measured_roll_rad,
+        measured_roll_rate_rad_s,
+        config.gravity_mps2,
+        config.minimum_com_height_m,
+        config.maximum_com_height_m,
+        config.minimum_total_normal_force_n,
+        config.activation_release_load_fraction,
+        config.activation_full_load_fraction,
+        config.activation_release_dcm_m,
+        config.activation_full_dcm_m,
+        config.load_filter_time_constant_s,
+        config.prediction_lookahead_s,
+        config.unloading_rate_release_per_s,
+        config.unloading_rate_full_per_s,
+        config.support_reserve_m,
+        config.dcm_decay_rate_per_s,
+        config.authority_attack_per_s,
+        config.authority_release_per_s,
+        config.maximum_lateral_acceleration_m_s2,
+        config.lateral_acceleration_slew_m_s3,
+        config.maximum_bank_angle_rad,
+        config.bank_angle_slew_rad_s,
+        config.bank_tracking_stiffness_per_s2,
+        config.bank_tracking_damping_per_s,
+        config.maximum_roll_acceleration_rad_s2,
+        state.filtered_load_balance,
+        state.previous_weaker_load_fraction,
+        state.authority,
+        state.commanded_lateral_acceleration_m_s2,
+        state.commanded_bank_angle_rad,
+    ];
+    let track = (support_lateral_m[1] - support_lateral_m[0]).abs();
+    if values.iter().any(|value| !value.is_finite())
+        || timestep_seconds <= 0.0
+        || support_normal_force_n.iter().any(|force| *force < 0.0)
+        || config.gravity_mps2 <= 0.0
+        || config.minimum_com_height_m <= 0.0
+        || config.minimum_com_height_m > config.maximum_com_height_m
+        || config.minimum_total_normal_force_n <= 0.0
+        || !(0.0..0.5).contains(&config.activation_full_load_fraction)
+        || config.activation_full_load_fraction >= config.activation_release_load_fraction
+        || config.activation_release_load_fraction > 0.5
+        || config.activation_release_dcm_m < 0.0
+        || config.activation_release_dcm_m >= config.activation_full_dcm_m
+        || config.load_filter_time_constant_s <= 0.0
+        || config.prediction_lookahead_s < 0.0
+        || config.unloading_rate_release_per_s < 0.0
+        || config.unloading_rate_release_per_s >= config.unloading_rate_full_per_s
+        || config.support_reserve_m < 0.0
+        || config.dcm_decay_rate_per_s <= 0.0
+        || config.authority_attack_per_s <= 0.0
+        || config.authority_release_per_s <= 0.0
+        || config.maximum_lateral_acceleration_m_s2 <= 0.0
+        || config.lateral_acceleration_slew_m_s3 <= 0.0
+        || config.maximum_bank_angle_rad <= 0.0
+        || config.maximum_bank_angle_rad >= std::f64::consts::FRAC_PI_2
+        || config.bank_angle_slew_rad_s <= 0.0
+        || config.bank_tracking_stiffness_per_s2 <= 0.0
+        || config.bank_tracking_damping_per_s <= 0.0
+        || config.maximum_roll_acceleration_rad_s2 <= 0.0
+        || !(0.0..=1.0).contains(&state.authority)
+    {
+        return None;
+    }
+
+    let total_normal_force = support_normal_force_n[0] + support_normal_force_n[1];
+    let evidence_available =
+        bilateral_contact_evidence && total_normal_force >= config.minimum_total_normal_force_n;
+    let support_center = 0.5 * (support_lateral_m[0] + support_lateral_m[1]);
+    let half_track = 0.5 * track;
+    let used_height =
+        center_of_mass_height_m.clamp(config.minimum_com_height_m, config.maximum_com_height_m);
+    let omega = (config.gravity_mps2 / used_height).sqrt();
+    let centered_com = lateral_com_m - support_center;
+    let lateral_dcm = centered_com + lateral_com_velocity_m_s / omega;
+    // Dynamic projection can make the apparent lateral track smaller than a
+    // configured reserve during a fall. Collapse the usable interval to zero
+    // instead of turning a recoverable geometry state into a worker error.
+    let support_limit = (half_track - config.support_reserve_m).max(0.0);
+    let unconstrained_baseline_zmp = lateral_dcm * (1.0 + config.dcm_decay_rate_per_s / omega);
+    let baseline_zmp = unconstrained_baseline_zmp.clamp(-support_limit, support_limit);
+
+    let mut next = *state;
+    let mut fractions = [0.5; 2];
+    let mut weaker_index = 2_u8;
+    let mut weaker_fraction = 0.5;
+    let mut raw_load_balance = 0.0;
+    let mut measured_cop = support_center;
+    let mut fraction_rate = 0.0;
+    let mut predicted_fraction = 0.5;
+    let dcm_pressure = smoothstep_unit(
+        (lateral_dcm.abs() - config.activation_release_dcm_m)
+            / (config.activation_full_dcm_m - config.activation_release_dcm_m),
+    );
+    let mut activation_pressure = dcm_pressure;
+    let mut restoring_zmp = baseline_zmp;
+    if evidence_available {
+        fractions = [
+            support_normal_force_n[0] / total_normal_force,
+            support_normal_force_n[1] / total_normal_force,
+        ];
+        raw_load_balance = fractions[0] - fractions[1];
+        let filter_alpha = 1.0 - (-timestep_seconds / config.load_filter_time_constant_s).exp();
+        next.filtered_load_balance +=
+            filter_alpha * (raw_load_balance - next.filtered_load_balance);
+        weaker_index = if next.filtered_load_balance <= 0.0 {
+            0
+        } else {
+            1
+        };
+        weaker_fraction = 0.5 * (1.0 - next.filtered_load_balance.abs());
+        measured_cop = fractions[0] * support_lateral_m[0] + fractions[1] * support_lateral_m[1];
+        if state.has_previous_load_fraction {
+            fraction_rate =
+                (weaker_fraction - state.previous_weaker_load_fraction) / timestep_seconds;
+        }
+        predicted_fraction = (weaker_fraction
+            + fraction_rate.min(0.0) * config.prediction_lookahead_s)
+            .clamp(0.0, 0.5);
+        let fraction_pressure = smoothstep_unit(
+            (config.activation_release_load_fraction - predicted_fraction)
+                / (config.activation_release_load_fraction - config.activation_full_load_fraction),
+        );
+        let unloading_rate = (-fraction_rate).max(0.0);
+        let rate_pressure = smoothstep_unit(
+            (unloading_rate - config.unloading_rate_release_per_s)
+                / (config.unloading_rate_full_per_s - config.unloading_rate_release_per_s),
+        );
+        activation_pressure = activation_pressure
+            .max(fraction_pressure)
+            .max(rate_pressure);
+        let weaker_offset = support_lateral_m[weaker_index as usize] - support_center;
+        // Load asymmetry is early evidence of lateral momentum. Braking that
+        // momentum requires a support point on the loaded side (opposite the
+        // weaker wheel), even though this can temporarily spend weak-wheel
+        // load reserve. Reacquisition is judged separately by the plant eval.
+        if lateral_dcm.abs() <= config.activation_release_dcm_m {
+            restoring_zmp = -weaker_offset.signum() * support_limit;
+        }
+    }
+
+    let target_authority = activation_pressure;
+    let authority_rate = if target_authority > next.authority {
+        config.authority_attack_per_s
+    } else {
+        config.authority_release_per_s
+    };
+    let authority_step = authority_rate * timestep_seconds;
+    next.authority += (target_authority - next.authority).clamp(-authority_step, authority_step);
+    // The output is a complete candidate action. Its separate `authority`
+    // field is the sole blend applied by the caller, avoiding a hidden
+    // authority-squared response at partial activation.
+    let commanded_zmp = if activation_pressure > 0.0 || next.authority > 0.0 {
+        restoring_zmp
+    } else {
+        baseline_zmp
+    };
+    let raw_lateral_acceleration = omega * omega * (centered_com - commanded_zmp);
+    let requested_lateral_acceleration = raw_lateral_acceleration.clamp(
+        -config.maximum_lateral_acceleration_m_s2,
+        config.maximum_lateral_acceleration_m_s2,
+    );
+    let maximum_acceleration_step = config.lateral_acceleration_slew_m_s3 * timestep_seconds;
+    next.commanded_lateral_acceleration_m_s2 += (requested_lateral_acceleration
+        - next.commanded_lateral_acceleration_m_s2)
+        .clamp(-maximum_acceleration_step, maximum_acceleration_step);
+    let unsaturated_bank = (-next.commanded_lateral_acceleration_m_s2).atan2(config.gravity_mps2);
+    let target_bank = unsaturated_bank.clamp(
+        -config.maximum_bank_angle_rad,
+        config.maximum_bank_angle_rad,
+    );
+    let maximum_bank_step = config.bank_angle_slew_rad_s * timestep_seconds;
+    next.commanded_bank_angle_rad +=
+        (target_bank - next.commanded_bank_angle_rad).clamp(-maximum_bank_step, maximum_bank_step);
+    let commanded_roll_acceleration = (config.bank_tracking_stiffness_per_s2
+        * (next.commanded_bank_angle_rad - measured_roll_rad)
+        - config.bank_tracking_damping_per_s * measured_roll_rate_rad_s)
+        .clamp(
+            -config.maximum_roll_acceleration_rad_s2,
+            config.maximum_roll_acceleration_rad_s2,
+        );
+    if evidence_available {
+        next.previous_weaker_load_fraction = weaker_fraction;
+        next.has_previous_load_fraction = true;
+    } else {
+        next.has_previous_load_fraction = false;
+    }
+    *state = next;
+
+    Some(UpkieWheelLoadReserveOutput {
+        evidence_available,
+        active: next.authority > 0.0,
+        weaker_support_index: weaker_index,
+        total_normal_force_n: total_normal_force,
+        support_load_fractions: fractions,
+        raw_load_balance,
+        filtered_load_balance: next.filtered_load_balance,
+        weaker_load_fraction: weaker_fraction,
+        weaker_load_fraction_rate_per_s: fraction_rate,
+        predicted_weaker_load_fraction: predicted_fraction,
+        support_center_m: support_center,
+        half_support_track_m: half_track,
+        measured_cop_m: measured_cop,
+        lateral_dcm_m: lateral_dcm,
+        baseline_zmp_m: baseline_zmp,
+        restoring_zmp_m: restoring_zmp,
+        commanded_zmp_m: commanded_zmp,
+        requested_lateral_acceleration_m_s2: requested_lateral_acceleration,
+        commanded_lateral_acceleration_m_s2: next.commanded_lateral_acceleration_m_s2,
+        target_bank_angle_rad: target_bank,
+        commanded_bank_angle_rad: next.commanded_bank_angle_rad,
+        commanded_roll_acceleration_rad_s2: commanded_roll_acceleration,
+        activation_pressure,
+        authority: next.authority,
+        zmp_was_saturated: baseline_zmp != unconstrained_baseline_zmp,
+        acceleration_was_saturated: requested_lateral_acceleration != raw_lateral_acceleration,
+        bank_was_saturated: target_bank != unsaturated_bank,
+    })
+}
+
 /// Bounded transition from the Upkie example's primary balance objectives to
 /// a low-energy contingency. This supervisor does not claim that a fall is
 /// preventable. It makes loss of usable command authority explicit, slews the
@@ -1190,8 +1558,9 @@ mod tests {
         UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
         UpkieFallSafeMode, UpkieFallSafeState, UpkieLateralViabilityConfig,
         UpkieLateralViabilityState, UpkiePlanarCaptureConfig, UpkiePlanarCaptureState,
-        UpkieWheelBalancer, UpkieWheelBalancerState, step_upkie_fall_safe,
-        step_upkie_lateral_viability, write_upkie_fall_safe_contingency,
+        UpkieWheelBalancer, UpkieWheelBalancerState, UpkieWheelLoadReserveConfig,
+        UpkieWheelLoadReserveState, step_upkie_fall_safe, step_upkie_lateral_viability,
+        step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
     };
 
     fn official_balancer() -> (UpkieWheelBalancer, RobotState) {
@@ -1654,5 +2023,236 @@ mod tests {
             .is_none()
         );
         assert_eq!(state, before);
+    }
+
+    #[test]
+    fn wheel_load_reserve_is_dormant_for_symmetric_support() {
+        let mut state = UpkieWheelLoadReserveState::default();
+        let output = step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [0.18, -0.18],
+            [26.0, 26.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            UpkieWheelLoadReserveConfig::default(),
+            &mut state,
+        )
+        .unwrap();
+        assert!(output.evidence_available);
+        assert!(!output.active);
+        assert_eq!(output.support_load_fractions, [0.5, 0.5]);
+        assert_eq!(output.activation_pressure, 0.0);
+        assert_eq!(output.authority, 0.0);
+        assert_eq!(output.commanded_lateral_acceleration_m_s2, 0.0);
+        assert_eq!(output.commanded_roll_acceleration_rad_s2, 0.0);
+    }
+
+    #[test]
+    fn wheel_load_reserve_mirrors_and_brakes_over_the_loaded_support() {
+        let config = UpkieWheelLoadReserveConfig::default();
+        let mut positive_state = UpkieWheelLoadReserveState::default();
+        let mut positive = step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [0.18, -0.18],
+            [18.0, 34.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut positive_state,
+        )
+        .unwrap();
+        let mut negative_state = UpkieWheelLoadReserveState::default();
+        let mut negative = step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [-0.18, 0.18],
+            [18.0, 34.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut negative_state,
+        )
+        .unwrap();
+        for _ in 0..12 {
+            positive = step_upkie_wheel_load_reserve(
+                0.004,
+                true,
+                [0.18, -0.18],
+                [18.0, 34.0],
+                0.0,
+                0.0,
+                0.45,
+                0.0,
+                0.0,
+                config,
+                &mut positive_state,
+            )
+            .unwrap();
+            negative = step_upkie_wheel_load_reserve(
+                0.004,
+                true,
+                [-0.18, 0.18],
+                [18.0, 34.0],
+                0.0,
+                0.0,
+                0.45,
+                0.0,
+                0.0,
+                config,
+                &mut negative_state,
+            )
+            .unwrap();
+        }
+        assert_eq!(positive.weaker_support_index, 0);
+        assert!(positive.restoring_zmp_m < 0.0);
+        assert!(positive.commanded_lateral_acceleration_m_s2 > 0.0);
+        assert!(positive.commanded_bank_angle_rad < 0.0);
+        assert_eq!(positive.authority, negative.authority);
+        assert_eq!(positive.restoring_zmp_m, -negative.restoring_zmp_m);
+        assert_eq!(
+            positive.commanded_lateral_acceleration_m_s2,
+            -negative.commanded_lateral_acceleration_m_s2
+        );
+        assert_eq!(
+            positive.commanded_roll_acceleration_rad_s2,
+            -negative.commanded_roll_acceleration_rad_s2
+        );
+    }
+
+    #[test]
+    fn wheel_load_reserve_predicts_unloading_and_releases_without_a_jump() {
+        let config = UpkieWheelLoadReserveConfig::default();
+        let mut state = UpkieWheelLoadReserveState::default();
+        step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [0.18, -0.18],
+            [25.0, 27.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        let mut unloading = step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [0.18, -0.18],
+            [24.0, 28.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        for _ in 0..12 {
+            unloading = step_upkie_wheel_load_reserve(
+                0.004,
+                true,
+                [0.18, -0.18],
+                [18.0, 34.0],
+                0.0,
+                0.0,
+                0.45,
+                0.0,
+                0.0,
+                config,
+                &mut state,
+            )
+            .unwrap();
+        }
+        assert!(unloading.predicted_weaker_load_fraction < unloading.weaker_load_fraction);
+        assert!(unloading.activation_pressure > 0.0);
+        assert!(unloading.authority > 0.0);
+        let authority_before_release = unloading.authority;
+        let released = step_upkie_wheel_load_reserve(
+            0.004,
+            false,
+            [0.18, -0.18],
+            [0.0, 0.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        assert!(!released.evidence_available);
+        assert!(released.authority < authority_before_release);
+        assert!(released.authority > 0.0);
+        assert!(
+            (released.commanded_lateral_acceleration_m_s2
+                - unloading.commanded_lateral_acceleration_m_s2)
+                .abs()
+                <= config.lateral_acceleration_slew_m_s3 * 0.004 + 1.0e-12
+        );
+    }
+
+    #[test]
+    fn wheel_load_reserve_invalid_input_is_atomic() {
+        let mut state = UpkieWheelLoadReserveState {
+            authority: 0.2,
+            ..UpkieWheelLoadReserveState::default()
+        };
+        let before = state;
+        assert!(
+            step_upkie_wheel_load_reserve(
+                0.004,
+                true,
+                [0.18, -0.18],
+                [f64::NAN, 20.0],
+                0.0,
+                0.0,
+                0.45,
+                0.0,
+                0.0,
+                UpkieWheelLoadReserveConfig::default(),
+                &mut state,
+            )
+            .is_none()
+        );
+        assert_eq!(state, before);
+    }
+
+    #[test]
+    fn wheel_load_reserve_collapses_a_spent_dynamic_track_without_error() {
+        let mut config = UpkieWheelLoadReserveConfig::default();
+        config.support_reserve_m = 0.20;
+        let mut state = UpkieWheelLoadReserveState::default();
+        let output = step_upkie_wheel_load_reserve(
+            0.004,
+            true,
+            [0.05, -0.05],
+            [10.0, 30.0],
+            0.0,
+            0.0,
+            0.45,
+            0.0,
+            0.0,
+            config,
+            &mut state,
+        )
+        .unwrap();
+        assert_eq!(output.commanded_zmp_m, 0.0);
+        assert_eq!(output.requested_lateral_acceleration_m_s2, 0.0);
     }
 }

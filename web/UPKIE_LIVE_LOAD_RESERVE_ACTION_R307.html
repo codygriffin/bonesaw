@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw R307 · measured wheel-load reserve</title>
+<style>
+:root{color-scheme:dark;--bg:#090d0f;--panel:#11181b;--line:#263338;--text:#d7e3df;--muted:#91a19b;--green:#82e0b6;--red:#ff8d87;--amber:#f4c574}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,sans-serif}main{width:min(920px,100%);margin:auto;padding:clamp(22px,5vw,64px)}h1{font-size:clamp(2.2rem,8vw,5rem);line-height:.94;letter-spacing:-.05em;margin:.25em 0}.kicker{color:var(--green);font:700 12px/1.2 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}.lede{max-width:720px;color:var(--muted);font-size:1.08rem}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:28px 0}.card{border:1px solid var(--line);background:var(--panel);padding:16px;border-radius:10px}.card b{display:block;font-size:1.45rem}.card small{color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:.78rem;text-transform:uppercase}.pass{color:var(--green)}.open{color:var(--red)}code{color:var(--amber)}section{margin-top:38px}ul{padding-left:1.25rem}.note{border-left:3px solid var(--red);padding:12px 16px;background:var(--panel)}a{color:var(--green)}@media(max-width:680px){.cards{grid-template-columns:1fr 1fr}table{font-size:.82rem;display:block;overflow-x:auto}main{padding:22px 16px}}
+</style>
+</head>
+<body><main>
+<div class="kicker">Bonesaw · R307 · measured consequence</div>
+<h1>Earlier support.<br>Still not recovery.</h1>
+<p class="lede">Wheel-load filtering, trend prediction, morphology-derived support sign, DCM continuation, slew, and authority now live in the persistent Rust session. The experiment is fast and nominally invisible. It still fails the sustained recovery gate, so it remains default-off.</p>
+<div class="cards">
+  <div class="card"><b>2.969 µs</b><small>Rust action p99</small></div>
+  <div class="card"><b>0 B</b><small>hot allocations</small></div>
+  <div class="card"><b>34 → 53</b><small>first support-loss tick</small></div>
+  <div class="card"><b class="open">tick 73</b><small>late fall boundary</small></div>
+</div>
+<section><h2>Plant consequence</h2>
+<table><thead><tr><th>Measure</th><th>R304 baseline</th><th>R307 candidate</th></tr></thead><tbody>
+<tr><td>20 s nominal bilateral hold</td><td class="pass">pass</td><td class="pass">pass</td></tr>
+<tr><td>Nominal action authority</td><td>n/a</td><td class="pass">exactly 0</td></tr>
+<tr><td>First non-bilateral tick</td><td>34</td><td>53</td></tr>
+<tr><td>Maximum lateral displacement</td><td>0.1196 m</td><td>0.0360 m</td></tr>
+<tr><td>Non-admitted MaxIterations</td><td>ticks 25, 33</td><td>tick 25</td></tr>
+<tr><td>Five-second bilateral/upright tail</td><td class="open">fail</td><td class="open">fail</td></tr>
+<tr><td>Fall boundary</td><td class="open">tick 56</td><td class="open">tick 73</td></tr>
+</tbody></table></section>
+<section><h2>Authority boundary</h2>
+<p>MuJoCo provides causal wheel normal forces and plant state. Rust derives support geometry, filters signed load balance, predicts weakening reserve, advances DCM-guided lateral/bank requests, and slews one typed authority value. The ordinary floating WBC still owns torque admission. Python declares the immutable profile and scores the trace; it does not compute the action.</p>
+<p class="note"><strong>No promotion:</strong> delaying contact loss or passing a short recovery dwell is insufficient. Promotion requires a full five-second bilateral/upright tail, no body-ground stall, no non-admitted solve, hard residuals below <code>1e-8</code>, and the existing timing/allocation gates.</p>
+</section>
+<section><h2>Next architectural slice</h2>
+<p>The trace says the missing layer is contact-mode-aware reacquisition: an action that knows when preserving both wheels is no longer feasible, controls the single-support interval, and deliberately reloads the lost wheel. More QP iterations or a longer fall timeout would only hide the boundary.</p>
+<p><a href="/">Back to the live editor</a> · <a href="/architecture.json">Architecture manifest</a></p>
+</section>
+</main></body></html>

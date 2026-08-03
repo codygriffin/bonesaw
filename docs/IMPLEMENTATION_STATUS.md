@@ -16,6 +16,60 @@ or contact authority, and does not alter the public 250 Hz physics / 50 Hz WBC
 worker. Physical MuJoCo reacquisition and recovery remain open. See
 [`CONTACT_REACQUISITION_OBSERVER_R305.md`](../benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
 
+## Current measured load-reserve action — r307 default-off
+
+R307's retained numbers are from an explicit fast-profile evaluation (250 Hz
+WBC / 1 kHz MuJoCo); the hosted/public worker remains 50 Hz WBC / 250 Hz
+MuJoCo. Direct-constructor fixtures and the public CLI retain the production
+cadence. The action moves signed wheel-load filtering, weakening-trend prediction,
+morphology-derived support sign, lateral DCM continuation, bounded lateral/bank
+requests, slew, and continuous authority into the persistent Rust Upkie
+session. Python passes caller-owned arrays and scores MuJoCo consequence; it
+does not compute the action. The candidate remains exactly dormant during the
+20 s nominal hold, reports `3.069 µs` action p99, and allocates zero hot-path
+bytes. On the 8 N lateral holdout it activates at tick 25, delays first support
+loss from tick 34 to tick 53, and reduces maximum lateral displacement from
+`0.1196 m` to `0.0360 m`. It then oscillates, produces one non-admitted
+`MaxIterations` tick, enters flight, and reaches a fall boundary at tick 73.
+The promotion contract requires a five-second bilateral/upright tail, no
+body-ground stall, no non-admission, hard residuals below `1e-8`, and the
+existing timing/allocation gates. Every recovery gate remains red, so the
+action is default-off. The next controller slice composes contact-mode-aware
+single-support control with R305's fail-closed reacquisition evidence. See
+[`UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md`](../benchmarks/results/upkie-live-load-reserve-action-r307/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md).
+
+## Current contact-mode reacquisition comparison — r306 negative evidence
+
+R306 replays the frozen 8 N lateral MuJoCo trace through production capture,
+planar capture, viability capture, viability-support capture,
+viability-coordinate, and the R302 support-contingency profiles. All six
+evaluation-only modes preserve the 250 Hz physics / 50 Hz WBC cadence, the
+causal prior contact window, finite outputs, zero timed Rust allocations,
+worker timing, and the fail-closed hard-row subset of measured contact. None
+produces ten consecutive measured bilateral/upright samples after loss. The
+viability modes previously leaked an all-contact planning mask into telemetry;
+the caller-owned authority firewall now restores the measured mask before the
+primary WBC and every admission/forecast/lease/output path. See
+[`UPKIE_LIVE_REACQUISITION_MODES_R306.md`](../benchmarks/results/upkie-live-reacquisition-modes-r306/UPKIE_LIVE_REACQUISITION_MODES_R306.md).
+
+## Current inner-rate experiment — r304 evaluation-only
+
+R304 is an explicit fast-profile experiment: the browser stream remains 50 Hz
+while the opt-in worker runs five 250 Hz Rust WBC ticks per frame and four
+1 ms MuJoCo substeps per WBC tick, with the Rust-balanced joint target. It is
+not the hosted/public cadence. The fast zero-wrench case holds bilateral
+upright contact with every solve admitted and zero timed Rust allocations, but
+its 8 N lateral holdout still reaches non-admitted `MaxIterations` and a fall.
+No cadence, balanced-target, or recovery authority is promoted. See
+[`UPKIE_LIVE_INNER_RATE_R304.md`](../benchmarks/results/upkie-live-inner-rate-r304/UPKIE_LIVE_INNER_RATE_R304.md).
+
+## Current physical cadence contract
+
+The hosted 8777 worker and its Cloudflare mirror use a 50 Hz browser stream,
+50 Hz WBC, and 250 Hz MuJoCo physics. The WBC consumes the terminal sample of
+the preceding five-substep contact window, then holds admitted effort over the
+next five 4 ms MuJoCo steps. R304's faster profile is evaluated separately.
+
 ## Current pre-loss support evidence — r303 measured wheel reserve
 
 R303 evaluates a bounded, fail-closed witness over the actual MuJoCo wheel

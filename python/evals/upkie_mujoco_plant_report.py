@@ -1110,6 +1110,9 @@ class RustWbcAdapter:
         root_lateral_damping: float = 8.0,
         minimum_support_load_fraction: float = 0.0,
         support_load_guard_enabled: bool = False,
+        support_load_reserve_action_enabled: bool = False,
+        support_load_reserve_bank_action_enabled: bool = True,
+        support_load_reserve_config: tuple[float, ...] | None = None,
         fall_safe_enabled: bool = False,
         fall_safe_primary_blend: bool = True,
         execute_reduced_support: bool = True,
@@ -1267,6 +1270,12 @@ class RustWbcAdapter:
         # all contact witnesses fail-closed until the worker supplies a fresh
         # MuJoCo mask; the nominal stance is not measured support authority.
         self.contact_active = np.zeros((1, 2), np.uint8)
+        # Caller-owned execution authority.  ``contact_active`` is also used
+        # as scratch by viability/contingency hypothesis queries, so it must
+        # never be trusted after one of those queries.  This fixed buffer is
+        # overwritten immediately after the Rust contact-observation step and
+        # is the only mask allowed to feed the final WBC/authority telemetry.
+        self.contact_authority_active = np.zeros(2, np.uint8)
         self.observed_contact_active = np.zeros(2, np.uint8)
         self.contact_debounced = np.zeros(2, np.uint8)
         self.contact_observation_diagnostics = np.zeros(
@@ -1686,6 +1695,33 @@ class RustWbcAdapter:
         self.support_load_guard_active = False
         self.support_load_guard_authority = 0.0
         self.support_load_guard_release_ticks = 0
+        self.support_load_reserve_action_enabled = support_load_reserve_action_enabled
+        self.support_load_reserve_bank_action_enabled = (
+            support_load_reserve_bank_action_enabled
+        )
+        if support_load_reserve_config is not None:
+            if len(support_load_reserve_config) != 18:
+                raise ValueError(
+                    "support_load_reserve_config must contain exactly 18 values"
+                )
+            self.balance.configure_wheel_load_reserve(
+                *support_load_reserve_config
+            )
+        self.support_load_reserve_diagnostics = np.zeros(
+            len(self.balance.wheel_load_reserve_diagnostic_names), np.float64
+        )
+        self.support_load_reserve_index = {
+            name: index
+            for index, name in enumerate(
+                self.balance.wheel_load_reserve_diagnostic_names
+            )
+        }
+        self.support_load_reserve_normal_force = np.zeros(2, np.float64)
+        self.support_load_reserve_root_angular_acceleration = np.zeros(3, np.float64)
+        self.support_load_reserve_root_acceleration = np.zeros(3, np.float64)
+        self.support_load_reserve_step_ns = 0
+        self.support_load_reserve_allocation_calls = 0
+        self.support_load_reserve_allocated_bytes = 0
         self.viability_verification_scales = (1.0, 0.5, 0.25, 0.125, 0.0)
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
@@ -1960,6 +1996,10 @@ class RustWbcAdapter:
             feasibility_prefix_resumed_out=out["feasibility_prefix_resumed"],
         )
 
+    def _restore_contact_authority(self) -> None:
+        """Restore the measured Rust hard mask after hypothetical queries."""
+        np.copyto(self.contact_active[0], self.contact_authority_active)
+
     def _run_support_contingency_query(
         self,
         observation_exact: bool,
@@ -2170,7 +2210,9 @@ class RustWbcAdapter:
                     self.support_contingency_author_allocated_bytes
                     + int(self.support_contingency_out["allocated_bytes"][0])
                 )
-        self.contact_active.fill(1)
+        # Hypothesis masks above are intentionally local to those queries.
+        # Never leave the last hypothetical mask in the execution buffer.
+        self._restore_contact_authority()
         # The bounded hypothesis total is accounted separately. Do not count
         # the final fixed-effort query again through the ordinary contingency
         # timing fields.
@@ -2221,6 +2263,9 @@ class RustWbcAdapter:
                 self.contact_active[0],
                 self.contact_observation_diagnostics,
             )
+            # The Rust observer's hard output is the execution authority;
+            # keep it separate from the mutable planner scratch mask.
+            np.copyto(self.contact_authority_active, self.contact_active[0])
 
     def solve(
         self,
@@ -2260,6 +2305,7 @@ class RustWbcAdapter:
             self.observed_contact_active.fill(1)
             self.contact_debounced.fill(1)
             self.contact_observation_diagnostics.fill(0)
+            np.copyto(self.contact_authority_active, self.contact_active[0])
         else:
             if observed_contact_active.shape != (2,):
                 raise ValueError("observed_contact_active must have shape (2,)")
@@ -2280,6 +2326,9 @@ class RustWbcAdapter:
                 self.contact_active[0],
                 self.contact_observation_diagnostics,
             )
+            # Snapshot before any viability planner or support hypothesis can
+            # reuse ``contact_active`` for a hypothetical support mask.
+            np.copyto(self.contact_authority_active, self.contact_active[0])
         observation_exact = bool(
             observed_contact_active is not None
             and self.contact_observation_diagnostics[
@@ -2581,6 +2630,82 @@ class RustWbcAdapter:
             )
             self.capture_diagnostics.fill(0.0)
             self.capture_diagnostics[self.capture_index["station_authority"]] = 1.0
+        if self.support_load_reserve_action_enabled:
+            if observed_wheel_normal_force_n is None:
+                self.support_load_reserve_normal_force.fill(0.0)
+            else:
+                np.copyto(
+                    self.support_load_reserve_normal_force,
+                    observed_wheel_normal_force_n,
+                )
+            bilateral_load_evidence = bool(
+                observation_exact
+                and self.observed_contact_active[0] != 0
+                and self.observed_contact_active[1] != 0
+                and observed_wheel_normal_force_n is not None
+            )
+            (
+                self.support_load_reserve_step_ns,
+                self.support_load_reserve_allocation_calls,
+                self.support_load_reserve_allocated_bytes,
+            ) = self.balance.step_wheel_load_reserve_from_state(
+                self.control_dt,
+                bilateral_load_evidence,
+                ground_height,
+                root_position,
+                root_quaternion,
+                root_twist,
+                q,
+                v,
+                self.support_load_reserve_normal_force,
+                self.support_load_reserve_diagnostics,
+                self.support_load_reserve_root_angular_acceleration,
+                self.support_load_reserve_root_acceleration,
+            )
+            load_authority = self.support_load_reserve_diagnostics[
+                self.support_load_reserve_index["authority"]
+            ]
+            load_heading = self.support_load_reserve_diagnostics[
+                self.support_load_reserve_index["heading_world_rad"]
+            ]
+            load_cosine = math.cos(load_heading)
+            load_sine = math.sin(load_heading)
+            baseline_lateral_acceleration = (
+                -load_sine * self.root_acceleration[0, 0]
+                + load_cosine * self.root_acceleration[0, 1]
+            )
+            target_lateral_acceleration = (
+                -load_sine * self.support_load_reserve_root_acceleration[0]
+                + load_cosine * self.support_load_reserve_root_acceleration[1]
+            )
+            load_lateral_delta = load_authority * (
+                target_lateral_acceleration - baseline_lateral_acceleration
+            )
+            self.root_acceleration[0, 0] -= load_sine * load_lateral_delta
+            self.root_acceleration[0, 1] += load_cosine * load_lateral_delta
+            if self.support_load_reserve_bank_action_enabled:
+                baseline_bank_acceleration = (
+                    load_cosine * self.root_angular_acceleration[0, 0]
+                    + load_sine * self.root_angular_acceleration[0, 1]
+                )
+                target_bank_acceleration = (
+                    load_cosine
+                    * self.support_load_reserve_root_angular_acceleration[0]
+                    + load_sine
+                    * self.support_load_reserve_root_angular_acceleration[1]
+                )
+                load_bank_delta = load_authority * (
+                    target_bank_acceleration - baseline_bank_acceleration
+                )
+                self.root_angular_acceleration[0, 0] += (
+                    load_cosine * load_bank_delta
+                )
+                self.root_angular_acceleration[0, 1] += load_sine * load_bank_delta
+        else:
+            self.support_load_reserve_diagnostics.fill(0.0)
+            self.support_load_reserve_step_ns = 0
+            self.support_load_reserve_allocation_calls = 0
+            self.support_load_reserve_allocated_bytes = 0
         self.joint_acceleration[0, ROLLING_COORDINATES] = self.wheel_acceleration
         primary_authority = self.fall_safe_diagnostics[
             self.fall_safe_index["primary_authority"]
@@ -2894,11 +3019,16 @@ class RustWbcAdapter:
             self.viability_forecast_path_valid = False
             self.viability_coordinate_target.fill(0.0)
             self.viability_coordinate_request.fill(0.0)
+        # Viability planning may use ``contact_active`` as a scratch support
+        # hypothesis (for example, to score an all-contact shadow).  That
+        # hypothesis must never become the hard mask consumed by the primary
+        # WBC query or its authority bookkeeping.
+        self._restore_contact_authority()
         if self.support_contingency_enabled:
             self.support_contingency_realization_fallback = False
             self.support_contingency_support_mask = int(
-                self.contact_active[0, 0]
-            ) | (int(self.contact_active[0, 1]) << 1)
+                self.contact_authority_active[0]
+            ) | (int(self.contact_authority_active[1]) << 1)
             self.support_contingency_requested = bool(
                 observation_exact
                 and self.support_contingency_armed
@@ -2941,7 +3071,7 @@ class RustWbcAdapter:
                     self.support_contingency_out[
                         "maximum_constraint_violation"
                     ].fill(0.0)
-            self.contact_program_hard_contact[:] = self.contact_active[0]
+            self.contact_program_hard_contact[:] = self.contact_authority_active
             if (
                 self.support_contingency_preserve_primary_support
                 or self.contact_program_authority_enabled
@@ -2954,7 +3084,12 @@ class RustWbcAdapter:
             self.support_contingency_author_allocated_bytes = 0
             self.support_contingency_support_mask = 3
             self.support_contingency_requested = False
-            self.contact_program_hard_contact[:] = self.contact_active[0]
+            self.contact_program_hard_contact[:] = self.contact_authority_active
+        # Support-contingency setup can also issue hypothetical queries and
+        # leave their mask in the shared scratch buffer.  Restore the caller
+        # owned measured/debounced authority immediately before the primary
+        # solve.
+        self._restore_contact_authority()
         out = self.out
         base_root_x = self.root_acceleration[0, 0]
         base_root_y = self.root_acceleration[0, 1]
@@ -3117,6 +3252,9 @@ class RustWbcAdapter:
                     < self.contact_program_inexact_hold_ticks
                 )
                 self._run_terminal_support_hypothesis_queries(retained_available)
+        # The inexact terminal chooser and support hypotheses intentionally
+        # query several masks.  None of those masks is execution authority.
+        self._restore_contact_authority()
         out["step_ns"][0] = accumulated_step_ns
         out["allocation_calls"][0] = accumulated_allocation_calls
         out["allocated_bytes"][0] = accumulated_allocated_bytes
@@ -3156,7 +3294,10 @@ class RustWbcAdapter:
         support_program_admitted = bool(
             observed_contact_active is None
             or self.execute_reduced_support
-            or (self.contact_active[0, 0] != 0 and self.contact_active[0, 1] != 0)
+            or (
+                self.contact_authority_active[0] != 0
+                and self.contact_authority_active[1] != 0
+            )
         )
         primary_status = raw_status if support_program_admitted else 4
         support_mask = self.support_contingency_support_mask
@@ -3716,7 +3857,7 @@ class RustWbcAdapter:
         execution_hard_contact = (
             self.contact_program_hard_contact
             if self.contact_program_authority_enabled
-            else self.contact_active[0]
+            else self.contact_authority_active
         )
         self.execution_forecast_support_mask = int(execution_hard_contact[0]) | (
             int(execution_hard_contact[1]) << 1
@@ -3816,7 +3957,7 @@ class RustWbcAdapter:
                 self.contact_command_lease_tick,
                 observation_exact,
                 self.contact_debounced,
-                self.contact_active[0],
+                self.contact_authority_active,
                 command_fresh,
                 command_out["actuator_torque"][0],
                 self.contact_command,
@@ -4193,6 +4334,34 @@ class RustWbcAdapter:
             "support_load_guard_enabled": self.support_load_guard_enabled,
             "support_load_guard_active": self.support_load_guard_active,
             "support_load_guard_authority": self.support_load_guard_authority,
+            "support_load_reserve_action_enabled": (
+                self.support_load_reserve_action_enabled
+            ),
+            "support_load_reserve_bank_action_enabled": (
+                self.support_load_reserve_bank_action_enabled
+            ),
+            "support_load_reserve_diagnostics": (
+                self.support_load_reserve_diagnostics
+            ),
+            "support_load_reserve_active": bool(
+                self.support_load_reserve_diagnostics[
+                    self.support_load_reserve_index["active"]
+                ]
+            ),
+            "support_load_reserve_authority": float(
+                self.support_load_reserve_diagnostics[
+                    self.support_load_reserve_index["authority"]
+                ]
+            ),
+            "support_load_reserve_step_ns": int(
+                self.support_load_reserve_step_ns
+            ),
+            "support_load_reserve_allocation_calls": int(
+                self.support_load_reserve_allocation_calls
+            ),
+            "support_load_reserve_allocated_bytes": int(
+                self.support_load_reserve_allocated_bytes
+            ),
             "support_contingency_diagnostics": self.support_contingency_diagnostics,
             "support_contingency_candidate_generalized_acceleration": (
                 self.support_contingency_candidate_generalized_acceleration
@@ -4255,17 +4424,18 @@ class RustWbcAdapter:
                 self.contact_program_hard_contact[0]
                 + self.contact_program_hard_contact[1]
                 if self.contact_program_authority_enabled
-                else self.contact_active[0, 0] + self.contact_active[0, 1]
+                else self.contact_authority_active[0]
+                + self.contact_authority_active[1]
             ),
             "support_active_left": int(
                 self.contact_program_hard_contact[0]
                 if self.contact_program_authority_enabled
-                else self.contact_active[0, 0]
+                else self.contact_authority_active[0]
             ),
             "support_active_right": int(
                 self.contact_program_hard_contact[1]
                 if self.contact_program_authority_enabled
-                else self.contact_active[0, 1]
+                else self.contact_authority_active[1]
             ),
             "support_transition_count": int(
                 self.contact_observation_diagnostics[

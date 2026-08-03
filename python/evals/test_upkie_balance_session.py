@@ -90,6 +90,89 @@ class UpkieBalanceSessionTests(unittest.TestCase):
         np.testing.assert_array_equal(wheel_a, np.zeros(2, np.float64))
         self.assertEqual(session.integral_velocity, 0.0)
 
+    def test_wheel_load_reserve_binding_is_dormant_and_allocation_free_nominally(
+        self,
+    ) -> None:
+        session = bonesaw.UpkieBalanceSession(str(MODEL))
+        root, q = self.balanced_state(session)
+        diagnostics = np.empty(
+            len(session.wheel_load_reserve_diagnostic_names), np.float64
+        )
+        angular = np.empty(3, np.float64)
+        linear = np.empty(3, np.float64)
+        step_ns, allocation_calls, allocated_bytes = (
+            session.step_wheel_load_reserve_from_state(
+                0.004,
+                True,
+                0.0,
+                root,
+                np.asarray([1.0, 0.0, 0.0, 0.0], np.float64),
+                np.zeros(6, np.float64),
+                q,
+                np.zeros(6, np.float64),
+                np.asarray([26.0, 26.0], np.float64),
+                diagnostics,
+                angular,
+                linear,
+            )
+        )
+        index = {
+            name: offset
+            for offset, name in enumerate(
+                session.wheel_load_reserve_diagnostic_names
+            )
+        }
+        self.assertGreater(step_ns, 0)
+        self.assertEqual(allocation_calls, 0)
+        self.assertEqual(allocated_bytes, 0)
+        self.assertEqual(diagnostics[index["evidence_available"]], 1.0)
+        self.assertEqual(diagnostics[index["active"]], 0.0)
+        self.assertEqual(diagnostics[index["authority"]], 0.0)
+        # Candidate buffers may track the kinematic baseline while dormant;
+        # the explicit zero authority is the sole execution blend.
+        self.assertTrue(np.all(np.isfinite(angular)))
+        self.assertTrue(np.all(np.isfinite(linear)))
+
+    def test_wheel_load_reserve_binding_targets_the_measured_weaker_wheel(
+        self,
+    ) -> None:
+        session = bonesaw.UpkieBalanceSession(str(MODEL))
+        root, q = self.balanced_state(session)
+        diagnostics = np.empty(
+            len(session.wheel_load_reserve_diagnostic_names), np.float64
+        )
+        angular = np.empty(3, np.float64)
+        linear = np.empty(3, np.float64)
+        for _ in range(13):
+            session.step_wheel_load_reserve_from_state(
+                0.004,
+                True,
+                0.0,
+                root,
+                np.asarray([1.0, 0.0, 0.0, 0.0], np.float64),
+                np.zeros(6, np.float64),
+                q,
+                np.zeros(6, np.float64),
+                np.asarray([18.0, 34.0], np.float64),
+                diagnostics,
+                angular,
+                linear,
+            )
+        index = {
+            name: offset
+            for offset, name in enumerate(
+                session.wheel_load_reserve_diagnostic_names
+            )
+        }
+        self.assertEqual(diagnostics[index["weaker_support_index"]], 0.0)
+        self.assertGreater(diagnostics[index["authority"]], 0.0)
+        restoring_zmp = diagnostics[index["restoring_zmp_m"]]
+        acceleration = diagnostics[
+            index["commanded_lateral_acceleration_m_s2"]
+        ]
+        self.assertNotEqual(restoring_zmp, 0.0)
+        self.assertLess(restoring_zmp * acceleration, 0.0)
+
     def test_rejects_degenerate_root_quaternion(self) -> None:
         session = bonesaw.UpkieBalanceSession(str(MODEL))
         wheel = np.empty(2, np.float64)

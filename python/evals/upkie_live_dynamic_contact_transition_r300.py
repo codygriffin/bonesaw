@@ -180,6 +180,27 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "support_load_guard_authority": float(
             metrics.get("wbc_support_load_guard_authority", 0.0)
         ),
+        "support_load_reserve_action_enabled": bool(
+            metrics.get("wbc_support_load_reserve_action_enabled", False)
+        ),
+        "support_load_reserve_active": bool(
+            metrics.get("wbc_support_load_reserve_active", False)
+        ),
+        "support_load_reserve_authority": float(
+            metrics.get("wbc_support_load_reserve_authority", 0.0)
+        ),
+        "support_load_reserve_diagnostics": list(
+            metrics.get("wbc_support_load_reserve_diagnostics", [0.0] * 29)
+        ),
+        "support_load_reserve_step_us": float(
+            metrics.get("wbc_support_load_reserve_step_us", 0.0)
+        ),
+        "support_load_reserve_allocation_calls": int(
+            metrics.get("wbc_support_load_reserve_allocation_calls", 0)
+        ),
+        "support_load_reserve_allocated_bytes": int(
+            metrics.get("wbc_support_load_reserve_allocated_bytes", 0)
+        ),
         "controller_step_us": float(metrics["controller_step_us"]),
         "worker_step_us": float(metrics["worker_step_us"]),
         "root_tilt_rad": float(metrics["root_tilt_rad"]),
@@ -262,6 +283,7 @@ def run_case(
                 hello["physics_substeps_per_control"]
             ),
         },
+        "nominal_joint_target": str(hello["nominal_joint_target"]),
         "initial_root_position": initial_root.tolist(),
         "initial_center_of_mass_world": initial_com.tolist(),
         "states": states,

@@ -17,6 +17,33 @@ reacquisition action still must be generated, admitted by the ordinary WBC,
 and shown to recover in MuJoCo. See the
 [R305 observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
 
+R307 closes the ownership and causal-trigger portion of the wheel-load-reserve
+action complaint, but deliberately does not close recovery. Its retained
+numbers are an explicit fast-profile evaluation (250 Hz WBC / 1 kHz MuJoCo);
+the hosted/public executable remains 50 Hz WBC / 250 Hz MuJoCo. The default-off
+persistent Rust action owns signed load filtering, weaker-wheel trend
+prediction, morphology-derived support sign, lateral DCM continuation, bounded
+lateral/bank requests, slew, and authority. It remains exactly dormant through
+the 20 s nominal hold, runs at `3.069 µs` p99 with zero allocations, and delays
+first support loss on the 8 N trace from tick 34 to tick 53 while reducing peak
+lateral displacement from `0.1196 m` to `0.0360 m`. It then oscillates, has one
+non-admitted `MaxIterations` tick, and falls at tick 73. A five-second stable
+tail gate rejects this apparent short recovery. The largest remaining chunk is
+contact-mode-aware single-support control composed with R305's qualified
+reacquisition observer; more timeout, QP iterations, or another scalar gain
+screen does not satisfy the complaint. See the
+[R307 report](benchmarks/results/upkie-live-load-reserve-action-r307/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md).
+
+R306 knocks off the adjacent authority-leak complaint. Six existing capture,
+viability, and support-contingency profiles now keep the measured hard-contact
+mask authoritative across primary WBC, admission, forecast, lease, and
+telemetry even when their planner queries use hypothetical support masks. The
+causal, finite, allocation, and timing gates pass, but no profile reacquires
+ten consecutive measured bilateral/upright samples. Physical recovery remains
+open; the next slice is a contact-mode-aware landing/reacquisition request,
+not a larger timeout or a planner scratch mask. See the
+[R306 report](benchmarks/results/upkie-live-reacquisition-modes-r306/UPKIE_LIVE_REACQUISITION_MODES_R306.md).
+
 R302 closes the gain-calibration question and leaves the real recovery complaint
 sharply bounded. A 160-profile screen selects
 `[9.81,4,16,12,80,14,8,8,20,80,120]`; its measured candidate delays the fall

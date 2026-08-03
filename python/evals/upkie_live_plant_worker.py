@@ -50,6 +50,7 @@ class LiveUpkiePlant:
         stream_dt: float = STREAM_DT,
         control_dt: float = CONTROL_DT,
         physics_dt: float = PHYSICS_DT,
+        balanced_nominal_joint_target: bool = False,
     ):
         for name, value in (
             ("stream_dt", stream_dt),
@@ -58,6 +59,8 @@ class LiveUpkiePlant:
         ):
             if not math.isfinite(value) or value <= 0.0:
                 raise ValueError(f"{name} must be finite and positive")
+        if not isinstance(balanced_nominal_joint_target, bool):
+            raise ValueError("balanced_nominal_joint_target must be a boolean")
         self.control_ticks_per_stream = int(round(stream_dt / control_dt))
         self.physics_steps_per_control = int(round(control_dt / physics_dt))
         if (
@@ -72,6 +75,7 @@ class LiveUpkiePlant:
         self.stream_dt = float(stream_dt)
         self.control_dt = float(control_dt)
         self.physics_dt = float(physics_dt)
+        self.balanced_nominal_joint_target = balanced_nominal_joint_target
         self.wbc_observation_source = (
             f"latest_completed_{int(round(1.0 / self.physics_dt))}hz_substep"
         )
@@ -146,6 +150,11 @@ class LiveUpkiePlant:
             "fall_safe_primary_blend": False,
             "control_dt": self.control_dt,
         }
+        # Keep the historical adapter standing target in the public profile;
+        # the R304 fast-rate experiment opts into the Rust-balanced target
+        # explicitly and is not a production-rate change.
+        if self.balanced_nominal_joint_target:
+            controller_options["nominal_joint_position"] = balanced_q
         controller_options.update(self.controller_options)
         # Contact priming is an evaluation-only receiver operation.  Remove it
         # before constructing the Rust adapter so a transport/profile option
@@ -281,6 +290,11 @@ class LiveUpkiePlant:
                 if not self.controller_options
                 and self.controller_balance_mode == "capture"
                 else "evaluation_override"
+            ),
+            "nominal_joint_target": (
+                "rust_balanced_initial_pose"
+                if self.balanced_nominal_joint_target
+                else "legacy_adapter_standing_pose"
             ),
             "paused": self.paused,
             "maximum_force_n": MAX_FORCE_N,
@@ -967,6 +981,29 @@ class LiveUpkiePlant:
                 "wbc_support_load_guard_authority": 0.0
                 if latest_result is None or self.paused
                 else float(latest_result["support_load_guard_authority"]),
+                "wbc_support_load_reserve_action_enabled": bool(
+                    self.controller.support_load_reserve_action_enabled
+                ),
+                "wbc_support_load_reserve_active": bool(
+                    latest_result is not None
+                    and not self.paused
+                    and latest_result["support_load_reserve_active"]
+                ),
+                "wbc_support_load_reserve_authority": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["support_load_reserve_authority"]),
+                "wbc_support_load_reserve_diagnostics": (
+                    self.controller.support_load_reserve_diagnostics.tolist()
+                ),
+                "wbc_support_load_reserve_step_us": 0.0
+                if latest_result is None or self.paused
+                else float(latest_result["support_load_reserve_step_ns"]) / 1.0e3,
+                "wbc_support_load_reserve_allocation_calls": 0
+                if latest_result is None or self.paused
+                else int(latest_result["support_load_reserve_allocation_calls"]),
+                "wbc_support_load_reserve_allocated_bytes": 0
+                if latest_result is None or self.paused
+                else int(latest_result["support_load_reserve_allocated_bytes"]),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),
@@ -1057,6 +1094,8 @@ class LiveUpkiePlant:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=pathlib.Path)
+    # The public worker remains 50 Hz WBC over a 250 Hz MuJoCo plant. Faster
+    # inner-rate profiles are explicit evaluation overrides only.
     parser.add_argument("--stream-dt", type=float, default=STREAM_DT)
     parser.add_argument("--control-dt", type=float, default=CONTROL_DT)
     parser.add_argument("--physics-dt", type=float, default=PHYSICS_DT)

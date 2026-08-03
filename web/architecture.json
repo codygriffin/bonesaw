@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "contact-reacquisition-observer-r305",
+  "revision": "live-load-reserve-action-r307",
   "updated": "2026-08-03",
-  "stage": "R305 closes reacquisition evidence · physical recovery action unpromoted",
-  "checkpoint": "R305 adds an allocation-free, fail-closed Rust contact-reacquisition observer downstream of raw/stable/hard contact observation and upstream of command authority. It requires an exact target mask, matching contact masks, finite nonnegative measured normal loads, at least 1 N total load, at least 0.5 N and 5% of total load on each target contact, and three consecutive monotonic samples after a valid loss. Startup is baseline-only; geometric zero-load touch, inexact/NaN evidence, and reordered ticks remain rejected. The explicit PyO3 query emits no actuator authority and leaves the public 250 Hz physics / 50 Hz WBC worker unchanged. R302's strict wheel-supported recovery gate remains red, and a physical recovery action still requires ordinary WBC admission and a MuJoCo consequence.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, fail-closed reacquisition evidence, bounded feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the live-rate dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, R303 localizes pre-loss load reserve, and R305 closes the measured-load reacquisition evidence seam without promoting an action. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
+  "stage": "R307 default-off measured-load action · R306 authority firewall · wheel-supported recovery remains red",
+  "checkpoint": "R304 remains an explicit fast-profile evaluation only; the hosted/public worker stays at 250 Hz MuJoCo physics and 50 Hz Rust WBC with a 50 Hz stream. R305 keeps fail-closed measured-load reacquisition evidence independent of authority. R306 restores the caller-owned measured hard-contact mask after viability/support hypotheses across primary WBC, admission, forecast, lease, and telemetry. R307 adds an allocation-free Rust wheel-load reserve action upstream of WBC. Its fast-profile 8 N evaluation delays first support loss and fall but does not recover a five-second bilateral upright tail, so the action remains default-off.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the R306 measured-mask authority firewall, fail-closed reacquisition evidence, the R307 measured-load reserve state/action, bounded feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, R303 localizes pre-loss load reserve, R304 promotes the faster public rate split, R305 closes measured-load reacquisition evidence, R306 closes the hypothesis-mask telemetry leak, and R307 retains a default-off pre-loss reserve action without promoting recovery. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -12,11 +12,15 @@
     },
     {
       "name": "Live plant authority boundary",
-      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, pause/resume, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever · MuJoCo advances five 4 ms soft-contact steps per held command, while Rust reads measured qpos/qvel/root and runs WBC at 50 Hz · plant_pause clears the lease and skips WBC/physics but keeps a heartbeat; plant_resume starts from the frozen state; plant_reset clears wrench and increments reset_epoch · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
+      "detail": "Rust validates protocol-2 source/class/force frame/point frame, request schema, 8 N force, body existence, 750 mm body-origin point lease, refresh TTL, release/reset, pause/resume, and worker lifetime · evidence-only impact/reserve classes cannot execute · Python independently revalidates provenance and exact COM lever · each 50 Hz public frame contains one 50 Hz Rust WBC tick holding torque across five 4 ms MuJoCo soft-contact steps · plant_pause clears the lease and skips WBC/physics but keeps a heartbeat; plant_resume starts from the frozen state; plant_reset clears wrench and increments reset_epoch · accepted provenance, measured transforms, root twist, physical CoM, q/v/qdd, actual and generalized actuator/passive/bias force, generalized plus scalar constraint state, contacts, summed ground load, force, moment, penetration, energy, warnings, solver work/residual, exact ground plane, simulator clocks, and separate authority witnesses stream at 50 Hz"
     },
     {
       "name": "Measured contact admission",
-      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · R305's explicit reacquisition observer then requires matching raw/stable/hard and target masks plus finite measured loads on three monotonic samples after a loss; it emits only a witness and never contact or actuator authority · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · the default-off R301 flight contingency may be queried only from measured flight and selected only after a finite, hard-feasible admission; its mode, request, candidate, residual, timing, and power stay separate from primary authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
+      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 1 ms integration step and writes exact world-ground activity into a fixed caller-owned four-frame window · each 250 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · frame indices and per-substep loss/gain edges make causality testable · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · R305's explicit reacquisition observer requires matching raw/stable/hard and target masks plus finite measured loads on three monotonic samples after a loss; R306 restores the measured mask after hypothetical planner/support queries before every authority path · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
+    },
+    {
+      "name": "Measured wheel-load reserve action",
+      "detail": "Measured wheel positions and normal loads plus CoM lateral position, velocity, height, roll, and roll rate enter persistent caller-owned Rust state · Rust owns load filtering and trend prediction, support sign from geometry, lateral DCM continuation, projected-track reserve, bounded ZMP/acceleration/bank, slew, and authority · invalid, missing, or non-bilateral evidence releases smoothly and atomically · Python passes fixed arrays and may only blend the returned candidate under Rust authority · the profile is default-off because R307 delays loss and fall but does not satisfy the recovery gate"
     },
     {
       "name": "Explicit tick input",
@@ -68,11 +72,11 @@
     },
     {
       "name": "Optional physical plant gateway",
-      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · protocol-2 interactive_operator / declared_continuous_wrench / world-frame provenance · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · independent Python provenance validation, MuJoCo contact, and 250 Hz integration · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five substeps · explicit pause/resume/reset lifecycle · automatic fall report then next-step reset"
+      "detail": "Continuous per-page measured-plant stream · TARGET overlays a low-cost dashed measured rig without replacing authored preview frames · Ctrl+drag or explicit PUSH uses triangle-ray surface application on any rendered MuJoCo body · protocol-2 interactive_operator / declared_continuous_wrench / world-frame provenance · finite ≤8 N body wrench · 140 ms refresh TTL · Rust validation/correlation/child supervision · independent Python provenance validation and MuJoCo contact at 250 Hz · measured q/v/root into persistent 50 Hz Rust capture/WBC · held torque across five 4 ms substeps · one control tick per 50 Hz stream frame · explicit pause/resume/reset lifecycle · automatic fall report then next-step reset"
     },
     {
       "name": "Outputs",
-      "detail": "1 kHz compiled trajectory block · typed authority/resource diagnostics · canonical frame snapshot · 50 Hz live WBC state · 250 Hz external plant contract · WebSocket local, sampled-world, continuous-world, self-geometry, contact, simulator, and selection witnesses"
+      "detail": "1 kHz compiled trajectory block · typed authority/resource diagnostics · canonical frame snapshot · 50 Hz live WBC/control state aggregated into a 50 Hz browser stream · 250 Hz external plant integration contract · WebSocket local, sampled-world, continuous-world, self-geometry, contact, simulator, and selection witnesses"
     }
   ],
   "modules": [
@@ -89,7 +93,7 @@
     {
       "name": "bonesaw-tools",
       "role": "Compiler, native eval sentinel, Pinocchio fixtures, and local WebSocket editor adapter.",
-      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law lives in this Rust example/tooling layer and is exposed as a persistent Python session rather than reimplemented in the evaluator. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over the MuJoCo plane, and searches back to a collision-envelope-safe pose. A continuously connected independent 250/50 Hz MuJoCo stream supplies plane point/normal, orange measured collision geometry and dashed rig, physical CoM, contacts and summed ground load, root motion, actual/generalized actuator/passive/bias force, acceleration, generalized/scalar constraint state, energy, warnings, solver work/residual, accepted provenance, and force/moment evidence; PUSH makes measured transforms primary."
+      "runtime": "Adapters own clock mapping, robot-specific example composition, and I/O; Rust never reads a clock. The Upkie capture/station/reference law and R307 wheel-load reserve action live in this Rust example/tooling layer and are exposed as persistent Python sessions rather than reimplemented in the evaluator. R305's reacquisition observer remains a distinct evidence-only query. /plant-ws protocol 2 validates external-load source/class/world frames, finite wrench, the 8 N bound, latest-snapshot body identity, 750 mm application-point offset, correlation, 140 ms dead-man expiry, worker replies, and child lifetime. Impact impulse and unobserved-model reserve are evidence-only classes and cannot enter this command path. A rejected point clears the lease instead of repeating errors. TARGET remains a guided Cartesian query on /ws, reserves 0.25 mm over the MuJoCo plane, and searches back to a collision-envelope-safe pose. A continuously connected 250 Hz MuJoCo / 50 Hz Rust WBC / 50 Hz stream supplies plane point/normal, orange measured collision geometry and dashed rig, physical CoM, contacts and summed ground load, root motion, actual/generalized actuator/passive/bias force, acceleration, generalized/scalar constraint state, energy, warnings, solver work/residual, accepted provenance, action diagnostics, and force/moment evidence; PUSH makes measured transforms primary."
     },
         {
             "name": "bonesaw-cuda",
@@ -98,6 +102,24 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r306-contact-authority-firewall",
+      "title": "Keep measured contact authoritative across hypotheses",
+      "status": "authority leak fixed · physical recovery rejected",
+      "detail": "R306 replays six production-rate evaluation modes. A caller-owned measured/debounced hard mask is snapshotted after contact observation and restored before primary WBC, admission, forecast, lease, and telemetry paths; viability/support hypotheses remain scratch-only. Causal, finite, worker-timing, zero-allocation, and hard-subset gates pass, but no mode sustains ten measured bilateral/upright ticks after loss."
+    },
+    {
+      "id": "r307-wheel-load-reserve-action",
+      "title": "Use measured wheel-load reserve before contact loss",
+      "status": "bounded default-off action passed · sustained recovery rejected",
+      "detail": "Rust owns persistent load filtering/trend, lateral DCM continuation, support geometry, bounded ZMP/acceleration/bank, slew, authority, and all diagnostics. Python passes caller-owned arrays and blends only under returned authority. The fast-profile disturbance activates at tick 25, moves first support loss from 34 to 53, moves fall from 56 to 73, and cuts peak lateral displacement from 119.631 mm to 35.997 mm. Nominal authority is exactly zero and the action runs allocation-free at 3.069 microseconds p99. It remains default-off because it enters body-ground stall, has non-admitted ticks, and never produces a five-second bilateral upright tail."
+    },
+    {
+      "id": "r304-live-inner-rate",
+      "title": "Evaluate an optional fast inner-rate profile",
+      "status": "fast-profile nominal pass · public 250/50 cadence unchanged · recovery rejected",
+      "detail": "The explicit fast profile streams at 50 Hz, runs five Rust WBC ticks per frame, and integrates four 1 ms MuJoCo steps per control tick. The hosted/public worker remains 250 Hz physics and 50 Hz WBC with five 4 ms substeps. The fast 20 second nominal trace stays bilateral/upright with all solves admitted and zero timed Rust allocation; its 8 N disturbance still reaches non-admitted MaxIterations and a fall, so no cadence or recovery authority is promoted."
+    },
     {
       "id": "r305-contact-reacquisition-observer",
       "title": "Require measured-load evidence before contact reacquisition",
@@ -1151,7 +1173,7 @@
     {
       "status": "provisional",
       "title": "The hosted editor separates TARGET preview from physical PUSH",
-      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, reserves 0.25 mm over z=0, searches back along an unsafe request, and renders WBC authority without claiming realization. /plant-ws stays connected while the page is open: TARGET labels the green pose as WBC TARGET PREVIEW and overlays a dashed orange MUJOCO MEASURED rig plus contacts; PUSH makes measured transforms primary and permits a bounded ray-hit wrench on any body. MuJoCo advances five 4 ms steps under each 50 Hz held WBC command and streams root motion, effort, acceleration, generalized constraint force, energy, warning, penetration, clock, and capture/station/resource evidence. A plant disconnect ghosts state and disables physical controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
+      "detail": "The public 8777 deployment explicitly enables BONESAW_LIVE_GUIDED=1 for green Cartesian targets. That path slews authored XYZ intent, preserves wheel anchors through planar IK, reserves 0.25 mm over z=0, searches back along an unsafe request, and renders WBC authority without claiming realization. /plant-ws stays connected while the page is open: TARGET labels the green pose as WBC TARGET PREVIEW and overlays a dashed orange MUJOCO MEASURED rig plus contacts; PUSH makes measured transforms primary and permits a bounded ray-hit wrench on any body. Each 50 Hz stream frame contains one 50 Hz WBC tick followed by five 4 ms MuJoCo steps, and streams root motion, effort, acceleration, generalized constraint force, energy, warning, penetration, clock, capture/station/resource evidence, and R307 action witnesses. A plant disconnect ghosts state and disables physical controls. Earlier raw SE(3) self-integration remains retained experimental evidence and is used by neither mode."
     },
     {
       "status": "provisional",
@@ -1165,6 +1187,24 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R306 contact-mode reacquisition comparison",
+      "result": "authority/causality/finite/allocation gates PASS · all six recovery gates REJECTED",
+      "detail": "The frozen 8 N lateral trace covers production capture, planar capture, viability capture, viability-support capture, viability-coordinate, and R302 support-contingency profiles. All preserve the 250/50 cadence and causal prior contact window; hard rows remain a subset of measured contact after the R306 firewall; none sustains ten measured bilateral/upright samples. Planner hypotheses remain evaluation-only.",
+      "report": "/UPKIE_LIVE_REACQUISITION_MODES_R306.html"
+    },
+    {
+      "name": "R307 measured wheel-load reserve action",
+      "result": "bounded experiment PASS · support loss +380 ms · fall +340 ms · lateral displacement -69.9% · recovery REJECTED",
+      "detail": "The default-off Rust action activates before measured loss and owns its filters, geometry, DCM, bounds, slew, authority, timing, and allocation witnesses. The fast-profile candidate delays first support loss from tick 34 to 53 and fall from 56 to 73 while reducing peak lateral displacement from 119.631 mm to 35.997 mm. A 20 second nominal trace remains bilateral with zero action authority; the disturbed action is 3.069 microseconds p99 with zero timed allocation. No five-second bilateral upright tail occurs, so no recovery/default authority is promoted.",
+      "report": "/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.html"
+    },
+    {
+      "name": "R304 fast inner-rate evaluation",
+      "result": "fast-profile PASS · 1 kHz physics / 250 Hz WBC / 50 Hz stream · public 250/50 unchanged · recovery REJECTED",
+      "detail": "The explicit fast profile runs four 1 ms physics steps per 250 Hz control tick and five control ticks per 50 Hz stream frame. Its 20 second nominal trace is bilateral/upright with every solve admitted and zero timed Rust allocation; the bounded lateral disturbance still produces MaxIterations and a fall. The hosted/public worker remains the 250 Hz physics / 50 Hz WBC baseline.",
+      "report": "/UPKIE_LIVE_INNER_RATE_R304.html"
+    },
     {
       "name": "R305 fail-closed contact-reacquisition observer",
       "result": "evidence PASS · Baseline→Armed→Candidate→Qualified · rejected evidence non-qualified · authority closed",
@@ -1365,7 +1405,7 @@
     {
       "metric": "R234 measured MuJoCo ground/collision state",
       "result": "LIVE TRANSPORT PASS · STREAMED PLANE POINT/NORMAL · ORANGE COLLISION WIREFRAME + PHYSICAL COM · 4 GROUND CONTACTS / 52.420 N · 0.00657 MM SOFT PENETRATION · 12 CONSTRAINT ROWS · SOLVER FWD/INV RESIDUAL EXPLICIT · ONE-METRE-DOWN PREVIEW 0.250000 MM COLLISION / 0.162025 MM VISUAL CLEARANCE · ZERO WARNINGS",
-      "scope": "existing single server/tunnel pair on port 8777 · 250 Hz MuJoCo / 50 Hz Rust WBC and stream · measured state is visually and semantically separate from green query preview · browser frame-time and visual inspection remain not run because no in-app browser target is attached",
+      "scope": "single server/tunnel pair on port 8777 · 250 Hz MuJoCo / 50 Hz Rust WBC / 50 Hz stream · measured state is visually and semantically separate from green query preview · editor, plant, and wrench public probes pass",
       "href": "/LIVE_MUJOCO_GROUND_STATE_R234.html"
     },
     {
@@ -1908,8 +1948,8 @@
     },
     {
       "metric": "Live MuJoCo rate/contact contract",
-      "result": "PASS · 250 Hz physics / 50 Hz WBC / 50 Hz stream · five substeps · 0 resets over 2 s nominal",
-      "scope": "pinned Upkie · Python-owned MuJoCo soft elliptic ground contact · held Rust torque across five 4 ms steps · final nominal 4 ground contacts · 0.0083 mm maximum penetration · 139.2 µs observed controller step and 695.3 µs worker step in local smoke · contact points/normals/force, sim time, solver iterations and penetration streamed · one host run, not a tail certificate"
+      "result": "PASS · 250 Hz physics / 50 Hz WBC / 50 Hz stream · five physics steps/control",
+      "scope": "pinned Upkie · Python-owned MuJoCo soft elliptic ground contact · hosted/public worker holds Rust torque across five 4 ms steps · contact points/normals/force, sim time, solver iterations and penetration streamed · fast R304 nominal timing remains an evaluation-only artifact · disturbance recovery remains red"
     },
     {
       "metric": "Upkie model geometry editor",
@@ -2733,8 +2773,32 @@
     }
   ],
   "authority_stack_example": {
-    "note": "R283 BOUNDED FEASIBILITY-POLISH PROFILE + R282 CUMULATIVE SOLVE-ATTEMPT TELEMETRY + R279 SCHEDULE-REACHABLE DCM OBSERVER/REQUEST/SOFT/HARD SPLIT + R278 SUPPORT-TRANSFER TRAJECTORY TUBE + R277 SCHEDULE-BOUNDED DCM + R276 AUTOMATIC CONTACT LOCALIZATION + R275 HARD-FEASIBILITY WITNESS + R274 JOINT-POSITION STOPPING-HEADROOM CAPTURE + R273 BOUNDED NORMALFALLBACK RELOCK PROBE + R272 NORMALFALLBACK TASK-SCALE CAUSAL SPLIT + R271 PER-PATCH SUPPORT-LOAD FLOOR FALSIFIER + R216 G1 CAUSAL-CENTER + SPLIT-KINETIC ZERO-PLANT REPLAY + R215 G1 FINITE-PATCH SPATIAL TRANSITION HOLDOUT + R214 G1 KINETIC IMPULSE ELLIPSOID HOLDOUT + R213 G1 FROZEN GROUPED TRANSITION HOLDOUT + R212 UPKIE GROUPED REACHABLE SET + R211 CROSS-MORPHOLOGY MODEL ORACLE + R210 SPATIAL-CONDITIONED MOMENTUM RESIDUAL + R209 GENERALIZED-MOMENTUM RESIDUAL TUBE + R208 PHYSICS-FREE CONTACT REGULARIZATION + R207 COUPLED DELASSUS CONTACT RESPONSE + R206 SPATIAL CONTACT WRENCH + R205 CONTACT-RESPONSE LOCALIZATION + R204 PASSIVE DIRECTIONAL CONTACT TUBE + R203 CONTINUOUS ACCELERATION INTERVAL + R202 MODEL-OWNED CONTACT RESPONSE + R201 PHYSICAL CONTACT-TRANSITION INTERVAL + R200 EXACT CONTACT-PRESTATE CONDITIONING REJECTION + R199 CAUSAL IMPULSE/VELOCITY-JUMP HOLDOUT + R198 LAGGED-IMPULSE REJECTION + R197 CONTACT-IMPULSE RESIDUAL LOCALIZATION + R196 TERMINAL RESIDUAL CONDITIONING + R195 EXPLICIT SUPPORT-HYPOTHESIS TERMINAL ENVELOPE + R194 ZERO-EFFORT SUPPORT-REALIZATION CALIBRATION + R193 EXACT ZERO-EFFORT TERMINAL BASELINE + R192 TERMINAL-CANDIDATE REALIZATION CALIBRATION + R191 EXACT TERMINAL-IMPACT THREE-WAY CHOOSER + R190 FRESH SUPPORT-FREE BRAKE + R189 CAUSAL FORECAST-IMPROVEMENT GATE + R188 CAUSAL SUPPORT-FREE RETAINED-EFFORT FORECAST SELECTOR + R187 FUTURE-DURATION ORACLE NEGATIVE CONTROL + R186 CONTINUOUS Q15 INEXACT-HOLD AUTHORITY SWEEP + R185 TYPED INEXACT-OBSERVATION HOLD ABLATION + R184 DROPOUT-PHASE CONSEQUENCE + R183 STEADY-DELAY / LATENCY-ONSET CLASSIFICATION + R182 DELAY/DROPOUT/MIRRORED ROBUSTNESS + R181 CURRENT-SUPPORT REALIZATION ABLATION + R180 MEASURED-CONTACT PROGRAM COMPOSITION + R179 GUARDED FLIGHT ACTION + R178 RUST CONTACT-PROGRAM AUTHORITY + MEASURED R177 ENABLE/REACQUISITION DIAGNOSTIC + R176 CAUSAL SELECTION CONSEQUENCE + R175 OBSERVED-SUPPORT REQUEST / SEPARATE WBC ADMISSION + R151–R174 VIABILITY / FORECAST / COMPUTE AUTHORITY + R139 CAUSAL CONTACT + R143 BOUNDED LEASE + R138 CONTACT TRUTH + R137 STALE-COMMAND EXPIRY + R136 FALL-SAFE SUPERVISOR + R135 POLICY-FREE STATE-LOCAL AUTHORITY + R130–R134 ROOTED PHYSICAL EXAMPLES + R90/R97/R98/R99–R121 CPU/BACKEND/OBSERVATION/COMMAND/GEOMETRY AUTHORITY · Observation age, timestamp continuity, joint stopping headroom, fallback/relock state, fallback-task activation time, support load, physical/support hypotheses, candidate availability, contact transition, spatial impulse, response provenance, acceleration uncertainty, interval width, terminal consequence, measured realization, impulse localization, typed WBC admission, retained-command freshness, causal plant consequence, timing, cumulative solver work, and hardware realization remain independent witnesses. No witnesses are aggregated.",
+    "note": "R307 MEASURED WHEEL-LOAD RESERVE ACTION + R305 FAIL-CLOSED REACQUISITION EVIDENCE + R304 1 KHZ PLANT / 250 HZ WBC CADENCE + R283 BOUNDED FEASIBILITY-POLISH PROFILE + R282 CUMULATIVE SOLVE-ATTEMPT TELEMETRY + R279 SCHEDULE-REACHABLE DCM OBSERVER/REQUEST/SOFT/HARD SPLIT + R278 SUPPORT-TRANSFER TRAJECTORY TUBE + R277 SCHEDULE-BOUNDED DCM + R276 AUTOMATIC CONTACT LOCALIZATION + R275 HARD-FEASIBILITY WITNESS + R274 JOINT-POSITION STOPPING-HEADROOM CAPTURE + R273 BOUNDED NORMALFALLBACK RELOCK PROBE + R272 NORMALFALLBACK TASK-SCALE CAUSAL SPLIT + R271 PER-PATCH SUPPORT-LOAD FLOOR FALSIFIER + R216 G1 CAUSAL-CENTER + SPLIT-KINETIC ZERO-PLANT REPLAY + R215 G1 FINITE-PATCH SPATIAL TRANSITION HOLDOUT + R214 G1 KINETIC IMPULSE ELLIPSOID HOLDOUT + R213 G1 FROZEN GROUPED TRANSITION HOLDOUT + R212 UPKIE GROUPED REACHABLE SET + R211 CROSS-MORPHOLOGY MODEL ORACLE + R210 SPATIAL-CONDITIONED MOMENTUM RESIDUAL + R209 GENERALIZED-MOMENTUM RESIDUAL TUBE + R208 PHYSICS-FREE CONTACT REGULARIZATION + R207 COUPLED DELASSUS CONTACT RESPONSE + R206 SPATIAL CONTACT WRENCH + R205 CONTACT-RESPONSE LOCALIZATION + R204 PASSIVE DIRECTIONAL CONTACT TUBE + R203 CONTINUOUS ACCELERATION INTERVAL + R202 MODEL-OWNED CONTACT RESPONSE + R201 PHYSICAL CONTACT-TRANSITION INTERVAL + R200 EXACT CONTACT-PRESTATE CONDITIONING REJECTION + R199 CAUSAL IMPULSE/VELOCITY-JUMP HOLDOUT + R198 LAGGED-IMPULSE REJECTION + R197 CONTACT-IMPULSE RESIDUAL LOCALIZATION + R196 TERMINAL RESIDUAL CONDITIONING + R195 EXPLICIT SUPPORT-HYPOTHESIS TERMINAL ENVELOPE + R194 ZERO-EFFORT SUPPORT-REALIZATION CALIBRATION + R193 EXACT ZERO-EFFORT TERMINAL BASELINE + R192 TERMINAL-CANDIDATE REALIZATION CALIBRATION + R191 EXACT TERMINAL-IMPACT THREE-WAY CHOOSER + R190 FRESH SUPPORT-FREE BRAKE + R189 CAUSAL FORECAST-IMPROVEMENT GATE + R188 CAUSAL SUPPORT-FREE RETAINED-EFFORT FORECAST SELECTOR + R187 FUTURE-DURATION ORACLE NEGATIVE CONTROL + R186 CONTINUOUS Q15 INEXACT-HOLD AUTHORITY SWEEP + R185 TYPED INEXACT-OBSERVATION HOLD ABLATION + R184 DROPOUT-PHASE CONSEQUENCE + R183 STEADY-DELAY / LATENCY-ONSET CLASSIFICATION + R182 DELAY/DROPOUT/MIRRORED ROBUSTNESS + R181 CURRENT-SUPPORT REALIZATION ABLATION + R180 MEASURED-CONTACT PROGRAM COMPOSITION + R179 GUARDED FLIGHT ACTION + R178 RUST CONTACT-PROGRAM AUTHORITY + MEASURED R177 ENABLE/REACQUISITION DIAGNOSTIC + R176 CAUSAL SELECTION CONSEQUENCE + R175 OBSERVED-SUPPORT REQUEST / SEPARATE WBC ADMISSION + R151–R174 VIABILITY / FORECAST / COMPUTE AUTHORITY + R139 CAUSAL CONTACT + R143 BOUNDED LEASE + R138 CONTACT TRUTH + R137 STALE-COMMAND EXPIRY + R136 FALL-SAFE SUPERVISOR + R135 POLICY-FREE STATE-LOCAL AUTHORITY + R130–R134 ROOTED PHYSICAL EXAMPLES + R90/R97/R98/R99–R121 CPU/BACKEND/OBSERVATION/COMMAND/GEOMETRY AUTHORITY · Observation age, timestamp continuity, joint stopping headroom, fallback/relock state, fallback-task activation time, support load, physical/support hypotheses, candidate availability, contact transition, spatial impulse, response provenance, acceleration uncertainty, interval width, terminal consequence, measured realization, impulse localization, typed WBC admission, retained-command freshness, causal plant consequence, timing, cumulative solver work, and hardware realization remain independent witnesses. No witnesses are aggregated.",
     "layers": [
+    {
+      "name": "Measured wheel-load reserve action · R307",
+      "detail": "Filtered wheel loads and their trend expose weak-support pressure before contact loss. Rust combines that evidence with measured wheel geometry and lateral DCM, clips the desired ZMP to the usable support interval, bounds lateral acceleration and bank, slews authority, and releases smoothly on invalid or non-bilateral evidence. The layer is default-off because its delayed loss does not become sustained recovery.",
+      "signal": "left/right load fraction · load trend/prediction · lateral DCM · usable ZMP interval · commanded acceleration/bank · slew · authority · timing/allocation",
+      "value": "LOSS +380 MS · FALL +340 MS · LATERAL DISPLACEMENT -69.9% · RECOVERY RED",
+      "pressure": 0.74,
+      "state": "warning"
+    },
+    {
+      "name": "Measured-mask authority firewall · R306",
+      "detail": "Viability and support-contingency hypotheses may reuse a fixed support-mask buffer, but the measured/debounced hard mask is snapshotted after observation and restored before primary WBC, admission, forecast, lease, and output telemetry. The firewall closes the planner-scratch leak without claiming physical reacquisition.",
+      "signal": "measured hard mask · hypothesis mask · primary query mask · hard-row subset · admission/lease/telemetry mask",
+      "value": "6/6 MODE REPLAY · HARD SUBSET PASS · RECOVERY RED",
+      "pressure": 0.62,
+      "state": "warning"
+    },
+    {
+      "name": "Fail-closed contact reacquisition evidence · R305",
+      "detail": "After a valid loss, exact target/raw/stable/hard mask agreement and finite measured per-wheel loads must persist for three monotonic samples. Startup, reordered observations, zero-load touch, and invalid evidence cannot qualify. This is an evidence seam only and never emits actuator authority.",
+      "signal": "target/raw/stable/hard masks · total/per-contact load · monotonic sample count · observer phase · qualified witness",
+      "value": "EVIDENCE QUALIFIED · COMMAND AUTHORITY CLOSED",
+      "pressure": 0.46,
+      "state": "warning"
+    },
     {
       "name": "Measured plant contact / executable WBC boundary · R300",
       "detail": "MuJoCo integrates five 4 ms substeps, refreshing collision data after each step into a fixed contact window. The next 50 Hz solve consumes the prior window's terminal mask. Raw, debounced, diagnostic hard, executable-hard, solver status, residual, and contact-edge witnesses are independent; a paused or non-admitted solve cannot advertise retained hard rows as executable.",
@@ -3273,7 +3337,7 @@
       },
       {
         "name": "Live consequence · r131 typed PUSH gateway",
-        "detail": "A Ctrl+drag triangle hit, or touch-accessible orange PUSH drag, becomes a finite world wrench at the picked surface point on any mapped rendered body. Rust owns schema validation, the 8 N cap, correlation, a 140 ms refresh deadline, invalid-command survival, worker supervision, and stream serialization. Python owns only the replaceable 250 Hz MuJoCo integration; every 50 Hz control tick still crosses the persistent Rust capture and WBC sessions and holds the returned torque for five physics substeps. TARGET commands cannot enter this path, and plant transforms/contact state cannot masquerade as guided target preview.",
+        "detail": "A Ctrl+drag triangle hit, or touch-accessible orange PUSH drag, becomes a finite world wrench at the picked surface point on any mapped rendered body. Rust owns schema validation, the 8 N cap, correlation, a 140 ms refresh deadline, invalid-command survival, worker supervision, and stream serialization. Python owns only the replaceable 250 Hz MuJoCo integration; each 50 Hz control tick crosses the persistent Rust capture and WBC sessions and holds returned torque for five physics substeps, with one control tick per visible frame. TARGET commands cannot enter this path, and plant transforms/contact state cannot masquerade as guided target preview.",
         "signal": "root travel · peak tilt · capture pressure · release/expiry/reset · controller/worker/stream p99 · numerical resets",
         "value": "107.6 mm · 25.09° · 1.000 · ≤21.7/162.4/40.6 ms · 458.3 µs/4.236 ms/41.5 ms · 0",
         "pressure": 1.0,

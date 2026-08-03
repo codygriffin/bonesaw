@@ -110,7 +110,8 @@ use bonesaw_tools::{
     UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
     UpkieFallSafeState, UpkieLateralViabilityConfig, UpkieLateralViabilityState,
     UpkiePlanarCaptureConfig, UpkiePlanarCaptureState, UpkieWheelBalancer, UpkieWheelBalancerState,
-    step_upkie_fall_safe, step_upkie_lateral_viability, write_upkie_fall_safe_contingency,
+    UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState, step_upkie_fall_safe,
+    step_upkie_lateral_viability, step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
 };
 use nalgebra::{DMatrix, DVector, Point3, Translation3, UnitQuaternion, Vector2};
 use numpy::{
@@ -3852,6 +3853,8 @@ struct UpkieBalanceSession {
     planar_state: UpkiePlanarCaptureState,
     lateral_viability_config: UpkieLateralViabilityConfig,
     lateral_viability_state: UpkieLateralViabilityState,
+    wheel_load_reserve_config: UpkieWheelLoadReserveConfig,
+    wheel_load_reserve_state: UpkieWheelLoadReserveState,
     fall_safe_config: UpkieFallSafeConfig,
     fall_safe_state: UpkieFallSafeState,
     support_contingency_config: SupportContingencyConfig,
@@ -3950,6 +3953,8 @@ impl UpkieBalanceSession {
             planar_state: UpkiePlanarCaptureState::default(),
             lateral_viability_config: UpkieLateralViabilityConfig::default(),
             lateral_viability_state: UpkieLateralViabilityState::default(),
+            wheel_load_reserve_config: UpkieWheelLoadReserveConfig::default(),
+            wheel_load_reserve_state: UpkieWheelLoadReserveState::default(),
             fall_safe_config: UpkieFallSafeConfig::default(),
             fall_safe_state: UpkieFallSafeState::default(),
             support_contingency_config: SupportContingencyConfig::default(),
@@ -4013,6 +4018,7 @@ impl UpkieBalanceSession {
         self.capture_state = UpkieCaptureReferenceState::default();
         self.planar_state = UpkiePlanarCaptureState::default();
         self.lateral_viability_state = UpkieLateralViabilityState::default();
+        self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
         self.fall_safe_state = UpkieFallSafeState::default();
         self.contact_observation_state = ContactObservationState::default();
         self.contact_reacquisition_state = ContactReacquisitionState::default();
@@ -4191,6 +4197,102 @@ impl UpkieBalanceSession {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn configure_wheel_load_reserve(
+        &mut self,
+        activation_release_load_fraction: f64,
+        activation_full_load_fraction: f64,
+        activation_release_dcm_m: f64,
+        activation_full_dcm_m: f64,
+        load_filter_time_constant_s: f64,
+        prediction_lookahead_s: f64,
+        unloading_rate_release_per_s: f64,
+        unloading_rate_full_per_s: f64,
+        support_reserve_m: f64,
+        authority_attack_per_s: f64,
+        authority_release_per_s: f64,
+        maximum_lateral_acceleration_m_s2: f64,
+        lateral_acceleration_slew_m_s3: f64,
+        maximum_bank_angle_rad: f64,
+        bank_angle_slew_rad_s: f64,
+        bank_tracking_stiffness_per_s2: f64,
+        bank_tracking_damping_per_s: f64,
+        maximum_roll_acceleration_rad_s2: f64,
+    ) -> PyResult<()> {
+        let values = [
+            activation_release_load_fraction,
+            activation_full_load_fraction,
+            activation_release_dcm_m,
+            activation_full_dcm_m,
+            load_filter_time_constant_s,
+            prediction_lookahead_s,
+            unloading_rate_release_per_s,
+            unloading_rate_full_per_s,
+            support_reserve_m,
+            authority_attack_per_s,
+            authority_release_per_s,
+            maximum_lateral_acceleration_m_s2,
+            lateral_acceleration_slew_m_s3,
+            maximum_bank_angle_rad,
+            bank_angle_slew_rad_s,
+            bank_tracking_stiffness_per_s2,
+            bank_tracking_damping_per_s,
+            maximum_roll_acceleration_rad_s2,
+        ];
+        if values.iter().any(|value| !value.is_finite())
+            || !(0.0..0.5).contains(&activation_full_load_fraction)
+            || activation_full_load_fraction >= activation_release_load_fraction
+            || activation_release_load_fraction > 0.5
+            || activation_release_dcm_m < 0.0
+            || activation_release_dcm_m >= activation_full_dcm_m
+            || load_filter_time_constant_s <= 0.0
+            || prediction_lookahead_s < 0.0
+            || unloading_rate_release_per_s < 0.0
+            || unloading_rate_release_per_s >= unloading_rate_full_per_s
+            || support_reserve_m < 0.0
+            || authority_attack_per_s <= 0.0
+            || authority_release_per_s <= 0.0
+            || maximum_lateral_acceleration_m_s2 <= 0.0
+            || lateral_acceleration_slew_m_s3 <= 0.0
+            || maximum_bank_angle_rad <= 0.0
+            || maximum_bank_angle_rad >= std::f64::consts::FRAC_PI_2
+            || bank_angle_slew_rad_s <= 0.0
+            || bank_tracking_stiffness_per_s2 <= 0.0
+            || bank_tracking_damping_per_s <= 0.0
+            || maximum_roll_acceleration_rad_s2 <= 0.0
+        {
+            return Err(PyValueError::new_err(
+                "wheel-load reserve configuration must be finite with ordered positive bounds",
+            ));
+        }
+        self.wheel_load_reserve_config
+            .activation_release_load_fraction = activation_release_load_fraction;
+        self.wheel_load_reserve_config.activation_full_load_fraction =
+            activation_full_load_fraction;
+        self.wheel_load_reserve_config.activation_release_dcm_m = activation_release_dcm_m;
+        self.wheel_load_reserve_config.activation_full_dcm_m = activation_full_dcm_m;
+        self.wheel_load_reserve_config.load_filter_time_constant_s = load_filter_time_constant_s;
+        self.wheel_load_reserve_config.prediction_lookahead_s = prediction_lookahead_s;
+        self.wheel_load_reserve_config.unloading_rate_release_per_s = unloading_rate_release_per_s;
+        self.wheel_load_reserve_config.unloading_rate_full_per_s = unloading_rate_full_per_s;
+        self.wheel_load_reserve_config.support_reserve_m = support_reserve_m;
+        self.wheel_load_reserve_config.authority_attack_per_s = authority_attack_per_s;
+        self.wheel_load_reserve_config.authority_release_per_s = authority_release_per_s;
+        self.wheel_load_reserve_config
+            .maximum_lateral_acceleration_m_s2 = maximum_lateral_acceleration_m_s2;
+        self.wheel_load_reserve_config
+            .lateral_acceleration_slew_m_s3 = lateral_acceleration_slew_m_s3;
+        self.wheel_load_reserve_config.maximum_bank_angle_rad = maximum_bank_angle_rad;
+        self.wheel_load_reserve_config.bank_angle_slew_rad_s = bank_angle_slew_rad_s;
+        self.wheel_load_reserve_config
+            .bank_tracking_stiffness_per_s2 = bank_tracking_stiffness_per_s2;
+        self.wheel_load_reserve_config.bank_tracking_damping_per_s = bank_tracking_damping_per_s;
+        self.wheel_load_reserve_config
+            .maximum_roll_acceleration_rad_s2 = maximum_roll_acceleration_rad_s2;
+        self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
+        Ok(())
+    }
+
     #[getter]
     fn capture_diagnostic_names(&self) -> [&'static str; 16] {
         [
@@ -4260,6 +4362,41 @@ impl UpkieBalanceSession {
             "viability_zmp_was_saturated",
             "viability_acceleration_was_saturated",
             "viability_bank_was_saturated",
+        ]
+    }
+
+    #[getter]
+    fn wheel_load_reserve_diagnostic_names(&self) -> [&'static str; 29] {
+        [
+            "evidence_available",
+            "active",
+            "weaker_support_index",
+            "total_normal_force_n",
+            "support_0_load_fraction",
+            "support_1_load_fraction",
+            "raw_load_balance",
+            "filtered_load_balance",
+            "weaker_load_fraction",
+            "weaker_load_fraction_rate_per_s",
+            "predicted_weaker_load_fraction",
+            "support_center_m",
+            "half_support_track_m",
+            "measured_cop_m",
+            "lateral_dcm_m",
+            "baseline_zmp_m",
+            "restoring_zmp_m",
+            "commanded_zmp_m",
+            "requested_lateral_acceleration_m_s2",
+            "commanded_lateral_acceleration_m_s2",
+            "target_bank_angle_rad",
+            "commanded_bank_angle_rad",
+            "commanded_roll_acceleration_rad_s2",
+            "activation_pressure",
+            "authority",
+            "zmp_was_saturated",
+            "acceleration_was_saturated",
+            "bank_was_saturated",
+            "heading_world_rad",
         ]
     }
 
@@ -7115,6 +7252,211 @@ impl UpkieBalanceSession {
             ),
         ]);
         Ok(())
+    }
+
+    /// Author one bounded lateral/bank request from causal bilateral wheel-load
+    /// evidence. Python supplies plant arrays and receives caller-owned output
+    /// buffers; the support geometry, load trend, sign, slew, and hysteretic
+    /// authority are owned here in the persistent Rust session.
+    #[allow(clippy::too_many_arguments)]
+    fn step_wheel_load_reserve_from_state(
+        &mut self,
+        timestep_seconds: f64,
+        bilateral_contact_evidence: bool,
+        ground_height_control_world_m: f64,
+        root_position: PyReadonlyArray1<'_, f64>,
+        root_quaternion_wxyz: PyReadonlyArray1<'_, f64>,
+        root_twist_world: PyReadonlyArray1<'_, f64>,
+        q: PyReadonlyArray1<'_, f64>,
+        joint_velocity: PyReadonlyArray1<'_, f64>,
+        support_normal_force_n: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray1<'_, f64>,
+        mut root_angular_acceleration_out: PyReadwriteArray1<'_, f64>,
+        mut root_linear_acceleration_out: PyReadwriteArray1<'_, f64>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let root_position = root_position.as_slice()?;
+        let root_quaternion_wxyz = root_quaternion_wxyz.as_slice()?;
+        let root_twist_world = root_twist_world.as_slice()?;
+        let q = q.as_slice()?;
+        let joint_velocity = joint_velocity.as_slice()?;
+        let support_normal_force_n = support_normal_force_n.as_slice()?;
+        let diagnostics_out = diagnostics_out.as_slice_mut()?;
+        let root_angular_acceleration_out = root_angular_acceleration_out.as_slice_mut()?;
+        let root_linear_acceleration_out = root_linear_acceleration_out.as_slice_mut()?;
+        let dof = self.program.model.dof;
+        if root_position.len() != 3
+            || root_quaternion_wxyz.len() != 4
+            || root_twist_world.len() != 6
+            || q.len() != dof
+            || joint_velocity.len() != dof
+            || support_normal_force_n.len() != 2
+            || diagnostics_out.len() != 29
+            || root_angular_acceleration_out.len() != 3
+            || root_linear_acceleration_out.len() != 3
+        {
+            return Err(PyValueError::new_err(format!(
+                "wheel-load reserve expects root[3], quaternion[4], twist[6], q/v[{dof}], normal force[2], diagnostics[29], and angular/linear outputs[3]"
+            )));
+        }
+        if !timestep_seconds.is_finite()
+            || timestep_seconds <= 0.0
+            || !ground_height_control_world_m.is_finite()
+            || root_position
+                .iter()
+                .chain(root_quaternion_wxyz)
+                .chain(root_twist_world)
+                .chain(q)
+                .chain(joint_velocity)
+                .chain(support_normal_force_n)
+                .any(|value| !value.is_finite())
+            || support_normal_force_n.iter().any(|force| *force < 0.0)
+        {
+            return Err(PyValueError::new_err(
+                "wheel-load reserve inputs must be finite with a positive timestep and nonnegative forces",
+            ));
+        }
+        let rotation = UnitQuaternion::try_new(
+            nalgebra::Quaternion::new(
+                root_quaternion_wxyz[0],
+                root_quaternion_wxyz[1],
+                root_quaternion_wxyz[2],
+                root_quaternion_wxyz[3],
+            ),
+            1.0e-12,
+        )
+        .ok_or_else(|| PyValueError::new_err("wheel-load reserve quaternion is degenerate"))?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        self.robot.control_world_from_root = Transform3::from_parts(
+            Translation3::new(root_position[0], root_position[1], root_position[2]),
+            rotation,
+        );
+        self.robot.q.as_mut_slice().copy_from_slice(q);
+        self.robot.v.as_mut_slice().copy_from_slice(joint_velocity);
+        self.program
+            .model
+            .forward_kinematics(&self.robot, &mut self.cache)
+            .map_err(value_error)?;
+        self.program
+            .model
+            .floating_com_jacobian_into(
+                &self.cache,
+                &mut self.capture_dynamics,
+                &mut self.center_of_mass_jacobian,
+            )
+            .map_err(value_error)?;
+        let generalized_velocity = |axis: usize| {
+            let root = (0..6)
+                .map(|column| {
+                    self.center_of_mass_jacobian[(axis, column)] * root_twist_world[column]
+                })
+                .sum::<f64>();
+            root + (0..dof)
+                .map(|coordinate| {
+                    self.center_of_mass_jacobian[(axis, coordinate + 6)]
+                        * joint_velocity[coordinate]
+                })
+                .sum::<f64>()
+        };
+        let center_of_mass_velocity = Vec3::new(
+            generalized_velocity(0),
+            generalized_velocity(1),
+            generalized_velocity(2),
+        );
+        let wheel_positions = self.support_frames.map(|frame| {
+            self.cache.world_from_body[frame.0]
+                .transform_point(&Point3::origin())
+                .coords
+        });
+        let heading_x = self
+            .robot
+            .control_world_from_root
+            .rotation
+            .transform_vector(&Vec3::x());
+        let heading_norm = heading_x.xy().norm();
+        if heading_norm <= 1.0e-9 {
+            return Err(PyValueError::new_err(
+                "wheel-load reserve root heading is vertical",
+            ));
+        }
+        let tangent_x = Vec3::new(heading_x.x / heading_norm, heading_x.y / heading_norm, 0.0);
+        let tangent_y = Vec3::new(-tangent_x.y, tangent_x.x, 0.0);
+        let support_lateral = [
+            wheel_positions[0].dot(&tangent_y),
+            wheel_positions[1].dot(&tangent_y),
+        ];
+        let normal_force: [f64; 2] = support_normal_force_n
+            .try_into()
+            .expect("normal force length was validated");
+        let measured_roll = rotation.scaled_axis().dot(&tangent_x);
+        let measured_roll_rate = Vec3::new(
+            root_twist_world[0],
+            root_twist_world[1],
+            root_twist_world[2],
+        )
+        .dot(&tangent_x);
+        let output = step_upkie_wheel_load_reserve(
+            timestep_seconds,
+            bilateral_contact_evidence,
+            support_lateral,
+            normal_force,
+            self.cache.center_of_mass_world.dot(&tangent_y),
+            center_of_mass_velocity.dot(&tangent_y),
+            self.cache.center_of_mass_world.z - ground_height_control_world_m,
+            measured_roll,
+            measured_roll_rate,
+            self.wheel_load_reserve_config,
+            &mut self.wheel_load_reserve_state,
+        )
+        .ok_or_else(|| PyValueError::new_err("wheel-load reserve request is invalid"))?;
+        root_angular_acceleration_out.copy_from_slice(&[
+            tangent_x.x * output.commanded_roll_acceleration_rad_s2,
+            tangent_x.y * output.commanded_roll_acceleration_rad_s2,
+            0.0,
+        ]);
+        root_linear_acceleration_out.copy_from_slice(&[
+            tangent_y.x * output.commanded_lateral_acceleration_m_s2,
+            tangent_y.y * output.commanded_lateral_acceleration_m_s2,
+            0.0,
+        ]);
+        diagnostics_out.copy_from_slice(&[
+            output.evidence_available as u8 as f64,
+            output.active as u8 as f64,
+            output.weaker_support_index as f64,
+            output.total_normal_force_n,
+            output.support_load_fractions[0],
+            output.support_load_fractions[1],
+            output.raw_load_balance,
+            output.filtered_load_balance,
+            output.weaker_load_fraction,
+            output.weaker_load_fraction_rate_per_s,
+            output.predicted_weaker_load_fraction,
+            output.support_center_m,
+            output.half_support_track_m,
+            output.measured_cop_m,
+            output.lateral_dcm_m,
+            output.baseline_zmp_m,
+            output.restoring_zmp_m,
+            output.commanded_zmp_m,
+            output.requested_lateral_acceleration_m_s2,
+            output.commanded_lateral_acceleration_m_s2,
+            output.target_bank_angle_rad,
+            output.commanded_bank_angle_rad,
+            output.commanded_roll_acceleration_rad_s2,
+            output.activation_pressure,
+            output.authority,
+            output.zmp_was_saturated as u8 as f64,
+            output.acceleration_was_saturated as u8 as f64,
+            output.bank_was_saturated as u8 as f64,
+            tangent_x.y.atan2(tangent_x.x),
+        ]);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
     }
 
     /// Emit a support-conditioned contingency request from the exact current

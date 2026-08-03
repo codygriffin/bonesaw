@@ -1262,13 +1262,10 @@ class UpkieDisturbanceEnvelopeTests(unittest.TestCase):
         self.assertGreaterEqual(compared_inactive_steps, 4)
         self.assertTrue(observed_reduced_support_while_inactive)
 
-    def test_request_gated_support_preserves_full_support_while_inactive(self) -> None:
+    def test_request_gated_support_never_overrides_measured_support_while_inactive(
+        self,
+    ) -> None:
         case = next(case for case in envelope.case_matrix() if case.name == "nominal")
-        control_model, control_data, control, control_wheels, _ = envelope.prepare_case(
-            MODEL,
-            case,
-            balance_mode="capture",
-        )
         candidate_model, candidate_data, candidate, candidate_wheels, _ = (
             envelope.prepare_case(
                 MODEL,
@@ -1278,12 +1275,7 @@ class UpkieDisturbanceEnvelopeTests(unittest.TestCase):
                 viability_support_requires_active_request=True,
             )
         )
-        control_state = plant.read_state(control_model, control_data)
         candidate_state = plant.read_state(candidate_model, candidate_data)
-        control_ground = (
-            float(np.mean(control_data.xpos[control_wheels, 0])),
-            float(np.mean(control_data.xpos[control_wheels, 2])),
-        )
         candidate_ground = (
             float(np.mean(candidate_data.xpos[candidate_wheels, 0])),
             float(np.mean(candidate_data.xpos[candidate_wheels, 2])),
@@ -1291,18 +1283,17 @@ class UpkieDisturbanceEnvelopeTests(unittest.TestCase):
 
         masks = ([1, 1], [1, 1], [1, 1], [1, 0], [1, 0], [1, 0], [1, 0])
         for mask in masks:
-            control_result = control.solve(*control_state, *control_ground, None)
             candidate_result = candidate.solve(
                 *candidate_state,
                 *candidate_ground,
                 np.asarray(mask, np.uint8),
             )
             self.assertFalse(candidate_result["viability_request_executable"])
-            self.assertEqual(candidate_result["support_active_left"], 1)
-            self.assertEqual(candidate_result["support_active_right"], 1)
-            self.assertEqual(control_result["status"], candidate_result["status"])
-            np.testing.assert_array_equal(
-                control_result["torque"], candidate_result["torque"]
+            self.assertLessEqual(
+                candidate_result["support_active_left"], mask[0]
+            )
+            self.assertLessEqual(
+                candidate_result["support_active_right"], mask[1]
             )
 
 

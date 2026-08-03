@@ -20,6 +20,7 @@ from upkie_live_plant_worker import (  # noqa: E402
     PHYSICS_STEPS_PER_CONTROL,
     MAX_APPLICATION_OFFSET_M,
     LiveUpkiePlant,
+    parse_args,
 )
 
 
@@ -264,6 +265,14 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         for options in invalid:
             with self.subTest(options=options), self.assertRaises(ValueError):
                 LiveUpkiePlant(model, **options)
+
+    def test_cli_defaults_to_the_production_rate_profile(self) -> None:
+        model = ROOT / "models/upkie/upkie.urdf"
+        with patch.object(sys, "argv", ["worker", str(model)]):
+            args = parse_args()
+        self.assertEqual(args.stream_dt, 0.020)
+        self.assertEqual(args.control_dt, 0.020)
+        self.assertEqual(args.physics_dt, 0.004)
 
     def test_controller_overrides_are_explicit_and_survive_reset(self) -> None:
         worker = LiveUpkiePlant(
