@@ -8,6 +8,7 @@ BONESAW_PLANT_WORKER="$BONESAW_PROJECT_ROOT/python/evals/upkie_live_plant_worker
 BONESAW_PLANT_PYTHON="${BONESAW_PLANT_PYTHON:-/tmp/bonesaw-mujoco/bin/python}"
 BONESAW_TUNNEL_BIN="${BONESAW_TUNNEL_BIN:-/tmp/cloudflared}"
 BONESAW_LIVE_TTL="${BONESAW_LIVE_TTL:-8h}"
+BONESAW_LIVE_RUSTFLAGS="${BONESAW_LIVE_RUSTFLAGS:--C target-cpu=native}"
 BONESAW_UNITS=(bonesaw-local bonesaw-public bonesaw-tunnel)
 BONESAW_PORT=8777
 
@@ -67,7 +68,8 @@ start_live() {
     exit 1
   fi
 
-  cargo build --manifest-path "$BONESAW_PROJECT_ROOT/Cargo.toml" \
+  RUSTFLAGS="$BONESAW_LIVE_RUSTFLAGS" \
+    cargo build --manifest-path "$BONESAW_PROJECT_ROOT/Cargo.toml" \
     --release --bin bonesaw-server
 
   # Replace only our three exact user units. Never process-match cloudflared:

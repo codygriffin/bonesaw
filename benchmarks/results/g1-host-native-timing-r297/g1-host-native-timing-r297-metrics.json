@@ -1,0 +1,67 @@
+{
+  "schema": "bonesaw.g1-host-native-timing-r297.v1",
+  "revision": "g1-host-native-timing-r297",
+  "decision": "REJECT_CANDIDATE_ADOPT_HOST_NATIVE_PROFILE",
+  "execution": {
+    "ticks_per_process": 2317,
+    "timing_cpu": 4,
+    "timing_pairs": 7,
+    "counter_pairs": 3,
+    "policy_steps": 0,
+    "physics_steps": 0,
+    "rustflags": "-C target-cpu=native"
+  },
+  "candidate": {
+    "feature": "bonesaw-core/jacobi-fixed-58-dot-experiment",
+    "source_retained": false,
+    "operation_order": "identical 58 scalar multiply/add steps",
+    "pseudoinverse_text_bytes_control": 4632,
+    "pseudoinverse_text_bytes_candidate": 5759
+  },
+  "semantic_contract": {
+    "all_repeats_exact": true,
+    "field_count": 112,
+    "digest": "70d80266121b1d50304c2b18535e9a928e27ac1c6d4b446238210675dc29764b",
+    "core_tests_each_build": 318
+  },
+  "timing_us": {
+    "pairs": [
+      {"repeat": 1, "control": {"p50": 1562.170, "p95": 3617.098, "p99": 4644.4954, "max": 6774.786}, "candidate": {"p50": 1571.629, "p95": 3652.8538, "p99": 4683.47752, "max": 6822.226}},
+      {"repeat": 2, "control": {"p50": 1575.796, "p95": 3637.4608, "p99": 4620.92704, "max": 6728.279}, "candidate": {"p50": 1565.447, "p95": 3623.9010, "p99": 4617.05628, "max": 6730.583}},
+      {"repeat": 3, "control": {"p50": 1571.097, "p95": 3631.2746, "p99": 4633.3638, "max": 6783.794}, "candidate": {"p50": 1566.990, "p95": 3636.1998, "p99": 4670.6172, "max": 6735.422}},
+      {"repeat": 4, "control": {"p50": 1586.828, "p95": 3636.8856, "p99": 4659.95128, "max": 6756.371}, "candidate": {"p50": 1569.264, "p95": 3632.0942, "p99": 4647.22248, "max": 6773.043}},
+      {"repeat": 5, "control": {"p50": 1573.402, "p95": 3634.5708, "p99": 4690.90372, "max": 6730.864}, "candidate": {"p50": 1571.518, "p95": 3637.5706, "p99": 4645.12304, "max": 6716.446}},
+      {"repeat": 6, "control": {"p50": 1570.657, "p95": 3799.4682, "p99": 4711.85992, "max": 6809.231}, "candidate": {"p50": 1579.784, "p95": 3889.0644, "p99": 5060.45144, "max": 7261.085}},
+      {"repeat": 7, "control": {"p50": 1574.594, "p95": 3609.5336, "p99": 4628.73996, "max": 6633.339}, "candidate": {"p50": 1553.895, "p95": 3592.9046, "p99": 4603.00752, "max": 6644.149}}
+    ],
+    "median": {
+      "control": {"p50": 1573.402, "p95": 3634.5708, "p99": 4644.4954, "max": 6756.371},
+      "candidate": {"p50": 1569.264, "p95": 3636.1998, "p99": 4647.22248, "max": 6735.422}
+    },
+    "p99_under_5ms_repeats": {"control": 7, "candidate": 6},
+    "generic_build_windows_excluded": 2
+  },
+  "hardware_counters": {
+    "narrow_native_sentinel_relative_delta": {"instructions": -0.04664386916, "branches": -0.15721183814},
+    "integrated_control_average": {"instructions": 39374089018.0, "branches": 5583023588.333, "cycles": 15413229334.333, "cache_misses": 32241978.0},
+    "integrated_candidate_average": {"instructions": 39474520324.0, "branches": 5615323496.0, "cycles": 15164691115.333, "cache_misses": 32553885.0},
+    "integrated_candidate_relative_delta": {"instructions": 0.00255069536, "branches": 0.00578537904, "cycles": -0.01612499325, "cache_misses": 0.00967394122},
+    "paired_instruction_relative_delta": [0.00253282187, 0.00256532544, 0.00255393894],
+    "cycles_decision_admissible": false
+  },
+  "process_memory": {
+    "control_max_rss_kib": 62732,
+    "candidate_max_rss_kib": 62656,
+    "scope": "complete Python admission process"
+  },
+  "verdict": {
+    "semantic_gate_passed": true,
+    "host_native_production_p99_gate_passed": true,
+    "portable_generic_p99_gate_passed": false,
+    "candidate_cpu_work_gate_passed": false,
+    "candidate_timing_gate_passed": false,
+    "candidate_promoted": false,
+    "r293_source_default_retained": true,
+    "authority_admitted": false
+  }
+}

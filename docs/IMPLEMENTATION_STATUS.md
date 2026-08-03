@@ -2,6 +2,20 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current local CPU qualification — r297 host-native timing
+
+R297 qualifies the local deployment profile separately from portable CPU
+evidence. Seven CPU-4-pinned AB/BA pairs run the frozen 2,317-tick,
+policy-free/physics-free G1 corpus with `RUSTFLAGS=-C target-cpu=native` and
+preserve all 112 non-timing arrays. R293 production passes every 5,000 µs p99
+gate (median 4,644.5 µs, worst 4,711.9 µs). The R296 fixed-58 candidate
+passes only six of seven; three integrated counter pairs all regress retired
+instructions by 0.2533%–0.2565%, so it remains rejected. The explicitly local
+managed server adopts the qualified native profile with an environment
+override. The portable generic 5.175 ms median, measured-contact transfer,
+tracking, calibrated resource, and authority gates remain open. See
+[`G1_HOST_NATIVE_TIMING_R297.md`](../benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
+
 ## Current CPU optimization audit — r296 rejected fixed-shape Jacobi dot
 
 R296 tested a default-off 58-element scalar Jacobi coupling-dot

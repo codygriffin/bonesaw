@@ -3,10 +3,18 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R297 closes the 5 ms deadline only for this machine's declared host-native
+local deployment: seven exact production repeats report 4.644 ms median and
+4.712 ms worst p99. It does not close the portable generic deadline, whose
+R293 median remains 5.175 ms, and it does not admit walking, measured-contact
+transfer, calibrated resources, or authority. The local manager now builds
+with `-C target-cpu=native` by default and keeps an explicit override. See the
+[R297 report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
+
 R296 closes the adjacent fixed-shape CPU experiment as negative evidence: the
 58-element Jacobi dot stayed semantically exact and allocation-free, but
 retired instructions rose in every pinned pair. The solver default is unchanged
-and this does not close the p99 or floating-transfer complaint. The remaining
+and this does not close the portable p99 or floating-transfer complaint. The remaining
 behavior work must be measured-contact, not another authored contact schedule.
 See the [R296 report](benchmarks/results/g1-jacobi-fixed-58-dot-r296/G1_JACOBI_FIXED_58_DOT_R296.md).
 

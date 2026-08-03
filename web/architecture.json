@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "measured-mujoco-contact-r295-r296-cpu-rejection",
+  "revision": "host-native-timing-r297",
   "updated": "2026-08-03",
-  "stage": "R295 measured-contact admission is stable; R296 rejects the next exact CPU specialization · R293 remains the CPU default",
-  "checkpoint": "R295 derives the Upkie wheel subtrees once, writes exact wheel-to-ground activity into caller-owned scratch at every 50 Hz observation, and passes it to Rust with an explicit fresh-observation flag. Rust owns timestamp/provenance checks, positive debounce, and immediate hard-row removal on contact loss; raw, debounced, hard, status, provenance, and support-count witnesses stream beside measured plant state. R296 then tests a fixed 58-element Jacobi dot: five CPU-4-pinned pairs stay 56-array exact and allocation-free, but every pair retires more instructions (+0.30754%–+0.30968%), so the feature is removed. The 9/9 worker suite and 317/317 core suite pass, including a lifted-root [0,0] support regression. This closes stale authored-contact state ownership and rejects one CPU shortcut, not floating walking, tracking, thermal, or authority gates.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R296's rejected fixed-shape Jacobi-dot experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R295 closes stale live-contact authority and R296 rejects one CPU shortcut without closing the ordinary p99 deadline or WBC-achievable transfer gate. Browser frame time, authenticated transport, calibrated actuation/thermal state, exact ordinary solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
+  "stage": "R297 qualifies the local host-native CPU profile · R293 remains the source default · portable timing and transfer remain open",
+  "checkpoint": "R297 runs seven CPU-4-pinned AB/BA pairs over the frozen 2,317-tick policy-free, physics-free G1 corpus with the actual local `-C target-cpu=native` profile. All 112 non-timing arrays are exact. R293 production passes all seven 5 ms p99 gates (median 4.644 ms, worst 4.712 ms); the rejected R296 fixed-58 candidate passes six and increases integrated retired instructions in every counter pair. The local manager now defaults to the qualified native profile with an explicit override. R295 measured-contact admission, its 9/9 worker suite, and fail-closed pause behavior remain intact. This closes only this machine's declared timing profile, not portable generic timing, floating walking, tracking, thermal, or authority gates.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, R294's opt-in negative pair-cache experiment, R296's rejected fixed-shape Jacobi-dot experiment, R290's post-transfer gate, and R287's strict caller-owned historical frame-query workspace. Python owns immutable corpus orchestration and policy/physics-free qualification. R297 closes the local host-native p99 gate while preserving the portable generic miss as a separate open witness. Browser frame time, authenticated transport, calibrated actuation/thermal state, portable exact solver p99, WBC-achievable transfer composition, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -98,6 +98,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r297-host-native-timing",
+      "title": "Qualify the explicitly local host-native CPU profile",
+      "status": "local timing admitted · portable timing open · authority closed",
+      "detail": "Seven CPU-4-pinned AB/BA pairs preserve all 112 non-timing arrays on the 2,317-tick zero-policy/zero-physics corpus. R293 production passes all seven 5,000 µs p99 gates (median 4,644.5 µs, worst 4,711.9 µs); the R296 fixed-58 candidate passes only six and regresses integrated retired instructions in all three counter pairs. The local manager defaults to -C target-cpu=native with BONESAW_LIVE_RUSTFLAGS as the override. The 5.175 ms portable generic result and every physical/authority gate remain open."
+    },
     {
       "id": "r295-measured-contact-admission",
       "title": "Make live WBC support follow measured MuJoCo contact",
@@ -1117,6 +1123,12 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R297 local host-native timing qualification",
+      "result": "112-array exact · production p99 7/7 PASS · candidate 6/7 FAIL · authority closed",
+      "detail": "Seven alternating CPU-4-pinned process pairs use the actual local native build profile. Production median/worst p99 are 4.644/4.712 ms. Three complete-process counter pairs reject the fixed-58 specialization with a consistent +0.2533%–+0.2565% retired-instruction regression. Portable generic timing remains a separately visible miss.",
+      "report": "/G1_HOST_NATIVE_TIMING_R297.html"
+    },
     {
       "name": "R295 measured MuJoCo contact admission",
       "result": "9/9 worker tests · raw/hard support loss without reset · core unchanged",
@@ -3756,6 +3768,7 @@
     "The editor adapter has no authentication. The current Cloudflare Quick Tunnel is intentionally temporary and publicly reachable; it must not carry private robot state or hardware authority until access control and origin policy are added."
   ],
   "feedback_questions": [
+    "R297 closes the timing deadline on this explicitly local native CPU profile but preserves the portable generic miss. Should the next admission target require one portable x86-64-v3 binary envelope, ship per-host qualified profiles with fingerprints, or treat timing as deployment-specific while the next work moves entirely to measured-contact transfer?",
     "R296 rejects another exact fixed-shape kernel after instructions rise despite byte-exact output. The next behavior step should build the deterministic 250 Hz MuJoCo source trace and 50 Hz WBC replay with sequential raw masks, or pause CPU work to prototype a continuous cross-tick progress/tracking-debt supervisor; the current authored G1 contact schedule cannot close both gates.",
     "R294 shows that exact cross-sweep rejection memoization adds more branch and bookkeeping work than it removes. Should the next exact CPU slice specialize a measured fixed matrix shape, fuse a downstream consumer into the pseudoinverse output pass, or pause kernel work and prototype the continuous cross-tick Style progress/tracking-debt supervisor?",
     "R290 delays a terminal Style cap until the support tube clips and preserves the nominal prefix exactly, but one later exhaustion still worsens tracking and misses p99. Should a continuous supervisor carry task-error/progress debt across ticks, or should the solver expose an exact incremental Style factorization before any cap is reconsidered?",

@@ -287,6 +287,16 @@ This is an engineering prototype, not a safety-rated robot controller.
   trace replayed through the 50 Hz WBC with sequential raw/debounced/hard
   masks; the authored G1 schedule is not sufficient for that claim. See the
   [r296 fixed-dot report](benchmarks/results/g1-jacobi-fixed-58-dot-r296/G1_JACOBI_FIXED_58_DOT_R296.md).
+- R297 qualifies the actual local host-native build independently of the
+  rejected R296 specialization. Seven CPU-4-pinned AB/BA pairs are exact
+  across 112 non-timing arrays; the R293 production path passes every 5 ms p99
+  gate (median 4.644 ms, worst 4.712 ms). The fixed-58 candidate passes only
+  six of seven and increases integrated retired instructions in every counter
+  pair, so it remains rejected. The managed local server now defaults to
+  `-C target-cpu=native`; `BONESAW_LIVE_RUSTFLAGS` can override that profile.
+  This closes only this machine's local timing gate; the 5.175 ms portable
+  generic result, walking/contact realization, and authority remain open. See
+  the [r297 host-native timing report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed
