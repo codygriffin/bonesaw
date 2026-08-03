@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "measured_date": "2026-08-03",
+  "bonesaw_source_commit": "9a217def1a23254132e073ee7f7a40d7b6e6e25c",
+  "corpus": {
+    "ticks": 20000,
+    "dt_seconds": 0.005,
+    "seed": "0xB0E5A7",
+    "regions": {
+      "zero_hold": 5000,
+      "smooth_coupled": 5000,
+      "bounded_steps": 5000,
+      "seeded_colored_noise": 5000
+    }
+  },
+  "upstream": {
+    "repository_commit": "1abdf373bbe8ee7d9f081293024f961ae9a8e2c1",
+    "wheel_balancer_cpp_sha256": "4b65d9356f9e6f925b9470b587133f96d4119b0ef774b220e9c39bcd945ca984",
+    "wheel_balancer_h_sha256": "0028aa465c91feae2b8a9b713fa09365ab02aecdc32f4bbe8754a9fcdce6d20e"
+  },
+  "environment": {
+    "cpu": "AMD Ryzen 7 3700X 8-Core Processor",
+    "python": "3.12.3",
+    "pinocchio": "4.0.0",
+    "rustc": "1.95.0"
+  },
+  "scalar_controller": {
+    "upkie_cpp": {
+      "latency_us": {
+        "p50": 1.383,
+        "p99": 2.425,
+        "p99_9": 4.729070,
+        "max": 17.102,
+        "jitter_abs_delta_p99": 0.061180
+      },
+      "peak_rss_bytes": 5251072,
+      "cpu_to_wall": 0.9960605419635984
+    },
+    "bonesaw_rust_official": {
+      "canonical_bit_mismatches": 0,
+      "latency_us": {
+        "p50": 0.030,
+        "p99": 0.031,
+        "p99_9": 0.031,
+        "max": 0.150,
+        "jitter_abs_delta_p99": 0.011
+      },
+      "peak_rss_bytes": 4378624,
+      "cpu_to_wall": 0.8301885441665554,
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    "bonesaw_rust_live": {
+      "latency_us": {
+        "p50": 0.030,
+        "p99": 0.031,
+        "p99_9": 0.031,
+        "max": 0.702,
+        "jitter_abs_delta_p99": 0.011
+      },
+      "peak_rss_bytes": 4538368,
+      "cpu_to_wall": 0.9775702634938673,
+      "allocation_calls": 0,
+      "allocated_bytes": 0
+    },
+    "official_command_comparison": {
+      "canonical_bitwise_equal": true,
+      "canonical_bit_mismatches": 0
+    },
+    "live_delta_vs_upstream_ground_velocity": {
+      "rms_mps": 0.09314995449486499,
+      "maximum_mps": 0.37722978908620686,
+      "correlation": 0.9949896621574865
+    }
+  },
+  "pinocchio": {
+    "upkie": {
+      "passed": true,
+      "samples": 50,
+      "frames_compared": 2050,
+      "maximum_floating_bias_error": 2.1316282072803006e-14,
+      "maximum_floating_inverse_dynamics_error": 2.1316282072803006e-14
+    },
+    "unitree_g1_mode_10": {
+      "passed": true,
+      "samples": 50,
+      "frames_compared": 1500,
+      "maximum_floating_bias_error": 1.7053025658242404e-13,
+      "maximum_floating_inverse_dynamics_error": 1.7053025658242404e-13
+    }
+  },
+  "full_body_upkie_reference": {
+    "available": false,
+    "reason": "No independent full-body Upkie WBC consumes the same MuJoCo observations and emits comparable torques/contact forces."
+  }
+}
