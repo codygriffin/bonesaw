@@ -18,7 +18,7 @@ try:
 except ImportError:
     HAS_LIVE_RUNTIME = False
 
-from upkie_live_contact_transition_replay import (  # noqa: E402
+from upkie_synthetic_contact_ingress_r298 import (  # noqa: E402
     PHYSICS_SUBSTEPS,
     control_masks,
     evaluate,
@@ -30,7 +30,7 @@ from upkie_live_contact_transition_replay import (  # noqa: E402
     HAS_LIVE_RUNTIME,
     "the live MuJoCo/PyO3 runtime is not installed",
 )
-class UpkieLiveContactTransitionReplayTests(unittest.TestCase):
+class UpkieSyntheticContactIngressR298Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.model = (ROOT / "models/upkie/upkie.urdf").resolve()

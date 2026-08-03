@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Replay a causal 250 Hz MuJoCo contact trace through the live Upkie worker.
+"""Replay synthetic 250 Hz contact chunks through the live Upkie ingress.
 
 This is an evaluation harness, not a contact estimator or a controller.  The
-worker still owns the real MuJoCo integration and calls the existing Rust
+worker still owns normal MuJoCo integration and calls the existing Rust
 adapter; the harness replaces only the named contact extraction boundary with
-a deterministic recorded source.  Five source frames are consumed for every
-50 Hz WBC tick so cadence, debounce, hard-row admission, and lifecycle
-fail-closed behavior can be checked without a server or a policy rollout.
+a deterministic synthetic source buffer. Five authored source frames are
+chunked for every 50 Hz WBC tick so downsampling semantics, debounce, hard-row
+admission, and lifecycle fail-closed behavior can be checked without a server
+or policy rollout. This is not a recorded MuJoCo contact trace.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from unittest.mock import patch
 import numpy as np
 
 
-REVISION = "upkie-live-contact-transition-r296"
+REVISION = "upkie-synthetic-contact-ingress-r298"
 PHYSICS_HZ = 250
 CONTROL_HZ = 50
 PHYSICS_SUBSTEPS = PHYSICS_HZ // CONTROL_HZ
@@ -48,7 +49,7 @@ def control_masks() -> list[tuple[int, int]]:
 
 
 class ReplayContactSource:
-    """Caller-owned 250 Hz source sampled once at each 50 Hz WBC boundary."""
+    """Synthetic 250 Hz buffer sampled once at each 50 Hz WBC boundary."""
 
     def __init__(self, masks_50hz: list[tuple[int, int]]) -> None:
         self.masks_250hz: list[tuple[int, int]] = []
@@ -81,9 +82,9 @@ class ReplayContactSource:
                 f"contact source overrun: requested [{start}:{stop}] of "
                 f"{len(self.masks_250hz)} frames"
             )
-        # A live WBC tick consumes the newest 250 Hz sample.  The source is
-        # deterministic and caller-owned; no simulator callback race can
-        # change the selected frame.
+        # The eval's 50 Hz ingress model consumes the newest synthetic 250 Hz
+        # sample. This does not claim the production worker calls the contact
+        # extractor during each physics substep.
         selected = np.asarray(chunk[-1], dtype=np.uint8)
         active[...] = selected
         self.records.append(
@@ -279,15 +280,15 @@ def evaluate(result: dict[str, Any], replay: dict[str, Any]) -> dict[str, bool]:
 def render_markdown(result: dict[str, Any], gates: dict[str, bool]) -> str:
     passed = all(gates.values())
     lines = [
-        f"# Bonesaw Upkie measured-contact transition replay · {REVISION}",
+        f"# Bonesaw Upkie synthetic contact-ingress replay · {REVISION}",
         "",
-        f"> Evaluation **{'PASS' if passed else 'FAIL'}**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic source trace; it adds no policy, solver change, or server.",
+        f"> Evaluation **{'PASS' if passed else 'FAIL'}**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic synthetic contact buffer; it adds no policy, solver change, or server.",
         "",
         "## Contract",
         "",
         f"The harness replays {len(result['source']['records'])} WBC ticks at {CONTROL_HZ} Hz. Each tick consumes exactly {PHYSICS_SUBSTEPS} source frames at {PHYSICS_HZ} Hz and selects the newest frame; each phase edge is placed on that newest frame to exercise the sampling boundary. The sequence covers `11`, `10`, `01`, and `00`; Rust's default three-sample activation and two-sample deactivation debounce is observed at the WBC boundary.",
         "",
-        "The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The replay source is therefore an executable timing/authority harness, not a claim that simulator truth is a hardware contact estimator.",
+        "The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The synthetic buffer is consumed in one extractor call at the 50 Hz boundary; it does not prove per-substep production sampling, measured MuJoCo transfer, or a hardware contact estimator.",
         "",
         "## Trace",
         "",
@@ -328,7 +329,7 @@ def render_html(markdown: str, result: dict[str, Any], gates: dict[str, bool]) -
             "<meta name='viewport' content='width=device-width,initial-scale=1'>",
             f"<title>Bonesaw {html.escape(REVISION)}</title>",
             "<style>body{font:15px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;background:#111827;color:#e5e7eb}pre{white-space:pre-wrap;line-height:1.45;background:#1f2937;padding:1rem;border-radius:8px}h1{color:#93c5fd}.pass{color:#86efac}.fail{color:#fca5a5}</style>",
-            f"<h1 class='{ 'pass' if passed else 'fail' }'>Bonesaw measured-contact replay · {html.escape(REVISION)}</h1>",
+            f"<h1 class='{ 'pass' if passed else 'fail' }'>Bonesaw synthetic contact ingress · {html.escape(REVISION)}</h1>",
             f"<pre>{html.escape(markdown)}</pre>",
         ]
     )
@@ -341,7 +342,7 @@ def parse_args() -> argparse.Namespace:
         "--output", default=f"benchmarks/results/{REVISION}"
     )
     parser.add_argument(
-        "--web-report", default=f"web/UPKIE_LIVE_CONTACT_TRANSITION_R296.html"
+        "--web-report", default=f"web/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.html"
     )
     return parser.parse_args()
 
@@ -364,10 +365,10 @@ def main() -> int:
     report = render_markdown(result, gates)
     output = pathlib.Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
-    (output / "upkie-live-contact-transition-metrics.json").write_text(
+    (output / "upkie-synthetic-contact-ingress-metrics.json").write_text(
         json.dumps(metrics, indent=2, sort_keys=True) + "\n"
     )
-    (output / "UPKIE_LIVE_CONTACT_TRANSITION_R296.md").write_text(report)
+    (output / "UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md").write_text(report)
     web_report = pathlib.Path(args.web_report)
     web_report.parent.mkdir(parents=True, exist_ok=True)
     web_report.write_text(render_html(report, result, gates))

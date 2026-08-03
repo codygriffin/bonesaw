@@ -485,19 +485,20 @@ stale-authored-contact state-ownership complaint, not the floating walking,
 tracking, thermal, or authority gates. See
 [`docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md`](LIVE_PLANT_INTENT_WRENCH_CONTRACT.md).
 
-## Current live feedback evidence — r296 sequential measured-contact replay
+## Current live feedback evidence — r298 synthetic contact ingress
 
-The new eval-only replay drives the existing `LiveUpkiePlant` and persistent
-Rust adapter with ten 50 Hz WBC ticks, each consuming exactly five 250 Hz
-source frames. It covers `11`, `10`, `01`, and `00`, observes the configured
+The eval-only replay drives the existing `LiveUpkiePlant` and persistent Rust
+adapter with ten 50 Hz WBC ticks, each selecting the newest sample from a
+five-frame synthetic 250 Hz chunk. It covers `11`, `10`, `01`, and `00`, observes the configured
 three-sample activation and two-sample release debounce, checks hard rows are
 always a subset of raw contact and fail closed on zero contact, and verifies a
 paused heartbeat hides retained authority without a reset. All 14 gates pass,
 the trace is exact on replay, and the 14-gate CLI plus 11/11 worker-plus-replay unittest suite
-passes. This closes the sequential contact-admission/timing harness gate, not
-the full floating walking/contact-transfer, tracking, or hardware gate; the
-source is a deterministic simulator boundary, not a hardware estimator. See
-[`UPKIE_LIVE_CONTACT_TRANSITION_R296.md`](../benchmarks/results/upkie-live-contact-transition-r296/UPKIE_LIVE_CONTACT_TRANSITION_R296.md).
+passes. The synthetic chunk is consumed inside one 50 Hz extractor call, so
+this closes the sequential ingress/debounce harness—not production per-substep
+sampling, the full floating walking/contact-transfer, tracking, or hardware
+gate. See
+[`UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md`](../benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
 
 ## Current live feedback checkpoint — r235 measured-state lifecycle
 

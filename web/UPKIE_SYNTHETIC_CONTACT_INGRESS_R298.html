@@ -1,17 +1,17 @@
 <!doctype html>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Bonesaw upkie-live-contact-transition-r296</title>
+<title>Bonesaw upkie-synthetic-contact-ingress-r298</title>
 <style>body{font:15px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;background:#111827;color:#e5e7eb}pre{white-space:pre-wrap;line-height:1.45;background:#1f2937;padding:1rem;border-radius:8px}h1{color:#93c5fd}.pass{color:#86efac}.fail{color:#fca5a5}</style>
-<h1 class='pass'>Bonesaw measured-contact replay · upkie-live-contact-transition-r296</h1>
-<pre># Bonesaw Upkie measured-contact transition replay · upkie-live-contact-transition-r296
+<h1 class='pass'>Bonesaw synthetic contact ingress · upkie-synthetic-contact-ingress-r298</h1>
+<pre># Bonesaw Upkie synthetic contact-ingress replay · upkie-synthetic-contact-ingress-r298
 
-&gt; Evaluation **PASS**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic source trace; it adds no policy, solver change, or server.
+&gt; Evaluation **PASS**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic synthetic contact buffer; it adds no policy, solver change, or server.
 
 ## Contract
 
 The harness replays 10 WBC ticks at 50 Hz. Each tick consumes exactly 5 source frames at 250 Hz and selects the newest frame; each phase edge is placed on that newest frame to exercise the sampling boundary. The sequence covers `11`, `10`, `01`, and `00`; Rust&#x27;s default three-sample activation and two-sample deactivation debounce is observed at the WBC boundary.
 
-The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The replay source is therefore an executable timing/authority harness, not a claim that simulator truth is a hardware contact estimator.
+The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The synthetic buffer is consumed in one extractor call at the 50 Hz boundary; it does not prove per-substep production sampling, measured MuJoCo transfer, or a hardware contact estimator.
 
 ## Trace
 

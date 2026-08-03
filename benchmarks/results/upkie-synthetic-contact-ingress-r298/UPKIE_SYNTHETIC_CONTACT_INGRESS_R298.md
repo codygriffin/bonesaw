@@ -1,12 +1,12 @@
-# Bonesaw Upkie measured-contact transition replay · upkie-live-contact-transition-r296
+# Bonesaw Upkie synthetic contact-ingress replay · upkie-synthetic-contact-ingress-r298
 
-> Evaluation **PASS**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic source trace; it adds no policy, solver change, or server.
+> Evaluation **PASS**. This report drives the existing Python MuJoCo worker and persistent Rust adapter with a deterministic synthetic contact buffer; it adds no policy, solver change, or server.
 
 ## Contract
 
 The harness replays 10 WBC ticks at 50 Hz. Each tick consumes exactly 5 source frames at 250 Hz and selects the newest frame; each phase edge is placed on that newest frame to exercise the sampling boundary. The sequence covers `11`, `10`, `01`, and `00`; Rust's default three-sample activation and two-sample deactivation debounce is observed at the WBC boundary.
 
-The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The replay source is therefore an executable timing/authority harness, not a claim that simulator truth is a hardware contact estimator.
+The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The synthetic buffer is consumed in one extractor call at the 50 Hz boundary; it does not prove per-substep production sampling, measured MuJoCo transfer, or a hardware contact estimator.
 
 ## Trace
 
