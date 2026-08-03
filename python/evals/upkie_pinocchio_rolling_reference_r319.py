@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import gc
 import hashlib
+import importlib.metadata
 import json
 import pathlib
 import resource
@@ -603,6 +604,11 @@ def evaluate(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, np.nda
             "physics": False,
             "inequality_solver": True,
         },
+        "versions": {
+            "pinocchio": pin.__version__,
+            "placo": importlib.metadata.version("placo"),
+            "numpy": np.__version__,
+        },
         "bounds": bounds,
         "state_parity": parity,
         "tracking_rms": {
@@ -841,6 +847,20 @@ def markdown(metrics: dict[str, Any]) -> str:
         "optimizer parity: acceleration-bound active-set choices remain measurably different. "
         "It does not establish closed-loop stability, measured-contact transfer, calibrated "
         "actuator/thermal authority, or hardware timing. Those remain separate consequence gates.",
+        "",
+        "## Provenance",
+        "",
+    ]
+    report += markdown_table(
+        ["artifact", "version or SHA-256"],
+        [
+            ["Pinocchio", metrics["versions"]["pinocchio"]],
+            ["PlaCo", metrics["versions"]["placo"]],
+            ["NumPy", metrics["versions"]["numpy"]],
+            *[[name, digest] for name, digest in metrics["source_sha256"].items()],
+        ],
+    )
+    report += [
         "",
     ]
     return "\n".join(report)

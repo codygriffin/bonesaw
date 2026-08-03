@@ -52,22 +52,22 @@ Near-active hard-bound states: reference `166/256`; Bonesaw `154/256`; mask agre
 | implementation | solve p50 / p99 / max µs | jitter p99 µs | queries/s | peak RSS MiB | GC |
 |---|---|---|---|---|---|
 | Bonesaw R317 | 118.8 / 131.2 / 147.4 | 15.0 | 8384 | 88.71 | 0 |
-| Pinocchio + generic QP | 2736.4 / 3789.3 / 4115.5 | 918.8 | 363 | 96.86 | 0 |
+| Pinocchio + generic QP | 2622.0 / 2761.5 / 3219.9 | 140.0 | 380 | 97.69 | 0 |
 
-The reference timing includes construction and solution of the independent constrained hierarchy through PlaCo's generic QP API. Its one-time Pinocchio product build costs `28.540 ms` for all 256 states; that cost is retained separately because Bonesaw emits products inside each query.
+The reference timing includes construction and solution of the independent constrained hierarchy through PlaCo's generic QP API. Its one-time Pinocchio product build costs `28.079 ms` for all 256 states; that cost is retained separately because Bonesaw emits products inside each query.
 
 ## Execution windows
 
 | states | active | max solution delta | qdd RMS | torque RMS | force RMS | reference p99 µs |
 |---|---|---|---|---|---|---|
-| 0–31 | 32 | 6.036e+01 | 4.630e+00 | 1.317e-02 | 2.111e+00 | 3764.3 |
-| 32–63 | 29 | 2.104e+01 | 1.180e+00 | 3.563e-03 | 5.200e+00 | 3755.8 |
-| 64–95 | 17 | 2.960e-02 | 3.191e-03 | 1.236e-05 | 1.531e-04 | 3612.3 |
-| 96–127 | 32 | 6.736e-02 | 4.133e-03 | 3.441e-05 | 2.733e-04 | 3683.1 |
-| 128–159 | 13 | 1.486e-01 | 1.242e-02 | 7.835e-05 | 6.942e-04 | 3804.2 |
-| 160–191 | 9 | 2.004e+01 | 1.885e-02 | 5.429e-05 | 2.046e+00 | 3816.7 |
-| 192–223 | 2 | 6.749e-02 | 1.046e-02 | 2.965e-05 | 4.532e-04 | 3753.8 |
-| 224–255 | 32 | 2.042e+01 | 1.272e-02 | 7.124e-05 | 2.084e+00 | 3789.1 |
+| 0–31 | 32 | 6.036e+01 | 4.630e+00 | 1.317e-02 | 2.111e+00 | 2779.3 |
+| 32–63 | 29 | 2.104e+01 | 1.180e+00 | 3.563e-03 | 5.200e+00 | 2748.7 |
+| 64–95 | 17 | 2.960e-02 | 3.191e-03 | 1.236e-05 | 1.531e-04 | 2745.1 |
+| 96–127 | 32 | 6.736e-02 | 4.133e-03 | 3.441e-05 | 2.733e-04 | 2697.0 |
+| 128–159 | 13 | 1.486e-01 | 1.242e-02 | 7.835e-05 | 6.942e-04 | 2745.4 |
+| 160–191 | 9 | 2.004e+01 | 1.885e-02 | 5.429e-05 | 2.046e+00 | 2748.0 |
+| 192–223 | 2 | 6.749e-02 | 1.046e-02 | 2.965e-05 | 4.532e-04 | 2784.3 |
+| 224–255 | 32 | 2.042e+01 | 1.272e-02 | 7.124e-05 | 2.084e+00 | 2782.0 |
 
 ## Gates
 
@@ -83,3 +83,16 @@ The reference timing includes construction and solution of the independent const
 ## Boundary
 
 R319 closes independent nonholonomic row and hard-bound reconstruction, but not complete optimizer parity: acceleration-bound active-set choices remain measurably different. It does not establish closed-loop stability, measured-contact transfer, calibrated actuator/thermal authority, or hardware timing. Those remain separate consequence gates.
+
+## Provenance
+
+| artifact | version or SHA-256 |
+|---|---|
+| Pinocchio | 3.8.0 |
+| PlaCo | 0.9.23 |
+| NumPy | 2.3.5 |
+| model | d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483 |
+| input | f31c69dd9b1f8bab7f58a8870b53e390b45bae848c348668009440e24c1e1e3e |
+| bonesaw | 3574846fab8ac26935cd722aa497b89bd8d4f259841d9cb14db35fa2e89232d5 |
+| bonesaw_metrics | 9d3f854ed90be8ced310f028636fabb8e2cca65d8cb54220177493f18ace2ad7 |
+| evaluator | 35e9ff4629916e1f1c37884ec3581a026810266bc7824095cf1dc2645abadf38 |
