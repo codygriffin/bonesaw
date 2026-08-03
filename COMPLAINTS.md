@@ -3,6 +3,19 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R311 narrows the current live-controller complaint to off-CoM moment authority.
+The 48-case policy-free wrench matrix is a valid harness: centered repeated
+pulls finish with an upright tail and all tested moments at or below `1 N·m`
+remain nonterminal. Upper-base pulls expose a repeatable `1.5 N·m`-class fall
+boundary. Four lower-force cases each contain one nonadmitted solve; the
+fall-safe path retains the previous admitted effort for that tick, performs no
+reset, and admits on the next tick, but the zero-nonadmission quality gate stays
+red. More projection sweeps do not change that boundary. The largest remaining
+behavior chunk is a phase-aware landing/moment-rejection action that sustains
+measured contact under upper-body wrench, not a longer timeout or larger QP
+budget. See the
+[R311 report](benchmarks/results/upkie-live-wrench-envelope-r311/UPKIE_LIVE_WRENCH_ENVELOPE_R311.md).
+
 R308 adds the first bounded Rust-owned single-support touchdown request. It
 consumes only an exact measured one-wheel mask, the free wheel's measured
 height/velocity, and a preallocated Jacobian; its capped vertical request then
@@ -31,23 +44,6 @@ reacquisition action still must be generated, admitted by the ordinary WBC,
 and shown to recover in MuJoCo. See the
 [R305 observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
 
-R307 closes the ownership and causal-trigger portion of the wheel-load-reserve
-action complaint, but deliberately does not close recovery. Its retained
-numbers are an explicit fast-profile evaluation (250 Hz WBC / 1 kHz MuJoCo);
-the hosted/public executable remains 50 Hz WBC / 250 Hz MuJoCo. The default-off
-persistent Rust action owns signed load filtering, weaker-wheel trend
-prediction, morphology-derived support sign, lateral DCM continuation, bounded
-lateral/bank requests, slew, and authority. It remains exactly dormant through
-the 20 s nominal hold, runs at `3.069 µs` p99 with zero allocations, and delays
-first support loss on the 8 N trace from tick 34 to tick 53 while reducing peak
-lateral displacement from `0.1196 m` to `0.0360 m`. It then oscillates, has one
-non-admitted `MaxIterations` tick, and falls at tick 73. A five-second stable
-tail gate rejects this apparent short recovery. R308 now supplies the first
-bounded contact-mode single-support request composed with R305's qualified
-observer; the remaining complaint is physically sustained landing/reload, not
-more timeout, QP iterations, or another scalar gain screen. See the
-[R307 report](benchmarks/results/upkie-live-load-reserve-action-r307/UPKIE_LIVE_LOAD_RESERVE_ACTION_R307.md).
-
 R306 knocks off the adjacent authority-leak complaint. Six existing capture,
 viability, and support-contingency profiles now keep the measured hard-contact
 mask authoritative across primary WBC, admission, forecast, lease, and
@@ -58,48 +54,6 @@ open; R308 supplies the bounded landing request, but the phase-aware physical
 reacquisition consequence remains open. This is not a larger timeout or a
 planner scratch mask. See the
 [R306 report](benchmarks/results/upkie-live-reacquisition-modes-r306/UPKIE_LIVE_REACQUISITION_MODES_R306.md).
-
-R302 closes the gain-calibration question and leaves the real recovery complaint
-sharply bounded. A 160-profile screen selects
-`[9.81,4,16,12,80,14,8,8,20,80,120]`; its measured candidate delays the fall
-from tick 52 to tick 644, has no `MaxIterations`, stays below `1e-8` hard
-residual, runs at `0.265 ms` controller p99, and allocates zero Rust bytes.
-It then spends 494 ticks below 0.40 m without wheel support and never reaches
-ten consecutive both-wheel/upright ticks, so recovery remains red. R308 adds
-the bounded single-support request; a phase-aware support-changing/landing
-action that sustains physical reacquisition is still required. More QP
-iterations or a longer timeout is not evidence of recovery. See the
-[R302 report](benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
-
-R301 closes the first bounded degraded-mode response on that frozen trace. An
-explicit, evaluation-only Rust flight-contingency profile queries measured
-support, admits only a finite hard-feasible candidate, removes both primary
-`MaxIterations` ticks, keeps maximum dynamics/contact residuals at
-`1.788e-11/3.673e-12`, uses zero Rust allocations, and delays the fall boundary
-from tick 52 to tick 78 (520 ms). Controller p99 is `1.327 ms` (maximum
-`4.958 ms`). The candidate still falls, so recovery, walking, and authority
-remain unresolved; the next behavior complaint is a support-feasible braking
-or recovery candidate that preserves these gates and survives the same trace
-without merely extending the terminal fall horizon. See the
-[R301 report](benchmarks/results/upkie-live-support-contingency-r301/UPKIE_LIVE_SUPPORT_CONTINGENCY_R301.md).
-
-R300 closes the missing live-rate dynamic consequence fixture but leaves the
-controller behavior explicitly red. A zero-wrench control holds measured `11`
-for 1.06 s; the same initial state plus an 8 N lateral wrench for 200 ms
-produces actual `11→10→01→00`, then a fall boundary at tick 52. Transport,
-hard-row removal, no-reset-on-solver-error, exact replay, zero allocation, and
-the 20 ms worker deadline pass. Every 50 Hz solve consumes the final completed
-sample of the prior five-frame 250 Hz contact window; the whole window and its
-loss/gain edges remain visible. Controller behavior fails: right-support ticks
-48/50 hit `MaxIterations`, the two controller calls above 5 ms produce
-5.353/5.408 ms p99/max and 5.288/5.290 ms adjacent-jitter p99/max in the
-frozen artifact, and unsolved
-dynamics/contact residuals reach 91.4/12.9. R301 supplies the first bounded
-candidate response while preserving every fixture gate; the solver failures
-remain non-admitted and visible in the production profile. Diagnostic hard rows
-are retained for inspection, but executable hard rows now fail closed on those
-ticks. See the
-[R300 report](benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
 
 R297 closes the 5 ms deadline only for this machine's declared host-native
 local deployment: seven exact production repeats report 4.644 ms median and
