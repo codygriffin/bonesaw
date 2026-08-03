@@ -826,6 +826,24 @@ function updatePlantTelemetry(message) {
     supportPressure,
     supportCount === 0 ? "critical" : supportCount === 1 ? "warning" : "ok",
   );
+  const touchdownEnabled = Boolean(metrics.wbc_single_support_reacquisition_enabled);
+  const touchdownDiagnostics = Array.isArray(metrics.wbc_single_support_reacquisition_diagnostics)
+    ? metrics.wbc_single_support_reacquisition_diagnostics
+    : [];
+  const touchdownActive = Boolean(metrics.wbc_single_support_reacquisition_active);
+  const touchdownAuthority = clampUnit(Number(metrics.wbc_single_support_reacquisition_authority || 0));
+  const touchdownError = Number(touchdownDiagnostics[7]);
+  const touchdownAcceleration = Number(touchdownDiagnostics[9]);
+  const touchdownTransition = Number(touchdownDiagnostics[13]);
+  setLiveAuthorityRow(
+    "authority-touchdown",
+    touchdownEnabled ? (touchdownActive ? `${Math.round(100 * touchdownAuthority)}%` : "ARMED") : "OFF",
+    touchdownEnabled
+      ? `${touchdownActive ? "measured single support" : "waiting for exact single support"} · Δz ${Number.isFinite(touchdownError) ? `${(1000 * touchdownError).toFixed(1)} mm` : "N/A"} · aᵥ ${Number.isFinite(touchdownAcceleration) ? `${touchdownAcceleration.toFixed(2)} m/s²` : "N/A"} · transition ${Number.isFinite(touchdownTransition) ? touchdownTransition : "N/A"}`
+      : "default-off evaluation request · no command authority",
+    touchdownEnabled ? (touchdownActive ? touchdownAuthority : 0) : 0,
+    !touchdownEnabled ? "unavailable" : touchdownActive ? "warning" : "ok",
+  );
   const residualParts = [
     ["dyn", Number(metrics.wbc_dynamics_residual)],
     ["contact", Number(metrics.wbc_contact_residual)],
@@ -1835,6 +1853,23 @@ function drawAuthorityAnnotations() {
         "CTG",
         selected ? 0.72 : requested ? 0.42 : 0,
         selected ? "ON" : requested ? "REQ" : "idle",
+        false,
+      );
+    }
+    if (Boolean(physical.wbc_single_support_reacquisition_enabled)) {
+      y += 16;
+      const active = Boolean(physical.wbc_single_support_reacquisition_active);
+      const authority = clampUnit(Number(physical.wbc_single_support_reacquisition_authority || 0));
+      const diagnostics = Array.isArray(physical.wbc_single_support_reacquisition_diagnostics)
+        ? physical.wbc_single_support_reacquisition_diagnostics
+        : [];
+      const error = Number(diagnostics[7]);
+      drawTinyAuthorityBar(
+        x,
+        y,
+        "TDN",
+        active ? authority : 0,
+        active && Number.isFinite(error) ? `${Math.round(error * 1000)}mm` : "idle",
         false,
       );
     }
