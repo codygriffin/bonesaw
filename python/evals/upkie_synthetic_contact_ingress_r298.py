@@ -49,7 +49,7 @@ def control_masks() -> list[tuple[int, int]]:
 
 
 class ReplayContactSource:
-    """Synthetic 250 Hz buffer sampled once at each 50 Hz WBC boundary."""
+    """Synthetic 250 Hz buffer sampled at the live worker's contact boundary."""
 
     def __init__(self, masks_50hz: list[tuple[int, int]]) -> None:
         self.masks_250hz: list[tuple[int, int]] = []
@@ -63,6 +63,8 @@ class ReplayContactSource:
             )
             previous = mask
         self.cursor = 0
+        self.calls = 0
+        self.startup_observation: list[int] | None = None
         self.records: list[dict[str, Any]] = []
 
     def __call__(
@@ -72,30 +74,38 @@ class ReplayContactSource:
         _body_sets: Any,
         active: np.ndarray,
     ) -> np.ndarray:
-        """Write the newest frame in the next five-frame source chunk."""
+        """Write one synthetic 250 Hz observation into worker-owned storage."""
 
-        start = self.cursor
-        stop = start + PHYSICS_SUBSTEPS
-        chunk = self.masks_250hz[start:stop]
-        if len(chunk) != PHYSICS_SUBSTEPS:
+        # The first call is the frame-zero startup observation. It is not part
+        # of a completed physics window and therefore does not advance the
+        # source cursor; the following five calls fill the first live window.
+        if self.calls == 0:
+            selected = np.asarray(self.masks_250hz[0], dtype=np.uint8)
+            self.startup_observation = selected.tolist()
+            self.calls += 1
+            active[...] = selected
+            return active
+        if self.cursor >= len(self.masks_250hz):
             raise AssertionError(
-                f"contact source overrun: requested [{start}:{stop}] of "
+                f"contact source overrun: requested frame {self.cursor} of "
                 f"{len(self.masks_250hz)} frames"
             )
-        # The eval's 50 Hz ingress model consumes the newest synthetic 250 Hz
-        # sample. This does not claim the production worker calls the contact
-        # extractor during each physics substep.
-        selected = np.asarray(chunk[-1], dtype=np.uint8)
+        frame_index = self.cursor
+        selected = np.asarray(self.masks_250hz[frame_index], dtype=np.uint8)
         active[...] = selected
-        self.records.append(
-            {
-                "control_tick": len(self.records),
-                "physics_indices": list(range(start, stop)),
-                "selected": selected.tolist(),
-                "chunk": [list(frame) for frame in chunk],
-            }
-        )
-        self.cursor = stop
+        self.cursor += 1
+        self.calls += 1
+        if self.cursor % PHYSICS_SUBSTEPS == 0:
+            start = self.cursor - PHYSICS_SUBSTEPS
+            chunk = self.masks_250hz[start : self.cursor]
+            self.records.append(
+                {
+                    "control_tick": len(self.records),
+                    "physics_indices": list(range(start, self.cursor)),
+                    "selected": selected.tolist(),
+                    "chunk": [list(frame) for frame in chunk],
+                }
+            )
         return active
 
 
@@ -174,6 +184,8 @@ def run_replay(model_path: pathlib.Path) -> dict[str, Any]:
             "physics_substeps_per_control": PHYSICS_SUBSTEPS,
             "physics_frame_count": len(source.masks_250hz),
             "cursor": source.cursor,
+            "calls": source.calls,
+            "startup_observation": source.startup_observation,
             "records": source.records,
         },
         "states": summaries,
@@ -210,7 +222,10 @@ def evaluate(result: dict[str, Any], replay: dict[str, Any]) -> dict[str, bool]:
     hard = [tuple(state["hard"]) for state in states]
     debounced = [tuple(state["debounced"]) for state in states]
     patterns = set(observed)
-    expected = [tuple(mask) for mask in masks]
+    # The production worker consumes the terminal mask from the completed
+    # prior physics window. Frame zero is the startup observation; every later
+    # WBC call therefore sees the preceding 50 Hz source mask.
+    expected = [tuple(masks[0]), *(tuple(mask) for mask in masks[:-1])]
     paused = result["paused"]
     initial_epoch = result["initial_reset_epoch"]
 
@@ -245,15 +260,14 @@ def evaluate(result: dict[str, Any], replay: dict[str, Any]) -> dict[str, bool]:
             for record in records
         ),
         "activation_debounce": debounced[:3] == [(0, 0), (0, 0), (1, 1)]
-        and debounced[7] == (0, 1),
+        and debounced[8] == (0, 1),
         "deactivation_debounce": debounced[3:7]
-        == [(1, 1), (1, 0), (1, 0), (0, 0)],
+        == [(1, 1), (1, 1), (1, 0), (1, 0)],
         "hard_rows_intersect_raw": all(
             all(hard_value <= raw_value for hard_value, raw_value in zip(hard_tick, raw_tick, strict=True))
             for hard_tick, raw_tick in zip(hard, observed, strict=True)
         ),
-        "hard_rows_fail_closed_on_zero_contact": hard[8] == (0, 0)
-        and hard[9] == (0, 0),
+        "hard_rows_fail_closed_on_zero_contact": hard[9] == (0, 0),
         "running_observation_is_exact": all(
             state["available"] and state["status"] == 0 and state["provenance"] == 0
             for state in states
@@ -286,9 +300,9 @@ def render_markdown(result: dict[str, Any], gates: dict[str, bool]) -> str:
         "",
         "## Contract",
         "",
-        f"The harness replays {len(result['source']['records'])} WBC ticks at {CONTROL_HZ} Hz. Each tick consumes exactly {PHYSICS_SUBSTEPS} source frames at {PHYSICS_HZ} Hz and selects the newest frame; each phase edge is placed on that newest frame to exercise the sampling boundary. The sequence covers `11`, `10`, `01`, and `00`; Rust's default three-sample activation and two-sample deactivation debounce is observed at the WBC boundary.",
+        f"The harness replays {len(result['source']['records'])} WBC ticks at {CONTROL_HZ} Hz. Each completed tick supplies exactly {PHYSICS_SUBSTEPS} source frames at {PHYSICS_HZ} Hz; the following WBC call consumes the terminal frame from the preceding window, with frame zero as startup. Each phase edge is placed on a terminal frame to exercise the sampling boundary. The sequence covers `11`, `10`, `01`, and `00`; Rust's default three-sample activation and two-sample deactivation debounce is observed at the WBC boundary.",
         "",
-        "The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The synthetic buffer is consumed in one extractor call at the 50 Hz boundary; it does not prove per-substep production sampling, measured MuJoCo transfer, or a hardware contact estimator.",
+        "The replacement is limited to `measured_wheel_ground_contacts_into`: the worker still performs its normal five MuJoCo integration substeps and calls the existing `RustWbcAdapter.solve` path. The synthetic source supplies one frame per 250 Hz contact sample and groups the resulting five frames for each 50 Hz boundary; it does not prove measured MuJoCo transfer or a hardware contact estimator.",
         "",
         "## Trace",
         "",

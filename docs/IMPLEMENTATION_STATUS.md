@@ -19,8 +19,9 @@ Diagnostic hard-contact rows remain visible for inspection, while
 `wbc_hard_contact_executable` is fail-closed whenever the solve is paused or
 non-admitted; a transient edge inside a window is diagnostic until it reaches
 the terminal sample consumed at the next boundary.
-Controller behavior is rejected: ticks 48/50 take up to 5.415 ms (5.341 ms
-p99) in the frozen artifact, raw and published status are `MaxIterations`, and unsolved
+Controller behavior is rejected: ticks 48/50 are the only two calls above 5 ms
+and reach 5.343/5.367 ms p99/max, with 5.249/5.252 ms adjacent-jitter p99/max,
+in the frozen artifact. Raw and published status are `MaxIterations`, and unsolved
 dynamics/contact residuals reach 91.4/12.9. The plant stream now exposes raw
 status, allocation counts, maximum constraint violation, and dynamics/contact
 residuals; the browser renders them as separate support/hard-row/solver
@@ -526,16 +527,17 @@ tracking, thermal, or authority gates. See
 ## Current live feedback evidence — r298 synthetic contact ingress
 
 The eval-only replay drives the existing `LiveUpkiePlant` and persistent Rust
-adapter with ten 50 Hz WBC ticks, each selecting the newest sample from a
-five-frame synthetic 250 Hz chunk. It covers `11`, `10`, `01`, and `00`, observes the configured
-three-sample activation and two-sample release debounce, checks hard rows are
-always a subset of raw contact and fail closed on zero contact, and verifies a
-paused heartbeat hides retained authority without a reset. All 14 gates pass,
-the trace is exact on replay, and the 14-gate CLI plus 11/11 worker-plus-replay unittest suite
-passes. The synthetic chunk is consumed inside one 50 Hz extractor call, so
-this closes the sequential ingress/debounce harness—not production per-substep
-sampling, the full floating walking/contact-transfer, tracking, or hardware
-gate. See
+adapter with ten 50 Hz WBC ticks. Its synthetic source supplies one frame per
+250 Hz contact sample and groups five frames per boundary; the following WBC
+call consumes the terminal frame from the preceding window. It covers `11`,
+`10`, `01`, and `00`, observes the configured three-sample activation and
+two-sample release debounce, checks hard rows are always a subset of raw
+contact and fail closed on zero contact, and verifies a paused heartbeat hides
+retained authority without a reset. All 14 gates pass, the trace is exact on
+replay, and the 14-gate CLI plus 11/11 worker-plus-replay unittest suite
+passes. This remains a sequential ingress/debounce harness—not measured
+MuJoCo transfer, the full floating walking/contact-transfer, tracking, or
+hardware gate. See
 [`UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md`](../benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
 
 ## Current live feedback checkpoint — r235 measured-state lifecycle

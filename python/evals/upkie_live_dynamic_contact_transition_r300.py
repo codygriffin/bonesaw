@@ -217,6 +217,17 @@ def summarize(case: dict[str, Any]) -> dict[str, Any]:
         [state["wbc_maximum_constraint_violation"] for state in states],
         np.float64,
     )
+    controller_jitter = (
+        np.abs(np.diff(controller_steps))
+        if len(controller_steps) > 1
+        else controller_steps
+    )
+    worker_steps = np.asarray(
+        [state["worker_step_us"] for state in states], np.float64
+    )
+    worker_jitter = (
+        np.abs(np.diff(worker_steps)) if len(worker_steps) > 1 else worker_steps
+    )
     transitions = [
         {
             "tick": states[index]["index"],
@@ -294,9 +305,11 @@ def summarize(case: dict[str, Any]) -> dict[str, Any]:
             if state["wbc_status"] == "MaxIterations"
         ],
         "controller_step_us": distribution(controller_steps),
-        "worker_step_us": distribution(
-            np.asarray([state["worker_step_us"] for state in states])
-        ),
+        "controller_adjacent_jitter_us": distribution(controller_jitter),
+        "controller_over_5ms_ticks": int(np.sum(controller_steps > 5_000.0)),
+        "worker_step_us": distribution(worker_steps),
+        "worker_adjacent_jitter_us": distribution(worker_jitter),
+        "worker_over_20ms_ticks": int(np.sum(worker_steps > 20_000.0)),
         "ground_normal_force_n": distribution(
             np.asarray([state["total_ground_normal_force_n"] for state in states])
         ),
@@ -534,7 +547,11 @@ def render_report(
         f"| max tilt rad | {c0['maximum_root_tilt_rad']:.5f} | {c1['maximum_root_tilt_rad']:.5f} |",
         f"| min height m | {c0['minimum_root_height_m']:.5f} | {c1['minimum_root_height_m']:.5f} |",
         f"| controller p50 / p99 / max µs | {c0['controller_step_us']['p50']:.1f} / {c0['controller_step_us']['p99']:.1f} / {c0['controller_step_us']['maximum']:.1f} | {c1['controller_step_us']['p50']:.1f} / {c1['controller_step_us']['p99']:.1f} / {c1['controller_step_us']['maximum']:.1f} |",
+        f"| controller adjacent jitter p50 / p99 / max µs | {c0['controller_adjacent_jitter_us']['p50']:.1f} / {c0['controller_adjacent_jitter_us']['p99']:.1f} / {c0['controller_adjacent_jitter_us']['maximum']:.1f} | {c1['controller_adjacent_jitter_us']['p50']:.1f} / {c1['controller_adjacent_jitter_us']['p99']:.1f} / {c1['controller_adjacent_jitter_us']['maximum']:.1f} |",
+        f"| controller calls >5 ms | {c0['controller_over_5ms_ticks']} | {c1['controller_over_5ms_ticks']} |",
         f"| worker p50 / p99 / max µs | {c0['worker_step_us']['p50']:.1f} / {c0['worker_step_us']['p99']:.1f} / {c0['worker_step_us']['maximum']:.1f} | {c1['worker_step_us']['p50']:.1f} / {c1['worker_step_us']['p99']:.1f} / {c1['worker_step_us']['maximum']:.1f} |",
+        f"| worker adjacent jitter p50 / p99 / max µs | {c0['worker_adjacent_jitter_us']['p50']:.1f} / {c0['worker_adjacent_jitter_us']['p99']:.1f} / {c0['worker_adjacent_jitter_us']['maximum']:.1f} | {c1['worker_adjacent_jitter_us']['p50']:.1f} / {c1['worker_adjacent_jitter_us']['p99']:.1f} / {c1['worker_adjacent_jitter_us']['maximum']:.1f} |",
+        f"| worker calls >20 ms | {c0['worker_over_20ms_ticks']} | {c1['worker_over_20ms_ticks']} |",
         f"| max constraint / dynamics / contact residual | {c0['maximum_constraint_violation']:.3e} / {c0['maximum_dynamics_residual']:.3e} / {c0['maximum_contact_residual']:.3e} | {c1['maximum_constraint_violation']:.3e} / {c1['maximum_dynamics_residual']:.3e} / {c1['maximum_contact_residual']:.3e} |",
         f"| MaxIterations ticks | {c0['max_iterations_ticks'] or '—'} | {c1['max_iterations_ticks'] or '—'} |",
         f"| max controller / constraint tick | {c0['maximum_controller_step_tick']} / {c0['maximum_constraint_violation_tick']} | {c1['maximum_controller_step_tick']} / {c1['maximum_constraint_violation_tick']} |",
@@ -564,7 +581,7 @@ def render_report(
     lines.extend(
         [
             "",
-            "This is a discriminating consequence fixture, not a recovery pass. It proves that actual integrated contact loss crosses an explicit prior-window causality boundary and reaches the streamed authority layers without stale hard rows or reset masking. The controller still falls; the next behavior candidate must improve this same frozen trace without weakening any transport, residual, timing, or allocation gate.",
+            "This is a discriminating consequence fixture, not a recovery pass. It proves that actual integrated contact loss crosses an explicit prior-window causality boundary and reaches the streamed authority layers without stale hard rows or reset masking. The controller still falls; the next behavior candidate must improve this same frozen trace without weakening any transport, residual, timing, or allocation gate. Rust allocation counters are in-process and exact; process RSS, Python GC, and hardware thermal/power telemetry are deliberately not claimed by this fixture and remain separate benchmark work.",
             "",
         ]
     )
@@ -589,6 +606,11 @@ def main() -> int:
     parser.add_argument("--model", default="models/upkie/upkie.urdf")
     parser.add_argument("--output", default=f"benchmarks/results/{REVISION}")
     parser.add_argument("--web-report", default="web/UPKIE_LIVE_DYNAMIC_CONTACT_R300.html")
+    parser.add_argument(
+        "--require-behavior",
+        action="store_true",
+        help="return failure unless the recovery/residual/deadline behavior gates also pass",
+    )
     args = parser.parse_args()
     model = pathlib.Path(args.model)
     candidate = run_case(model, disturbed=True)
@@ -638,7 +660,9 @@ def main() -> int:
             sort_keys=True,
         )
     )
-    return 0 if benchmark_passed else 1
+    return 0 if benchmark_passed and (
+        not args.require_behavior or controller_behavior_passed
+    ) else 1
 
 
 if __name__ == "__main__":

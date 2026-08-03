@@ -23,6 +23,7 @@ from upkie_live_dynamic_contact_transition_r300 import (  # noqa: E402
     evaluate,
     fixture_passed,
     run_case,
+    summarize,
 )
 
 
@@ -44,6 +45,11 @@ class UpkieLiveDynamicContactTransitionR300Tests(unittest.TestCase):
         self.assertFalse(gates["controller_p99_under_5ms"])
         self.assertFalse(gates["hard_residuals_under_1e8"])
         self.assertFalse(gates["candidate_recovers_without_boundary"])
+        summary = summarize(candidate)
+        self.assertEqual(summary["controller_over_5ms_ticks"], 2)
+        self.assertEqual(summary["worker_over_20ms_ticks"], 0)
+        self.assertGreater(summary["controller_adjacent_jitter_us"]["p99"], 0.0)
+        self.assertGreater(summary["worker_adjacent_jitter_us"]["p99"], 0.0)
 
     def test_boundary_is_reported_before_reset_is_consumed(self) -> None:
         candidate = run_case(self.model, disturbed=True)

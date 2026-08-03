@@ -298,12 +298,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   generic result, walking/contact realization, and authority remain open. See
   the [r297 host-native timing report](benchmarks/results/g1-host-native-timing-r297/G1_HOST_NATIVE_TIMING_R297.md).
 - R298 drives a synthetic contact buffer through the existing live worker and
-  persistent Rust adapter. Ten 50 Hz control ticks each select the newest of
-  five authored 250 Hz samples and cover `11`, `10`, `01`, and `00`; all 14
+  persistent Rust adapter. Ten completed 50 Hz windows each receive five
+  authored 250 Hz samples; the following WBC call consumes the terminal sample
+  from the preceding window and covers `11`, `10`, `01`, and `00`; all 14
   debounce, edge-selection, hard-subset, fail-closed pause, no-reset, cadence,
-  and exact-replay gates pass. The buffer is consumed in one 50 Hz extractor
-  call, so this closes the sequential ingress harness—not per-substep MuJoCo
-  measurement, a hardware estimator, or walking transfer. See the
+  and exact-replay gates pass. The source now supplies one frame per 250 Hz
+  contact sample and groups five frames per 50 Hz window, matching the
+  production ring without claiming measured MuJoCo transfer, a hardware
+  estimator, or walking authority. See the
   [r298 synthetic contact-ingress report](benchmarks/results/upkie-synthetic-contact-ingress-r298/UPKIE_SYNTHETIC_CONTACT_INGRESS_R298.md).
 - R299 replaces authored masks with actual MuJoCo collision truth. Root poses
   alone produce 50 kinematic 250 Hz frames spanning `11→10→01→00`; the
@@ -325,8 +327,9 @@ This is an engineering prototype, not a safety-rated robot controller.
   rows remain visible, while executable hard rows fail closed on a paused or
   non-admitted solve; a transient edge is diagnostic until the terminal sample
   reaches the next boundary. Controller behavior is
-  rejected: ticks 48/50 reach `MaxIterations`, controller p99/max are
-  5.341/5.415 ms in the frozen artifact, and unsolved
+  rejected: ticks 48/50 reach `MaxIterations`; the two calls above 5 ms produce
+  5.343/5.367 ms p99/max and 5.249/5.252 ms adjacent-jitter p99/max in the
+  frozen artifact. Unsolved
   dynamics/contact residuals reach 91.4/12.9. The live page now renders those
   residuals, support masks, allocation counts, and raw solver status in the
   authority stack and near-body bars. See the

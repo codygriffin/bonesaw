@@ -11,8 +11,9 @@ hard-row removal, no-reset-on-solver-error, exact replay, zero allocation, and
 the 20 ms worker deadline pass. Every 50 Hz solve consumes the final completed
 sample of the prior five-frame 250 Hz contact window; the whole window and its
 loss/gain edges remain visible. Controller behavior fails: right-support ticks
-48/50 hit `MaxIterations`, controller p99/max are 5.341/5.415 ms in the frozen
-artifact, and unsolved
+48/50 hit `MaxIterations`, the two controller calls above 5 ms produce
+5.343/5.367 ms p99/max and 5.249/5.252 ms adjacent-jitter p99/max in the
+frozen artifact, and unsolved
 dynamics/contact residuals reach 91.4/12.9. The immediate complaint is a controller candidate
 that improves this frozen physical trace while preserving every fixture gate;
 the solver failures must remain non-admitted and visible. Diagnostic hard rows
