@@ -30,6 +30,13 @@ CPU-4-pinned repeats (mean `5.177 ms`). The gate is retained as a typed,
 default-off research primitive; no walking or authority promotion follows.
 See [`G1_POST_TRANSFER_STYLE_BUDGET_R290.md`](../benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
 
+The supplemental six-profile screen confirms there is no missed static
+ceiling. Style-1 repeats one non-timing digest but spans 4.852–5.185 ms p99,
+moves first release 1234→875, and worsens root RMS 41.35%. Style-2 remains
+above 5 ms and worsens root RMS 10.05%; Style-3/4/6/8 never exhaust and are
+byte-exact on every common non-timing array. See
+[`G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md`](../benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
+
 ## Current CPU optimization audit — r289 direct-offset Jacobi pointer
 
 R289 tests direct base-pointer offsets around the arithmetic-identical R284

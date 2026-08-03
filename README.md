@@ -242,6 +242,12 @@ This is an engineering prototype, not a safety-rated robot controller.
   10.0%/10.3%/10.5%. The gate is retained as typed research telemetry and is
   rejected for walking or authority. See the
   [r290 post-transfer Style report](benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
+- A supplemental R290 six-profile screen closes the lower/higher-ceiling
+  question. Style-1 is bitwise repeatable but spans 4.852–5.185 ms p99, moves
+  first release 1234→875, and worsens root RMS 41.35%. Style-2 remains above
+  5 ms and worsens root RMS 10.05%; Style-3/4/6/8 never exhaust and preserve
+  every common non-timing array. All finite profiles remain rejected. See the
+  [r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

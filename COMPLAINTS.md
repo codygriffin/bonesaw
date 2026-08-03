@@ -113,6 +113,14 @@ continuous authority/progress supervisor or further exact dense-work
 reduction, not a static call cap. See the
 [r290 post-transfer Style report](benchmarks/results/g1-post-transfer-style-budget-r290/G1_POST_TRANSFER_STYLE_BUDGET_R290.md).
 
+The supplemental R290 profile screen rules out the adjacent static ceilings.
+Style-1 moves first release 1234→875, worsens root RMS 41.35%, and has one of
+five p99 repeats above 5 ms. Style-2 remains behavior- and timing-negative;
+Style-3/4/6/8 never exhaust and are inert. The open complaint is therefore an
+explicit cross-tick progress/tracking-debt supervisor or exact work reduction,
+not another fixed Style count. See the
+[r290 profile screen](benchmarks/results/g1-post-transfer-style-budget-screen-r290/G1_POST_TRANSFER_STYLE_BUDGET_SCREEN_R290.md).
+
 ## Open browser gate: viewport frame time
 
 R284 closes the next exact CPU work slice without closing the deadline: the

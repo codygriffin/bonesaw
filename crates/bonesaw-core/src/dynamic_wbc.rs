@@ -5775,4 +5775,48 @@ mod tests {
             output.solve.active_constraints,
         );
     }
+
+    #[test]
+    fn projected_task_budgets_can_be_armed_rejected_and_reset_without_reconstruction() {
+        let model = toy_humanoid();
+        let mut controller = FloatingDynamicWbc::new(model, DynamicWbcConfig::default()).unwrap();
+
+        controller
+            .set_projected_task_pseudoinverse_budgets(Some(7), Some(2))
+            .unwrap();
+        assert_eq!(
+            controller.config.maximum_preference_task_pseudoinverses,
+            Some(7)
+        );
+        assert_eq!(controller.config.maximum_style_task_pseudoinverses, Some(2));
+        assert_eq!(
+            controller.solver.maximum_preference_task_pseudoinverses,
+            Some(7)
+        );
+        assert_eq!(controller.solver.maximum_style_task_pseudoinverses, Some(2));
+
+        assert!(matches!(
+            controller.set_projected_task_pseudoinverse_budgets(Some(0), None),
+            Err(DynamicWbcError::InvalidConfig)
+        ));
+        assert_eq!(
+            controller.config.maximum_preference_task_pseudoinverses,
+            Some(7)
+        );
+        assert_eq!(controller.config.maximum_style_task_pseudoinverses, Some(2));
+
+        controller
+            .set_projected_task_pseudoinverse_budgets(None, None)
+            .unwrap();
+        assert_eq!(
+            controller.config.maximum_preference_task_pseudoinverses,
+            None
+        );
+        assert_eq!(controller.config.maximum_style_task_pseudoinverses, None);
+        assert_eq!(
+            controller.solver.maximum_preference_task_pseudoinverses,
+            None
+        );
+        assert_eq!(controller.solver.maximum_style_task_pseudoinverses, None);
+    }
 }
