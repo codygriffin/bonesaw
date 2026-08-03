@@ -361,6 +361,14 @@ This is an engineering prototype, not a safety-rated robot controller.
   telemetry only—no actuator authority is emitted—so strict recovery remains
   open while the next Rust-admitted reserve action is designed. See the
   [r303 support-reserve report](benchmarks/results/upkie-live-support-reserve-r303/UPKIE_LIVE_SUPPORT_RESERVE_R303.md).
+- R305 closes the next evidence seam with an explicit, allocation-free Rust
+  contact-reacquisition observer. It requires an exact target/raw/stable/hard
+  mask match, finite measured normal loads, `1 N` total load, `0.5 N` and `5%`
+  load on each target contact, and three monotonic samples after a valid loss.
+  Startup is baseline-only and malformed, zero-load, or reordered evidence is
+  rejected. The PyO3 query is opt-in and diagnostic only: it emits no command,
+  does not change the public 250/50 worker, and does not claim physical
+  recovery. See the [r305 contact-reacquisition observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

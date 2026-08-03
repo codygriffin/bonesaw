@@ -3,6 +3,20 @@
 This is the live unresolved punch list. Completed work is removed and retained
 in revisioned reports, the README, and `docs/IMPLEMENTATION_STATUS.md`.
 
+R305 closes the contact-reacquisition evidence seam, but not physical recovery.
+The new allocation-free Rust observer sits downstream of raw/stable/hard
+contact observation and upstream of command authority. It requires an exact
+target mask, matching masks, finite nonnegative measured loads, at least `1 N`
+total load, at least `0.5 N` and `5%` of total load on every target contact,
+and three consecutive monotonic samples after a valid loss. Startup is a
+baseline; geometric zero-load touch, inexact/NaN evidence, and repeated ticks
+remain rejected. The PyO3 query and R305 synthetic contract are explicit and
+default-off; no worker cadence, actuator command, or public authority changed.
+The R302 wheel-supported recovery predicate therefore remains red: a physical
+reacquisition action still must be generated, admitted by the ordinary WBC,
+and shown to recover in MuJoCo. See the
+[R305 observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+
 R302 closes the gain-calibration question and leaves the real recovery complaint
 sharply bounded. A 160-profile screen selects
 `[9.81,4,16,12,80,14,8,8,20,80,120]`; its measured candidate delays the fall

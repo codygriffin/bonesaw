@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "live-support-reserve-r303",
+  "revision": "contact-reacquisition-observer-r305",
   "updated": "2026-08-03",
-  "stage": "R303 measures pre-loss wheel reserve · recovery action unpromoted",
-  "checkpoint": "R303 adds fixed-capacity MuJoCo wheel normal-force telemetry and a fail-closed Python evaluation witness over the existing 250 Hz physics / 50 Hz WBC boundary. On the same 8 N lateral-wrench trace the weaker wheel crosses 0.45 of total measured load at tick 28 (28.958/23.426 N), three control ticks before MuJoCo contact loss at tick 31 and WBC observation at tick 32; the undisturbed control has no false trigger. The witness emits no actuator authority. R302's strict wheel-supported recovery gate remains red, and a future reserve action must be generated and admitted in Rust. The public 8777 worker remains production_default.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the live-rate dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, and R303 localizes pre-loss load reserve without promoting an action. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
+  "stage": "R305 closes reacquisition evidence · physical recovery action unpromoted",
+  "checkpoint": "R305 adds an allocation-free, fail-closed Rust contact-reacquisition observer downstream of raw/stable/hard contact observation and upstream of command authority. It requires an exact target mask, matching contact masks, finite nonnegative measured normal loads, at least 1 N total load, at least 0.5 N and 5% of total load on each target contact, and three consecutive monotonic samples after a valid loss. Startup is baseline-only; geometric zero-load touch, inexact/NaN evidence, and reordered ticks remain rejected. The explicit PyO3 query emits no actuator authority and leaves the public 250 Hz physics / 50 Hz WBC worker unchanged. R302's strict wheel-supported recovery gate remains red, and a physical recovery action still requires ordinary WBC admission and a MuJoCo consequence.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, fail-closed reacquisition evidence, bounded feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the live-rate dynamic fixture, R301 closes the first bounded degraded-mode handoff, R302 rejects recovery, R303 localizes pre-loss load reserve, and R305 closes the measured-load reacquisition evidence seam without promoting an action. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -16,7 +16,7 @@
     },
     {
       "name": "Measured contact admission",
-      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · the default-off R301 flight contingency may be queried only from measured flight and selected only after a finite, hard-feasible admission; its mode, request, candidate, residual, timing, and power stay separate from primary authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
+      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · R305's explicit reacquisition observer then requires matching raw/stable/hard and target masks plus finite measured loads on three monotonic samples after a loss; it emits only a witness and never contact or actuator authority · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · the default-off R301 flight contingency may be queried only from measured flight and selected only after a finite, hard-feasible admission; its mode, request, candidate, residual, timing, and power stay separate from primary authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
     },
     {
       "name": "Explicit tick input",
@@ -98,6 +98,12 @@
         }
   ],
   "decisions": [
+    {
+      "id": "r305-contact-reacquisition-observer",
+      "title": "Require measured-load evidence before contact reacquisition",
+      "status": "evidence seam passed · physical recovery unpromoted",
+      "detail": "The allocation-free Rust observer is downstream of contact observation and upstream of command authority. After a valid target loss it requires an exact target/raw/stable/hard mask match, finite nonnegative loads, at least 1 N total load, at least 0.5 N and 5% of total load on every target contact, and three consecutive monotonic samples. Startup is baseline-only; zero-load geometric touch, inexact/NaN evidence, and reordered ticks are rejected. The PyO3 query is explicit and inert, with no worker/default cadence or actuator-authority change. A physical recovery action still needs ordinary WBC admission and a MuJoCo consequence."
+    },
     {
       "id": "r302-support-recovery-rejection",
       "title": "Use a strict wheel-supported recovery predicate",
@@ -1159,6 +1165,12 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R305 fail-closed contact-reacquisition observer",
+      "result": "evidence PASS · Baseline→Armed→Candidate→Qualified · rejected evidence non-qualified · authority closed",
+      "detail": "The explicit Rust observer consumes target/raw/stable/hard masks and measured normal loads without allocating. It requires exact matching masks, finite nonnegative loads, 1 N total load, 0.5 N and 5% total load on each target contact, and three monotonic samples after a valid loss. Startup is baseline-only; zero-load touch, inexact/NaN evidence, and repeated ticks are rejected. The PyO3 query and synthetic R305 contract emit no actuator command and leave the public worker unchanged. Physical reacquisition and recovery remain open.",
+      "report": "/CONTACT_REACQUISITION_OBSERVER_R305.html"
+    },
     {
       "name": "R302 live support recovery calibration",
       "result": "mechanism PASS · recovery REJECTED · 160-profile screen · boundary tick 644 · 494 body-ground/no-wheel stall ticks",

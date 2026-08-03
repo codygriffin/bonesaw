@@ -2,6 +2,20 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current contact-reacquisition evidence — r305 fail-closed observer
+
+R305 closes the typed evidence seam identified by the R302 recovery eval. An
+allocation-free Rust observer consumes an explicit target support mask, the
+raw/stable/hard masks from contact observation, and measured normal loads. After
+a valid loss it requires three consecutive monotonic exact samples with a
+matching target mask, at least `1 N` total load, and at least `0.5 N` plus `5%`
+of total load on every target contact. Startup is baseline only; zero-load
+geometric touch, inexact/NaN evidence, and repeated ticks fail closed. The
+PyO3 query is explicit and inert: it emits a diagnostic witness, never a torque
+or contact authority, and does not alter the public 250 Hz physics / 50 Hz WBC
+worker. Physical MuJoCo reacquisition and recovery remain open. See
+[`CONTACT_REACQUISITION_OBSERVER_R305.md`](../benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+
 ## Current pre-loss support evidence — r303 measured wheel reserve
 
 R303 evaluates a bounded, fail-closed witness over the actual MuJoCo wheel

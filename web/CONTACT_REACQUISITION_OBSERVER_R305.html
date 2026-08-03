@@ -1,0 +1,24 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonesaw contact reacquisition observer · R305</title>
+<style>
+  :root{color-scheme:dark} body{font:15px/1.55 system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#111827;color:#e5e7eb}
+  h1{font-size:clamp(1.5rem,5vw,2.2rem);line-height:1.15;color:#86efac} h2{font-size:1.1rem;margin-top:1.6rem}
+  pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1f2937;padding:1rem;border-radius:8px}
+  code{color:#bfdbfe} .pass{color:#86efac} .open{color:#fbbf24}
+  @media(max-width:600px){body{margin:1rem auto;font-size:14px}pre{padding:.8rem}}
+</style>
+<h1>Fail-closed contact reacquisition · R305</h1>
+<p class="pass">Evidence seam PASS · physical recovery action UNPROMOTED · no actuator authority.</p>
+<p>The allocation-free Rust observer is downstream of contact observation and upstream of command authority. It accepts an explicit target support mask, raw/stable/hard masks, and measured normal loads.</p>
+<h2>Promotion predicate</h2>
+<pre>exact target/raw/stable/hard masks
+finite, nonnegative loads
+total load ≥ 1.0 N
+every target contact ≥ 0.5 N and ≥ 5% of total load
+three consecutive monotonic samples after a valid loss</pre>
+<h2>Contract trace</h2>
+<pre>Baseline → Armed → Candidate → Candidate → Qualified
+inexact follow-up → RejectedEvidence (qualified=false)</pre>
+<p>Startup support is baseline-only. Geometric zero-load touch, NaN/inexact evidence, and repeated or rewound ticks fail closed. The PyO3 query is explicit and inert; it does not change the public 250 Hz physics / 50 Hz WBC worker.</p>
+<p class="open">Open: this witness does not generate a braking/recovery request, alter contact authority, or prove MuJoCo recovery. A future action must pass ordinary WBC admission, residual/timing gates, and a physical consequence eval.</p>
