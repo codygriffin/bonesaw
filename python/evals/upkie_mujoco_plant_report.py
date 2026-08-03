@@ -544,10 +544,16 @@ class PythonViabilityCoordinatePlanner:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=ROLLING_COORDINATES,
-            rolling_velocity_coefficients=ROLLING_COEFFICIENTS,
-            rolling_velocity_stabilization_gains=self.rolling_gains,
-            rolling_maximum_stabilization_accelerations=self.rolling_corrections,
+            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_velocity_coefficients=(
+                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_velocity_stabilization_gains=(
+                self.rolling_gains if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_maximum_stabilization_accelerations=(
+                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+            ),
             root_quaternions_wxyz=batch["root_quaternion"],
             root_angular_velocities_world=batch["root_angular_velocity"],
             root_angular_accelerations_world=batch["root_angular_acceleration"],
@@ -1115,6 +1121,8 @@ class RustWbcAdapter:
         support_load_reserve_config: tuple[float, ...] | None = None,
         single_support_reacquisition_enabled: bool = False,
         single_support_reacquisition_config: tuple[float, ...] | None = None,
+        measured_landing_enabled: bool = False,
+        measured_landing_config: tuple[float, ...] | None = None,
         fall_safe_enabled: bool = False,
         fall_safe_primary_blend: bool = True,
         execute_reduced_support: bool = True,
@@ -1751,6 +1759,27 @@ class RustWbcAdapter:
         self.single_support_reacquisition_step_ns = 0
         self.single_support_reacquisition_allocation_calls = 0
         self.single_support_reacquisition_allocated_bytes = 0
+        self.measured_landing_enabled = bool(measured_landing_enabled)
+        if measured_landing_config is not None:
+            if len(measured_landing_config) != 9:
+                raise ValueError(
+                    "measured_landing_config must contain exactly 9 values"
+                )
+            self.balance.configure_measured_landing(*measured_landing_config)
+        self.measured_landing_diagnostics = np.zeros(
+            len(self.balance.measured_landing_diagnostic_names), np.float64
+        )
+        self.measured_landing_index = {
+            name: index
+            for index, name in enumerate(self.balance.measured_landing_diagnostic_names)
+        }
+        self.measured_landing_joint_acceleration = np.zeros(6, np.float64)
+        self.measured_landing_normal_force = np.zeros(2, np.float64)
+        self.measured_landing_contact_modes = np.full(2, 3, np.uint8)
+        self.measured_landing_tick = 0
+        self.measured_landing_step_ns = 0
+        self.measured_landing_allocation_calls = 0
+        self.measured_landing_allocated_bytes = 0
         self.viability_verification_scales = (1.0, 0.5, 0.25, 0.125, 0.0)
         self.viability_lateral_delta_x = 0.0
         self.viability_lateral_delta_y = 0.0
@@ -2013,10 +2042,16 @@ class RustWbcAdapter:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=ROLLING_COORDINATES,
-            rolling_velocity_coefficients=ROLLING_COEFFICIENTS,
-            rolling_velocity_stabilization_gains=self.rolling_gains,
-            rolling_maximum_stabilization_accelerations=self.rolling_corrections,
+            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_velocity_coefficients=(
+                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_velocity_stabilization_gains=(
+                self.rolling_gains if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_maximum_stabilization_accelerations=(
+                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+            ),
             root_quaternions_wxyz=self.root_quaternion,
             root_angular_velocities_world=self.root_angular_velocity,
             root_angular_accelerations_world=self.root_angular_acceleration,
@@ -2130,10 +2165,16 @@ class RustWbcAdapter:
             out["allocated_bytes"],
             contact_force_basis_out=out["contact_force_basis"],
             contact_modes=self.contact_modes,
-            rolling_coordinates=ROLLING_COORDINATES,
-            rolling_velocity_coefficients=ROLLING_COEFFICIENTS,
-            rolling_velocity_stabilization_gains=self.rolling_gains,
-            rolling_maximum_stabilization_accelerations=self.rolling_corrections,
+            rolling_coordinates=(ROLLING_COORDINATES if np.any(self.contact_modes == 3) else None),
+            rolling_velocity_coefficients=(
+                ROLLING_COEFFICIENTS if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_velocity_stabilization_gains=(
+                self.rolling_gains if np.any(self.contact_modes == 3) else None
+            ),
+            rolling_maximum_stabilization_accelerations=(
+                self.rolling_corrections if np.any(self.contact_modes == 3) else None
+            ),
             root_quaternions_wxyz=self.root_quaternion,
             root_angular_velocities_world=self.root_angular_velocity,
             root_angular_accelerations_world=(
@@ -2369,6 +2410,12 @@ class RustWbcAdapter:
             ]
             == 0
         )
+        physics_observation_exact = bool(
+            observed_contact_active is not None
+            and observed_contact_available
+            and observed_contact_age_ticks == 0
+            and observed_contact_synchronization_uncertainty_ns == 0
+        )
         if self.fall_safe_enabled:
             self.balance.step_fall_safe_from_state(
                 self.control_dt,
@@ -2505,7 +2552,56 @@ class RustWbcAdapter:
         self.joint_acceleration[0] = (
             60.0 * (self.nominal_joint_position - q) - 12.0 * v
         )
-        if self.single_support_reacquisition_enabled:
+        if self.measured_landing_enabled:
+            self.measured_landing_tick += 1
+            physics_support_mask = (
+                int(self.observed_contact_active[0])
+                | (int(self.observed_contact_active[1]) << 1)
+                if observed_contact_active is not None
+                else 3
+            )
+            observed_support_mask = int(self.contact_authority_active[0]) | (
+                int(self.contact_authority_active[1]) << 1
+            )
+            if observed_wheel_normal_force_n is None:
+                self.measured_landing_normal_force.fill(0.0)
+            else:
+                np.copyto(
+                    self.measured_landing_normal_force,
+                    observed_wheel_normal_force_n,
+                )
+            (
+                self.measured_landing_step_ns,
+                self.measured_landing_allocation_calls,
+                self.measured_landing_allocated_bytes,
+            ) = self.balance.step_measured_landing_from_state(
+                self.control_dt,
+                self.measured_landing_tick,
+                physics_observation_exact,
+                physics_support_mask,
+                observed_support_mask,
+                self.observed_contact_active,
+                self.contact_debounced,
+                self.contact_authority_active,
+                self.measured_landing_normal_force,
+                root_position,
+                root_quaternion,
+                root_twist,
+                q,
+                v,
+                self.measured_landing_diagnostics,
+                self.measured_landing_joint_acceleration,
+                self.measured_landing_contact_modes,
+            )
+            np.copyto(self.contact_modes, self.measured_landing_contact_modes)
+        else:
+            self.measured_landing_diagnostics.fill(0.0)
+            self.measured_landing_joint_acceleration.fill(0.0)
+            self.measured_landing_contact_modes[:] = self.contact_modes
+            self.measured_landing_step_ns = 0
+            self.measured_landing_allocation_calls = 0
+            self.measured_landing_allocated_bytes = 0
+        if self.single_support_reacquisition_enabled and not self.measured_landing_enabled:
             support_mask = int(self.contact_authority_active[0]) | (
                 int(self.contact_authority_active[1]) << 1
             )
@@ -2762,7 +2858,26 @@ class RustWbcAdapter:
             self.support_load_reserve_allocation_calls = 0
             self.support_load_reserve_allocated_bytes = 0
         self.joint_acceleration[0, ROLLING_COORDINATES] = self.wheel_acceleration
-        if self.single_support_reacquisition_enabled and bool(
+        if self.measured_landing_enabled and bool(
+            self.measured_landing_diagnostics[
+                self.measured_landing_index["request_active"]
+            ]
+        ):
+            physics_support_mask = int(
+                self.measured_landing_diagnostics[
+                    self.measured_landing_index["physics_support_mask"]
+                ]
+            )
+            lost_support_index = (
+                1 if physics_support_mask == 1 else 0 if physics_support_mask == 2 else -1
+            )
+            if lost_support_index >= 0:
+                free_leg_start = 3 * lost_support_index
+                free_leg_end = free_leg_start + 3
+                self.joint_acceleration[0, free_leg_start:free_leg_end] += (
+                    self.measured_landing_joint_acceleration[free_leg_start:free_leg_end]
+                )
+        elif self.single_support_reacquisition_enabled and bool(
             self.single_support_reacquisition_diagnostics[
                 self.single_support_reacquisition_index["active"]
             ]
@@ -3177,15 +3292,19 @@ class RustWbcAdapter:
             else (1.0,)
         )
         accumulated_step_ns = (
-            coordinate_step_ns + self.single_support_reacquisition_step_ns
+            coordinate_step_ns
+            + self.single_support_reacquisition_step_ns
+            + self.measured_landing_step_ns
         )
         accumulated_allocation_calls = (
             coordinate_allocation_calls
             + self.single_support_reacquisition_allocation_calls
+            + self.measured_landing_allocation_calls
         )
         accumulated_allocated_bytes = (
             coordinate_allocated_bytes
             + self.single_support_reacquisition_allocated_bytes
+            + self.measured_landing_allocated_bytes
         )
         for query_index, verification_scale in enumerate(verification_scales, 1):
             if self.balance_mode == "viability_verified":
@@ -4471,6 +4590,39 @@ class RustWbcAdapter:
             "single_support_reacquisition_allocated_bytes": int(
                 self.single_support_reacquisition_allocated_bytes
             ),
+            "measured_landing_enabled": self.measured_landing_enabled,
+            "measured_landing_diagnostics": self.measured_landing_diagnostics,
+            "measured_landing_active": bool(
+                self.measured_landing_diagnostics[
+                    self.measured_landing_index["precontact_active"]
+                ]
+                or self.measured_landing_diagnostics[
+                    self.measured_landing_index["touchdown_normal_active"]
+                ]
+            ),
+            "measured_landing_precontact_active": bool(
+                self.measured_landing_diagnostics[
+                    self.measured_landing_index["precontact_active"]
+                ]
+            ),
+            "measured_landing_touchdown_normal_active": bool(
+                self.measured_landing_diagnostics[
+                    self.measured_landing_index["touchdown_normal_active"]
+                ]
+            ),
+            "measured_landing_reacquisition_qualified": bool(
+                self.measured_landing_diagnostics[
+                    self.measured_landing_index["reacquisition_qualified"]
+                ]
+            ),
+            "measured_landing_contact_modes": self.measured_landing_contact_modes,
+            "measured_landing_step_ns": int(self.measured_landing_step_ns),
+            "measured_landing_allocation_calls": int(
+                self.measured_landing_allocation_calls
+            ),
+            "measured_landing_allocated_bytes": int(
+                self.measured_landing_allocated_bytes
+            ),
             "support_contingency_diagnostics": self.support_contingency_diagnostics,
             "support_contingency_candidate_generalized_acceleration": (
                 self.support_contingency_candidate_generalized_acceleration
@@ -5026,6 +5178,8 @@ def run_case(
     support_contingency_execute: bool = False,
     support_contingency_preserve_primary_support: bool = False,
     support_contingency_query_every_tick: bool = False,
+    measured_landing_enabled: bool = False,
+    measured_landing_config: tuple[float, ...] | None = None,
 ) -> dict[str, np.ndarray | int]:
     import bonesaw
 
@@ -5104,6 +5258,8 @@ def run_case(
             support_contingency_preserve_primary_support
         ),
         support_contingency_query_every_tick=support_contingency_query_every_tick,
+        measured_landing_enabled=measured_landing_enabled,
+        measured_landing_config=measured_landing_config,
     )
     ticks = int(round(duration / CONTROL_DT))
     substeps = int(round(CONTROL_DT / PHYSICS_DT))
@@ -5131,6 +5287,10 @@ def run_case(
         "external_force_world": np.empty((ticks, 3), np.float64),
         "contact_count": np.empty(ticks, np.uint16),
         "measured_wheel_contact_active": np.empty((ticks, 2), np.uint8),
+        "measured_wheel_normal_force": np.empty((ticks, 2), np.float64),
+        "measured_landing_diagnostics": np.empty((ticks, 25), np.float64),
+        "measured_landing_contact_modes": np.empty((ticks, 2), np.uint8),
+        "measured_landing_joint_acceleration": np.empty((ticks, 6), np.float64),
         "status": np.empty(ticks, np.uint8),
         "primary_status": np.empty(ticks, np.uint8),
         "support_contingency_admitted": np.empty(ticks, np.uint8),
@@ -5193,6 +5353,8 @@ def run_case(
         np.int64,
     )
     zero_contact_torque = np.zeros(3, np.float64)
+    observed_normal_force = np.zeros(2, np.float64)
+    contact_wrench_scratch = np.zeros(6, np.float64)
     gc.collect()
     gc_before = np.asarray([item["collections"] for item in gc.get_stats()])
     rss_before = rss_bytes()
@@ -5206,6 +5368,16 @@ def run_case(
             if contact_model == "prescribed"
             else measured_wheel_ground_contacts(model, data, wheel_contact_bodies)
         )
+        if contact_model == "soft":
+            measured_wheel_ground_normal_forces_into(
+                model,
+                data,
+                wheel_contact_bodies,
+                observed_normal_force,
+                contact_wrench_scratch,
+            )
+        else:
+            observed_normal_force.fill(0.0)
         ground_position = float(np.mean(data.xpos[wheel_bodies, 0]))
         ground_height = float(np.mean(data.xpos[wheel_bodies, 2]))
         result = controller.solve(
@@ -5217,6 +5389,7 @@ def run_case(
             ground_position,
             ground_height,
             measured_contact_active if observe_measured_contact else None,
+            observed_normal_force if observe_measured_contact else None,
         )
         mujoco.mj_energyVel(model, data)
         kinetic_energy_j = float(data.energy[1])
@@ -5269,6 +5442,14 @@ def run_case(
         traces["external_force_world"][tick] = force_world if disturbed else 0.0
         traces["contact_count"][tick] = data.ncon
         traces["measured_wheel_contact_active"][tick] = measured_contact_active
+        traces["measured_wheel_normal_force"][tick] = observed_normal_force
+        traces["measured_landing_diagnostics"][tick] = result[
+            "measured_landing_diagnostics"
+        ]
+        traces["measured_landing_contact_modes"][tick] = result[
+            "measured_landing_contact_modes"
+        ]
+        traces["measured_landing_joint_acceleration"][tick] = controller.measured_landing_joint_acceleration
         traces["status"][tick] = result["status"]
         traces["primary_status"][tick] = result["primary_status"]
         traces["support_contingency_admitted"][tick] = result[

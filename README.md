@@ -369,6 +369,15 @@ This is an engineering prototype, not a safety-rated robot controller.
   rejected. The PyO3 query is opt-in and diagnostic only: it emits no command,
   does not change the public 250/50 worker, and does not claim physical
   recovery. See the [r305 contact-reacquisition observer report](benchmarks/results/contact-reacquisition-observer-r305/CONTACT_REACQUISITION_OBSERVER_R305.md).
+- R309 composes the bounded R308 free-leg request with persistent Rust phase
+  state at the public 250/50 rate. Precontact and touchdown-normal diagnostics
+  begin at measured single support (tick 33), RollingWheel is withheld from
+  every leg absent in the current observed hard mask, the baseline disturbed
+  `MaxIterations` tick disappears, and the landing step runs at roughly
+  `4.3 µs` p99 with zero Rust allocation. The 1,000-tick nominal run remains
+  dormant; the 8 N trace still falls three ticks later without force-backed
+  bilateral/upright recovery, so the phase boundary remains default-off. See
+  the [r309 measured-landing report](benchmarks/results/upkie-live-measured-landing-r309/UPKIE_LIVE_MEASURED_LANDING_R309.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

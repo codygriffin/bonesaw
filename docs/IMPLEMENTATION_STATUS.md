@@ -2,24 +2,19 @@
 
 This file separates demonstrated behavior from architectural intent.
 
-## Current single-support touchdown request — r308 default-off negative evidence
+## Current measured landing/reload phase boundary — r309 default-off evidence
 
-R308 adds a bounded Rust-owned free-leg request after an exact measured
-one-wheel support observation. Persistent Rust computes the lost wheel's
-height/velocity error and a damped Jacobian-transpose joint-acceleration
-request in fixed six-joint storage; the ordinary floating WBC still owns
-measured contact rows, effort limits, hard residuals, and executable authority.
-The 20 s nominal hold remains exactly dormant. On the frozen 8 N lateral trace,
-the plant first leaves the bilateral physics window at tick `34`; the 50 Hz WBC
-observes/debounces single support and the request activates at tick `40`. It
-reaches authority `1.0`, runs at `2.202 µs` p99, and allocates `0` calls/bytes.
-R308 is therefore not a precontact landing controller. Causal activation,
-finite output, and hot-path gates pass, but the candidate still falls at tick
-`56`, has no ten-tick bilateral/upright tail, and retains two non-admitted
-`MaxIterations` ticks. It is therefore retained as negative evidence and
-remains evaluation-only/default-off. The next behavior slice is a phase-aware,
-physically sustained landing/reload policy. See
-[`UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md`](../benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
+R309 composes R308's bounded Rust free-leg request with persistent `SupportPhase`
+state, immediate precontact/touchdown-normal diagnostics, and R305's
+force-backed measured-load reacquisition witness. RollingWheel is emitted only
+when the current observed hard mask contains that leg; flight cannot inherit a
+stale rolling mode. At the public 250 Hz MuJoCo / 50 Hz WBC cadence, the
+1,000-tick nominal hold remains dormant, the disturbed candidate activates at
+tick `33`, removes the baseline `MaxIterations` tick, delays the fall boundary
+from tick `50` to tick `53`, and runs at `4.323 µs` p99 with `0` calls/bytes.
+The candidate still has no force-backed bilateral/upright tail, so recovery and
+public authority remain red; this is evaluation-only/default-off evidence. See
+[`UPKIE_LIVE_MEASURED_LANDING_R309.md`](../benchmarks/results/upkie-live-measured-landing-r309/UPKIE_LIVE_MEASURED_LANDING_R309.md).
 
 ## Current contact-reacquisition evidence — r305 fail-closed observer
 

@@ -222,6 +222,37 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         "single_support_reacquisition_allocated_bytes": int(
             metrics.get("wbc_single_support_reacquisition_allocated_bytes", 0)
         ),
+        "measured_landing_enabled": bool(
+            metrics.get("measured_landing_enabled", False)
+        ),
+        "measured_landing_active": bool(
+            metrics.get("measured_landing_active", False)
+        ),
+        "measured_landing_precontact_active": bool(
+            metrics.get("measured_landing_precontact_active", False)
+        ),
+        "measured_landing_touchdown_normal_active": bool(
+            metrics.get("measured_landing_touchdown_normal_active", False)
+        ),
+        "measured_landing_reacquisition_qualified": bool(
+            metrics.get("measured_landing_reacquisition_qualified", False)
+        ),
+        "measured_landing_diagnostics": list(
+            metrics.get("measured_landing_diagnostics", [0.0] * 25)
+        ),
+        "measured_landing_contact_modes": [
+            int(value)
+            for value in metrics.get("measured_landing_contact_modes", [0, 0])
+        ],
+        "measured_landing_step_us": float(
+            metrics.get("measured_landing_step_us", 0.0)
+        ),
+        "measured_landing_allocation_calls": int(
+            metrics.get("measured_landing_allocation_calls", 0)
+        ),
+        "measured_landing_allocated_bytes": int(
+            metrics.get("measured_landing_allocated_bytes", 0)
+        ),
         "controller_step_us": float(metrics["controller_step_us"]),
         "worker_step_us": float(metrics["worker_step_us"]),
         "root_tilt_rad": float(metrics["root_tilt_rad"]),
@@ -319,6 +350,7 @@ def _semantic(case: dict[str, Any]) -> dict[str, Any]:
             "worker_step_us",
             "support_contingency_author_step_us",
             "support_contingency_step_us",
+            "measured_landing_step_us",
         ):
             state.pop(timing_key, None)
     return copy

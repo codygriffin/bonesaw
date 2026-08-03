@@ -109,11 +109,13 @@ use bonesaw_cuda::{
 use bonesaw_tools::{
     UpkieCaptureReferenceConfig, UpkieCaptureReferenceState, UpkieFallSafeConfig,
     UpkieFallSafeState, UpkieLateralViabilityConfig, UpkieLateralViabilityState,
-    UpkiePlanarCaptureConfig, UpkiePlanarCaptureState, UpkieSingleSupportReacquisitionConfig,
+    UpkieMeasuredLandingConfig, UpkieMeasuredLandingState, UpkiePlanarCaptureConfig,
+    UpkiePlanarCaptureState, UpkieSingleSupportReacquisitionConfig,
     UpkieSingleSupportReacquisitionState, UpkieWheelBalancer, UpkieWheelBalancerState,
     UpkieWheelLoadReserveConfig, UpkieWheelLoadReserveState, step_upkie_fall_safe,
-    step_upkie_lateral_viability, step_upkie_single_support_reacquisition,
-    step_upkie_wheel_load_reserve, write_upkie_fall_safe_contingency,
+    step_upkie_lateral_viability, step_upkie_measured_landing,
+    step_upkie_single_support_reacquisition, step_upkie_wheel_load_reserve,
+    write_upkie_fall_safe_contingency,
 };
 use nalgebra::{DMatrix, DVector, Point3, Translation3, UnitQuaternion, Vector2};
 use numpy::{
@@ -3859,6 +3861,8 @@ struct UpkieBalanceSession {
     wheel_load_reserve_state: UpkieWheelLoadReserveState,
     single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig,
     single_support_reacquisition_state: UpkieSingleSupportReacquisitionState,
+    measured_landing_config: UpkieMeasuredLandingConfig,
+    measured_landing_state: UpkieMeasuredLandingState,
     fall_safe_config: UpkieFallSafeConfig,
     fall_safe_state: UpkieFallSafeState,
     support_contingency_config: SupportContingencyConfig,
@@ -3961,6 +3965,8 @@ impl UpkieBalanceSession {
             wheel_load_reserve_state: UpkieWheelLoadReserveState::default(),
             single_support_reacquisition_config: UpkieSingleSupportReacquisitionConfig::default(),
             single_support_reacquisition_state: UpkieSingleSupportReacquisitionState::default(),
+            measured_landing_config: UpkieMeasuredLandingConfig::default(),
+            measured_landing_state: UpkieMeasuredLandingState::default(),
             fall_safe_config: UpkieFallSafeConfig::default(),
             fall_safe_state: UpkieFallSafeState::default(),
             support_contingency_config: SupportContingencyConfig::default(),
@@ -4026,6 +4032,7 @@ impl UpkieBalanceSession {
         self.lateral_viability_state = UpkieLateralViabilityState::default();
         self.wheel_load_reserve_state = UpkieWheelLoadReserveState::default();
         self.single_support_reacquisition_state = UpkieSingleSupportReacquisitionState::default();
+        self.measured_landing_state = UpkieMeasuredLandingState::default();
         self.fall_safe_state = UpkieFallSafeState::default();
         self.contact_observation_state = ContactObservationState::default();
         self.contact_reacquisition_state = ContactReacquisitionState::default();
@@ -4352,6 +4359,45 @@ impl UpkieBalanceSession {
         Ok(())
     }
 
+    /// Configure the default-off measured landing/reload phase boundary.
+    /// The first eight values are the bounded free-leg request gains; the
+    /// final value is the causal precontact horizon used by the cubic boundary
+    /// law.  Support transition and load qualification retain their validated
+    /// Rust defaults so this seam cannot silently weaken contact evidence.
+    #[allow(clippy::too_many_arguments)]
+    fn configure_measured_landing(
+        &mut self,
+        target_wheel_height_m: f64,
+        vertical_stiffness_per_s2: f64,
+        vertical_damping_per_s: f64,
+        maximum_vertical_acceleration_m_s2: f64,
+        jacobian_damping: f64,
+        authority_attack_per_s: f64,
+        authority_release_per_s: f64,
+        maximum_joint_acceleration_rad_s2: f64,
+        precontact_horizon_seconds: f64,
+    ) -> PyResult<()> {
+        if !precontact_horizon_seconds.is_finite() || precontact_horizon_seconds <= 0.0 {
+            return Err(PyValueError::new_err(
+                "measured landing precontact horizon must be finite and positive",
+            ));
+        }
+        self.configure_single_support_reacquisition(
+            target_wheel_height_m,
+            vertical_stiffness_per_s2,
+            vertical_damping_per_s,
+            maximum_vertical_acceleration_m_s2,
+            jacobian_damping,
+            authority_attack_per_s,
+            authority_release_per_s,
+            maximum_joint_acceleration_rad_s2,
+        )?;
+        self.measured_landing_config.request = self.single_support_reacquisition_config;
+        self.measured_landing_config.precontact_horizon_seconds = precontact_horizon_seconds;
+        self.measured_landing_state = UpkieMeasuredLandingState::default();
+        Ok(())
+    }
+
     #[getter]
     fn capture_diagnostic_names(&self) -> [&'static str; 16] {
         [
@@ -4523,6 +4569,37 @@ impl UpkieBalanceSession {
             "authority",
             "jacobian_gain",
             "joint_acceleration_was_saturated",
+            "transition_count",
+        ]
+    }
+
+    #[getter]
+    fn measured_landing_diagnostic_names(&self) -> [&'static str; 25] {
+        [
+            "physics_observation_exact",
+            "physics_support_mask",
+            "observed_support_mask",
+            "target_support_mask",
+            "precontact_active",
+            "touchdown_normal_active",
+            "locked_count",
+            "left_phase",
+            "right_phase",
+            "left_contact_mode",
+            "right_contact_mode",
+            "reacquisition_status",
+            "reacquisition_qualified",
+            "reacquisition_pending_samples",
+            "reacquisition_total_load_n",
+            "reacquisition_minimum_active_load_n",
+            "reacquisition_weakest_load_fraction",
+            "reacquisition_flags",
+            "request_active",
+            "request_authority",
+            "request_target_error_m",
+            "request_commanded_vertical_acceleration_m_s2",
+            "precontact_acceleration_norm_m_s2",
+            "precontact_acceleration_was_limited",
             "transition_count",
         ]
     }
@@ -7686,6 +7763,211 @@ impl UpkieBalanceSession {
         ]);
         let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
         let allocation_after = allocation_snapshot();
+        Ok((
+            elapsed_ns,
+            allocation_after.0 - allocation_before.0,
+            allocation_after.1 - allocation_before.1,
+        ))
+    }
+
+    /// Advance the measured, phase-aware landing/reload boundary.  The
+    /// physics-window mask is intentionally separate from the debounced WBC
+    /// mask: it may request precontact shaping, but it never grants contact
+    /// authority.  Contact modes remain NormalPoint until the load-backed
+    /// reacquisition witness qualifies, after which the caller may promote
+    /// the target to RollingWheel in the ordinary WBC query.
+    #[allow(clippy::too_many_arguments)]
+    fn step_measured_landing_from_state(
+        &mut self,
+        timestep_seconds: f64,
+        tick_sequence: u64,
+        physics_observation_exact: bool,
+        physics_support_mask: u8,
+        observed_support_mask: u8,
+        raw_contact: PyReadonlyArray1<'_, u8>,
+        stable_contact: PyReadonlyArray1<'_, u8>,
+        hard_contact: PyReadonlyArray1<'_, u8>,
+        normal_load_n: PyReadonlyArray1<'_, f64>,
+        root_position: PyReadonlyArray1<'_, f64>,
+        root_quaternion_wxyz: PyReadonlyArray1<'_, f64>,
+        root_twist_world: PyReadonlyArray1<'_, f64>,
+        q: PyReadonlyArray1<'_, f64>,
+        joint_velocity: PyReadonlyArray1<'_, f64>,
+        mut diagnostics_out: PyReadwriteArray1<'_, f64>,
+        mut joint_acceleration_out: PyReadwriteArray1<'_, f64>,
+        mut contact_modes_out: PyReadwriteArray1<'_, u8>,
+    ) -> PyResult<(u64, u64, u64)> {
+        let raw_contact = raw_contact.as_slice()?;
+        let stable_contact = stable_contact.as_slice()?;
+        let hard_contact = hard_contact.as_slice()?;
+        let normal_load_n = normal_load_n.as_slice()?;
+        let root_position = root_position.as_slice()?;
+        let root_quaternion_wxyz = root_quaternion_wxyz.as_slice()?;
+        let root_twist_world = root_twist_world.as_slice()?;
+        let q = q.as_slice()?;
+        let joint_velocity = joint_velocity.as_slice()?;
+        let diagnostics_out = diagnostics_out.as_slice_mut()?;
+        let joint_acceleration_out = joint_acceleration_out.as_slice_mut()?;
+        let contact_modes_out = contact_modes_out.as_slice_mut()?;
+        let dof = self.program.model.dof;
+        if dof != 6
+            || raw_contact.len() != 2
+            || stable_contact.len() != 2
+            || hard_contact.len() != 2
+            || normal_load_n.len() != 2
+            || root_position.len() != 3
+            || root_quaternion_wxyz.len() != 4
+            || root_twist_world.len() != 6
+            || q.len() != dof
+            || joint_velocity.len() != dof
+            || diagnostics_out.len() != 25
+            || joint_acceleration_out.len() != dof
+            || contact_modes_out.len() != 2
+            || raw_contact.iter().any(|value| *value > 1)
+            || stable_contact.iter().any(|value| *value > 1)
+            || hard_contact.iter().any(|value| *value > 1)
+            || physics_support_mask > 3
+            || observed_support_mask > 3
+        {
+            return Err(PyValueError::new_err(
+                "measured landing expects binary masks[2], loads[2], Upkie root[3]/quaternion[4]/twist[6]/q/v[6], diagnostics[25], joint output[6], and modes[2]",
+            ));
+        }
+        if !timestep_seconds.is_finite()
+            || timestep_seconds <= 0.0
+            || root_position
+                .iter()
+                .chain(root_quaternion_wxyz)
+                .chain(root_twist_world)
+                .chain(q)
+                .chain(joint_velocity)
+                .any(|value| !value.is_finite())
+            || normal_load_n
+                .iter()
+                .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(PyValueError::new_err(
+                "measured landing state must be finite with nonnegative loads and a positive timestep",
+            ));
+        }
+        let rotation = UnitQuaternion::try_new(
+            nalgebra::Quaternion::new(
+                root_quaternion_wxyz[0],
+                root_quaternion_wxyz[1],
+                root_quaternion_wxyz[2],
+                root_quaternion_wxyz[3],
+            ),
+            1.0e-12,
+        )
+        .ok_or_else(|| PyValueError::new_err("measured landing quaternion is degenerate"))?;
+        let allocation_before = allocation_snapshot();
+        let started = Instant::now();
+        self.robot.control_world_from_root = Transform3::from_parts(
+            Translation3::new(root_position[0], root_position[1], root_position[2]),
+            rotation,
+        );
+        self.robot.q.as_mut_slice().copy_from_slice(q);
+        self.robot.v.as_mut_slice().copy_from_slice(joint_velocity);
+        self.program
+            .model
+            .forward_kinematics(&self.robot, &mut self.cache)
+            .map_err(value_error)?;
+        let mut wheel_positions_world = [Vec3::zeros(); 2];
+        let mut wheel_velocities_world = [Vec3::zeros(); 2];
+        let mut wheel_joint_jacobians = [[[0.0; 6]; 3]; 2];
+        for wheel in 0..2 {
+            self.program
+                .model
+                .floating_point_jacobian_into(
+                    &self.cache,
+                    self.support_frames[wheel],
+                    Vec3::zeros(),
+                    &mut self.wheel_jacobians[wheel],
+                )
+                .map_err(value_error)?;
+            wheel_positions_world[wheel] = self.cache.world_from_body[self.support_frames[wheel].0]
+                .translation
+                .vector;
+            wheel_velocities_world[wheel] = Vec3::from_fn(|axis, _| {
+                (0..6)
+                    .map(|coordinate| {
+                        self.wheel_jacobians[wheel][(axis, coordinate)]
+                            * root_twist_world[coordinate]
+                            + self.wheel_jacobians[wheel][(axis, coordinate + 6)]
+                                * joint_velocity[coordinate]
+                    })
+                    .sum()
+            });
+            for axis in 0..3 {
+                for coordinate in 0..6 {
+                    wheel_joint_jacobians[wheel][axis][coordinate] =
+                        self.wheel_jacobians[wheel][(axis, coordinate + 6)];
+                }
+            }
+        }
+        let raw = [raw_contact[0] != 0, raw_contact[1] != 0];
+        let stable = [stable_contact[0] != 0, stable_contact[1] != 0];
+        let hard = [hard_contact[0] != 0, hard_contact[1] != 0];
+        let loads = [normal_load_n[0], normal_load_n[1]];
+        let joint_velocity: &[f64; 6] = joint_velocity
+            .try_into()
+            .expect("joint velocity length was validated");
+        let output = step_upkie_measured_landing(
+            timestep_seconds,
+            tick_sequence,
+            physics_observation_exact,
+            physics_support_mask,
+            observed_support_mask,
+            raw,
+            stable,
+            hard,
+            loads,
+            wheel_positions_world,
+            wheel_velocities_world,
+            wheel_joint_jacobians,
+            joint_velocity,
+            self.measured_landing_config,
+            &mut self.measured_landing_state,
+            joint_acceleration_out
+                .try_into()
+                .expect("joint output length was validated"),
+        )
+        .ok_or_else(|| PyValueError::new_err("measured landing request is invalid"))?;
+        diagnostics_out.copy_from_slice(&[
+            f64::from(physics_observation_exact),
+            f64::from(output.physics_support_mask),
+            f64::from(output.observed_support_mask),
+            f64::from(output.target_support_mask),
+            f64::from(output.precontact_active),
+            f64::from(output.touchdown_normal_active),
+            f64::from(output.locked_count),
+            output.phases[0] as u8 as f64,
+            output.phases[1] as u8 as f64,
+            f64::from(output.contact_modes[0]),
+            f64::from(output.contact_modes[1]),
+            output.reacquisition.status as u8 as f64,
+            f64::from(output.reacquisition.qualified),
+            f64::from(output.reacquisition.pending_samples),
+            output.reacquisition.total_load_n,
+            output.reacquisition.minimum_active_load_n,
+            output.reacquisition.weakest_load_fraction,
+            output.reacquisition.flags as f64,
+            f64::from(output.request.active),
+            output.request.authority,
+            output.request.target_error_m,
+            output.request.commanded_vertical_acceleration_m_s2,
+            output.precontact_acceleration_world_m_s2.norm(),
+            f64::from(output.precontact_acceleration_was_limited),
+            f64::from(output.request.transition_count),
+        ]);
+        contact_modes_out.copy_from_slice(&output.contact_modes);
+        let elapsed_ns = started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+        let allocation_after = allocation_snapshot();
+        if allocation_after != allocation_before {
+            return Err(PyValueError::new_err(
+                "measured landing step allocated inside the Rust hot path",
+            ));
+        }
         Ok((
             elapsed_ns,
             allocation_after.0 - allocation_before.0,
