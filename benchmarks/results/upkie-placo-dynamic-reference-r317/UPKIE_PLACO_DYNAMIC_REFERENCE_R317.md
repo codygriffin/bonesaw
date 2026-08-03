@@ -97,6 +97,6 @@ visible instead of reducing the run to one aggregate score.
 | PlaCo | 0.9.23 |
 | model | d15965215067276203599a850e5c7ebb319ed6815506f0a2721dae78abac2483 |
 | input corpus | f31c69dd9b1f8bab7f58a8870b53e390b45bae848c348668009440e24c1e1e3e |
-| evaluator | 9a7ac0fc3438180077a521cba9b43f7ebc96d22720b286f95420527bbe6544b6 |
+| evaluator | d638209f10b7002b3808fa946b489c9b2a2dfa48a7d0d2750a18b0969ab121c7 |
 | Bonesaw raw | 3574846fab8ac26935cd722aa497b89bd8d4f259841d9cb14db35fa2e89232d5 |
 | PlaCo raw | 7a3cdf0f7ccc2f61ffa7caa8f0d234f26d2cc95ab0462eabce5ba859311e07d8 |
