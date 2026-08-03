@@ -13,6 +13,7 @@ residuals, and executable command authority.
 | measure | result |
 |---|---:|
 | first measured single-support tick | 40 |
+| first physics-window non-double/flight tick | 34 |
 | first request-active tick | 40 |
 | active ticks | 12 |
 | maximum authority | 1.000000 |
@@ -40,4 +41,4 @@ residuals, and executable command authority.
 
 ## Architectural conclusion
 
-The request is causal, bounded, allocation-free, and passes the ordinary WBC boundary. The frozen wrench trace still does not produce a ten-tick bilateral/upright tail; it remains default-off pending a contact-mode phase policy and a physically sustained touchdown.
+The request is causal, bounded, allocation-free, and passes the ordinary WBC boundary. The plant first leaves the bilateral physics window at tick `34`; the 50 Hz WBC observes/debounces single support and can issue the request at tick `40`. This is intentionally not a precontact controller. The frozen wrench trace still does not produce a ten-tick bilateral/upright tail; it remains default-off pending a contact-mode phase policy and a physically sustained touchdown.

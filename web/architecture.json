@@ -110,7 +110,7 @@
       "id": "r308-single-support-touchdown-request",
       "title": "Bound touchdown requests by measured single support",
       "status": "causal/hot-path gates passed · physical recovery rejected · default-off",
-      "detail": "R308 adds a persistent Rust request author that accepts only exact measured one-wheel support. It computes free-wheel height/velocity error through a caller-owned Upkie Jacobian, slews authority, caps vertical and joint accelerations, and sends the candidate through the ordinary floating WBC. The nominal 20 s hold is dormant; the disturbed request activates at measured tick 40, reaches authority 1.0, runs at 2.202 microseconds p99 with zero allocations, and still falls at tick 56 with no ten-tick bilateral/upright tail. The mechanism is retained as negative evidence until a phase-aware landing/reload policy produces physically sustained recontact."
+      "detail": "R308 adds a persistent Rust request author that accepts only exact measured one-wheel support. It computes free-wheel height/velocity error through a caller-owned Upkie Jacobian, slews authority, caps vertical and joint accelerations, and sends the candidate through the ordinary floating WBC. The nominal 20 s hold is dormant; the plant first leaves the bilateral physics window at tick 34, while the 50 Hz WBC observes/debounces single support and activates the request at tick 40. It reaches authority 1.0, runs at 2.202 microseconds p99 with zero allocations, and still falls at tick 56 with no ten-tick bilateral/upright tail. R308 is not precontact control. The mechanism is retained as negative evidence until a phase-aware landing/reload policy produces physically sustained recontact."
     },
     {
       "id": "r306-contact-authority-firewall",
@@ -1200,7 +1200,7 @@
     {
       "name": "R308 measured single-support touchdown request",
       "result": "causal activation PASS · nominal dormant PASS · zero allocation PASS · physical recovery REJECTED",
-      "detail": "The default-off Rust request consumes exact measured one-wheel support, the free wheel's height/velocity, and a preallocated Jacobian. It activates on the first measured single-support sample (tick 40), reaches authority 1.0, and runs at 2.202 microseconds p99 with zero calls/bytes. The frozen 8 N disturbance still has non-admitted ticks and no ten-tick bilateral/upright tail, so no recovery or public authority follows.",
+      "detail": "The default-off Rust request consumes exact measured one-wheel support, the free wheel's height/velocity, and a preallocated Jacobian. The plant first leaves the bilateral physics window at tick 34; the 50 Hz WBC observes/debounces single support and activates on the first measured single-support sample (tick 40). It reaches authority 1.0 and runs at 2.202 microseconds p99 with zero calls/bytes. R308 is not precontact control. The frozen 8 N disturbance still has non-admitted ticks and no ten-tick bilateral/upright tail, so no recovery or public authority follows.",
       "report": "/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.html"
     },
     {

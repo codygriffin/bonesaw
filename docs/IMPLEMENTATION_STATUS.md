@@ -10,13 +10,15 @@ height/velocity error and a damped Jacobian-transpose joint-acceleration
 request in fixed six-joint storage; the ordinary floating WBC still owns
 measured contact rows, effort limits, hard residuals, and executable authority.
 The 20 s nominal hold remains exactly dormant. On the frozen 8 N lateral trace,
-the request activates at the first measured single-support tick (`40`), reaches
-authority `1.0`, runs at `2.202 µs` p99, and allocates `0` calls/bytes. Causal
-activation, finite output, and hot-path gates pass, but the candidate still
-falls at tick `56`, has no ten-tick bilateral/upright tail, and retains two
-non-admitted `MaxIterations` ticks. It is therefore retained as negative
-evidence and remains evaluation-only/default-off. The next behavior slice is a
-phase-aware, physically sustained landing/reload policy. See
+the plant first leaves the bilateral physics window at tick `34`; the 50 Hz WBC
+observes/debounces single support and the request activates at tick `40`. It
+reaches authority `1.0`, runs at `2.202 µs` p99, and allocates `0` calls/bytes.
+R308 is therefore not a precontact landing controller. Causal activation,
+finite output, and hot-path gates pass, but the candidate still falls at tick
+`56`, has no ten-tick bilateral/upright tail, and retains two non-admitted
+`MaxIterations` ticks. It is therefore retained as negative evidence and
+remains evaluation-only/default-off. The next behavior slice is a phase-aware,
+physically sustained landing/reload policy. See
 [`UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md`](../benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
 
 ## Current contact-reacquisition evidence — r305 fail-closed observer

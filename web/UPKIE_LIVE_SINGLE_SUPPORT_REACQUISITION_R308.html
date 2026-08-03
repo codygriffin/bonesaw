@@ -23,13 +23,14 @@
 <tr><td>20 s nominal bilateral/upright hold</td><td class="pass">pass</td></tr>
 <tr><td>Nominal request authority</td><td class="pass">exactly 0</td></tr>
 <tr><td>Activation</td><td class="pass">tick 40, after measured single support</td></tr>
+<tr><td>Physics-window loss</td><td class="open">tick 34; WBC request begins at tick 40</td></tr>
 <tr><td>Maximum authority / vertical request</td><td class="pass">1.000 / 2.774 m/s²</td></tr>
 <tr><td>Rust allocations</td><td class="pass">0 calls / 0 bytes</td></tr>
 <tr><td>Ten-tick bilateral/upright recovery tail</td><td class="open">open</td></tr>
 <tr><td>Non-admitted `MaxIterations` ticks</td><td class="open">25, 33</td></tr>
 </tbody></table></section>
 <section><h2>Authority boundary</h2>
-<p>The worker supplies the exact measured mask, root state, joint state, and compiled wheel Jacobian. Rust owns the authority slew, height/velocity law, Jacobian damping, acceleration caps, and diagnostics. Python only adds the returned candidate acceleration before the normal measured-contact floating solve. A touch is not counted as support until the ordinary contact pipeline admits it.</p>
+<p>The worker supplies the exact measured mask, root state, joint state, and compiled wheel Jacobian. Rust owns the authority slew, height/velocity law, Jacobian damping, acceleration caps, and diagnostics. Python only adds the returned candidate acceleration before the normal measured-contact floating solve. A touch is not counted as support until the ordinary contact pipeline admits it. In this 50 Hz observation boundary the plant first leaves the bilateral physics window at tick 34, while the request begins at tick 40; R308 therefore is not a precontact landing controller.</p>
 <p class="note"><strong>No promotion:</strong> causal activation and zero allocation are not physical recovery. Promotion still requires a sustained measured bilateral/upright tail, no non-admitted solve or body-ground stall, hard residuals below <code>1e-8</code>, and the timing/allocation gates.</p>
 </section>
 <section><h2>What remains</h2>

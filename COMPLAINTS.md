@@ -7,13 +7,14 @@ R308 adds the first bounded Rust-owned single-support touchdown request. It
 consumes only an exact measured one-wheel mask, the free wheel's measured
 height/velocity, and a preallocated Jacobian; its capped vertical request then
 passes through the ordinary floating WBC. The nominal hold stays dormant, the
-request activates exactly at measured single support, and the Rust path is
-allocation-free (`2.202 µs` p99, `0` calls/bytes). The causal trigger and
-authority boundary are therefore green, but the frozen 8 N MuJoCo trace still
-has no ten-tick bilateral/upright tail and retains non-admitted solves. The
-request remains evaluation-only/default-off. The largest remaining behavior
-chunk is a contact-mode phase policy that can make touchdown physically
-sustainable, not more timeout or QP iterations. See the
+request activates exactly at measured single support (WBC tick `40`), and the
+Rust path is allocation-free (`2.202 µs` p99, `0` calls/bytes). The causal
+trigger and authority boundary are therefore green, but the plant has already
+left the bilateral physics window at tick `34`; R308 is not precontact control.
+The frozen 8 N MuJoCo trace still has no ten-tick bilateral/upright tail and
+retains non-admitted solves. The request remains evaluation-only/default-off.
+The largest remaining behavior chunk is a contact-mode phase policy that can
+make touchdown physically sustainable, not more timeout or QP iterations. See the
 [R308 report](benchmarks/results/upkie-live-single-support-reacquisition-r308/UPKIE_LIVE_SINGLE_SUPPORT_REACQUISITION_R308.md).
 
 R305 closes the contact-reacquisition evidence seam, but not physical recovery.
