@@ -28,6 +28,11 @@ residuals; the browser renders them as separate support/hard-row/solver
 authority bars. See
 [`UPKIE_LIVE_DYNAMIC_CONTACT_R300.md`](../benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
 
+The direct evaluator may pass an explicit `controller_options` profile (and
+the hello record labels it `evaluation_override`); the public 8777 worker
+passes no override and reports `production_default`. Timing/behavior ablations
+therefore cannot silently change the hosted controller.
+
 ## Current measured-contact evidence — r299 kinematic collision replay
 
 R299 authors root poses rather than masks. Fifty nominal 250 Hz frames call

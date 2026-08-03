@@ -41,8 +41,19 @@ def finite_vector(value: object, length: int) -> np.ndarray | None:
 
 
 class LiveUpkiePlant:
-    def __init__(self, model_path: pathlib.Path):
+    def __init__(
+        self,
+        model_path: pathlib.Path,
+        *,
+        controller_options: dict[str, Any] | None = None,
+        controller_balance_mode: str = "capture",
+    ):
         self.model_path = model_path
+        # Evaluation-only profiles may opt into existing Rust controller
+        # mechanisms. The public worker passes no overrides, so its controller
+        # remains the frozen production default.
+        self.controller_options = dict(controller_options or {})
+        self.controller_balance_mode = str(controller_balance_mode)
         self.reset_epoch = 0
         self.tick = 0
         self.numeric_resets = 0
@@ -103,16 +114,20 @@ class LiveUpkiePlant:
         self.wheel_contact_body_sets = plant.wheel_contact_body_sets(
             self.model, self.wheel_bodies
         )
+        controller_options: dict[str, Any] = {
+            "fall_safe_enabled": True,
+            "fall_safe_primary_blend": False,
+            "control_dt": CONTROL_DT,
+        }
+        controller_options.update(self.controller_options)
         self.controller = plant.RustWbcAdapter(
             self.model_path,
             nominal_root,
             self.target_ground_position,
             balance,
-            "capture",
+            self.controller_balance_mode,
             0.2,
-            fall_safe_enabled=True,
-            fall_safe_primary_blend=False,
-            control_dt=CONTROL_DT,
+            **controller_options,
         )
         self.actuator_ids = np.asarray(
             [
@@ -195,6 +210,12 @@ class LiveUpkiePlant:
                 "window_size": PHYSICS_STEPS_PER_CONTROL,
                 "wbc_source": "latest_completed_250hz_substep",
             },
+            "controller_profile": (
+                "production_default"
+                if not self.controller_options
+                and self.controller_balance_mode == "capture"
+                else "evaluation_override"
+            ),
             "paused": self.paused,
             "maximum_force_n": MAX_FORCE_N,
             "maximum_application_offset_m": MAX_APPLICATION_OFFSET_M,

@@ -97,6 +97,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
 
     def test_live_rate_split_and_ground_contact_state_are_explicit(self) -> None:
         hello = self.worker.hello()
+        self.assertEqual(hello["controller_profile"], "production_default")
         self.assertEqual(hello["control_hz"], 50)
         self.assertEqual(hello["physics_hz"], 250)
         self.assertEqual(hello["physics_substeps_per_control"], 5)
@@ -206,6 +207,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             "maximum_abs_constraint_force",
         ):
             self.assertTrue(np.isfinite(result["metrics"][key]), key)
+
+    def test_controller_overrides_are_explicit_and_survive_reset(self) -> None:
+        worker = LiveUpkiePlant(
+            ROOT / "models/upkie/upkie.urdf",
+            controller_options={"maximum_feasibility_iterations": 32},
+        )
+        self.assertEqual(worker.hello()["controller_profile"], "evaluation_override")
+        worker.reset()
+        self.assertEqual(worker.hello()["controller_profile"], "evaluation_override")
+        mode_worker = LiveUpkiePlant(
+            ROOT / "models/upkie/upkie.urdf",
+            controller_balance_mode="planar_capture",
+        )
+        self.assertEqual(
+            mode_worker.hello()["controller_profile"], "evaluation_override"
+        )
 
     def test_contact_ring_samples_each_substep_and_wbc_uses_boundary_mask(self) -> None:
         scripted = [

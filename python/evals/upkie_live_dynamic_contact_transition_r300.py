@@ -148,8 +148,14 @@ def run_case(
     *,
     disturbed: bool,
     maximum_ticks: int = MAX_TICKS,
+    controller_options: dict[str, Any] | None = None,
+    controller_balance_mode: str = "capture",
 ) -> dict[str, Any]:
-    worker = LiveUpkiePlant(model_path)
+    worker = LiveUpkiePlant(
+        model_path,
+        controller_options=controller_options,
+        controller_balance_mode=controller_balance_mode,
+    )
     hello = worker.hello()
     base_body = worker.body_by_name["base"]
     initial_root = np.asarray(worker.data.qpos[:3], np.float64).copy()
