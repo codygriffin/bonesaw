@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "revision": "live-dynamic-contact-r300",
+  "revision": "live-support-recovery-r302",
   "updated": "2026-08-03",
-  "stage": "R300 admits the live dynamic contact fixture · controller recovery/residual/deadline gates are red",
-  "checkpoint": "R300 runs the production live boundary at 250 Hz MuJoCo / 50 Hz persistent Rust WBC. Each solve consumes the final completed sample of the prior fixed five-frame contact window; collision data is refreshed after every integrated substep and the window's frame indices plus loss/gain edges are public witnesses. A 1.06 s zero-wrench control stays in measured double support; an identical run with an 8 N lateral base-COM wrench for 200 ms measures 11/10/01/00 and reaches a fall at tick 52. Fixture gates pass: exact replay, immediate hard-row removal, non-admitted MaxIterations, zero Rust allocation, no numeric reset/warning, and the 20 ms worker deadline. Controller behavior is rejected: right-support ticks 48/50 are the only calls above 5 ms and reach 5.343 ms p99 / 5.367 ms max, with 5.249/5.252 ms adjacent-jitter p99/max, in the frozen artifact; they expose unsolved dynamics/contact residuals of 91.4/12.9. The stream and browser keep raw status, residuals, allocations, support, solver budget, and actuation as separate authority rows.",
-  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, R285's explicit low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, and R300 closes the live-rate dynamic benchmark boundary while rejecting current recovery behavior. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
+  "stage": "R302 calibrates measured support contingency · recovery rejected",
+  "checkpoint": "R302 retains the R301 bounded handoff and adds a 160-profile Rust-gain screen with a strict physical recovery predicate. The selected candidate delays the same 8 N lateral-wrench fall boundary from tick 52 to tick 644, keeps no MaxIterations, hard residuals below 1e-8, controller p99 at 0.265 ms, and zero Rust allocations. It nevertheless spends 494 ticks in low-body/no-wheel support, never reaches ten consecutive 50 Hz ticks of both-wheel contact with root height ≥0.48 m and tilt ≤0.20 rad, and eventually falls. The public 8777 worker remains production_default; support-contingency request, admission, selection, mode, residual, timing, power, and the red recovery predicate are separate evidence.",
+  "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, bounded fail-closed feasibility, exact discrete support reachability, moving-boundary DCM acceleration bounds, typed hard witnesses, default-off joint-motion stopping/velocity headroom, allocation-free cumulative attempt telemetry, explicit support-contingency request generation/admission, R285's low-authority degradation boundary, R293's exact dense matvec row-slice default, and R296's rejected fixed-shape Jacobi-dot experiment. Python owns immutable corpus orchestration and qualification. R297 closes local host-native p99, R299 closes kinematic collision extraction, R300 closes the live-rate dynamic fixture, R301 closes the first bounded degraded-mode handoff, and R302 rejects recovery while localizing contact reacquisition as the next gate. Browser frame time, authenticated transport, portable exact solver p99, successful measured transfer/recovery, calibrated actuation/thermal state, external reference parity for this trace, and hardware realization remain open.",
   "flow": [
     {
       "name": "Browser mode and typed ingress",
@@ -16,7 +16,7 @@
     },
     {
       "name": "Measured contact admission",
-      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
+      "detail": "MuJoCo named wheel subtrees are resolved once; collision is refreshed after every completed 4 ms integration step and writes exact world-ground activity into a fixed caller-owned five-frame window · the next 50 Hz WBC boundary consumes exactly the prior window's final sample, never a future or stale internal-solve contact · public window frame indices and per-substep loss/gain edges make causality testable · a transient loss inside a window is diagnostic until the terminal mask reaches the next boundary · Rust receives that raw mask with fresh-observation availability and owns timestamp/provenance, three-sample positive debounce, and immediate hard-row removal on loss · raw, debounced, diagnostic hard, executable-hard, support counts, status, provenance, and flags remain separate witnesses · non-admitted MaxIterations, reset, and paused frames fail closed for executable authority · the default-off R301 flight contingency may be queried only from measured flight and selected only after a finite, hard-feasible admission; its mode, request, candidate, residual, timing, and power stay separate from primary authority · no authored nominal stance becomes authority · successful floating transfer remains a separate gate"
     },
     {
       "name": "Explicit tick input",
@@ -99,10 +99,22 @@
   ],
   "decisions": [
     {
+      "id": "r302-support-recovery-rejection",
+      "title": "Use a strict wheel-supported recovery predicate",
+      "status": "mechanism passed · recovery rejected · contact reacquisition next",
+      "detail": "A 160-profile gain screen over the measured R301 action selects `[9.81,4,16,12,80,14,8,8,20,80,120]` by latest boundary and least body-ground stall. The candidate delays the fall to tick 644 with no MaxIterations, hard residuals below 1e-8, 0.265 ms controller p99, and zero Rust allocation, but spends 494 ticks below 0.40 m without wheel support and never sustains ten both-wheel, upright ticks. This is useful degraded-mode evidence, not recovery authority; the next layer must preserve or deliberately reacquire a wheel contact."
+    },
+    {
+      "id": "r301-support-contingency-handoff",
+      "title": "Bound the measured flight contingency without calling it recovery",
+      "status": "degraded-mode handoff passed · recovery rejected · authority closed",
+      "detail": "On the frozen R300 8 N lateral wrench trace, the default-off Rust flight-only contingency profile selects a separately admitted ballistic/free-body action from tick 36 through the fall boundary. It removes both primary MaxIterations ticks, keeps dynamics/contact residuals below 1e-8, delays the boundary 26 control ticks (520 ms), stays at 1.327 ms controller p99, and allocates zero Rust bytes. The candidate still falls at tick 78; request/admission/selection/mode/power/timing are diagnostic and evaluation-only."
+    },
+    {
       "id": "r300-live-dynamic-contact",
       "title": "Freeze a live-rate dynamic measured-contact consequence trace",
       "status": "fixture passed · controller behavior rejected · authority closed",
-      "detail": "The live 250/50 worker compares a 1.06 s zero-wrench control with an 8 N lateral/200 ms candidate. The fixed contact window is sampled after each integrated 4 ms substep and the following WBC solve consumes its final completed sample; exact frame continuity and per-substep plus aggregated loss/gain edges are gated. Actual MuJoCo support traverses 11/10/01/00 and reaches a fall at tick 52. Transport, hard-row removal, executable-hard fail-closed behavior, exact replay, zero allocation, error tolerance, and worker deadline pass. Right-support ticks 48/50 are the only controller calls above 5 ms: non-admitted MaxIterations at 5.343 ms p99 / 5.367 ms max, with 5.249/5.252 ms adjacent-jitter p99/max, in the frozen artifact. Large unsolved residuals keep recovery, residual, and controller-deadline gates red."
+      "detail": "The live 250/50 worker compares a 1.06 s zero-wrench control with an 8 N lateral/200 ms candidate. The fixed contact window is sampled after each integrated 4 ms substep and the following WBC solve consumes its final completed sample; exact frame continuity and per-substep plus aggregated loss/gain edges are gated. Actual MuJoCo support traverses 11/10/01/00 and reaches a fall at tick 52. Transport, hard-row removal, executable-hard fail-closed behavior, exact replay, zero allocation, error tolerance, and worker deadline pass. Right-support ticks 48/50 are the only controller calls above 5 ms: non-admitted MaxIterations at 5.353 ms p99 / 5.408 ms max, with 5.288/5.290 ms adjacent-jitter p99/max, in the frozen artifact. Large unsolved residuals keep recovery, residual, and controller-deadline gates red."
     },
     {
       "id": "r299-kinematic-measured-contact",
@@ -1141,6 +1153,18 @@
     }
   ],
   "evidence": [
+    {
+      "name": "R302 live support recovery calibration",
+      "result": "mechanism PASS · recovery REJECTED · 160-profile screen · boundary tick 644 · 494 body-ground/no-wheel stall ticks",
+      "detail": "A fixed 160-profile gain screen selects a measured Rust support-contingency candidate by latest boundary and least body-ground stall. The long candidate remains finite, exact-replay, allocation-free, and below the 5 ms p99 gate, but never meets ten consecutive 50 Hz both-wheel/upright ticks and eventually falls. The red recovery predicate is retained as the promotion gate; no public/default authority changes.",
+      "report": "/UPKIE_LIVE_SUPPORT_RECOVERY_R302.html"
+    },
+    {
+      "name": "R301 live support-contingency handoff",
+      "result": "16/16 gates · 520 ms boundary delay · no MaxIterations · zero allocation · recovery rejected",
+      "detail": "The same measured 250/50 Upkie wrench trace is replayed with the production default and an explicit default-off Rust flight-contingency profile. The candidate measures all 11/10/01/00 modes, selects only after a requested/admitted flight query, removes both primary MaxIterations ticks, keeps maximum dynamics/contact residuals at 1.788e-11/3.673e-12, stays at 1.327 ms controller p99, and delays the fall boundary from tick 52 to 78. The candidate still falls, so this is a bounded degraded-mode handoff rather than recovery or walking authority.",
+      "report": "/UPKIE_LIVE_SUPPORT_CONTINGENCY_R301.html"
+    },
     {
       "name": "R300 live dynamic measured-contact fixture",
       "result": "fixture PASS · behavior REJECTED · exact 250/50 replay · zero allocation",
@@ -2698,6 +2722,22 @@
       "detail": "MuJoCo integrates five 4 ms substeps, refreshing collision data after each step into a fixed contact window. The next 50 Hz solve consumes the prior window's terminal mask. Raw, debounced, diagnostic hard, executable-hard, solver status, residual, and contact-edge witnesses are independent; a paused or non-admitted solve cannot advertise retained hard rows as executable.",
       "signal": "250 Hz contact window · terminal mask/frame · loss/gain edges · raw/debounced/hard/executable masks · raw/admitted status · residual · p99 · worker deadline",
       "value": "FIXTURE PASS · 11/10/01/00 · EXECUTABLE HARD FAIL-CLOSED · 0 RUST ALLOC · BEHAVIOR REJECTED",
+      "pressure": 1.0,
+      "state": "critical"
+    },
+    {
+      "name": "Measured flight contingency handoff · R301",
+      "detail": "A default-off Rust request generator derives support-conditioned acceleration from the measured mask. The evaluated flight-only profile emits ballistic gravity plus bounded attitude/joint damping, runs a separate floating WBC query, and can replace the primary command only when the candidate is finite, hard-feasible, and admitted. It delays the R300 fall boundary by 520 ms while retaining the eventual fall and every primary/contingency witness.",
+      "signal": "requested/admitted/selected · support mode/mask · candidate residual · query/primary timing · candidate/incremental power · boundary delay",
+      "value": "DEGRADED HANDOFF PASS · RECOVERY NOT CLAIMED · EVAL ONLY",
+      "pressure": 0.72,
+      "state": "warning"
+    },
+    {
+      "name": "Wheel-supported recovery predicate · R302",
+      "detail": "A fixed gain screen ranks only measured Rust contingency candidates by latest boundary and least body-ground/no-wheel stall. Promotion requires ten consecutive 50 Hz ticks with both measured wheel contacts, root height at least 0.48 m, tilt at most 0.20 rad, and no pending reset. The selected candidate delays the fall to tick 644 but spends 494 ticks in low-body/no-wheel support and never meets the predicate; contact reacquisition remains unresolved.",
+      "signal": "gain profile · boundary · wheel-support dwell · root height/tilt · body-ground stall · MaxIterations · hard residual · p99 · recovery verdict",
+      "value": "MECHANISM PASS · RECOVERY REJECTED · CONTACT REACQUISITION NEXT",
       "pressure": 1.0,
       "state": "critical"
     },

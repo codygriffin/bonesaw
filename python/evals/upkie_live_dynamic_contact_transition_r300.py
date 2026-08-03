@@ -27,6 +27,7 @@ FORCE_WORLD_N = (0.0, 8.0, 0.0)
 BEHAVIOR_GATE_NAMES = (
     "controller_p99_under_5ms",
     "hard_residuals_under_1e8",
+    "candidate_recovers_supported_upright",
     "candidate_recovers_without_boundary",
 )
 PROVENANCE = {
@@ -110,6 +111,53 @@ def _summary(index: int, state: dict[str, Any]) -> dict[str, Any]:
         ),
         "wbc_dynamics_residual": float(metrics["wbc_dynamics_residual"]),
         "wbc_contact_residual": float(metrics["wbc_contact_residual"]),
+        "support_contingency_enabled": bool(
+            metrics.get("wbc_support_contingency_enabled", False)
+        ),
+        "support_contingency_requested": bool(
+            metrics.get("wbc_support_contingency_requested", False)
+        ),
+        "support_contingency_admitted": bool(
+            metrics.get("wbc_support_contingency_admitted", False)
+        ),
+        "support_contingency_selected": bool(
+            metrics.get("wbc_support_contingency_selected", False)
+        ),
+        "support_contingency_armed": bool(
+            metrics.get("wbc_support_contingency_armed", False)
+        ),
+        "support_contingency_mode": int(
+            metrics.get("wbc_support_contingency_mode", 0)
+        ),
+        "support_contingency_support_mask": int(
+            metrics.get("wbc_support_contingency_support_mask", 3)
+        ),
+        "support_contingency_status": str(
+            metrics.get("wbc_support_contingency_status", "unavailable")
+        ),
+        "support_contingency_status_code": int(
+            metrics.get("wbc_support_contingency_status_code", -1)
+        ),
+        "support_contingency_maximum_constraint_violation": float(
+            metrics.get(
+                "wbc_support_contingency_maximum_constraint_violation", 0.0
+            )
+        ),
+        "support_contingency_author_step_us": float(
+            metrics.get("wbc_support_contingency_author_step_us", 0.0)
+        ),
+        "support_contingency_step_us": float(
+            metrics.get("wbc_support_contingency_step_us", 0.0)
+        ),
+        "support_contingency_candidate_power_w": float(
+            metrics.get("wbc_support_contingency_candidate_power_w", 0.0)
+        ),
+        "support_contingency_incremental_power_w": float(
+            metrics.get("wbc_support_contingency_incremental_power_w", 0.0)
+        ),
+        "support_contingency_forecast_guard_passed": bool(
+            metrics.get("wbc_support_contingency_forecast_guard_passed", False)
+        ),
         "controller_step_us": float(metrics["controller_step_us"]),
         "worker_step_us": float(metrics["worker_step_us"]),
         "root_tilt_rad": float(metrics["root_tilt_rad"]),
@@ -199,13 +247,51 @@ def run_case(
 def _semantic(case: dict[str, Any]) -> dict[str, Any]:
     copy = json.loads(json.dumps(case))
     for state in copy["states"]:
-        state.pop("controller_step_us")
-        state.pop("worker_step_us")
+        for timing_key in (
+            "controller_step_us",
+            "worker_step_us",
+            "support_contingency_author_step_us",
+            "support_contingency_step_us",
+        ):
+            state.pop(timing_key, None)
     return copy
 
 
 def _rms(values: np.ndarray) -> float:
     return float(np.sqrt(np.mean(np.square(values))))
+
+
+def supported_upright_recovery_tick(
+    states: list[dict[str, Any]],
+    *,
+    start_tick: int = PUSH_START_TICK + PUSH_TICKS,
+    dwell_ticks: int = 10,
+) -> int | None:
+    """First sustained wheel-supported, near-nominal recovery boundary."""
+    consecutive = 0
+    for state in states:
+        recovered = (
+            state["index"] >= start_tick
+            and state["observed"] == [1, 1]
+            and state["root_height_m"] >= 0.48
+            and state["root_tilt_rad"] <= 0.20
+            and state["automatic_reset_pending"] is None
+        )
+        consecutive = consecutive + 1 if recovered else 0
+        if consecutive >= dwell_ticks:
+            return state["index"] - dwell_ticks + 1
+    return None
+
+
+def maximum_body_ground_stall_ticks(states: list[dict[str, Any]]) -> int:
+    """Longest low-body interval without either measured wheel contact."""
+    longest = 0
+    consecutive = 0
+    for state in states:
+        stalled = state["root_height_m"] < 0.40 and state["observed"] == [0, 0]
+        consecutive = consecutive + 1 if stalled else 0
+        longest = max(longest, consecutive)
+    return longest
 
 
 def summarize(case: dict[str, Any]) -> dict[str, Any]:
@@ -327,6 +413,8 @@ def summarize(case: dict[str, Any]) -> dict[str, Any]:
         "allocated_bytes": int(sum(state["wbc_allocated_bytes"] for state in states)),
         "hard_subset_raw": bool(np.all(hard <= observed)),
         "warning_count": int(sum(state["warning_count"] for state in states)),
+        "supported_upright_recovery_tick": supported_upright_recovery_tick(states),
+        "maximum_body_ground_stall_ticks": maximum_body_ground_stall_ticks(states),
     }
 
 
@@ -446,6 +534,14 @@ def evaluate(
         <= 1.0e-8
         and candidate_summary["maximum_dynamics_residual"] <= 1.0e-8
         and candidate_summary["maximum_contact_residual"] <= 1.0e-8,
+        "candidate_recovers_supported_upright": candidate_summary[
+            "terminal_pending"
+        ]
+        is None
+        and candidate_summary["supported_upright_recovery_tick"] is not None
+        and candidate_summary["maximum_body_ground_stall_ticks"] == 0,
+        # Retain the original compact gate name for callers of the R300
+        # evaluator; the supported-upright gate above is the stricter witness.
         "candidate_recovers_without_boundary": candidate_summary[
             "terminal_pending"
         ]
@@ -545,6 +641,8 @@ def render_report(
         f"| contact patterns | {', '.join(c0['observed_patterns'])} | {', '.join(c1['observed_patterns'])} |",
         f"| first non-double / flight tick | — / — | {c1['first_non_double_tick']} / {c1['first_flight_tick']} |",
         f"| terminal boundary | {c0['terminal_pending'] or '—'} | {c1['terminal_pending'] or '—'} |",
+        f"| supported-upright recovery tick (10-tick dwell) | {c0['supported_upright_recovery_tick'] if c0['supported_upright_recovery_tick'] is not None else '—'} | {c1['supported_upright_recovery_tick'] if c1['supported_upright_recovery_tick'] is not None else '—'} |",
+        f"| longest low-body / no-wheel-contact stall ticks | {c0['maximum_body_ground_stall_ticks']} | {c1['maximum_body_ground_stall_ticks']} |",
         f"| root position RMS m | {c0['root_position_rms_m']:.5f} | {c1['root_position_rms_m']:.5f} |",
         f"| CoM position RMS m | {c0['com_position_rms_m']:.5f} | {c1['com_position_rms_m']:.5f} |",
         f"| max lateral displacement m | {c0['maximum_root_lateral_displacement_m']:.5f} | {c1['maximum_root_lateral_displacement_m']:.5f} |",

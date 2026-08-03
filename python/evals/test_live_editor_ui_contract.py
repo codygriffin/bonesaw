@@ -126,6 +126,14 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("contact_window_gain_mask", self.javascript)
         self.assertIn("wbc_hard_contact_executable", self.javascript)
 
+    def test_support_contingency_is_a_separate_visible_authority_witness(self) -> None:
+        self.assertIn("wbc_support_contingency_enabled", self.javascript)
+        self.assertIn("wbc_support_contingency_selected", self.javascript)
+        self.assertIn("wbc_support_contingency_admitted", self.javascript)
+        self.assertIn("wbc_support_contingency_requested", self.javascript)
+        self.assertIn('"CTG"', self.javascript)
+        self.assertIn("contingencyState", self.javascript)
+
     def test_mujoco_pause_resume_reset_controls_are_explicit(self) -> None:
         for selector in ('#pause-button', '#resume-button', '#reset-button'):
             self.assertIn(f'id="{selector[1:]}"', self.html)

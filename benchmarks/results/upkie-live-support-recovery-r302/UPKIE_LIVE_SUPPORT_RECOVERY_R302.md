@@ -1,0 +1,43 @@
+# Upkie live support recovery calibration · R302
+
+> Mechanism PASS · controller behavior REJECTED · evaluation-only profile · no learned policy.
+
+R302 calibrates only the existing allocation-free Rust observed-support action admitted by R301. Python declares the bounded gain grid, sequences MuJoCo, and scores outcomes; Rust authors the acceleration request and the ordinary floating WBC retains execution authority. The selected profile is not promoted and does not alter the public/default controller.
+
+A reset-free trace is not called recovery. Recovery requires ten consecutive 50 Hz ticks with both measured wheel contacts, root height at least 0.48 m, root tilt at most 0.20 rad, and no pending reset. A separate metric counts low-body intervals below 0.40 m with neither wheel in contact.
+The retained calibration artifact evaluates 160 declared gain profiles for 200 ticks, extends the six finite/residual/deadline-clean boundary survivors to 700 ticks, and then replays the selected profile exactly.
+
+| arm | fall tick | supported-upright recovery | longest body-ground stall ticks | MaxIterations ticks | controller p99 µs | worst hard residual | max torque utilization |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| no contingency | 52 | — | 2 | [48, 50] | 5284.1 | 9.139e+01 | 0.259 |
+| default contingency | 90 | — | 4 | — | 5195.2 | 1.788e-11 | 0.474 |
+| calibrated candidate | 644 | — | 494 | — | 265.0 | 1.788e-11 | 0.857 |
+
+Selected Rust configuration: `[9.81, 4.0, 16.0, 12.0, 80.0, 14.0, 8.0, 8.0, 20.0, 80.0, 120.0]`.
+
+## Mechanism and consequence gates
+
+| gate | result |
+|---|:---:|
+| semantic_replay_exact | PASS |
+| configured_profile_is_physically_dormant_in_nominal_double_support | PASS |
+| causal_prior_window_contract_preserved | PASS |
+| all_outputs_finite | PASS |
+| zero_timed_rust_allocation | PASS |
+| no_max_iterations | PASS |
+| controller_p99_under_5ms | PASS |
+| hard_residuals_under_1e8 | PASS |
+| fall_boundary_delayed_vs_no_contingency | PASS |
+| fall_boundary_delayed_vs_default_contingency | PASS |
+
+## Recovery gates
+
+| gate | result |
+|---|:---:|
+| candidate_has_no_fall_boundary | FAIL |
+| candidate_recovers_supported_upright | FAIL |
+| candidate_never_stalls_on_body_without_wheel_support | FAIL |
+
+## Conclusion
+
+The calibrated action removes the R300 infeasible/residual failure mode and materially delays the first fall boundary, but it does not recover. It spends a long interval supported by non-wheel body geometry, never satisfies the sustained wheel-supported upright predicate, and eventually crosses the same fall boundary. The next controller milestone is therefore contact reacquisition—not more QP iterations or timeout tolerance. It needs an independently admitted action that preserves or deliberately regains a wheel contact, with this strict state predicate retained as the promotion gate.

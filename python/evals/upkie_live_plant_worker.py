@@ -579,6 +579,15 @@ class LiveUpkiePlant:
             if published_wbc_admitted
             else self.no_contact_active
         )
+        # Keep the optional support-contingency witness alongside the primary
+        # WBC metrics.  This is deliberately evaluation-only: the public
+        # worker constructs the adapter with no controller overrides, but a
+        # measured profile can now tell the browser whether a fallback solve
+        # was merely queried, admitted, or actually selected.  Never publish
+        # a stale contingency result across pause/reset boundaries.
+        support_contingency_result = (
+            latest_result if published_contact_state else None
+        )
         ground_contacts = [contact for contact in contacts if contact["ground"]]
         total_ground_normal_force_n = sum(
             float(contact["normal_force_n"]) for contact in ground_contacts
@@ -739,6 +748,92 @@ class LiveUpkiePlant:
                 "wbc_contact_residual": 0.0
                 if latest_result is None or self.paused
                 else float(latest_result["contact_residual"]),
+                "wbc_support_contingency_enabled": bool(
+                    self.controller.support_contingency_enabled
+                ),
+                "wbc_support_contingency_requested": bool(
+                    support_contingency_result is not None
+                    and support_contingency_result[
+                        "support_contingency_requested"
+                    ]
+                ),
+                "wbc_support_contingency_admitted": bool(
+                    support_contingency_result is not None
+                    and support_contingency_result[
+                        "support_contingency_admitted"
+                    ]
+                ),
+                "wbc_support_contingency_selected": bool(
+                    support_contingency_result is not None
+                    and support_contingency_result[
+                        "support_contingency_selected"
+                    ]
+                ),
+                "wbc_support_contingency_armed": bool(
+                    support_contingency_result is not None
+                    and support_contingency_result[
+                        "support_contingency_armed"
+                    ]
+                ),
+                "wbc_support_contingency_mode": 0
+                if support_contingency_result is None
+                else int(support_contingency_result["support_contingency_mode"]),
+                "wbc_support_contingency_support_mask": 3
+                if support_contingency_result is None
+                else int(
+                    support_contingency_result[
+                        "support_contingency_support_mask"
+                    ]
+                ),
+                "wbc_support_contingency_status_code": -1
+                if support_contingency_result is None
+                else int(support_contingency_result["support_contingency_status"]),
+                "wbc_support_contingency_status": "unavailable"
+                if support_contingency_result is None
+                else plant.STATUS_NAMES[
+                    int(support_contingency_result["support_contingency_status"])
+                ],
+                "wbc_support_contingency_maximum_constraint_violation": 0.0
+                if support_contingency_result is None
+                else float(
+                    support_contingency_result[
+                        "support_contingency_maximum_constraint_violation"
+                    ]
+                ),
+                "wbc_support_contingency_author_step_us": 0.0
+                if support_contingency_result is None
+                else float(
+                    support_contingency_result[
+                        "support_contingency_author_step_ns"
+                    ]
+                )
+                / 1.0e3,
+                "wbc_support_contingency_step_us": 0.0
+                if support_contingency_result is None
+                else float(
+                    support_contingency_result["support_contingency_wbc_step_ns"]
+                )
+                / 1.0e3,
+                "wbc_support_contingency_candidate_power_w": 0.0
+                if support_contingency_result is None
+                else float(
+                    support_contingency_result[
+                        "support_contingency_candidate_power_w"
+                    ]
+                ),
+                "wbc_support_contingency_incremental_power_w": 0.0
+                if support_contingency_result is None
+                else float(
+                    support_contingency_result[
+                        "support_contingency_incremental_power_w"
+                    ]
+                ),
+                "wbc_support_contingency_forecast_guard_passed": bool(
+                    support_contingency_result is not None
+                    and support_contingency_result[
+                        "support_contingency_forecast_guard_passed"
+                    ]
+                ),
                 "wbc_observed_contact_available": latest_result is not None
                 and not self.paused,
                 "wbc_observed_contact_active": latest_observed_contact_active.tolist(),

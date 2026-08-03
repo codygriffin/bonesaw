@@ -141,6 +141,15 @@ def run(base_url: str, connect_address: str | None = None) -> dict[str, Any]:
         assert initial["wbc_observation"]["source"] == (
             "latest_completed_250hz_substep"
         )
+        # The schema always carries the independently typed contingency
+        # witnesses, while the hosted production profile remains disabled.
+        assert initial["metrics"]["wbc_support_contingency_enabled"] is False
+        assert initial["metrics"]["wbc_support_contingency_requested"] is False
+        assert initial["metrics"]["wbc_support_contingency_admitted"] is False
+        assert initial["metrics"]["wbc_support_contingency_selected"] is False
+        assert math.isfinite(
+            initial["metrics"]["wbc_support_contingency_candidate_power_w"]
+        )
         assert math.isfinite(initial["simulator"]["kinetic_energy_j"])
         assert math.isfinite(initial["simulator"]["potential_energy_j"])
         assert initial["metrics"]["ground_contact_count"] >= 1, initial["metrics"]

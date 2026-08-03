@@ -4019,6 +4019,63 @@ impl UpkieBalanceSession {
         self.joint_velocity.fill(0.0);
     }
 
+    /// Configure the allocation-free observed-support contingency author.
+    ///
+    /// This changes request generation only. Every authored acceleration must
+    /// still pass through the ordinary floating-WBC admission boundary before
+    /// it can acquire execution authority.
+    #[allow(clippy::too_many_arguments)]
+    fn configure_support_contingency(
+        &mut self,
+        gravity_mps2: f64,
+        double_support_position_gain_per_s2: f64,
+        single_support_position_gain_per_s2: f64,
+        supported_linear_damping_per_s: f64,
+        attitude_stiffness_per_s2: f64,
+        angular_damping_per_s: f64,
+        joint_damping_per_s: f64,
+        maximum_horizontal_acceleration_m_s2: f64,
+        maximum_vertical_braking_acceleration_m_s2: f64,
+        maximum_angular_acceleration_rad_s2: f64,
+        maximum_joint_acceleration_rad_s2: f64,
+    ) -> PyResult<()> {
+        let values = [
+            gravity_mps2,
+            double_support_position_gain_per_s2,
+            single_support_position_gain_per_s2,
+            supported_linear_damping_per_s,
+            attitude_stiffness_per_s2,
+            angular_damping_per_s,
+            joint_damping_per_s,
+            maximum_horizontal_acceleration_m_s2,
+            maximum_vertical_braking_acceleration_m_s2,
+            maximum_angular_acceleration_rad_s2,
+            maximum_joint_acceleration_rad_s2,
+        ];
+        if values
+            .iter()
+            .any(|value| !value.is_finite() || *value <= 0.0)
+        {
+            return Err(PyValueError::new_err(
+                "support contingency configuration must be finite and positive",
+            ));
+        }
+        self.support_contingency_config = SupportContingencyConfig {
+            gravity_mps2,
+            double_support_position_gain_per_s2,
+            single_support_position_gain_per_s2,
+            supported_linear_damping_per_s,
+            attitude_stiffness_per_s2,
+            angular_damping_per_s,
+            joint_damping_per_s,
+            maximum_horizontal_acceleration_m_s2,
+            maximum_vertical_braking_acceleration_m_s2,
+            maximum_angular_acceleration_rad_s2,
+            maximum_joint_acceleration_rad_s2,
+        };
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn configure_planar_capture(
         &mut self,

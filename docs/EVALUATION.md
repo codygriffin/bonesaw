@@ -4,6 +4,25 @@ The evaluation strategy measures local numerical identities, solver semantics,
 closed-loop behavior, determinism, and timing separately. A single attractive
 animation is not evidence that a WBC is correct.
 
+### Revision r302 strict live support-recovery falsifier
+
+`python/evals/upkie_live_support_recovery_r302.py` keeps request generation and
+WBC admission in Rust while Python declares a 160-profile gain grid, sequences
+the actual 250 Hz MuJoCo / 50 Hz WBC plant, and scores consequences. Six
+finite, residual-clean, deadline-clean profiles that survive 200 ticks are
+extended to 700; the selected profile is independently replayed. There is no
+learned policy, and the production default is unchanged.
+
+The mechanism passes: exact replay and nominal-prefix physical dormancy hold,
+timed Rust allocation is zero, no candidate tick reaches `MaxIterations`, worst
+hard residual is `1.788e-11`, and controller p99 is `0.265 ms`. The fall moves
+from tick 52 without contingency and tick 90 with default contingency to tick
+644. Behavior is rejected under the new physical gate: there is no ten-tick
+double-wheel-supported dwell above 0.48 m and below 0.20 rad tilt, while the
+trace contains a 494-tick interval below 0.40 m with no measured wheel contact.
+The retained report is
+[`UPKIE_LIVE_SUPPORT_RECOVERY_R302.md`](../benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
+
 ### 0. Pinocchio differential oracle
 
 The Rust fixture executable evaluates deterministic valid states through the

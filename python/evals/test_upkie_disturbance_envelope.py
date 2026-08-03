@@ -21,6 +21,48 @@ MODEL = ROOT / "models/upkie/upkie.urdf"
 
 
 class UpkieDisturbanceEnvelopeTests(unittest.TestCase):
+    def test_support_contingency_configuration_is_rust_validated(self) -> None:
+        import bonesaw
+
+        session = bonesaw.UpkieBalanceSession(str(MODEL))
+        configured = (
+            9.81,
+            6.0,
+            12.0,
+            8.0,
+            60.0,
+            14.0,
+            10.0,
+            10.0,
+            24.0,
+            90.0,
+            140.0,
+        )
+        session.configure_support_contingency(*configured)
+        with self.assertRaisesRegex(ValueError, "finite and positive"):
+            session.configure_support_contingency(
+                *configured[:2], 0.0, *configured[3:]
+            )
+        with self.assertRaisesRegex(ValueError, "finite and positive"):
+            session.configure_support_contingency(
+                math.nan, *configured[1:]
+            )
+
+    def test_adapter_requires_complete_support_contingency_profile(self) -> None:
+        import bonesaw
+
+        balance = bonesaw.UpkieBalanceSession(str(MODEL))
+        with self.assertRaisesRegex(ValueError, "exactly 11"):
+            plant.RustWbcAdapter(
+                MODEL,
+                np.asarray([0.0, 0.0, 0.58]),
+                0.0,
+                balance,
+                "capture",
+                0.2,
+                support_contingency_config=(9.81,),
+            )
+
     def run_contact_observation_profile(
         self, **profile: int | float
     ) -> dict[str, object]:

@@ -1086,6 +1086,7 @@ class RustWbcAdapter:
         support_contingency_forecast_guard: bool = False,
         support_contingency_project_primary: bool = False,
         support_contingency_realize_primary_torque: bool = False,
+        support_contingency_config: tuple[float, ...] | None = None,
         contact_program_authority_ticks: int | None = None,
         contact_program_inexact_hold_ticks: int = 0,
         contact_program_inexact_hold_authority: float = 1.0,
@@ -1195,6 +1196,14 @@ class RustWbcAdapter:
             raise RuntimeError("Upkie coordinate order changed")
         self.balance = balance_session
         self.balance.capture_velocity_fraction = capture_velocity_fraction
+        if support_contingency_config is not None:
+            if len(support_contingency_config) != 11:
+                raise ValueError(
+                    "support_contingency_config must contain exactly 11 values"
+                )
+            self.balance.configure_support_contingency(
+                *support_contingency_config
+            )
         if tuple(self.balance.coordinates) != tuple(ROLLING_COORDINATES):
             raise RuntimeError("Upkie balance coordinate order changed")
         frames = list(self.session.frame_names)

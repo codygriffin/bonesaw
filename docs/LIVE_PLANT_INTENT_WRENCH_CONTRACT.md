@@ -50,6 +50,22 @@ cannot turn the authored nominal two-wheel stance into support authority. This
 is measured contact admission, not a claim that the WBC can execute a floating
 walking transfer.
 
+The evaluation-only R301 profile adds a separate measured-flight contingency
+layer. `wbc_support_contingency_requested`, `..._admitted`, and
+`..._selected` are distinct from primary WBC status; `..._mode`, support mask,
+candidate residual, author/query timing, candidate/incremental power, and
+forecast-guard state are diagnostics rather than hidden authority. On the
+frozen R300 lateral-wrench trace this profile removes the two primary
+`MaxIterations` ticks and delays the fall boundary by 520 ms, but it still
+falls and is not enabled by the public worker.
+
+R302 tightens the consequence contract without adding live authority. “No
+automatic reset yet” is insufficient: recovery requires a ten-tick dwell with
+both measured wheels, root height at least 0.48 m, tilt at most 0.20 rad, and no
+pending reset. A low-body/no-wheel interval is counted separately. The best
+candidate in the retained 160-profile calibration delays the terminal boundary
+but fails both physical predicates, so it remains evaluation-only.
+
 Simulation lifecycle commands are explicit and fail-safe:
 
 - `plant_pause` releases any active wrench lease and freezes MuJoCo time while

@@ -328,12 +328,31 @@ This is an engineering prototype, not a safety-rated robot controller.
   non-admitted solve; a transient edge is diagnostic until the terminal sample
   reaches the next boundary. Controller behavior is
   rejected: ticks 48/50 reach `MaxIterations`; the two calls above 5 ms produce
-  5.343/5.367 ms p99/max and 5.249/5.252 ms adjacent-jitter p99/max in the
+  5.353/5.408 ms p99/max and 5.288/5.290 ms adjacent-jitter p99/max in the
   frozen artifact. Unsolved
   dynamics/contact residuals reach 91.4/12.9. The live page now renders those
   residuals, support masks, allocation counts, and raw solver status in the
   authority stack and near-body bars. See the
   [r300 dynamic measured-contact report](benchmarks/results/upkie-live-dynamic-contact-transition-r300/UPKIE_LIVE_DYNAMIC_CONTACT_R300.md).
+- R301 keeps the public `production_default` profile unchanged and evaluates an
+  explicit default-off Rust flight-contingency handoff on that same measured
+  trace. The candidate selects only after a measured flight query passes the
+  ordinary finite/hard-feasible/admission boundary, eliminates both primary
+  `MaxIterations` ticks, keeps dynamics/contact residuals at
+  `1.788e-11/3.673e-12`, uses zero Rust allocations, and delays the fall from
+  tick 52 to tick 78 (520 ms) at 1.327 ms controller p99. It still falls, so
+  this is a bounded degraded-mode response—not recovery, walking, or authority.
+  Request, admission, selection, mode, residual, timing, and power witnesses
+  are streamed and shown in the browser support row. See the
+  [r301 support-contingency report](benchmarks/results/upkie-live-support-contingency-r301/UPKIE_LIVE_SUPPORT_CONTINGENCY_R301.md).
+- R302 screens 160 explicit Rust support-contingency gain profiles against a
+  strict recovery predicate: ten consecutive 50 Hz both-wheel observations,
+  root height ≥`0.48 m`, tilt ≤`0.20 rad`, and no pending reset. The selected
+  profile delays the same fall boundary to tick 644 with no `MaxIterations`,
+  hard residuals below `1e-8`, `0.265 ms` controller p99, and zero Rust
+  allocations, but spends 494 ticks in low-body/no-wheel support and never
+  recovers. Mechanism is green; contact reacquisition remains the next gate.
+  See the [r302 support-recovery report](benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
 - R285 adds independently configurable, default-off Preference and Style
   projected-solve ceilings. Exhaustion preserves hard feasibility and completed
   higher authority, skips lower authority, and survives retries as typed

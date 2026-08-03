@@ -791,10 +791,23 @@ function updatePlantTelemetry(message) {
   const executableMask = (metrics.wbc_hard_contact_executable || [0, 0]).join("");
   const supportCount = Number(metrics.wbc_support_active_count || 0);
   const supportPressure = supportCount >= 2 ? 0 : supportCount === 1 ? 0.72 : 1;
+  const contingencyEnabled = Boolean(metrics.wbc_support_contingency_enabled);
+  const contingencyState = contingencyEnabled
+    ? (metrics.wbc_support_contingency_selected
+      ? "selected"
+      : metrics.wbc_support_contingency_admitted
+        ? "admitted"
+        : metrics.wbc_support_contingency_requested
+          ? "requested"
+          : "idle")
+    : "off";
+  const contingencyMode = ["DS", "SS", "FL"][
+    Number(metrics.wbc_support_contingency_mode)
+  ] || "?";
   setLiveAuthorityRow(
     "authority-support",
     `${supportCount}/2`,
-    `measured ${observedMask} · debounced ${debouncedMask} · hard ${hardMask} · exec ${executableMask} · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N sampled ground load`,
+    `measured ${observedMask} · debounced ${debouncedMask} · hard ${hardMask} · exec ${executableMask} · ${Number(metrics.total_ground_normal_force_n || 0).toFixed(1)} N sampled ground load${contingencyEnabled ? ` · contingency ${contingencyState}/${contingencyMode} · ${Number(metrics.wbc_support_contingency_step_us || 0).toFixed(1)} µs` : ""}`,
     supportPressure,
     supportCount === 0 ? "critical" : supportCount === 1 ? "warning" : "ok",
   );
@@ -1797,6 +1810,19 @@ function drawAuthorityAnnotations() {
       Number.isFinite(residual) ? residual.toExponential(1) : "N/A",
       !Number.isFinite(residual),
     );
+    if (Boolean(physical.wbc_support_contingency_enabled)) {
+      y += 16;
+      const selected = Boolean(physical.wbc_support_contingency_selected);
+      const requested = Boolean(physical.wbc_support_contingency_requested);
+      drawTinyAuthorityBar(
+        x,
+        y,
+        "CTG",
+        selected ? 0.72 : requested ? 0.42 : 0,
+        selected ? "ON" : requested ? "REQ" : "idle",
+        false,
+      );
+    }
     return;
   }
 

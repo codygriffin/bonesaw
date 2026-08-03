@@ -15,6 +15,8 @@ The control and candidate use the same live worker, Upkie reference capture comp
 | contact patterns | 11 | 00, 01, 10, 11 |
 | first non-double / flight tick | — / — | 32 / 36 |
 | terminal boundary | — | fall |
+| supported-upright recovery tick (10-tick dwell) | 35 | — |
+| longest low-body / no-wheel-contact stall ticks | 0 | 2 |
 | root position RMS m | 0.00168 | 0.04297 |
 | CoM position RMS m | 0.00044 | 0.02558 |
 | max lateral displacement m | 0.00034 | 0.06432 |
@@ -22,15 +24,15 @@ The control and candidate use the same live worker, Upkie reference capture comp
 | paired actuator-effort delta RMS N·m | — | 0.75425 |
 | max tilt rad | 0.03291 | 0.62450 |
 | min height m | 0.53905 | 0.29304 |
-| controller p50 / p99 / max µs | 132.9 / 156.6 / 164.6 | 133.2 / 5342.8 / 5366.5 |
-| controller adjacent jitter p50 / p99 / max µs | 2.1 / 27.8 / 31.6 | 3.6 / 5249.3 / 5252.3 |
+| controller p50 / p99 / max µs | 132.2 / 147.9 / 149.1 | 132.4 / 5352.8 / 5408.4 |
+| controller adjacent jitter p50 / p99 / max µs | 3.0 / 21.1 / 22.3 | 6.1 / 5288.3 / 5290.3 |
 | controller calls &gt;5 ms | 0 | 2 |
-| worker p50 / p99 / max µs | 1422.4 / 1586.7 / 1599.3 | 1429.0 / 6609.3 / 6659.7 |
-| worker adjacent jitter p50 / p99 / max µs | 14.6 / 144.6 / 192.5 | 20.6 / 5269.2 / 5272.6 |
+| worker p50 / p99 / max µs | 1410.0 / 1616.7 / 1687.0 | 1418.0 / 6615.9 / 6706.9 |
+| worker adjacent jitter p50 / p99 / max µs | 12.6 / 179.0 / 228.9 | 25.9 / 5252.8 / 5316.0 |
 | worker calls &gt;20 ms | 0 | 0 |
 | max constraint / dynamics / contact residual | 1.788e-11 / 1.788e-11 / 1.526e-12 | 2.911e-02 / 9.139e+01 / 1.290e+01 |
 | MaxIterations ticks | — | [48, 50] |
-| max controller / constraint tick | 38 / 8 | 48 / 50 |
+| max controller / constraint tick | 50 / 8 | 48 / 50 |
 | sampled ground impulse N·s | 55.930 | 82.369 |
 | Rust allocation calls / bytes | 0 / 0 | 0 / 0 |
 
@@ -81,6 +83,7 @@ The control and candidate use the same live worker, Upkie reference capture comp
 |---|:---:|
 | controller_p99_under_5ms | FAIL |
 | hard_residuals_under_1e8 | FAIL |
+| candidate_recovers_supported_upright | FAIL |
 | candidate_recovers_without_boundary | FAIL |
 
 This is a discriminating consequence fixture, not a recovery pass. It proves that actual integrated contact loss crosses an explicit prior-window causality boundary and reaches the streamed authority layers without stale hard rows or reset masking. The controller still falls; the next behavior candidate must improve this same frozen trace without weakening any transport, residual, timing, or allocation gate. Rust allocation counters are in-process and exact; process RSS, Python GC, and hardware thermal/power telemetry are deliberately not claimed by this fixture and remain separate benchmark work.

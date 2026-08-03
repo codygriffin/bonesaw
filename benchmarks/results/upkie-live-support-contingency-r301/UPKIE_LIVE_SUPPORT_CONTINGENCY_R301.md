@@ -1,0 +1,45 @@
+# Upkie live support-contingency handoff · R301
+
+> Degraded-mode handoff **PASS** when all gates below pass; recovery is deliberately **NOT CLAIMED**.
+
+Both cases use the measured 250 Hz MuJoCo / 50 Hz Rust WBC worker, the Upkie reference model, the same 8 N lateral wrench for 200 ms, and no policy. The candidate enables the default-off Rust support-contingency author with an explicit bounded degraded-mode gain profile. The ordinary WBC admission boundary remains authoritative: a contingency request is executed only when it is finite, hard-feasible, and admitted.
+
+| metric | primary production default | contingency candidate |
+|---|---:|---:|
+| terminal boundary tick | 52 | 78 |
+| terminal time s | 1.060 | 1.580 |
+| boundary delay ticks / ms | — | 26 / 520 |
+| contact patterns | 00, 01, 10, 11 | 00, 01, 10, 11 |
+| primary MaxIterations ticks | [48, 50] | — |
+| max dynamics / contact residual | 9.139e+01 / 1.290e+01 | 1.788e-11 / 3.673e-12 |
+| controller p50 / p99 / max µs | 131.8 / 5298.8 / 5305.1 | 141.3 / 1326.6 / 4957.7 |
+| contingency selected ticks | — | 25 (36…78) |
+| contingency modes | — | flight |
+| contingency query p50 / p99 / max µs | — | 50.5 / 153.2 / 153.2 |
+| candidate root trace delta RMS m | — | 0.00873 |
+| Rust allocation calls / bytes | 0 / 0 | 0 / 0 |
+
+## Interpretation
+
+The candidate is a bounded degraded-mode handoff: it avoids forwarding the primary solver's unsolved command, keeps the residual witnesses finite, and buys a measurable additional fall horizon. It does not stabilize the robot indefinitely; the terminal fall is retained as a required boundary and is not hidden by an automatic reset. The profile remains evaluation-only until a stronger support-feasible braking/recovery criterion exists.
+
+## Gates
+
+| gate | result |
+|---|:---:|
+| live_rate_split_is_250_50 | PASS |
+| baseline_reproduces_primary_fall | PASS |
+| candidate_also_reports_boundary_without_reset | PASS |
+| candidate_delays_boundary_by_at_least_20_ticks | PASS |
+| candidate_measures_all_contact_modes | PASS |
+| candidate_contingency_is_flight_only | PASS |
+| selection_only_after_request_and_admission | PASS |
+| selection_only_without_double_support | PASS |
+| candidate_eliminates_primary_max_iterations | PASS |
+| candidate_residuals_under_1e8 | PASS |
+| candidate_controller_p99_under_5ms | PASS |
+| candidate_support_query_p99_under_1ms | PASS |
+| candidate_zero_rust_allocations | PASS |
+| candidate_no_numeric_reset_or_warning | PASS |
+| candidate_replay_is_semantically_exact | PASS |
+| hard_rows_remain_subset_of_measured_contact | PASS |

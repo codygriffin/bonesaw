@@ -2,6 +2,39 @@
 
 This file separates demonstrated behavior from architectural intent.
 
+## Current recovery calibration — r302 measured support contingency
+
+R302 runs a fixed 160-profile gain screen over the R301 allocation-free Rust
+support-contingency action and freezes the selected profile
+`[9.81, 4, 16, 12, 80, 14, 8, 8, 20, 80, 120]`. On the same measured 8 N
+lateral-wrench trace, the candidate delays the fall boundary from tick 52 to
+tick 644, has no `MaxIterations`, keeps hard residuals below `1e-8`, reports a
+`0.265 ms` controller p99, and allocates zero Rust bytes. The strict recovery
+predicate requires ten consecutive 50 Hz ticks with both measured wheel
+contacts, root height at least `0.48 m`, tilt at most `0.20 rad`, and no pending
+reset. The candidate never satisfies it and spends 494 ticks in low-body/no-
+wheel support before falling. Mechanism is green; recovery is explicitly red.
+Contact reacquisition or a support-changing action—not more timeout tolerance—
+is the next behavior gate. See
+[`UPKIE_LIVE_SUPPORT_RECOVERY_R302.md`](../benchmarks/results/upkie-live-support-recovery-r302/UPKIE_LIVE_SUPPORT_RECOVERY_R302.md).
+
+## Current degraded-mode handoff — r301 measured flight contingency
+
+R301 keeps the public `production_default` worker unchanged and evaluates an
+explicit default-off Rust flight-contingency profile on the same 8 N lateral
+base-COM wrench trace used by R300. The profile is queried from measured flight
+only, then selected only after the candidate is finite, hard-feasible, and
+admitted by the ordinary floating WBC boundary. It measures all `11/10/01/00`
+contact modes, removes the two primary `MaxIterations` ticks, keeps maximum
+dynamics/contact residuals at `1.788e-11/3.673e-12`, uses zero Rust
+allocations, and delays the fall boundary from tick 52 to tick 78 (520 ms).
+Controller p99 is `1.327 ms` (the maximum sample is `4.958 ms`). The candidate
+still falls, so this is a bounded degraded-mode handoff rather than recovery,
+walking, or plant authority. Request, admission, selection, mode, residual,
+timing, power, and primary-vs-contingency status are streamed separately to
+the browser. See
+[`UPKIE_LIVE_SUPPORT_CONTINGENCY_R301.md`](../benchmarks/results/upkie-live-support-contingency-r301/UPKIE_LIVE_SUPPORT_CONTINGENCY_R301.md).
+
 ## Current dynamic consequence fixture — r300 live measured contact
 
 R300 runs the actual `LiveUpkiePlant` contract at five 4 ms MuJoCo substeps per
@@ -20,7 +53,7 @@ Diagnostic hard-contact rows remain visible for inspection, while
 non-admitted; a transient edge inside a window is diagnostic until it reaches
 the terminal sample consumed at the next boundary.
 Controller behavior is rejected: ticks 48/50 are the only two calls above 5 ms
-and reach 5.343/5.367 ms p99/max, with 5.249/5.252 ms adjacent-jitter p99/max,
+and reach 5.353/5.408 ms p99/max, with 5.288/5.290 ms adjacent-jitter p99/max,
 in the frozen artifact. Raw and published status are `MaxIterations`, and unsolved
 dynamics/contact residuals reach 91.4/12.9. The plant stream now exposes raw
 status, allocation counts, maximum constraint violation, and dynamics/contact
