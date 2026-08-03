@@ -55,6 +55,43 @@ class LiveWrenchEnvelopeR311Tests(unittest.TestCase):
             "completed_with_nonadmission",
         )
 
+    def test_nonadmission_continuity_requires_retention_and_next_tick(self) -> None:
+        states = [
+            {
+                "index": 67,
+                "wbc_admitted": True,
+                "wbc_status": "Solved",
+                "actuator_effort_nm": [1.0],
+                "numeric_reset": False,
+                "automatic_reset_pending": None,
+            },
+            {
+                "index": 68,
+                "wbc_admitted": False,
+                "wbc_status": "MaxIterations",
+                "actuator_effort_nm": [1.0],
+                "numeric_reset": False,
+                "automatic_reset_pending": None,
+            },
+            {
+                "index": 69,
+                "wbc_admitted": True,
+                "wbc_status": "Solved",
+                "actuator_effort_nm": [2.0],
+                "numeric_reset": False,
+                "automatic_reset_pending": None,
+            },
+        ]
+        continuity = r311.nonadmission_continuity({"states": states})
+        self.assertTrue(continuity["bounded_and_recovered"])
+        self.assertEqual(continuity["maximum_consecutive_ticks"], 1)
+        states[-1]["wbc_admitted"] = False
+        self.assertFalse(
+            r311.nonadmission_continuity({"states": states})[
+                "bounded_and_recovered"
+            ]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

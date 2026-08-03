@@ -1,6 +1,6 @@
 # Upkie wrench capability envelope R311
 
-Generated: 2026-08-03T09:14:34.520158+00:00
+Generated: 2026-08-03T09:21:12.809799+00:00
 
 Status: **valid measured capability envelope**
 
@@ -17,10 +17,11 @@ residual error would invalidate the benchmark.
 | completed outside upright envelope | 5 |
 | terminal falls | 7 |
 | completed with WBC nonadmission | 4 |
+| nonadmission continuity | 4 events · 1 tick max · retained effort · next-tick recovery |
 | maximum commanded moment | 2.000 N·m |
 | maximum tilt among completed cases | 0.342129 rad |
-| maximum WBC p99 | 201.396 µs |
-| maximum worker p99 | 2802.342 µs |
+| maximum WBC p99 | 337.516 µs |
+| maximum worker p99 | 6985.565 µs |
 | hot allocations | 0 |
 
 ## Harness validity gates
@@ -37,10 +38,11 @@ residual error would invalidate the benchmark.
 - PASS — centered repeated pulls finish with upright tail
 - PASS — low moment envelope stays nonterminal
 - FAIL — zero nonadmission or numeric reset
+- PASS — nonadmission is single tick retained and next tick recovers
 - PASS — admitted hard residual below 1e minus 8
 - PASS — controller and worker p99 within deadline
 - PASS — zero hot path allocations
 
 ## Architectural conclusion
 
-The production CPU controller handles repeated centered pulls and the full tested <=1 N.m moment envelope, but upper-base pulls expose a repeatable 1.5 N.m-class terminal boundary. This is retained as a measured feasibility limit, not misreported as a solver or transport failure.
+The production CPU controller handles repeated centered pulls and the full tested <=1 N.m moment envelope, but upper-base pulls expose a repeatable 1.5 N.m-class terminal boundary. Four isolated nonadmissions retain the previous admitted effort for one tick and admit on the next tick without a reset. These remain measured feasibility and solver-quality limits, not misreported transport failures.

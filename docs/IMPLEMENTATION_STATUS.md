@@ -18,9 +18,11 @@ complete after one WBC nonadmission, and seven upper-base cases fall. Centered
 repeated pulls still finish with a bilateral/upright tail, and all tested
 moments at or below `1 N·m` are nonterminal. Upper-base pulls expose a
 repeatable `1.5 N·m`-class terminal boundary. Admitted hard residual remains
-below `1e-8`, maximum WBC/worker p99 is `0.201/2.802 ms`, and hot-path
-allocation is zero. Because four rows contain a nonadmitted tick, controller
-quality passes only five of six gates and no new authority is promoted. See
+below `1e-8`, maximum WBC/worker p99 is `0.338/6.986 ms`, and hot-path
+allocation is zero. Each of the four nonadmissions is isolated to one tick:
+the fall-safe path retains the previous admitted effort, performs no reset,
+and admits on the next tick. The zero-nonadmission gate remains red, so
+controller quality passes only six of seven gates and no new authority is promoted. See
 [`UPKIE_LIVE_WRENCH_ENVELOPE_R311.md`](../benchmarks/results/upkie-live-wrench-envelope-r311/UPKIE_LIVE_WRENCH_ENVELOPE_R311.md).
 
 ## Current public lateral reserve — r310 qualified

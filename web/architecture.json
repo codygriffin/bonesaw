@@ -3,7 +3,7 @@
   "revision": "live-wrench-envelope-r311",
   "updated": "2026-08-03",
   "stage": "R311 maps the first off-CoM/repeated-pull capability boundary · R310 remains the qualified public centered-load profile",
-  "checkpoint": "R311 extends the policy-free live eval from centered holds to 48 force × lever-arm × schedule cases. The harness is valid on every gate and exact replay: declared r×F moments reach the plant, completed cases receive every scheduled tick, and admitted hard residual remains below 1e-8. The controller is deliberately not marked qualified for the whole envelope: seven upper-base cases fall and four complete after one WBC nonadmission. Centered repeated pulls retain an upright final tail, and every tested moment at or below 1 N·m remains nonterminal. R310's public centered-load profile stays enabled; R311 adds evidence and no new authority.",
+  "checkpoint": "R311 extends the policy-free live eval from centered holds to 48 force × lever-arm × schedule cases. The harness is valid on every gate and exact replay: declared r×F moments reach the plant, completed cases receive every scheduled tick, and admitted hard residual remains below 1e-8. The controller is deliberately not marked qualified for the whole envelope: seven upper-base cases fall and four complete after one WBC nonadmission. Each missed solve is isolated to one tick, retains the prior admitted effort through the bounded fall-safe path, performs no reset, and admits on the next tick. Centered repeated pulls retain an upright final tail, and every tested moment at or below 1 N·m remains nonterminal. R310's public centered-load profile stays enabled; R311 adds evidence and no new authority.",
   "summary": "Green remains WBC TARGET PREVIEW; orange wireframe, dashed rig, contacts, CoM, constraint rows, and force witnesses are MUJOCO MEASURED. Rust owns exact floating WBC, measured contact admission/debounce/hard eligibility, the R306 measured-mask firewall, R308's default-off touchdown request, strict lexicographic support authority, the continuous wheel-load reserve request, bounded fail-closed feasibility, typed hard witnesses, and allocation-free telemetry. Physical wheel contact and bounded leg posture share priority 0; root/CoM intent remains priority 1. R310's public profile attacks authority at 10/s, releases at 6/s, caps lateral acceleration at 8 m/s², and slews it at 4 m/s³. Python owns immutable corpus orchestration, declared wrench schedules, and replaceable MuJoCo consequence; it does not compute controller actions. R311 keeps harness validity separate from controller quality and classifies stable, outside-envelope, nonadmitted, and terminal outcomes continuously. The R308 landing action remains default-off; upper-body moment rejection/recovery, calibrated actuation/thermal state, authenticated transport, browser frame time, external-reference parity, hardware realization, and faster 250 Hz WBC / 1 kHz plant promotion remain open.",
   "flow": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "name": "Continuous wrench feasibility evidence",
-      "detail": "the eval harness schedules one or four bounded pulls at the moving base COM or a fixed ±250 mm world lever · every plant state reports accepted force and r×F moment · harness validity, controller quality, and physical outcome are independent · stable upright, completed outside the upright envelope, completed with nonadmission, and terminal fall remain distinct classes · nonadmitted solves do not reset the plant or erase later evidence · R311 exposes a repeatable upper-base 1.5 N·m-class boundary and therefore promotes no new authority"
+      "detail": "the eval harness schedules one or four bounded pulls at the moving base COM or a fixed ±250 mm world lever · every plant state reports accepted force and r×F moment · harness validity, controller quality, and physical outcome are independent · stable upright, completed outside the upright envelope, completed with nonadmission, and terminal fall remain distinct classes · all four missed solves are one tick, retain the prior admitted effort, avoid reset, and admit on the next tick · R311 exposes a repeatable upper-base 1.5 N·m-class boundary and therefore promotes no new authority"
     },
     {
       "name": "Measured contact admission",
@@ -118,7 +118,7 @@
       "id": "r311-live-wrench-envelope",
       "title": "Report continuous feasibility separately from transport and solver health",
       "status": "benchmark valid · full controller envelope unqualified",
-      "detail": "R311 executes 48 policy-free Upkie cases across ±2/4/6/8 N, centered and ±250 mm vertical application offsets, and single versus four-pull schedules. All six harness gates pass and terminal replay is exact. Centered repeated pulls finish with an upright tail and every tested moment ≤1 N·m is nonterminal, but upper-base 1.5–2 N·m pulls produce seven terminal falls. Four low-force upper-base rows complete after one MaxIterations/nonadmitted tick, so the benchmark remains valid while the controller quality gate stays red. R310 remains the centered-load public default; R311 adds no timeout, reset, iteration, landing, or torque authority."
+      "detail": "R311 executes 48 policy-free Upkie cases across ±2/4/6/8 N, centered and ±250 mm vertical application offsets, and single versus four-pull schedules. All six harness gates pass and terminal replay is exact. Centered repeated pulls finish with an upright tail and every tested moment ≤1 N·m is nonterminal, but upper-base 1.5–2 N·m pulls produce seven terminal falls. Four low-force upper-base rows complete after one MaxIterations/nonadmitted tick; each retains prior admitted effort, avoids reset, and admits on the next tick. The benchmark remains valid while zero nonadmission stays red. R310 remains the centered-load public default; R311 adds no timeout, reset, iteration, landing, or torque authority."
     },
     {
       "id": "r310-live-load-reserve",
@@ -1225,7 +1225,7 @@
   "evidence": [
     {
       "metric": "R311 live wrench capability envelope",
-      "result": "harness 6/6 · controller quality 5/6 · 48 cases · 32 stable · 5 outside envelope · 4 nonadmitted completions · 7 falls",
+      "result": "harness 6/6 · controller quality 6/7 · 48 cases · 32 stable · 5 outside envelope · 4 one-tick retained/recovered · 7 falls",
       "scope": "policy-free Upkie MuJoCo consequence · public 50/250/50 cadence · ±2/4/6/8 N lateral force · base COM and ±250 mm vertical lever · one 400 ms pull versus four spaced pulls · exact r×F witness · centered repeated upright tail · ≤1 N·m nonterminal · admitted residual <1e-8 · zero hot allocation · exact terminal replay · upper 1.5 N·m-class terminal boundary retained · no new controller authority or hardware claim",
       "href": "/UPKIE_LIVE_WRENCH_ENVELOPE_R311.html"
     },

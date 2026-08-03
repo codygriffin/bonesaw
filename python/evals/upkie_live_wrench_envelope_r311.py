@@ -45,6 +45,50 @@ def outcome(summary: dict[str, Any]) -> str:
     return "completed_outside_upright_envelope"
 
 
+def nonadmission_continuity(case: dict[str, Any]) -> dict[str, Any]:
+    states = case["states"]
+    longest = 0
+    consecutive = 0
+    events: list[dict[str, Any]] = []
+    for index, state in enumerate(states):
+        if state["wbc_admitted"]:
+            consecutive = 0
+            continue
+        consecutive += 1
+        longest = max(longest, consecutive)
+        previous_effort_retained = bool(
+            index > 0
+            and np.array_equal(
+                states[index - 1]["actuator_effort_nm"],
+                state["actuator_effort_nm"],
+            )
+        )
+        next_tick_admitted = bool(
+            index + 1 < len(states) and states[index + 1]["wbc_admitted"]
+        )
+        events.append(
+            {
+                "tick": state["index"],
+                "status": state["wbc_status"],
+                "previous_effort_retained": previous_effort_retained,
+                "next_tick_admitted": next_tick_admitted,
+                "reset_free": not state["numeric_reset"]
+                and state["automatic_reset_pending"] is None,
+            }
+        )
+    return {
+        "event_count": len(events),
+        "maximum_consecutive_ticks": longest,
+        "events": events,
+        "bounded_and_recovered": all(
+            event["previous_effort_retained"]
+            and event["next_tick_admitted"]
+            and event["reset_free"]
+            for event in events
+        ),
+    }
+
+
 def run_one(
     model: pathlib.Path,
     force_y_n: float,
@@ -88,6 +132,7 @@ def summarize(case: dict[str, Any], schedule_name: str) -> dict[str, Any]:
                 state["external_load_active"] for state in case["states"]
             ),
             "expected_active_ticks": expected_active_ticks,
+            "nonadmission_continuity": nonadmission_continuity(case),
         }
     )
     summary["outcome"] = outcome(summary)
@@ -153,6 +198,11 @@ def evaluate(
         "zero_nonadmission_or_numeric_reset": all(
             not row["nonadmitted_ticks"] and not row["numeric_reset"] for row in rows
         ),
+        "nonadmission_is_single_tick_retained_and_next_tick_recovers": all(
+            row["nonadmission_continuity"]["maximum_consecutive_ticks"] <= 1
+            and row["nonadmission_continuity"]["bounded_and_recovered"]
+            for row in rows
+        ),
         "admitted_hard_residual_below_1e_minus_8": maximum_admitted_hard_residual
         < 1.0e-8,
         "controller_and_worker_p99_within_deadline": all(
@@ -191,6 +241,13 @@ def evaluate(
         },
         "maximum_admitted_hard_residual": maximum_admitted_hard_residual,
         "nonadmitted_case_count": sum(bool(row["nonadmitted_ticks"]) for row in rows),
+        "nonadmission_event_count": sum(
+            row["nonadmission_continuity"]["event_count"] for row in rows
+        ),
+        "maximum_consecutive_nonadmitted_ticks": max(
+            row["nonadmission_continuity"]["maximum_consecutive_ticks"]
+            for row in rows
+        ),
         "harness_gates": harness_gates,
         "controller_quality_gates": controller_quality_gates,
         "benchmark_valid": all(harness_gates.values()),
@@ -198,8 +255,10 @@ def evaluate(
         "finding": (
             "The production CPU controller handles repeated centered pulls and the full "
             "tested <=1 N.m moment envelope, but upper-base pulls expose a repeatable "
-            "1.5 N.m-class terminal boundary. This is retained as a measured feasibility "
-            "limit, not misreported as a solver or transport failure."
+            "1.5 N.m-class terminal boundary. Four isolated nonadmissions retain the "
+            "previous admitted effort for one tick and admit on the next tick without a "
+            "reset. These remain measured feasibility and solver-quality limits, not "
+            "misreported transport failures."
         ),
     }
 
@@ -241,6 +300,9 @@ residual error would invalidate the benchmark.
 | completed with WBC nonadmission | {
         metrics['outcome_counts'].get('completed_with_nonadmission', 0)
     } |
+| nonadmission continuity | {metrics['nonadmission_event_count']} events · {
+        metrics['maximum_consecutive_nonadmitted_ticks']
+    } tick max · retained effort · next-tick recovery |
 | maximum commanded moment | {max(row['maximum_moment_nm'] for row in rows):.3f} N·m |
 | maximum tilt among completed cases | {
         max(
