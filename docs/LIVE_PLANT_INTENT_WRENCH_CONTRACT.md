@@ -5,7 +5,8 @@ separate:
 
 | input | owner | meaning | physical effect |
 | --- | --- | --- | --- |
-| green target / `TARGET` | Rust `/ws` | desired pose or end-effector intent | state-local WBC query or guided preview; it is not a MuJoCo command |
+| green target / `TARGET` while dragging | Rust `/ws` | draft desired pose or end-effector intent | state-local preview only; no MuJoCo write |
+| torso release / `plant_target_commit` | Rust `/plant-ws` → Python MuJoCo → Rust WBC | bounded world-frame root target | measured-state quintic root trajectory, then endpoint hold; never a qpos/qvel write |
 | orange Ctrl-drag / `PUSH` | Python MuJoCo through Rust `/plant-ws` | external world-frame wrench | applied to the selected MuJoCo body and point for its expiring lease |
 
 The live plant loop is a measured-feedback loop:
@@ -23,11 +24,15 @@ measured state and simulator witnesses
 ```
 
 The WBC never integrates its own plant proxy in this mode. Each solve starts
-from the latest MuJoCo root pose/twist and joint position/velocity. A wrench is
-therefore a disturbance to balance against, not an intent target and not a
-reason to copy the controller's predicted state into the plant. The streamed
-record labels the measured state, the accepted wrench provenance, and the WBC
-admission result independently.
+from the latest MuJoCo root pose/twist and joint position/velocity. A committed
+torso target is converted to a bounded C2 root trajectory in the worker and
+presented as a low-priority root/joint task on that measured solve. The target
+does not write MuJoCo state, does not replace contact or balance authority, and
+is held at its endpoint until another target or reset. A wrench remains a
+separate disturbance to balance against, not an intent target. The streamed
+record labels target phase (`executing`, `holding`, or `rejected`), target
+progress/error, measured state, wrench provenance, and WBC admission
+independently.
 
 Contact authority follows the same measured-state boundary. The worker derives
 the two wheel subtrees once, refreshes MuJoCo collision data after each 4 ms
@@ -76,12 +81,13 @@ Simulation lifecycle commands are explicit and fail-safe:
   increments `reset_epoch`, clears the wrench, and preserves the paused state
   when reset was requested while paused.
 
-When an intent-to-plant path is added, it must be a third typed command and
-must enter the same authority stack as any other desired acceleration. It must
-not be encoded as a wrench, and it must never overwrite measured MuJoCo state.
-The current editor intentionally keeps intent preview and physical plant
-execution distinct until that command has a separately admitted target,
-tracking, and resource contract.
+The target commit is deliberately bounded in the first live prototype: the
+server accepts only `torso` or `base`, a 1000–5000 ms duration (default 3000 ms),
+and finite world coordinates; the worker clamps root motion to a small squat
+envelope. Invalid
+commands are rejected without releasing a prior held target. This is the
+separate admitted target/tracking/resource contract that keeps preview intent,
+measured plant execution, and PUSH evidence distinct.
 
 The orange wireframe, dashed measured rig, CoM, contact points, ground plane,
 constraint rows, actuator/generalized forces, and simulator energies are

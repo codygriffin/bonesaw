@@ -15,12 +15,15 @@ if str(EVALS) not in sys.path:
     sys.path.insert(0, str(EVALS))
 
 from upkie_live_plant_worker import (  # noqa: E402
+    COMMAND_DEFAULT_DURATION_MS,
+    COMMAND_MIN_DURATION_MS,
     CONTROL_DT,
     PHYSICS_DT,
     PHYSICS_STEPS_PER_CONTROL,
     MAX_APPLICATION_OFFSET_M,
     LiveUpkiePlant,
     parse_args,
+    quintic_profile,
 )
 
 
@@ -444,6 +447,111 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(args.stream_dt, 0.020)
         self.assertEqual(args.control_dt, 0.020)
         self.assertEqual(args.physics_dt, 0.004)
+
+    def test_target_commit_uses_a_bounded_quintic_and_holds_until_replaced(self) -> None:
+        nominal_root = self.worker.command_nominal_root_position.copy()
+        torso_offset = self.worker.command_frame_root_offsets["torso"]
+        down_target = (
+            nominal_root + torso_offset + np.asarray([0.0, 0.0, -0.08])
+        )
+        first = self.worker.step(
+            {
+                "type": "step",
+                "command_id": 20,
+                "target_command": {
+                    "active": True,
+                    "frame": "torso",
+                    "target": down_target.tolist(),
+                    "duration_ms": COMMAND_MIN_DURATION_MS,
+                    "request_id": 20,
+                },
+            }
+        )
+        self.assertEqual(first["target_command"]["phase"], "executing")
+        self.assertEqual(first["target_command"]["request_id"], 20)
+        self.assertLess(
+            first["target_command"]["target_root_position"][2], nominal_root[2]
+        )
+        self.assertGreater(first["target_command"]["progress"], 0.0)
+        settled = first
+        for _ in range(70):
+            settled = self.worker.step(
+                {
+                    "type": "step",
+                    "command_id": 20,
+                    "target_command": {
+                        "active": True,
+                        "frame": "torso",
+                        "target": down_target.tolist(),
+                        "duration_ms": COMMAND_MIN_DURATION_MS,
+                        "request_id": 20,
+                    },
+                }
+            )
+        self.assertEqual(settled["target_command"]["phase"], "holding")
+        held_target = np.asarray(
+            settled["target_command"]["target_root_position"], dtype=np.float64
+        )
+        self.assertLess(held_target[2], nominal_root[2])
+        up_target = (nominal_root + torso_offset).tolist()
+        rising = self.worker.step(
+            {
+                "type": "step",
+                "command_id": 21,
+                "target_command": {
+                    "active": True,
+                    "frame": "torso",
+                    "target": up_target,
+                    "duration_ms": COMMAND_MIN_DURATION_MS,
+                    "request_id": 21,
+                },
+            }
+        )
+        self.assertEqual(rising["target_command"]["phase"], "executing")
+        self.assertEqual(rising["target_command"]["request_id"], 21)
+        self.assertGreater(
+            rising["target_command"]["target_root_position"][2], held_target[2]
+        )
+
+    def test_target_commit_rejects_bad_frame_without_releasing_external_push(self) -> None:
+        body_id = self.worker.body_by_name["base"]
+        point = self.worker.data.xipos[body_id].copy()
+        result = self.worker.step(
+            {
+                "type": "step",
+                "command_id": 30,
+                "target_command": {
+                    "active": True,
+                    "frame": "left_knee",
+                    "target": [0.0, 0.0, 0.4],
+                    "duration_ms": COMMAND_MIN_DURATION_MS,
+                    "request_id": 30,
+                },
+                "external_load": {
+                    "active": True,
+                    "body": "base",
+                    "force_world": [1.0, 0.0, 0.0],
+                    "application_point_world": point.tolist(),
+                    "provenance": EVALUATION_PROVENANCE,
+                    "request_id": 31,
+                },
+            }
+        )
+        self.assertEqual(result["target_command"]["phase"], "rejected")
+        self.assertIn("torso or base", result["target_command"]["reason"])
+        self.assertTrue(result["external_load"]["active"])
+
+    def test_quintic_profile_is_zero_slope_at_both_endpoints(self) -> None:
+        start = np.asarray([0.0, 0.0, 0.5])
+        target = np.asarray([0.1, -0.02, 0.38])
+        beginning = quintic_profile(start, target, 1.2, 0.0)
+        end = quintic_profile(start, target, 1.2, 1.2)
+        np.testing.assert_allclose(beginning[0], start)
+        np.testing.assert_allclose(beginning[1], 0.0)
+        np.testing.assert_allclose(beginning[2], 0.0)
+        np.testing.assert_allclose(end[0], target)
+        np.testing.assert_allclose(end[1], 0.0)
+        np.testing.assert_allclose(end[2], 0.0)
 
     def test_controller_overrides_are_explicit_and_survive_reset(self) -> None:
         worker = LiveUpkiePlant(

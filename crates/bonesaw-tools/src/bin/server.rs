@@ -79,6 +79,13 @@ const LIVE_ROBOT_OBSERVATION_HISTORY_CAPACITY: usize = 64;
 const LIVE_PLANT_MAXIMUM_FORCE_N: f64 = 8.0;
 const LIVE_PLANT_MAXIMUM_APPLICATION_OFFSET_M: f64 = 0.75;
 const LIVE_PLANT_COMMAND_TTL_MS: u64 = 140;
+const LIVE_PLANT_TARGET_DEFAULT_DURATION_MS: u64 = 3_000;
+const LIVE_PLANT_TARGET_MIN_DURATION_MS: u64 = 1_000;
+const LIVE_PLANT_TARGET_MAX_DURATION_MS: u64 = 5_000;
+const LIVE_PLANT_TARGET_MAX_ROOT_X_DELTA_M: f64 = 0.12;
+const LIVE_PLANT_TARGET_MAX_ROOT_Y_DELTA_M: f64 = 0.10;
+const LIVE_PLANT_TARGET_MAX_ROOT_DOWN_DELTA_M: f64 = 0.045;
+const LIVE_PLANT_TARGET_MAX_ROOT_UP_DELTA_M: f64 = 0.05;
 const LIVE_PLANT_WORKER_TIMEOUT_MS: u64 = 100;
 /// Keeps the source visual tire mesh above the exact z=0 plane while leaving
 /// MuJoCo's physical ground and collision semantics unchanged.
@@ -142,6 +149,13 @@ struct PlantGatewayContract {
     maximum_force_n: f64,
     maximum_application_offset_m: f64,
     command_ttl_ms: u64,
+    target_default_duration_ms: u64,
+    target_duration_min_ms: u64,
+    target_duration_max_ms: u64,
+    target_max_root_x_delta_m: f64,
+    target_max_root_y_delta_m: f64,
+    target_max_root_down_delta_m: f64,
+    target_max_root_up_delta_m: f64,
     worker_timeout_ms: u64,
     plant_owner: &'static str,
     controller_owner: &'static str,
@@ -160,6 +174,13 @@ impl PlantGatewayContract {
             maximum_force_n: LIVE_PLANT_MAXIMUM_FORCE_N,
             maximum_application_offset_m: LIVE_PLANT_MAXIMUM_APPLICATION_OFFSET_M,
             command_ttl_ms: LIVE_PLANT_COMMAND_TTL_MS,
+            target_default_duration_ms: LIVE_PLANT_TARGET_DEFAULT_DURATION_MS,
+            target_duration_min_ms: LIVE_PLANT_TARGET_MIN_DURATION_MS,
+            target_duration_max_ms: LIVE_PLANT_TARGET_MAX_DURATION_MS,
+            target_max_root_x_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_X_DELTA_M,
+            target_max_root_y_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_Y_DELTA_M,
+            target_max_root_down_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_DOWN_DELTA_M,
+            target_max_root_up_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_UP_DELTA_M,
             worker_timeout_ms: LIVE_PLANT_WORKER_TIMEOUT_MS,
             plant_owner: "python_mujoco",
             controller_owner: "rust_bonesaw",
@@ -270,6 +291,12 @@ enum ClientCommand {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum PlantClientCommand {
+    PlantTargetCommit {
+        frame: String,
+        target: [f64; 3],
+        duration_ms: Option<u64>,
+        request_id: u64,
+    },
     PlantPush {
         body: String,
         force_world: [f64; 3],
@@ -304,6 +331,14 @@ struct ActivePlantPush {
     provenance: PlantExternalLoadProvenance,
     request_id: u64,
     expires_at: Instant,
+}
+
+#[derive(Clone, Debug)]
+struct ActivePlantTarget {
+    frame: String,
+    target: [f64; 3],
+    duration_ms: u64,
+    request_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -1436,6 +1471,38 @@ fn validate_plant_push(command: &PlantClientCommand) -> Result<()> {
     Ok(())
 }
 
+fn validate_plant_target(command: &PlantClientCommand) -> Result<()> {
+    let PlantClientCommand::PlantTargetCommit {
+        frame,
+        target,
+        duration_ms,
+        request_id,
+    } = command
+    else {
+        return Ok(());
+    };
+    if *request_id == 0 {
+        anyhow::bail!("plant target request_id must be positive");
+    }
+    if !matches!(frame.as_str(), "torso" | "base") {
+        anyhow::bail!("plant target frame must be torso or base");
+    }
+    if !target.iter().all(|value| value.is_finite()) {
+        anyhow::bail!("plant target coordinates must be finite");
+    }
+    let duration_ms = duration_ms.unwrap_or(LIVE_PLANT_TARGET_DEFAULT_DURATION_MS);
+    if !(duration_ms >= LIVE_PLANT_TARGET_MIN_DURATION_MS
+        && duration_ms <= LIVE_PLANT_TARGET_MAX_DURATION_MS)
+    {
+        anyhow::bail!(
+            "plant target duration must be in {}..{} ms",
+            LIVE_PLANT_TARGET_MIN_DURATION_MS,
+            LIVE_PLANT_TARGET_MAX_DURATION_MS
+        );
+    }
+    Ok(())
+}
+
 fn validate_plant_application_point(
     command: &PlantClientCommand,
     body_positions: &HashMap<String, [f64; 3]>,
@@ -1562,6 +1629,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
     }
 
     let mut active_push: Option<ActivePlantPush> = None;
+    let mut active_target: Option<ActivePlantTarget> = None;
     let mut body_positions = HashMap::new();
     let mut command_id: Option<u64> = None;
     let mut reset_requested = false;
@@ -1586,10 +1654,36 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                             .map_err(anyhow::Error::from)
                             .and_then(|command| {
                                 validate_plant_push(&command)?;
+                                validate_plant_target(&command)?;
                                 validate_plant_application_point(&command, &body_positions)?;
                                 Ok(command)
                             })
                         {
+                            Ok(PlantClientCommand::PlantTargetCommit {
+                                frame,
+                                target,
+                                duration_ms,
+                                request_id,
+                            }) => {
+                                if paused {
+                                    let message = serde_json::json!({
+                                        "type": "plant_error",
+                                        "command_phase": "rejected",
+                                        "command_id": request_id,
+                                        "message": "plant target commit is disabled while MuJoCo is paused",
+                                    });
+                                    let _ = sender.send(Message::Text(message.to_string().into())).await;
+                                    continue;
+                                }
+                                command_id = Some(request_id);
+                                active_target = Some(ActivePlantTarget {
+                                    frame,
+                                    target,
+                                    duration_ms: duration_ms
+                                        .unwrap_or(LIVE_PLANT_TARGET_DEFAULT_DURATION_MS),
+                                    request_id,
+                                });
+                            }
                             Ok(PlantClientCommand::PlantPush {
                                 body,
                                 force_world,
@@ -1635,11 +1729,13 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                             Ok(PlantClientCommand::PlantReset { request_id }) => {
                                 command_id = Some(request_id);
                                 active_push = None;
+                                active_target = None;
                                 reset_requested = true;
                             }
                             Err(error) => {
                                 let message = serde_json::json!({
                                     "type": "plant_error",
+                                    "command_phase": "rejected",
                                     "message": format!("invalid plant command: {error}"),
                                 });
                                 let _ = sender.send(Message::Text(message.to_string().into())).await;
@@ -1670,6 +1766,13 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     "provenance": push.provenance,
                     "request_id": push.request_id,
                 }));
+                let target = active_target.as_ref().map(|target| serde_json::json!({
+                    "active": true,
+                    "frame": target.frame,
+                    "target": target.target,
+                    "duration_ms": target.duration_ms,
+                    "request_id": target.request_id,
+                }));
                 let request = serde_json::json!({
                     "type": "step",
                     "reset": reset_requested,
@@ -1677,6 +1780,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     "command_expired": command_expired,
                     "paused": paused,
                     "external_load": push,
+                    "target_command": target,
                 });
                 reset_requested = false;
                 let mut encoded = request.to_string();
@@ -4862,6 +4966,34 @@ mod tests {
         )
         .expect("typed plant resume parses");
         assert_eq!(resume, PlantClientCommand::PlantResume { request_id: 50 });
+
+        let target = serde_json::from_str::<PlantClientCommand>(
+            r#"{"type":"plant_target_commit","frame":"torso","target":[0.0,0.0,0.38],"duration_ms":1200,"request_id":51}"#,
+        )
+        .expect("typed plant target parses");
+        assert!(validate_plant_target(&target).is_ok());
+        assert!(matches!(
+            target,
+            PlantClientCommand::PlantTargetCommit {
+                request_id: 51,
+                frame,
+                ..
+            } if frame == "torso"
+        ));
+        let invalid_target = PlantClientCommand::PlantTargetCommit {
+            frame: "left_knee".to_owned(),
+            target: [0.0, 0.0, 0.38],
+            duration_ms: Some(1200),
+            request_id: 52,
+        };
+        assert!(validate_plant_target(&invalid_target).is_err());
+        let invalid_duration = PlantClientCommand::PlantTargetCommit {
+            frame: "torso".to_owned(),
+            target: [0.0, 0.0, 0.38],
+            duration_ms: Some(LIVE_PLANT_TARGET_MAX_DURATION_MS + 1),
+            request_id: 53,
+        };
+        assert!(validate_plant_target(&invalid_duration).is_err());
 
         for load_class in [
             PlantExternalLoadClass::MeasuredImpactImpulse,

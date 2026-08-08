@@ -92,6 +92,15 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('if (!plantGateway?.available || interactionMode !== "push") return', self.javascript)
         self.assertIn("setTimeout(connectPlant, 800)", self.javascript)
 
+    def test_torso_release_commits_a_measured_target_without_overloading_push(self) -> None:
+        self.assertIn('id="plant-command-state"', self.html)
+        self.assertIn('type: "plant_target_commit"', self.javascript)
+        self.assertIn("release torso to execute a bounded squat", self.javascript)
+        self.assertIn("flushTargetCommit", self.javascript)
+        self.assertIn('target_command_contract', (ROOT / "python/evals/upkie_live_plant_worker.py").read_text())
+        self.assertIn('"target_command"', (ROOT / "crates/bonesaw-tools/src/bin/server.rs").read_text())
+        self.assertIn("`holding`", (ROOT / "docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md").read_text())
+
     def test_ctrl_mesh_wrench_and_shift_pan_are_distinct(self) -> None:
         self.assertIn("if (event.ctrlKey) {", self.javascript)
         self.assertIn("pickRenderedBody(event)", self.javascript)

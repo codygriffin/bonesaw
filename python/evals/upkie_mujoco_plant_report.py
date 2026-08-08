@@ -1687,6 +1687,8 @@ class RustWbcAdapter:
         self.contact_bases_world[:, :, 1, 1] = 1.0
         self.contact_bases_world[:, :, 2, 2] = 1.0
         self.zero_translation = np.zeros(3, np.float64)
+        self.zero_joint_velocity = np.zeros(6, np.float64)
+        self.zero_joint_acceleration = np.zeros(6, np.float64)
         self.identity_quaternion = np.asarray([1.0, 0.0, 0.0, 0.0], np.float64)
         self.last_admitted_torque = np.zeros(6, np.float64)
         self.last_admitted_contact_force = np.zeros((2, 3), np.float64)
@@ -2515,6 +2517,12 @@ class RustWbcAdapter:
         observed_contact_available: bool = True,
         observed_contact_age_ticks: int = 0,
         observed_contact_synchronization_uncertainty_ns: int = 0,
+        command_root_position: np.ndarray | None = None,
+        command_root_velocity: np.ndarray | None = None,
+        command_root_acceleration: np.ndarray | None = None,
+        command_joint_position: np.ndarray | None = None,
+        command_joint_velocity: np.ndarray | None = None,
+        command_joint_acceleration: np.ndarray | None = None,
     ) -> dict[str, float | np.ndarray]:
         if observed_contact_age_ticks < 0:
             raise ValueError("observed contact age ticks must be nonnegative")
@@ -2544,6 +2552,78 @@ class RustWbcAdapter:
             raise ValueError(
                 "observed_external_centroidal_moment_world must contain three finite values"
             )
+        if command_root_position is not None and (
+            command_root_position.shape != (3,)
+            or not np.all(np.isfinite(command_root_position))
+        ):
+            raise ValueError(
+                "command_root_position must contain three finite values"
+            )
+        if command_root_velocity is not None and (
+            command_root_velocity.shape != (3,)
+            or not np.all(np.isfinite(command_root_velocity))
+        ):
+            raise ValueError(
+                "command_root_velocity must contain three finite values"
+            )
+        if command_root_acceleration is not None and (
+            command_root_acceleration.shape != (3,)
+            or not np.all(np.isfinite(command_root_acceleration))
+        ):
+            raise ValueError(
+                "command_root_acceleration must contain three finite values"
+            )
+        if command_joint_position is not None and (
+            command_joint_position.shape != (6,)
+            or not np.all(np.isfinite(command_joint_position))
+        ):
+            raise ValueError(
+                "command_joint_position must contain six finite values"
+            )
+        if command_joint_velocity is not None and (
+            command_joint_velocity.shape != (6,)
+            or not np.all(np.isfinite(command_joint_velocity))
+        ):
+            raise ValueError(
+                "command_joint_velocity must contain six finite values"
+            )
+        if command_joint_acceleration is not None and (
+            command_joint_acceleration.shape != (6,)
+            or not np.all(np.isfinite(command_joint_acceleration))
+        ):
+            raise ValueError(
+                "command_joint_acceleration must contain six finite values"
+            )
+        desired_root_position = (
+            self.nominal_root_position
+            if command_root_position is None
+            else command_root_position
+        )
+        desired_root_velocity = (
+            self.zero_translation
+            if command_root_velocity is None
+            else command_root_velocity
+        )
+        desired_root_acceleration = (
+            self.zero_translation
+            if command_root_acceleration is None
+            else command_root_acceleration
+        )
+        desired_joint_position = (
+            self.nominal_joint_position
+            if command_joint_position is None
+            else command_joint_position
+        )
+        desired_joint_velocity = (
+            self.zero_joint_velocity
+            if command_joint_velocity is None
+            else command_joint_velocity
+        )
+        desired_joint_acceleration = (
+            self.zero_joint_acceleration
+            if command_joint_acceleration is None
+            else command_joint_acceleration
+        )
         self.external_moment_observation_valid = (
             observed_external_centroidal_moment_world is not None
             and self.centroidal_angular_momentum_weight > 0.0
@@ -2739,20 +2819,28 @@ class RustWbcAdapter:
             - guarded_roll_damping * root_twist[0]
         )
         baseline_yaw_acceleration = self.root_angular_acceleration[0, 2]
-        position_error = self.nominal_root_position - root_position
+        position_error = desired_root_position - root_position
+        velocity_error = desired_root_velocity - root_twist[3:]
         self.root_acceleration[0] = np.asarray(
             [
-                10.0 * position_error[0] - 6.0 * root_twist[3],
+                10.0 * position_error[0]
+                - 6.0 * velocity_error[0]
+                + desired_root_acceleration[0],
                 self.root_lateral_stiffness * position_error[1]
-                - self.root_lateral_damping * root_twist[4],
-                90.0 * position_error[2] - 18.0 * root_twist[5],
+                - self.root_lateral_damping * velocity_error[1]
+                + desired_root_acceleration[1],
+                90.0 * position_error[2]
+                - 18.0 * velocity_error[2]
+                + desired_root_acceleration[2],
             ]
         )
         self.q[0] = q
         self.v[0] = v
+        joint_velocity_error = desired_joint_velocity - v
         self.joint_acceleration[0] = (
-            self.joint_posture_stiffness * (self.nominal_joint_position - q)
-            - self.joint_posture_damping * v
+            self.joint_posture_stiffness * (desired_joint_position - q)
+            + self.joint_posture_damping * joint_velocity_error
+            + desired_joint_acceleration
         )
         if self.measured_landing_enabled:
             self.measured_landing_tick += 1

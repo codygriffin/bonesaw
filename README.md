@@ -84,19 +84,23 @@ For a clearly labelled, state-local guided editor preview, set
 
 | Gesture / control | Action |
 | --- | --- |
-| Drag a green handle | Move a target in the camera-facing plane |
+| Drag a green handle | Draft a target in the camera-facing plane |
+| Release the torso handle | Commit a bounded squat trajectory to the measured MuJoCo WBC loop; hold the endpoint |
 | Drag empty viewport | Orbit the camera |
 | Mouse wheel | Zoom |
 | Shift + drag | Pan |
 | Ctrl + drag a body | Apply a bounded external-wrench request |
 | PUSH tool | Apply the same push interaction on touch-oriented layouts |
-| `R` / reset button | Reset the preview (and the plant, when enabled) |
+| `R` / reset button | Reset the preview and the plant, when enabled |
 | Architecture review | Open the dataflow, evidence, and authority review surface |
 
-The preview and plant are separate state sources. A target can be accepted as
-a kinematic/editor request without being presented as measured plant motion.
-When the plant is enabled, MuJoCo owns integration and contact observations;
-Rust owns the controller query and admission boundary.
+Dragging remains a draft on the preview `/ws`. Releasing the torso handle sends
+a typed `plant_target_commit` through `/plant-ws`; the worker plans from the
+latest measured MuJoCo state, runs the existing Rust WBC authorities, and holds
+the admitted endpoint. The separate `PUSH` tool remains an expiring external
+wrench disturbance. Plant telemetry labels `DRAFT`, `EXECUTING`, `HOLDING`, or
+`REJECTED` so preview intent, command execution, and disturbance evidence stay
+distinct.
 
 ## Architecture
 

@@ -39,6 +39,7 @@ const simulatorState = document.querySelector("#simulator-state");
 const plantRootState = document.querySelector("#plant-root-state");
 const plantComState = document.querySelector("#plant-com-state");
 const plantMotionState = document.querySelector("#plant-motion-state");
+const plantCommandState = document.querySelector("#plant-command-state");
 const plantEffortState = document.querySelector("#plant-effort-state");
 const plantConstraintState = document.querySelector("#plant-constraint-state");
 const previewGroundState = document.querySelector("#preview-ground-state");
@@ -67,6 +68,7 @@ let interactionMode = "target";
 let pushReturnMode = null;
 let pushDrag = null;
 let pendingPushCommand = null;
+let pendingTargetCommit = null;
 let activeForceArrow = null;
 let plantContacts = [];
 let measuredPlantFrames = [];
@@ -273,10 +275,10 @@ function updateInteractionUi() {
   targetGuide.classList.toggle("push-guide", pushing);
   targetGuide.querySelector("span").innerHTML = pushing
     ? "<strong>ORANGE WRENCH</strong> · Ctrl+drag any rendered body"
-    : `<strong>${interactionHandles.size} GREEN PREVIEW CONTROLS</strong> · orange dashed rig is measured MuJoCo`;
+    : `<strong>${interactionHandles.size} GREEN CONTROLS</strong> · release torso to execute a bounded squat · orange dashed rig is measured MuJoCo`;
   viewportInstruction.textContent = pushing
     ? "WRENCH: Ctrl+drag any body · empty drag orbits · Shift+drag pans · wheel zooms"
-    : "TARGET: drag green controls · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
+    : "TARGET: drag green controls · release torso to execute a bounded squat · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
   targetTool.disabled = !robotControlsEnabled;
   pushTool.disabled = !robotControlsEnabled || !plantGateway?.available || plantPaused;
   observationTransportButtons.forEach((button) => {
@@ -293,12 +295,43 @@ function sendPlant(message) {
   return requestId;
 }
 
+function flushTargetCommit() {
+  if (!pendingTargetCommit || plantSocket?.readyState !== WebSocket.OPEN) return false;
+  const command = pendingTargetCommit;
+  const sent = sendPlant(command);
+  if (!sent) return false;
+  pendingTargetCommit = null;
+  plantCommandState.textContent = "COMMITTING · waiting for measured plant state";
+  return true;
+}
+
+function commitTarget(frame, target) {
+  if (!plantGateway?.available) {
+    plantCommandState.textContent = "REJECTED · live MuJoCo plant unavailable";
+    showToast("Target released as preview only · live MuJoCo plant unavailable");
+    return;
+  }
+  pendingTargetCommit = {
+    type: "plant_target_commit",
+    request_id: ++plantRequestId,
+    frame,
+    target: [...target],
+    duration_ms: Number(
+      plantGateway.target_default_duration_ms || 3000,
+    ),
+  };
+  plantCommandState.textContent = "COMMITTING · target queued for measured WBC";
+  connectPlant();
+  flushTargetCommit();
+}
+
 function resetPlantTelemetry(status = "disconnected · ghost") {
   plantStatus.textContent = status;
   simulatorState.textContent = "awaiting MuJoCo";
   plantRootState.textContent = "awaiting MuJoCo";
   plantComState.textContent = "awaiting MuJoCo";
   plantMotionState.textContent = "awaiting MuJoCo";
+  plantCommandState.textContent = "IDLE · no target committed";
   plantEffortState.textContent = "awaiting MuJoCo";
   plantConstraintState.textContent = "awaiting MuJoCo";
   runtimeRates.textContent = "awaiting MuJoCo";
@@ -335,6 +368,7 @@ function disconnectPlant({ preserveGhost = false, closeSocket = true } = {}) {
   };
   activeForceArrow = null;
   pendingPushCommand = null;
+  pendingTargetCommit = null;
   pushDrag = null;
   pushReturnMode = null;
   if (closeSocket && plantSocket) {
@@ -480,11 +514,15 @@ function connectPlant() {
       plantStatus.textContent = `${message.control_hz} Hz WBC · ${message.stream_hz} Hz stream`;
       simulatorState.textContent = `${simulator.backend || "MuJoCo"} ${simulator.version || ""} · ${simulator.integrator || "unknown integrator"}`.trim();
       runtimeRates.textContent = `${message.control_hz} / ${message.physics_hz} Hz · ${message.physics_substeps_per_control} substeps`;
+      flushTargetCommit();
       connectionLabel.textContent = interactionMode === "push" ? "Streaming · plant" : "Streaming";
       updateInteractionUi();
     } else if (message.type === "plant_state") {
       enqueuePlantState(message);
     } else if (message.type === "plant_error") {
+      if (message.command_phase === "rejected") {
+        plantCommandState.textContent = `REJECTED · ${message.message || "target command rejected"}`;
+      }
       showToast(message.message || "Plant command rejected");
     } else if (message.type === "plant_unavailable") {
       showToast(message.reason || "Physical plant unavailable");
@@ -806,6 +844,21 @@ function setArchitectureOpen(open) {
 function updatePlantTelemetry(message) {
   const metrics = message.metrics || {};
   const simulator = message.simulator || {};
+  const targetCommand = message.target_command || {};
+  const commandPhase = String(targetCommand.phase || metrics.command_phase || "idle").toUpperCase();
+  const commandProgress = Number(targetCommand.progress ?? metrics.command_progress);
+  const commandError = Number(targetCommand.position_error_m ?? metrics.command_position_error_m);
+  const commandReason = targetCommand.reason || metrics.command_reason || "no target committed";
+  plantCommandState.textContent = [
+    commandPhase,
+    Number.isFinite(commandProgress) && commandPhase !== "IDLE"
+      ? `${Math.round(100 * commandProgress)}%`
+      : null,
+    Number.isFinite(commandError) && commandPhase !== "IDLE"
+      ? `err ${(1000 * commandError).toFixed(1)} mm`
+      : null,
+    commandReason,
+  ].filter(Boolean).join(" · ");
   plantStatus.textContent = plantPaused
     ? "MuJoCo · paused"
     : `${metrics.wbc_status || "unknown"} · ${Number(metrics.controller_step_us || 0).toFixed(1)} µs`;
@@ -1272,6 +1325,7 @@ function setRobotControlsEnabled(enabled) {
     orbitDrag = null;
     pendingDragCommand = null;
     pendingPushCommand = null;
+    pendingTargetCommit = null;
     activeForceArrow = null;
     plantContacts = [];
     canvas.classList.remove("dragging", "orbiting", "joint-hover");
@@ -2589,12 +2643,20 @@ function finishPointer(event) {
   }
   drag.captureTarget.classList.remove("dragging");
   canvas.classList.remove("dragging");
+  const committedFrame = drag.frame.name;
+  const committedTarget = [...drag.target];
+  const committedBase = interactionHandles.get(committedFrame)?.kind === "base";
   if (pendingDragCommand) {
     send(pendingDragCommand);
     pendingDragCommand = null;
   }
   drag = null;
   send({ type: "release" });
+  if (committedBase) {
+    commitTarget(committedFrame, committedTarget);
+  } else {
+    plantCommandState.textContent = `DRAFT RELEASED · ${committedFrame} remains preview-only`;
+  }
   scheduleRender();
 }
 
@@ -2656,6 +2718,11 @@ function moveDrag(event) {
   if (pendingDragCommand) viewportPerformance.coalescedDrags += 1;
   pendingDragCommand = { type: "drag", frame: drag.frame.name, target: drag.target };
   updateSelection(drag.target);
+  if (interactionHandles.get(drag.frame.name)?.kind === "base") {
+    plantCommandState.textContent = plantGateway?.available
+      ? "DRAFT · release torso to execute bounded squat"
+      : "DRAFT · preview only (MuJoCo plant unavailable)";
+  }
   scheduleRender();
 }
 
@@ -3942,6 +4009,7 @@ function reset() {
   pendingDragCommand = null;
   pushDrag = null;
   pendingPushCommand = null;
+  pendingTargetCommit = null;
   activeForceArrow = null;
   commandAuthorityHistory = [];
   drawAuthorityHistory();
