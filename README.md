@@ -1,5 +1,7 @@
 # Bonesaw
 
+<img src="docs/assets/logo.png" alt="Bonesaw" width="260" />
+
 Bonesaw is a CPU-first motion-rig and whole-body-control lab written in Rust.
 It imports a robot URDF into one canonical model, evaluates kinematics and
 dynamics deterministically, solves bounded whole-body tasks, and exposes the
