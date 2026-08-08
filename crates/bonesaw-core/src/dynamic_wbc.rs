@@ -27,6 +27,7 @@ const FRICTION_ROW_BASE: u32 = 0x3000_0000;
 const SUPPORT_ROW_BASE: u32 = 0x4000_0000;
 const CENTER_OF_MASS_TUBE_ROW_BASE: u32 = 0x4f00_0000;
 const ACTUATOR_EFFORT_ROW_BASE: u32 = 0x5000_0000;
+const JOINT_ACCELERATION_CONSTRAINT_ROW_BASE: u32 = 0x6000_0000;
 const SUPPORT_PATCH_POINT_CAPACITY: usize = 16;
 pub const CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY: usize = 16;
 pub const FLOATING_POINT_TASK_CAPACITY: usize = 4;
@@ -1123,6 +1124,17 @@ pub struct FloatingJointAccelerationTask<'a> {
     pub weight: f64,
 }
 
+/// Exact acceleration commands for a fixed subset of authored joints.
+///
+/// Coordinates use the joint-only indexing of [`RobotState`] and must be
+/// strictly increasing. The floating solve emits one hard equality per entry
+/// before any prioritized task is considered.
+#[derive(Clone, Copy, Debug)]
+pub struct FloatingJointAccelerationConstraint<'a> {
+    pub coordinates: &'a [usize],
+    pub desired_accelerations: &'a [f64],
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct FloatingCenterOfMassTask {
     pub desired_acceleration_world: Vec3,
@@ -1582,6 +1594,7 @@ impl FloatingDynamicWbcScratch {
             .saturating_add(if include_effort_variables { dof } else { 0 })
             .saturating_add(maximum_contacts.saturating_mul(3));
         let maximum_constraints = generalized_dof
+            .saturating_add(dof)
             .saturating_add(maximum_contacts.saturating_mul(8))
             .saturating_add(maximum_actuators)
             .saturating_add(CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY)
@@ -2003,6 +2016,7 @@ impl FloatingDynamicWbc {
         self.model
             .dof
             .saturating_add(6)
+            .saturating_add(self.model.dof)
             .saturating_add(maximum_contacts.saturating_mul(8))
             .saturating_add(maximum_actuators)
             .saturating_add(CENTER_OF_MASS_TUBE_HALFSPACE_CAPACITY)
@@ -2058,7 +2072,7 @@ impl FloatingDynamicWbc {
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
-        self.solve_into_impl(input, None, None, None, output, scratch)
+        self.solve_into_impl(input, None, None, None, None, output, scratch)
     }
 
     /// Solve with a known world-expressed external wrench applied to the
@@ -2079,6 +2093,7 @@ impl FloatingDynamicWbc {
             None,
             None,
             Some(external_wrench_world),
+            None,
             output,
             scratch,
         )
@@ -2095,7 +2110,15 @@ impl FloatingDynamicWbc {
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
-        self.solve_into_impl(input, None, Some(observation_error), None, output, scratch)
+        self.solve_into_impl(
+            input,
+            None,
+            Some(observation_error),
+            None,
+            None,
+            output,
+            scratch,
+        )
     }
 
     /// Solve the floating constrained-acceleration problem with generalized
@@ -2115,6 +2138,7 @@ impl FloatingDynamicWbc {
         self.solve_into_impl(
             input,
             Some(fixed_generalized_effort),
+            None,
             None,
             None,
             output,
@@ -2139,6 +2163,33 @@ impl FloatingDynamicWbc {
             Some(fixed_generalized_effort),
             None,
             Some(external_wrench_world),
+            None,
+            output,
+            scratch,
+        )
+    }
+
+    /// Solve with an optional exact fixed-subset joint-acceleration command.
+    ///
+    /// This unified seam supports both ordinary and fixed-effort realization
+    /// queries, with or without a known external wrench. The command is part
+    /// of hard feasibility: an invalid descriptor returns `InvalidInput`, and
+    /// an incompatible descriptor cannot be relaxed by a soft task.
+    pub fn solve_into_with_joint_acceleration_constraint(
+        &self,
+        input: FloatingDynamicWbcInput<'_>,
+        joint_acceleration_constraint: Option<FloatingJointAccelerationConstraint<'_>>,
+        fixed_generalized_effort: Option<&DVector<f64>>,
+        external_wrench_world: Option<Force6>,
+        output: &mut FloatingDynamicWbcOutput,
+        scratch: &mut FloatingDynamicWbcScratch,
+    ) -> Result<(), DynamicWbcError> {
+        self.solve_into_impl(
+            input,
+            fixed_generalized_effort,
+            None,
+            external_wrench_world,
+            joint_acceleration_constraint,
             output,
             scratch,
         )
@@ -2150,6 +2201,7 @@ impl FloatingDynamicWbc {
         fixed_generalized_effort: Option<&DVector<f64>>,
         observation_error: Option<RobotObservationErrorBound>,
         external_wrench_world: Option<Force6>,
+        joint_acceleration_constraint: Option<FloatingJointAccelerationConstraint<'_>>,
         output: &mut FloatingDynamicWbcOutput,
         scratch: &mut FloatingDynamicWbcScratch,
     ) -> Result<(), DynamicWbcError> {
@@ -2221,6 +2273,9 @@ impl FloatingDynamicWbc {
                         .desired_accelerations
                         .iter()
                         .all(|value| value.is_finite())
+            })
+            || joint_acceleration_constraint.is_some_and(|constraint| {
+                !validate_floating_joint_acceleration_constraint(constraint, dof)
             })
             || input.frame_angular_acceleration_tasks.len() > FLOATING_ANGULAR_TASK_CAPACITY
             || input.frame_angular_acceleration_tasks.iter().any(|task| {
@@ -2425,6 +2480,10 @@ impl FloatingDynamicWbc {
             fixed_generalized_effort,
             external_wrench_world,
             &mut scratch.constraints,
+        )?;
+        emit_floating_joint_acceleration_constraint_rows(
+            &mut scratch.constraints,
+            joint_acceleration_constraint,
         )?;
         if fixed_generalized_effort.is_none() {
             emit_actuator_effort_rows(
@@ -2911,6 +2970,50 @@ fn emit_actuator_effort_rows(
         }
         row.lower = lower;
         row.upper = upper;
+    }
+    Ok(())
+}
+
+fn validate_floating_joint_acceleration_constraint(
+    constraint: FloatingJointAccelerationConstraint<'_>,
+    dof: usize,
+) -> bool {
+    constraint.coordinates.len() == constraint.desired_accelerations.len()
+        && constraint.coordinates.len() <= dof
+        && constraint
+            .coordinates
+            .iter()
+            .all(|&coordinate| coordinate < dof)
+        && constraint
+            .coordinates
+            .windows(2)
+            .all(|pair| pair[0] < pair[1])
+        && constraint
+            .desired_accelerations
+            .iter()
+            .all(|value| value.is_finite())
+}
+
+fn emit_floating_joint_acceleration_constraint_rows(
+    constraints: &mut ConstraintBuffer,
+    constraint: Option<FloatingJointAccelerationConstraint<'_>>,
+) -> Result<(), DynamicWbcError> {
+    let Some(constraint) = constraint else {
+        return Ok(());
+    };
+    for (slot, (&coordinate, &desired_acceleration)) in constraint
+        .coordinates
+        .iter()
+        .zip(constraint.desired_accelerations)
+        .enumerate()
+    {
+        let row = constraints
+            .push()
+            .ok_or(DynamicWbcError::ConstraintCapacity)?;
+        row.stable_id = JOINT_ACCELERATION_CONSTRAINT_ROW_BASE.saturating_add(slot as u32);
+        row.coefficients[6 + coordinate] = 1.0;
+        row.lower = desired_acceleration;
+        row.upper = desired_acceleration;
     }
     Ok(())
 }
@@ -5069,6 +5172,135 @@ mod tests {
                 .all(|value| *value == 123.0)
         );
         assert_eq!(output.status, SolveStatus::InvalidProblem);
+    }
+
+    #[test]
+    fn floating_joint_acceleration_constraint_is_exact_and_incompatible_bounds_fail_closed() {
+        let model = upkie();
+        let controller = FloatingDynamicWbc::new(
+            model.clone(),
+            DynamicWbcConfig {
+                gravity_world: Vec3::zeros(),
+                ..DynamicWbcConfig::default()
+            },
+        )
+        .unwrap();
+        let state = RobotState::zeros(&model);
+        let generalized_dof = model.dof + 6;
+        let mut desired_acceleration = DVector::zeros(generalized_dof);
+        desired_acceleration[6 + 2] = 50.0;
+        desired_acceleration[6 + 5] = -50.0;
+        let acceleration_bounds = VelocityBounds {
+            lower: DVector::from_element(generalized_dof, -100.0),
+            upper: DVector::from_element(generalized_dof, 100.0),
+        };
+        let torque_bounds = VelocityBounds {
+            lower: DVector::from_element(model.dof, -1_000.0),
+            upper: DVector::from_element(model.dof, 1_000.0),
+        };
+        let input = FloatingDynamicWbcInput {
+            state: &state,
+            root_twist_world: Motion6::default(),
+            desired_generalized_acceleration: &desired_acceleration,
+            task_priorities: FloatingTaskPriorities::default(),
+            task_weights: FloatingTaskWeights::default(),
+            joint_posture_weight: 1.0,
+            joint_acceleration_task: None,
+            center_of_mass_task: None,
+            centroidal_angular_momentum_task: None,
+            frame_angular_acceleration_tasks: &[],
+            point_acceleration_tasks: &[],
+            generalized_acceleration_bounds: &acceleration_bounds,
+            torque_bounds: &torque_bounds,
+            actuator_effort: None,
+            contacts: &[],
+            support_patches: &[],
+        };
+        let constraint = FloatingJointAccelerationConstraint {
+            coordinates: &[2, 5],
+            desired_accelerations: &[-3.0, 4.0],
+        };
+        let mut scratch = controller.scratch(0, 0);
+        let mut output = FloatingDynamicWbcOutput::workspace(
+            model.dof,
+            0,
+            controller.maximum_constraint_count(0, 0),
+        );
+
+        controller
+            .solve_into_with_joint_acceleration_constraint(
+                input,
+                Some(constraint),
+                None,
+                None,
+                &mut output,
+                &mut scratch,
+            )
+            .unwrap();
+
+        assert!(matches!(
+            output.status,
+            SolveStatus::Solved | SolveStatus::SolvedWithSlack
+        ));
+        assert!((output.generalized_acceleration[6 + 2] + 3.0).abs() <= 1e-6);
+        assert!((output.generalized_acceleration[6 + 5] - 4.0).abs() <= 1e-6);
+        assert!(output.solve.maximum_constraint_violation <= 1e-6);
+        let hard_residual = scratch
+            .constraints
+            .active()
+            .iter()
+            .filter(|row| row.stable_id & 0xffff_0000 == JOINT_ACCELERATION_CONSTRAINT_ROW_BASE)
+            .map(|row| {
+                (row.coefficients
+                    .iter()
+                    .take(generalized_dof)
+                    .zip(output.generalized_acceleration.iter())
+                    .map(|(coefficient, acceleration)| coefficient * acceleration)
+                    .sum::<f64>()
+                    - row.lower)
+                    .abs()
+            })
+            .fold(0.0, f64::max);
+        assert!(hard_residual <= 1e-6);
+
+        let mut incompatible_bounds = acceleration_bounds.clone();
+        incompatible_bounds.lower[6 + 2] = 0.0;
+        incompatible_bounds.upper[6 + 2] = 0.0;
+        let incompatible_input = FloatingDynamicWbcInput {
+            generalized_acceleration_bounds: &incompatible_bounds,
+            ..input
+        };
+        controller
+            .solve_into_with_joint_acceleration_constraint(
+                incompatible_input,
+                Some(constraint),
+                None,
+                None,
+                &mut output,
+                &mut scratch,
+            )
+            .unwrap();
+        assert!(matches!(
+            output.status,
+            SolveStatus::PrimalInfeasible | SolveStatus::MaxIterations
+        ));
+        assert!(output.solve.maximum_constraint_violation > 1e-6);
+
+        let invalid = FloatingJointAccelerationConstraint {
+            coordinates: &[5, 2],
+            desired_accelerations: &[4.0, -3.0],
+        };
+        let error = controller
+            .solve_into_with_joint_acceleration_constraint(
+                input,
+                Some(invalid),
+                None,
+                None,
+                &mut output,
+                &mut scratch,
+            )
+            .unwrap_err();
+        assert!(matches!(error, DynamicWbcError::InvalidInput));
     }
 
     #[test]

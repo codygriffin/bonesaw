@@ -1255,6 +1255,7 @@ class RustWbcAdapter:
             root_height_task_weight=10.0,
             root_horizontal_task_weight=10.0,
             root_horizontal_task_priority=1,
+            point_frequency_hz=2.0,
             centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
             centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
             joint_posture_weight=joint_posture_weight,
@@ -1327,9 +1328,42 @@ class RustWbcAdapter:
         if tuple(self.balance.coordinates) != tuple(ROLLING_COORDINATES):
             raise RuntimeError("Upkie balance coordinate order changed")
         frames = list(self.session.frame_names)
+        self.cartesian_frame_id_by_name = {
+            name: frame_id for frame_id, name in enumerate(frames)
+        }
         self.frame_ids = np.asarray(
             [frames.index(name) for name in CONTACT_FRAMES], dtype=np.int64
         )
+        # Fixed-capacity storage for the one live Cartesian intent.  The
+        # binding consumes a trace-major [tick, command, axis] target, while
+        # frame/priority/weight descriptors are static for the whole call.
+        # Keep all of it caller-owned so activating a command does not build
+        # arrays in the control loop.
+        self.cartesian_frame_ids = np.empty(1, np.int64)
+        self.cartesian_target_positions = np.empty((1, 1, 3), np.float64)
+        self.cartesian_target_velocities = np.empty((1, 1, 3), np.float64)
+        self.cartesian_target_accelerations = np.empty((1, 1, 3), np.float64)
+        self.cartesian_priorities = np.full(1, 2, np.uint8)
+        self.cartesian_weights = np.full(1, 0.1, np.float64)
+        self.protected_joint_coordinates = ROLLING_COORDINATES.copy()
+        self.protected_joint_accelerations = np.empty(2, np.float64)
+        self.command_wheel_reference_position = np.zeros(2, np.float64)
+        self.command_wheel_reference_velocity = np.zeros(2, np.float64)
+        self.command_wheel_reference_acceleration = np.zeros(2, np.float64)
+        self.command_wheel_measured_position = np.zeros(2, np.float64)
+        self.command_wheel_measured_velocity = np.zeros(2, np.float64)
+        self.command_rolling_balance_acceleration = np.zeros(2, np.float64)
+        self.command_rolling_differential_acceleration = np.zeros(2, np.float64)
+        self.command_rolling_null_joint_acceleration = np.zeros(2, np.float64)
+        self.command_rolling_null_scale = 0.0
+        self.command_rolling_load_fade = 0.0
+        self.command_rolling_zero_mean_residual = 0.0
+        self.command_rolling_common_residual = 0.0
+        self.command_rolling_protected_residual = 0.0
+        self.command_task_diagnostic_index = 11 + len(self.frame_ids)
+        self.command_active = False
+        self.command_frame_name: str | None = None
+        self.command_frame_id = -1
         self.out = allocate_outputs(self.session)
         self.support_contingency_out = (
             allocate_outputs(self.support_contingency_session)
@@ -2121,7 +2155,7 @@ class RustWbcAdapter:
             self.priorities,
             self.weights,
             0,
-            0,
+            3 if self.command_active else 0,
             out["generalized_acceleration"],
             out["actuator_torque"],
             out["contact_normal_force"],
@@ -2199,6 +2233,32 @@ class RustWbcAdapter:
                 if self.external_wrench_feedforward_axis_scales_batch is not None
                 and self.external_wrench_observation_valid
                 else None
+            ),
+            cartesian_frame_ids=(
+                self.cartesian_frame_ids if self.command_active else None
+            ),
+            cartesian_target_positions=(
+                self.cartesian_target_positions if self.command_active else None
+            ),
+            cartesian_target_velocities=(
+                self.cartesian_target_velocities if self.command_active else None
+            ),
+            cartesian_target_accelerations=(
+                self.cartesian_target_accelerations if self.command_active else None
+            ),
+            cartesian_priorities=(
+                self.cartesian_priorities if self.command_active else None
+            ),
+            cartesian_weights=(
+                self.cartesian_weights if self.command_active else None
+            ),
+            root_horizontal_priority_override=(3 if self.command_active else None),
+            joint_posture_priority_override=(3 if self.command_active else None),
+            protected_joint_coordinates=(
+                self.protected_joint_coordinates if self.command_active else None
+            ),
+            protected_joint_accelerations=(
+                self.protected_joint_accelerations if self.command_active else None
             ),
         )
 
@@ -2517,6 +2577,15 @@ class RustWbcAdapter:
         observed_contact_available: bool = True,
         observed_contact_age_ticks: int = 0,
         observed_contact_synchronization_uncertainty_ns: int = 0,
+        command_frame: str | None = None,
+        command_target_position: np.ndarray | None = None,
+        command_target_velocity: np.ndarray | None = None,
+        command_target_acceleration: np.ndarray | None = None,
+        command_wheel_reference_position: np.ndarray | None = None,
+        command_wheel_reference_velocity: np.ndarray | None = None,
+        command_wheel_reference_acceleration: np.ndarray | None = None,
+        command_wheel_measured_position: np.ndarray | None = None,
+        command_wheel_measured_velocity: np.ndarray | None = None,
         command_root_position: np.ndarray | None = None,
         command_root_velocity: np.ndarray | None = None,
         command_root_acceleration: np.ndarray | None = None,
@@ -2552,48 +2621,124 @@ class RustWbcAdapter:
             raise ValueError(
                 "observed_external_centroidal_moment_world must contain three finite values"
             )
-        if command_root_position is not None and (
-            command_root_position.shape != (3,)
-            or not np.all(np.isfinite(command_root_position))
+        command_descriptor_count = sum(
+            value is not None
+            for value in (
+                command_frame,
+                command_target_position,
+                command_target_velocity,
+                command_target_acceleration,
+            )
+        )
+        if command_descriptor_count not in (0, 4):
+            raise ValueError(
+                "command_frame and all Cartesian target vectors must be supplied together"
+            )
+        self.command_active = command_descriptor_count == 4
+        wheel_descriptor_count = sum(
+            value is not None
+            for value in (
+                command_wheel_reference_position,
+                command_wheel_reference_velocity,
+                command_wheel_reference_acceleration,
+                command_wheel_measured_position,
+                command_wheel_measured_velocity,
+            )
+        )
+        if wheel_descriptor_count not in (0, 5) or (
+            (wheel_descriptor_count == 5) != self.command_active
         ):
             raise ValueError(
-                "command_root_position must contain three finite values"
+                "all command wheel reference/measurement vectors must accompany an active command"
             )
-        if command_root_velocity is not None and (
-            command_root_velocity.shape != (3,)
-            or not np.all(np.isfinite(command_root_velocity))
-        ):
+        if self.command_active:
+            if not isinstance(command_frame, str) or (
+                command_frame not in self.cartesian_frame_id_by_name
+            ):
+                raise ValueError("command_frame must name a known finite model frame")
+            for name, target in (
+                ("command_target_position", command_target_position),
+                ("command_target_velocity", command_target_velocity),
+                ("command_target_acceleration", command_target_acceleration),
+            ):
+                if target is None or target.shape != (3,) or not np.all(
+                    np.isfinite(target)
+                ):
+                    raise ValueError(f"{name} must contain three finite values")
+            self.command_frame_name = command_frame
+            self.command_frame_id = self.cartesian_frame_id_by_name[command_frame]
+            self.cartesian_frame_ids[0] = self.command_frame_id
+            self.cartesian_target_positions[0, 0] = command_target_position
+            self.cartesian_target_velocities[0, 0] = command_target_velocity
+            self.cartesian_target_accelerations[0, 0] = (
+                command_target_acceleration
+            )
+            for name, source, destination in (
+                (
+                    "command_wheel_reference_position",
+                    command_wheel_reference_position,
+                    self.command_wheel_reference_position,
+                ),
+                (
+                    "command_wheel_reference_velocity",
+                    command_wheel_reference_velocity,
+                    self.command_wheel_reference_velocity,
+                ),
+                (
+                    "command_wheel_reference_acceleration",
+                    command_wheel_reference_acceleration,
+                    self.command_wheel_reference_acceleration,
+                ),
+                (
+                    "command_wheel_measured_position",
+                    command_wheel_measured_position,
+                    self.command_wheel_measured_position,
+                ),
+                (
+                    "command_wheel_measured_velocity",
+                    command_wheel_measured_velocity,
+                    self.command_wheel_measured_velocity,
+                ),
+            ):
+                if source is None or source.shape != (2,) or not np.all(
+                    np.isfinite(source)
+                ):
+                    raise ValueError(f"{name} must contain two finite values")
+                np.copyto(destination, source)
+        else:
+            self.command_frame_name = None
+            self.command_frame_id = -1
+        realization_descriptor_count = sum(
+            value is not None
+            for value in (
+                command_root_position,
+                command_root_velocity,
+                command_root_acceleration,
+                command_joint_position,
+                command_joint_velocity,
+                command_joint_acceleration,
+            )
+        )
+        if realization_descriptor_count not in (0, 6):
             raise ValueError(
-                "command_root_velocity must contain three finite values"
+                "all command root/joint realization vectors must be supplied together"
             )
-        if command_root_acceleration is not None and (
-            command_root_acceleration.shape != (3,)
-            or not np.all(np.isfinite(command_root_acceleration))
-        ):
+        if (realization_descriptor_count == 6) != self.command_active:
             raise ValueError(
-                "command_root_acceleration must contain three finite values"
+                "Cartesian command and root/joint realization references must be supplied together"
             )
-        if command_joint_position is not None and (
-            command_joint_position.shape != (6,)
-            or not np.all(np.isfinite(command_joint_position))
+        for name, target, shape in (
+            ("command_root_position", command_root_position, (3,)),
+            ("command_root_velocity", command_root_velocity, (3,)),
+            ("command_root_acceleration", command_root_acceleration, (3,)),
+            ("command_joint_position", command_joint_position, (6,)),
+            ("command_joint_velocity", command_joint_velocity, (6,)),
+            ("command_joint_acceleration", command_joint_acceleration, (6,)),
         ):
-            raise ValueError(
-                "command_joint_position must contain six finite values"
-            )
-        if command_joint_velocity is not None and (
-            command_joint_velocity.shape != (6,)
-            or not np.all(np.isfinite(command_joint_velocity))
-        ):
-            raise ValueError(
-                "command_joint_velocity must contain six finite values"
-            )
-        if command_joint_acceleration is not None and (
-            command_joint_acceleration.shape != (6,)
-            or not np.all(np.isfinite(command_joint_acceleration))
-        ):
-            raise ValueError(
-                "command_joint_acceleration must contain six finite values"
-            )
+            if target is not None and (
+                target.shape != shape or not np.all(np.isfinite(target))
+            ):
+                raise ValueError(f"{name} must contain {shape[0]} finite values")
         desired_root_position = (
             self.nominal_root_position
             if command_root_position is None
@@ -2638,9 +2783,9 @@ class RustWbcAdapter:
             self.external_wrench_world.fill(0.0)
         if self.external_moment_observation_valid:
             # A desired centroidal angular-momentum rate is the contact moment
-            # target. The external moment is supplied one control tick late by
-            # the plant boundary, so this remains causal; a persistent load is
-            # opposed continuously while the normal zero-rate damping task is
+            # target. The plant supplies the declared current-tick wrench
+            # before both this solve and MuJoCo application, so the same load
+            # is opposed causally while the normal zero-rate damping task is
             # retained whenever no external observation is available.
             self.centroidal_angular_momentum_rate_world[0] = (
                 -observed_external_centroidal_moment_world
@@ -3591,6 +3736,109 @@ class RustWbcAdapter:
         # owned measured/debounced authority immediately before the primary
         # solve.
         self._restore_contact_authority()
+        if self.command_active:
+            # Preserve the full existing balance-wheel law, including its
+            # per-wheel velocity damping. Operator intent contributes only a
+            # bounded, zero-mean physical wheel-center acceleration in the
+            # capture-null direction, and only with fresh bilateral support.
+            np.copyto(
+                self.command_rolling_balance_acceleration,
+                self.joint_acceleration[0, self.protected_joint_coordinates],
+            )
+            self.command_rolling_differential_acceleration.fill(0.0)
+            self.command_rolling_null_joint_acceleration.fill(0.0)
+            self.command_rolling_null_scale = 0.0
+            self.command_rolling_load_fade = 0.0
+            fresh_bilateral_hard = bool(
+                observed_contact_available
+                and observed_contact_age_ticks == 0
+                and observed_contact_synchronization_uncertainty_ns == 0
+                and np.all(self.contact_authority_active == 1)
+                and observed_wheel_normal_force_n is not None
+            )
+            if fresh_bilateral_hard:
+                raw0 = (
+                    self.command_wheel_reference_acceleration[0]
+                    + 8.0
+                    * (
+                        self.command_wheel_reference_velocity[0]
+                        - self.command_wheel_measured_velocity[0]
+                    )
+                    + 16.0
+                    * (
+                        self.command_wheel_reference_position[0]
+                        - self.command_wheel_measured_position[0]
+                    )
+                )
+                raw1 = (
+                    self.command_wheel_reference_acceleration[1]
+                    + 8.0
+                    * (
+                        self.command_wheel_reference_velocity[1]
+                        - self.command_wheel_measured_velocity[1]
+                    )
+                    + 16.0
+                    * (
+                        self.command_wheel_reference_position[1]
+                        - self.command_wheel_measured_position[1]
+                    )
+                )
+                mean = 0.5 * (raw0 + raw1)
+                differential0 = raw0 - mean
+                differential1 = raw1 - mean
+                # Reapply P after arithmetic so the reported invariant is the
+                # actual vector converted to joint acceleration.
+                correction = 0.5 * (differential0 + differential1)
+                differential0 -= correction
+                differential1 -= correction
+                peak = max(abs(differential0), abs(differential1))
+                if peak > 0.25:
+                    scale = 0.25 / peak
+                    differential0 *= scale
+                    differential1 *= scale
+                self.command_rolling_differential_acceleration[:] = (
+                    differential0,
+                    differential1,
+                )
+                null0 = -differential0 / ROLLING_COEFFICIENTS[0]
+                null1 = -differential1 / ROLLING_COEFFICIENTS[1]
+                self.command_rolling_null_joint_acceleration[:] = (null0, null1)
+                alpha = 1.0
+                for balance, increment in zip(
+                    self.command_rolling_balance_acceleration,
+                    self.command_rolling_null_joint_acceleration,
+                ):
+                    if increment > 0.0:
+                        alpha = min(alpha, (200.0 - balance) / increment)
+                    elif increment < 0.0:
+                        alpha = min(alpha, (-200.0 - balance) / increment)
+                alpha = float(np.clip(alpha, 0.0, 1.0))
+                minimum_load = float(np.min(observed_wheel_normal_force_n))
+                load_phase = float(np.clip((minimum_load - 5.0) / 5.0, 0.0, 1.0))
+                self.command_rolling_load_fade = (
+                    load_phase * load_phase * (3.0 - 2.0 * load_phase)
+                )
+                self.command_rolling_null_scale = (
+                    alpha * self.command_rolling_load_fade
+                )
+            for index in range(2):
+                self.protected_joint_accelerations[index] = (
+                    self.command_rolling_balance_acceleration[index]
+                    + self.command_rolling_null_scale
+                    * self.command_rolling_null_joint_acceleration[index]
+                )
+            self.command_rolling_zero_mean_residual = abs(
+                float(np.sum(self.command_rolling_differential_acceleration))
+            )
+            self.command_rolling_common_residual = abs(
+                float(
+                    np.dot(
+                        ROLLING_COEFFICIENTS,
+                        self.protected_joint_accelerations
+                        - self.command_rolling_balance_acceleration,
+                    )
+                )
+            )
         out = self.out
         base_root_x = self.root_acceleration[0, 0]
         base_root_y = self.root_acceleration[0, 1]
@@ -4529,6 +4777,55 @@ class RustWbcAdapter:
             if status not in (0, 1) and self.fall_safe_enabled:
                 self.executed_torque *= fresh_command_authority
                 self.executed_contact_force *= fresh_command_authority
+        command_selected_primary = bool(
+            self.command_active
+            and command_out is out
+            and command_fresh
+            and status in (0, 1)
+        )
+        command_fall_safe_replaced_primary = bool(
+            self.fall_safe_enabled
+            and self.fall_safe_primary_blend
+            and primary_authority < 1.0 - 1.0e-12
+        )
+        command_intent_executable = bool(
+            command_selected_primary and not command_fall_safe_replaced_primary
+        )
+        command_intent_suppressed = bool(
+            self.command_active and not command_intent_executable
+        )
+        if not self.command_active:
+            command_intent_suppression_reason = "inactive"
+        elif command_fall_safe_replaced_primary:
+            command_intent_suppression_reason = "fall-safe replaced primary"
+        elif command_out is not out:
+            command_intent_suppression_reason = "support contingency replaced primary"
+        elif not command_fresh and (
+            self.has_admitted_command
+            or lease_executable
+            or program_selection in (3, 4)
+        ):
+            command_intent_suppression_reason = "retained command replaced primary"
+        elif status not in (0, 1):
+            command_intent_suppression_reason = "primary WBC was not admitted"
+        else:
+            command_intent_suppression_reason = ""
+        if self.command_active:
+            selected_generalized_acceleration = command_out[
+                "generalized_acceleration"
+            ][0]
+            self.command_rolling_protected_residual = float(
+                np.max(
+                    np.abs(
+                        selected_generalized_acceleration[
+                            6 + self.protected_joint_coordinates
+                        ]
+                        - self.protected_joint_accelerations
+                    )
+                )
+            )
+        else:
+            self.command_rolling_protected_residual = 0.0
         return {
             "torque": self.executed_torque,
             "generalized_acceleration": command_out[
@@ -4550,6 +4847,47 @@ class RustWbcAdapter:
             ),
             "primary_feasibility_halfspace_projections": (
                 primary_feasibility_halfspace_projections
+            ),
+            "command_frame": self.command_frame_name,
+            "command_frame_id": self.command_frame_id,
+            "command_task_rms": (
+                float(out["task_rms"][0, self.command_task_diagnostic_index])
+                if self.command_active
+                else 0.0
+            ),
+            "command_task_clipped": bool(
+                self.command_active
+                and out["task_clipped"][
+                    0, self.command_task_diagnostic_index
+                ]
+            ),
+            "command_intent_executable": command_intent_executable,
+            "command_intent_suppressed": command_intent_suppressed,
+            "command_intent_suppression_reason": (
+                command_intent_suppression_reason
+            ),
+            "command_primary_status": primary_status,
+            "command_selected_primary": command_selected_primary,
+            "command_selected_status": status,
+            "command_rolling_zero_mean_residual": (
+                self.command_rolling_zero_mean_residual
+            ),
+            "command_rolling_common_residual": (
+                self.command_rolling_common_residual
+            ),
+            "command_rolling_protected_residual": (
+                self.command_rolling_protected_residual
+            ),
+            "command_rolling_differential_acceleration": (
+                self.command_rolling_differential_acceleration.copy()
+            ),
+            "command_rolling_null_joint_acceleration": (
+                self.command_rolling_null_joint_acceleration.copy()
+            ),
+            "command_rolling_null_scale": self.command_rolling_null_scale,
+            "command_rolling_load_fade": self.command_rolling_load_fade,
+            "command_rolling_protected_acceleration": (
+                self.protected_joint_accelerations.copy()
             ),
             "contact_program_authority_enabled": (
                 self.contact_program_authority_enabled

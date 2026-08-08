@@ -6,7 +6,7 @@ separate:
 | input | owner | meaning | physical effect |
 | --- | --- | --- | --- |
 | green target / `TARGET` while dragging | Rust `/ws` | draft desired pose or end-effector intent | state-local preview only; no MuJoCo write |
-| torso release / `plant_target_commit` | Rust `/plant-ws` → Python MuJoCo → Rust WBC | bounded world-frame root target | measured-state quintic root trajectory, then endpoint hold; never a qpos/qvel write |
+| any green-control release / `plant_frame_target_commit` | Rust `/plant-ws` → Python MuJoCo → Rust WBC | bounded world-frame target for an advertised handle | measured-state trajectory, then endpoint hold; never a qpos/qvel write |
 | orange Ctrl-drag / `PUSH` | Python MuJoCo through Rust `/plant-ws` | external world-frame wrench | applied to the selected MuJoCo body and point for its expiring lease |
 
 The live plant loop is a measured-feedback loop:
@@ -25,14 +25,35 @@ measured state and simulator witnesses
 
 The WBC never integrates its own plant proxy in this mode. Each solve starts
 from the latest MuJoCo root pose/twist and joint position/velocity. A committed
-torso target is converted to a bounded C2 root trajectory in the worker and
-presented as a low-priority root/joint task on that measured solve. The target
-does not write MuJoCo state, does not replace contact or balance authority, and
-is held at its endpoint until another target or reset. A wrench remains a
-separate disturbance to balance against, not an intent target. The streamed
-record labels target phase (`executing`, `holding`, or `rejected`), target
-progress/error, measured state, wrench provenance, and WBC admission
-independently.
+green-control target is mapped from its server-issued handle ID. The worker
+solves one support-constrained IK endpoint. The frame's world-X error becomes
+the existing capture controller's station request; IK realizes the residual
+world-Y/Z posture while preserving both wheel support anchors. Station is the
+only target-direction owner in world X: the Cartesian row uses measured X and
+measured forward velocity while the trajectory is running, then blends only
+passive velocity damping as the admitted station error shrinks from 20 mm to
+4 mm. The composed rolling accelerations are exact WBC equalities, ahead of
+every soft-task nullspace. Hard dynamics, contacts, friction, joint bounds, and
+actuator bounds remain constraints; the Y/Z Cartesian intent and passive X
+damping are Intent priority 2, and the IK root/joint realization shapes only
+the remaining Preference priority-3 nullspace. This mapping is identical for
+the torso, both knees, and both ankles. The target does not write MuJoCo state,
+does not replace contact or balance authority, and is held at its endpoint
+until another target or reset.
+
+A wrench remains a separate disturbance to balance against, not an intent
+target. A declared PUSH is supplied to the WBC dynamics in the same tick in
+which MuJoCo receives it. Target identity and its absolute goal survive the
+load; target realization is suspended while the wrench or the shared
+balance-recovery gate is active, then rebased from measured state and resumed
+without a discontinuous endpoint jump. Recovery requires five consecutive
+balance-only ticks with bilateral physical and executable support, root height
+above 0.45 m, tilt below 0.05 rad, pitch rate below 0.05 rad/s, forward speed
+below 0.025 m/s, capture pressure at most 0.1, station authority at least
+0.999, and station error at most 0.03 m. The streamed record labels target
+phase (`executing`, `holding`, `suppressed`, `authority_limited`, or
+`rejected`), target progress/error, measured state, wrench provenance, and WBC
+admission independently.
 
 Contact authority follows the same measured-state boundary. The worker derives
 the two wheel subtrees once, refreshes MuJoCo collision data after each 4 ms
@@ -81,13 +102,18 @@ Simulation lifecycle commands are explicit and fail-safe:
   increments `reset_epoch`, clears the wrench, and preserves the paused state
   when reset was requested while paused.
 
-The target commit is deliberately bounded in the first live prototype: the
-server accepts only `torso` or `base`, a 1000–5000 ms duration (default 3000 ms),
-and finite world coordinates; the worker clamps root motion to a small squat
-envelope. Invalid
-commands are rejected without releasing a prior held target. This is the
-separate admitted target/tracking/resource contract that keeps preview intent,
-measured plant execution, and PUSH evidence distinct.
+The target commit is deliberately bounded: the server accepts every and only
+the interaction handles it advertised, with stable IDs of the form
+`frame:<frame>`, a finite `target.position_world_m`, and a 1000–5000 ms duration
+(default 3000 ms). The gateway advertises one uniform 0.05 m displacement
+envelope, which the worker applies to every mapped frame. A finite legacy
+`frame` plus vector is accepted only when it identifies one advertised handle
+unambiguously. Invalid commands, including commits while paused, are
+rejected without releasing a prior held target. The gateway keeps exactly one
+active target. Target state and the expiring PUSH wrench lease are independent;
+only `plant_reset` clears both. This is the separate admitted
+target/tracking/resource contract that keeps preview intent, measured plant
+execution, and PUSH evidence distinct.
 
 The orange wireframe, dashed measured rig, CoM, contact points, ground plane,
 constraint rows, actuator/generalized forces, and simulator energies are

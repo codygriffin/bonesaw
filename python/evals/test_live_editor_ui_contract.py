@@ -62,7 +62,8 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("GREEN CONTROLS", self.html)
         self.assertIn("interactionHandles.size", self.javascript)
         self.assertIn('pushing ? "#ff9d45" : "#5ee6a5"', self.javascript)
-        self.assertIn("if (!showRig) return null", self.javascript)
+        self.assertIn("for (const handle of interactionHandles.values())", self.javascript)
+        self.assertIn("if (!frame) continue", self.javascript)
 
     def test_controls_enable_only_after_hello_schema_arrives(self) -> None:
         main_connect = self.javascript[self.javascript.index("function connect()") :]
@@ -92,14 +93,67 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('if (!plantGateway?.available || interactionMode !== "push") return', self.javascript)
         self.assertIn("setTimeout(connectPlant, 800)", self.javascript)
 
-    def test_torso_release_commits_a_measured_target_without_overloading_push(self) -> None:
+    def test_every_green_handle_release_commits_a_measured_target_without_overloading_push(self) -> None:
         self.assertIn('id="plant-command-state"', self.html)
-        self.assertIn('type: "plant_target_commit"', self.javascript)
-        self.assertIn("release torso to execute a bounded squat", self.javascript)
+        self.assertIn('type: "plant_frame_target_commit"', self.javascript)
+        self.assertIn("handle_id: handle.handle_id", self.javascript)
+        self.assertIn("target: { position_world_m: [...positionWorldM] }", self.javascript)
+        self.assertIn("release any control to command MuJoCo", self.javascript)
         self.assertIn("flushTargetCommit", self.javascript)
         self.assertIn('target_command_contract', (ROOT / "python/evals/upkie_live_plant_worker.py").read_text())
         self.assertIn('"target_command"', (ROOT / "crates/bonesaw-tools/src/bin/server.rs").read_text())
         self.assertIn("`holding`", (ROOT / "docs/LIVE_PLANT_INTENT_WRENCH_CONTRACT.md").read_text())
+        self.assertNotIn('kind === "base"', self.javascript)
+        self.assertNotIn("Cartesian base target", self.javascript)
+        self.assertIn("<dt>Frame targets</dt>", self.html)
+
+    def test_pointer_completion_is_uniform_and_cancel_never_commits(self) -> None:
+        self.assertIn("const committedHandle = interactionHandles.get(committedFrame)", self.javascript)
+        self.assertIn("if (!cancelled && committedHandle)", self.javascript)
+        self.assertIn("commitTarget(committedHandle, committedTarget)", self.javascript)
+        self.assertIn(
+            'canvas.addEventListener("pointercancel", (event) => finishPointer(event, true))',
+            self.javascript,
+        )
+        cancel_guard = self.javascript.index("if (!cancelled && committedHandle)")
+        commit = self.javascript.index("commitTarget(committedHandle, committedTarget)")
+        self.assertLess(cancel_guard, commit)
+
+    def test_push_mode_never_runs_target_handle_hit_testing(self) -> None:
+        pointer_down = self.javascript[
+            self.javascript.index('canvas.addEventListener("pointerdown"') :
+            self.javascript.index('canvas.addEventListener("pointermove"')
+        ]
+        push_empty = pointer_down.index('if (interactionMode === "push")')
+        target_pick = pointer_down.index("const frame = nearestFrame(event)")
+        self.assertLess(push_empty, target_pick)
+        self.assertIn("beginOrbit(event);\n    return;", pointer_down)
+        self.assertIn(
+            'interactionMode === "push" || event.ctrlKey',
+            self.javascript,
+        )
+
+    def test_target_telemetry_and_marker_update_while_preview_is_primary(self) -> None:
+        enqueue = self.javascript[
+            self.javascript.index("function enqueuePlantState(message)") :
+            self.javascript.index("function connectPlant()")
+        ]
+        self.assertIn("updatePlantTelemetry(message)", enqueue)
+        self.assertIn("const admittedTarget = targetTelemetry.admitted_position_world", enqueue)
+        self.assertIn("activePlantTarget = {", enqueue)
+        self.assertIn("function drawPlantTargetMarker()", self.javascript)
+        self.assertIn("measured error", self.javascript)
+        self.assertNotIn('if (interactionMode === "push") updatePlantTelemetry', enqueue)
+
+    def test_committed_preview_and_admitted_marker_persist_after_release(self) -> None:
+        finish = self.javascript[
+            self.javascript.index("function finishPointer") :
+            self.javascript.index('canvas.addEventListener("pointerdown"')
+        ]
+        commit = finish.index("commitTarget(committedHandle, committedTarget)")
+        cancel_release = finish.index('send({ type: "release" })', commit)
+        self.assertLess(commit, cancel_release)
+        self.assertIn("positionWorldM: [...admittedTarget]", self.javascript)
 
     def test_ctrl_mesh_wrench_and_shift_pan_are_distinct(self) -> None:
         self.assertIn("if (event.ctrlKey) {", self.javascript)

@@ -452,7 +452,9 @@ def run(
         trial_hello = receive_kind(websocket, "hello")
         assert trial_hello["model"] == hello["model"]
         hello = trial_hello
-        handle = next(item for item in hello["interaction_handles"] if item["kind"] == "base")
+        handles = hello["interaction_handles"]
+        assert handles and all(item["kind"] == "frame" for item in handles), handles
+        handle = next(item for item in handles if item["frame"] == "torso")
         initial = receive_kind(websocket, "state")
         arrivals: list[float] = []
         previous_arrival = time.perf_counter()
@@ -489,8 +491,9 @@ def run(
         assert acknowledged is not None, "drag was never acknowledged by active_frame"
         assert displacement >= 0.005, f"drag acknowledged but visible frame moved only {displacement:.6f} m"
 
-        # Ordinary in-range torso intent stays exact. Ground/IK clipping is a
-        # separate geometric boundary and must not alter this reachable target.
+        # An ordinary in-range advertised-frame draft stays exact. Ground/IK
+        # clipping is a separate geometric boundary and must not alter this
+        # reachable target.
         target_states = [receive_kind(websocket, "state") for _ in range(12)]
         assert all(state.get("active_frame") == handle["frame"] for state in target_states)
         assert not any(
@@ -502,13 +505,13 @@ def run(
         assert all(
             later["tick"] > earlier["tick"]
             for earlier, later in zip(target_states, target_states[1:])
-        ), "stream stopped or reset while the Cartesian base target was active"
+        ), "stream stopped or reset while the Cartesian frame target was active"
         target_collision_ground_clearance = min(
             state["metrics"]["minimum_collision_ground_clearance_m"]
             for state in target_states
         )
         assert target_collision_ground_clearance >= -1.1e-6, (
-            "reachable base target penetrated the z=0 collision plane"
+            "reachable frame target penetrated the z=0 collision plane"
         )
         target_visual_state = target_states[-1]
         final_base_position = frame_translation(
@@ -521,7 +524,7 @@ def run(
             )
         )
         assert base_target_residual <= 0.008, (
-            f"Cartesian base target residual remained {base_target_residual:.6f} m"
+            f"Cartesian frame target residual remained {base_target_residual:.6f} m"
         )
 
         ground_target = [initial_position[0], initial_position[1], initial_position[2] - 1.00]
@@ -537,12 +540,12 @@ def run(
             if state["metrics"]["interaction_target_clamped"]:
                 ground_limited = state
                 break
-        assert ground_limited is not None, "below-ground base target was not clipped"
+        assert ground_limited is not None, "below-ground frame target was not clipped"
         assert ground_limited["metrics"]["interaction_target_clamp_error_m"] > 0.0
         assert (
             ground_limited["metrics"]["minimum_collision_ground_clearance_m"]
             >= -1.1e-6
-        ), "clipped base target still penetrated the z=0 collision plane"
+        ), "clipped frame target still penetrated the z=0 collision plane"
         ground_limited_collision_clearance = ground_limited["metrics"][
             "minimum_collision_ground_clearance_m"
         ]
@@ -565,7 +568,11 @@ def run(
                 reset_state = candidate
                 break
         assert reset_state is not None, "reset epoch was never acknowledged"
-        joint_handle = next(item for item in hello["interaction_handles"] if item["kind"] == "joint")
+        joint_handle = next(
+            item
+            for item in hello["interaction_handles"]
+            if item["frame"] == "left_knee_qdd100_rotor"
+        )
         joint_initial = frame_translation(
             reset_state, hello["frame_names"], joint_handle["frame"]
         )
@@ -601,7 +608,7 @@ def run(
             mesh_cache,
         )
         assert target_visual_clearance >= -1.0e-3, (
-            f"reachable base target visual mesh penetrated z=0 by "
+            f"reachable frame target visual mesh penetrated z=0 by "
             f"{-1000.0 * target_visual_clearance:.3f} mm"
         )
         ground_limited_visual_clearance = minimum_visual_ground_clearance(
@@ -612,7 +619,7 @@ def run(
             mesh_cache,
         )
         assert ground_limited_visual_clearance >= -1.0e-3, (
-            f"clipped base target visual mesh penetrated z=0 by "
+            f"clipped frame target visual mesh penetrated z=0 by "
             f"{-1000.0 * ground_limited_visual_clearance:.3f} mm"
         )
         result.update(
@@ -620,8 +627,8 @@ def run(
                 "drag_frame": handle["frame"],
                 "drag_ack_ms": acknowledged,
                 "visible_displacement_m": displacement,
-                "base_target_residual_m": base_target_residual,
-                "base_target_contract": "exact_in_range_ground_clamped_out_of_range",
+                "frame_target_residual_m": base_target_residual,
+                "frame_target_contract": "exact_in_range_ground_clamped_out_of_range",
                 "ground_clamp_error_m": ground_limited["metrics"][
                     "interaction_target_clamp_error_m"
                 ],

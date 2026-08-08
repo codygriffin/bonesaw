@@ -37,10 +37,10 @@ use bonesaw_core::{
     FloatingDynamicControllerInput, FloatingDynamicControllerOutput,
     FloatingDynamicControllerScratch, FloatingDynamicControllerState, FloatingDynamicWbc,
     FloatingDynamicWbcInput, FloatingDynamicWbcOutput, FloatingDynamicWbcScratch,
-    FloatingFrameAngularAccelerationTask, FloatingJointAccelerationTask,
-    FloatingPointAccelerationTask, FloatingRobotState, FloatingTaskPriorities, FloatingTaskWeights,
-    Force6, FrameAtlasSnapshot, FrameId, FrameTarget, ModelCache,
-    ModelCoupledPositiveReferenceCompliantContactImpulseInput,
+    FloatingFrameAngularAccelerationTask, FloatingJointAccelerationConstraint,
+    FloatingJointAccelerationTask, FloatingPointAccelerationTask, FloatingRobotState,
+    FloatingTaskPriorities, FloatingTaskWeights, Force6, FrameAtlasSnapshot, FrameId, FrameTarget,
+    ModelCache, ModelCoupledPositiveReferenceCompliantContactImpulseInput,
     ModelCoupledPositiveReferenceContactScratch, Motion6, MotionProgram, PlanarIkOptions,
     PlanarIkScratch, PlanarPointIkTarget, PointImpulseResponseSpec,
     PositiveReferenceCompliantContactImpulseInput, Priority, ReconstructionProvenance,
@@ -16141,7 +16141,17 @@ impl FloatingWbcSession {
         centroidal_angular_momentum_rate_world=None,
         external_wrench_world=None,
         external_wrench_feedforward_scale=1.0,
-        external_wrench_feedforward_axis_scales=None
+        external_wrench_feedforward_axis_scales=None,
+        cartesian_frame_ids=None,
+        cartesian_target_positions=None,
+        cartesian_target_velocities=None,
+        cartesian_target_accelerations=None,
+        cartesian_priorities=None,
+        cartesian_weights=None,
+        root_horizontal_priority_override=None,
+        joint_posture_priority_override=None,
+        protected_joint_coordinates=None,
+        protected_joint_accelerations=None
     ))]
     fn run_oracle_trace(
         &mut self,
@@ -16211,6 +16221,16 @@ impl FloatingWbcSession {
         external_wrench_world: Option<PyReadonlyArray2<'_, f64>>,
         external_wrench_feedforward_scale: f64,
         external_wrench_feedforward_axis_scales: Option<PyReadonlyArray2<'_, f64>>,
+        cartesian_frame_ids: Option<PyReadonlyArray1<'_, i64>>,
+        cartesian_target_positions: Option<PyReadonlyArray3<'_, f64>>,
+        cartesian_target_velocities: Option<PyReadonlyArray3<'_, f64>>,
+        cartesian_target_accelerations: Option<PyReadonlyArray3<'_, f64>>,
+        cartesian_priorities: Option<PyReadonlyArray1<'_, u8>>,
+        cartesian_weights: Option<PyReadonlyArray1<'_, f64>>,
+        root_horizontal_priority_override: Option<u8>,
+        joint_posture_priority_override: Option<u8>,
+        protected_joint_coordinates: Option<PyReadonlyArray1<'_, i64>>,
+        protected_joint_accelerations: Option<PyReadonlyArray1<'_, f64>>,
     ) -> PyResult<()> {
         // Every call begins from the configured nominal authority. This also
         // self-heals a session after any model error returned from the middle
@@ -16342,6 +16362,56 @@ impl FloatingWbcSession {
         let external_wrench_feedforward_axis_scales = external_wrench_feedforward_axis_scales
             .as_ref()
             .map(PyReadonlyArray2::as_array);
+        let cartesian_descriptor_count = [
+            cartesian_frame_ids.is_some(),
+            cartesian_target_positions.is_some(),
+            cartesian_target_velocities.is_some(),
+            cartesian_target_accelerations.is_some(),
+            cartesian_priorities.is_some(),
+            cartesian_weights.is_some(),
+        ]
+        .into_iter()
+        .filter(|present| *present)
+        .count();
+        if cartesian_descriptor_count != 0 && cartesian_descriptor_count != 6 {
+            return Err(PyValueError::new_err(
+                "Cartesian command arrays must either all be supplied or all be omitted",
+            ));
+        }
+        let cartesian_frame_ids = cartesian_frame_ids
+            .as_ref()
+            .map(|values| values.as_slice())
+            .transpose()?;
+        let cartesian_target_positions = cartesian_target_positions
+            .as_ref()
+            .map(PyReadonlyArray3::as_array);
+        let cartesian_target_velocities = cartesian_target_velocities
+            .as_ref()
+            .map(PyReadonlyArray3::as_array);
+        let cartesian_target_accelerations = cartesian_target_accelerations
+            .as_ref()
+            .map(PyReadonlyArray3::as_array);
+        let cartesian_priorities = cartesian_priorities
+            .as_ref()
+            .map(|values| values.as_slice())
+            .transpose()?;
+        let cartesian_weights = cartesian_weights
+            .as_ref()
+            .map(|values| values.as_slice())
+            .transpose()?;
+        if protected_joint_coordinates.is_some() != protected_joint_accelerations.is_some() {
+            return Err(PyValueError::new_err(
+                "protected_joint_coordinates and protected_joint_accelerations must both be supplied or both be omitted",
+            ));
+        }
+        let protected_joint_coordinates = protected_joint_coordinates
+            .as_ref()
+            .map(|values| values.as_slice())
+            .transpose()?;
+        let protected_joint_accelerations = protected_joint_accelerations
+            .as_ref()
+            .map(|values| values.as_slice())
+            .transpose()?;
         if !external_wrench_feedforward_scale.is_finite()
             || !(0.0..=1.0).contains(&external_wrench_feedforward_scale)
         {
@@ -16359,9 +16429,10 @@ impl FloatingWbcSession {
             .transpose()?;
         let ticks = root_positions.shape()[0];
         let target_count = frame_ids.len();
+        let cartesian_command_count = cartesian_frame_ids.map_or(0, <[i64]>::len);
         let dof = self.dof();
         let generalized_dof = dof + 6;
-        if target_count > FLOATING_POINT_TASK_CAPACITY
+        if target_count.saturating_add(cartesian_command_count) > FLOATING_POINT_TASK_CAPACITY
             || root_positions.shape() != [ticks, 3]
             || root_velocities.shape() != [ticks, 3]
             || root_accelerations.shape() != [ticks, 3]
@@ -16462,6 +16533,22 @@ impl FloatingWbcSession {
                 .is_some_and(|values| values.len() != target_count)
             || rolling_maximum_stabilization_accelerations
                 .is_some_and(|values| values.len() != target_count)
+            || cartesian_target_positions
+                .as_ref()
+                .is_some_and(|values| values.shape() != [ticks, cartesian_command_count, 3])
+            || cartesian_target_velocities
+                .as_ref()
+                .is_some_and(|values| values.shape() != [ticks, cartesian_command_count, 3])
+            || cartesian_target_accelerations
+                .as_ref()
+                .is_some_and(|values| values.shape() != [ticks, cartesian_command_count, 3])
+            || cartesian_priorities.is_some_and(|values| values.len() != cartesian_command_count)
+            || cartesian_weights.is_some_and(|values| values.len() != cartesian_command_count)
+            || protected_joint_coordinates
+                .zip(protected_joint_accelerations)
+                .is_some_and(|(coordinates, accelerations)| {
+                    coordinates.len() != accelerations.len()
+                })
         {
             return Err(PyValueError::new_err("oracle WBC array shape mismatch"));
         }
@@ -16595,6 +16682,35 @@ impl FloatingWbcSession {
                     || !maximum.is_finite()
                     || maximum < 0.0
             })
+            || cartesian_frame_ids.is_some_and(|frames| {
+                frames
+                    .iter()
+                    .any(|&frame| frame < 0 || frame as usize >= self.program.model.bodies.len())
+            })
+            || cartesian_target_positions
+                .as_ref()
+                .is_some_and(|values| values.iter().any(|value| !value.is_finite()))
+            || cartesian_target_velocities
+                .as_ref()
+                .is_some_and(|values| values.iter().any(|value| !value.is_finite()))
+            || cartesian_target_accelerations
+                .as_ref()
+                .is_some_and(|values| values.iter().any(|value| !value.is_finite()))
+            || cartesian_weights.is_some_and(|values| {
+                values
+                    .iter()
+                    .any(|weight| !weight.is_finite() || *weight < 0.0)
+            })
+            || protected_joint_coordinates.is_some_and(|coordinates| {
+                coordinates
+                    .iter()
+                    .any(|&coordinate| coordinate < 0 || coordinate as usize >= dof)
+                    || coordinates.iter().enumerate().any(|(index, coordinate)| {
+                        coordinates[..index].iter().any(|prior| prior == coordinate)
+                    })
+            })
+            || protected_joint_accelerations
+                .is_some_and(|values| values.iter().any(|value| !value.is_finite()))
         {
             return Err(PyValueError::new_err(
                 "oracle WBC frame, weight, contact mode, or rolling descriptor is invalid",
@@ -16605,8 +16721,30 @@ impl FloatingWbcSession {
             .copied()
             .map(priority)
             .collect::<PyResult<Vec<_>>>()?;
+        let cartesian_priorities = cartesian_priorities
+            .map(|values| {
+                values
+                    .iter()
+                    .copied()
+                    .map(priority)
+                    .collect::<PyResult<Vec<_>>>()
+            })
+            .transpose()?;
         let root_angular_priority = priority(root_angular_priority)?;
         let root_height_priority = priority(root_height_priority)?;
+        let root_horizontal_priority = root_horizontal_priority_override
+            .map(priority)
+            .transpose()?
+            .unwrap_or(self.root_horizontal_task_priority);
+        let joint_posture_priority = joint_posture_priority_override
+            .map(priority)
+            .transpose()?
+            .unwrap_or(self.joint_posture_priority);
+        let protected_joint_constraint_data = protected_joint_coordinates
+            .zip(protected_joint_accelerations)
+            .map(|(coordinates, accelerations)| {
+                canonicalize_joint_acceleration_constraint(coordinates, accelerations)
+            });
         for tick in 0..ticks {
             let external_wrench_world = external_wrench_world.map(|wrench| {
                 let scale = |component: usize| {
@@ -16867,6 +17005,77 @@ impl FloatingWbcSession {
                     }
                 }
             }
+            if let (
+                Some(command_frame_ids),
+                Some(target_positions),
+                Some(target_velocities),
+                Some(target_accelerations),
+                Some(command_priorities),
+                Some(command_weights),
+            ) = (
+                cartesian_frame_ids,
+                cartesian_target_positions.as_ref(),
+                cartesian_target_velocities.as_ref(),
+                cartesian_target_accelerations.as_ref(),
+                cartesian_priorities.as_ref(),
+                cartesian_weights,
+            ) {
+                for command in 0..cartesian_command_count {
+                    let frame = bonesaw_core::FrameId(command_frame_ids[command] as usize);
+                    self.program
+                        .model
+                        .floating_point_jacobian_into(
+                            &self.tracking_cache,
+                            frame,
+                            Vec3::zeros(),
+                            &mut self.tracking_jacobian,
+                        )
+                        .map_err(value_error)?;
+                    let current_position = self.tracking_cache.world_from_body[frame.0]
+                        .transform_point(&Point3::origin())
+                        .coords;
+                    let current_velocity = Vec3::from_fn(|axis, _| {
+                        (0..generalized_dof)
+                            .map(|coordinate| {
+                                let velocity = if coordinate < 6 {
+                                    self.state.root_twist_world.0[coordinate]
+                                } else {
+                                    self.state.robot.v[coordinate - 6]
+                                };
+                                self.tracking_jacobian[(axis, coordinate)] * velocity
+                            })
+                            .sum()
+                    });
+                    self.point_tasks.push(FloatingPointAccelerationTask {
+                        stable_id: 100 + command as u32,
+                        frame,
+                        point_in_frame: Vec3::zeros(),
+                        desired_acceleration_world: tracking_acceleration(
+                            Vec3::new(
+                                target_positions[[tick, command, 0]],
+                                target_positions[[tick, command, 1]],
+                                target_positions[[tick, command, 2]],
+                            ),
+                            Vec3::new(
+                                target_velocities[[tick, command, 0]],
+                                target_velocities[[tick, command, 1]],
+                                target_velocities[[tick, command, 2]],
+                            ),
+                            Vec3::new(
+                                target_accelerations[[tick, command, 0]],
+                                target_accelerations[[tick, command, 1]],
+                                target_accelerations[[tick, command, 2]],
+                            ),
+                            current_position,
+                            current_velocity,
+                            self.point_omega,
+                            50.0,
+                        ),
+                        priority: command_priorities[command],
+                        weight: command_weights[command],
+                    });
+                }
+            }
             if self.contacts.len() > self.maximum_contacts {
                 return Err(PyValueError::new_err(
                     "oracle WBC contact patch exceeds session capacity",
@@ -16935,6 +17144,14 @@ impl FloatingWbcSession {
                     priority: self.centroidal_angular_momentum_priority,
                     weight: self.centroidal_angular_momentum_weight,
                 });
+            let protected_joint_constraint = protected_joint_constraint_data.as_ref().and_then(
+                |(coordinates, accelerations)| {
+                    (!coordinates.is_empty()).then_some(FloatingJointAccelerationConstraint {
+                        coordinates,
+                        desired_accelerations: accelerations,
+                    })
+                },
+            );
             if let Some(effort) = fixed_actuator_effort.as_ref() {
                 for coordinate in 0..dof {
                     self.mapped_actuator_effort[coordinate] = effort[[tick, coordinate]];
@@ -16946,9 +17163,9 @@ impl FloatingWbcSession {
                 desired_generalized_acceleration: &self.desired_acceleration,
                 task_priorities: FloatingTaskPriorities {
                     root_angular: root_angular_priority,
-                    root_horizontal: self.root_horizontal_task_priority,
+                    root_horizontal: root_horizontal_priority,
                     root_height: root_height_priority,
-                    joint_posture: self.joint_posture_priority,
+                    joint_posture: joint_posture_priority,
                 },
                 task_weights: FloatingTaskWeights {
                     root_angular: self.root_angular_task_weight,
@@ -16973,7 +17190,34 @@ impl FloatingWbcSession {
                 contacts: &self.contacts,
                 support_patches: &self.support_patches,
             };
-            if fixed_actuator_effort.is_some() {
+            if protected_joint_constraint.is_some() {
+                let fixed_effort = fixed_actuator_effort
+                    .as_ref()
+                    .map(|_| &self.mapped_actuator_effort);
+                if fixed_effort.is_some() {
+                    self.controller
+                        .solve_into_with_joint_acceleration_constraint(
+                            solve_input,
+                            protected_joint_constraint,
+                            fixed_effort,
+                            external_wrench_world,
+                            &mut self.output,
+                            &mut self.realization_scratch,
+                        )
+                        .map_err(value_error)?;
+                } else {
+                    self.controller
+                        .solve_into_with_joint_acceleration_constraint(
+                            solve_input,
+                            protected_joint_constraint,
+                            None,
+                            external_wrench_world,
+                            &mut self.output,
+                            &mut self.scratch,
+                        )
+                        .map_err(value_error)?;
+                }
+            } else if fixed_actuator_effort.is_some() {
                 if let Some(external_wrench_world) = external_wrench_world {
                     self.controller
                         .solve_with_fixed_generalized_effort_and_external_wrench_into(
@@ -20469,6 +20713,20 @@ fn tracking_acceleration(
     )
 }
 
+fn canonicalize_joint_acceleration_constraint(
+    coordinates: &[i64],
+    accelerations: &[f64],
+) -> (Vec<usize>, Vec<f64>) {
+    let mut paired = coordinates
+        .iter()
+        .copied()
+        .map(|coordinate| coordinate as usize)
+        .zip(accelerations.iter().copied())
+        .collect::<Vec<_>>();
+    paired.sort_unstable_by_key(|(coordinate, _)| *coordinate);
+    paired.into_iter().unzip()
+}
+
 fn priority(value: u8) -> PyResult<Priority> {
     match value {
         0 => Ok(Priority::Invariant),
@@ -20565,7 +20823,7 @@ fn _bonesaw(module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::intersect_directional_braking_bound;
+    use super::{canonicalize_joint_acceleration_constraint, intersect_directional_braking_bound};
 
     #[test]
     fn directional_braking_bound_tightens_only_its_direction() {
@@ -20588,5 +20846,14 @@ mod tests {
         assert_eq!(lower, 15.0);
         assert_eq!(upper, 10.0);
         assert!(lower > upper);
+    }
+
+    #[test]
+    fn python_joint_acceleration_constraint_keeps_values_attached_while_sorting() {
+        let (coordinates, accelerations) =
+            canonicalize_joint_acceleration_constraint(&[5, 2], &[4.0, -3.0]);
+        assert_eq!(coordinates, vec![2, 5]);
+        assert_eq!(accelerations, vec![-3.0, 4.0]);
+        assert!(coordinates.windows(2).all(|pair| pair[0] < pair[1]));
     }
 }

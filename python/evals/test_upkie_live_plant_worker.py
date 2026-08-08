@@ -16,6 +16,8 @@ if str(EVALS) not in sys.path:
 
 from upkie_live_plant_worker import (  # noqa: E402
     COMMAND_DEFAULT_DURATION_MS,
+    COMMAND_HOLD_CONSECUTIVE_TICKS,
+    COMMAND_MAX_DISPLACEMENT_M,
     COMMAND_MIN_DURATION_MS,
     CONTROL_DT,
     PHYSICS_DT,
@@ -108,7 +110,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertFalse(result["measured_impact_impulse"]["available"])
         self.assertFalse(result["unobserved_model_reserve"]["available"])
 
-    def test_external_moment_observation_is_delayed_into_rust(self) -> None:
+    def test_external_wrench_is_fed_forward_same_tick_and_cleared_on_release(self) -> None:
         worker = LiveUpkiePlant(
             ROOT / "models/upkie/upkie.urdf",
             controller_options={
@@ -145,11 +147,20 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
                 },
             }
         )
-        # The load is applied after the first solve, so the first tick cannot
-        # use it as a feed-forward target.
-        np.testing.assert_array_equal(
-            worker.controller.centroidal_angular_momentum_rate_world,
-            np.zeros((1, 3)),
+        # The declared wrench is consumed by the same solve that precedes its
+        # MuJoCo application.
+        np.testing.assert_allclose(
+            worker.controller.centroidal_angular_momentum_rate_world[0],
+            -expected_centroidal_moment,
+            atol=1.0e-12,
+        )
+        np.testing.assert_allclose(
+            worker.controller.external_wrench_world[0, :3],
+            expected_root_moment,
+            atol=1.0e-12,
+        )
+        np.testing.assert_allclose(
+            worker.controller.external_wrench_world[0, 3:], force, atol=1.0e-12
         )
         self.assertTrue(worker.last_external_wrench_valid)
         np.testing.assert_allclose(
@@ -162,28 +173,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
             expected_centroidal_moment,
             atol=1.0e-12,
         )
-        next_root_origin = np.asarray(
-            worker.data.xpos[root_body_id], dtype=np.float64
-        ).copy()
-        next_center_of_mass = np.asarray(
-            worker.data.subtree_com[0], dtype=np.float64
-        ).copy()
-        worker.step({"type": "step", "command_id": 4})
-        # The second solve consumes the completed first-tick wrench, after
-        # re-expressing it about the current root/CoM reference points.
-        expected_next_root_moment = np.cross(point - next_root_origin, force)
-        expected_next_centroidal_moment = np.cross(
-            point - next_center_of_mass, force
+        worker.step(
+            {
+                "type": "step",
+                "command_id": 4,
+                "external_load": {"active": False, "request_id": 4},
+            }
         )
-        np.testing.assert_allclose(
-            worker.controller.centroidal_angular_momentum_rate_world[0],
-            -expected_next_centroidal_moment,
-            atol=1.0e-12,
+        # Release clears feed-forward on the release solve; no previous wrench
+        # survives for one extra control tick.
+        np.testing.assert_array_equal(
+            worker.controller.centroidal_angular_momentum_rate_world,
+            np.zeros((1, 3)),
         )
-        np.testing.assert_allclose(
-            worker.controller.external_wrench_world[0, :3],
-            expected_next_root_moment,
-            atol=1.0e-12,
+        np.testing.assert_array_equal(
+            worker.controller.external_wrench_world,
+            np.zeros((1, 6)),
         )
         self.assertFalse(worker.last_external_wrench_valid)
 
@@ -236,7 +241,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         )
         self.assertEqual(
             hello["external_load_contract"]["wbc_external_moment_observation"],
-            "external_load.root_moment_world_nm, re-expressed about current root origin and consumed one 50 Hz solve later",
+            "external_load.root_moment_world_nm, re-expressed about the current root origin and consumed by the same 50 Hz solve",
         )
         self.assertIn(
             "current aggregate CoM",
@@ -244,7 +249,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
                 "wbc_external_centroidal_moment_observation"
             ],
         )
-        self.assertFalse(
+        self.assertTrue(
             hello["external_load_contract"]["wbc_external_wrench_feedforward"][
                 "enabled"
             ]
@@ -448,12 +453,9 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(args.control_dt, 0.020)
         self.assertEqual(args.physics_dt, 0.004)
 
-    def test_target_commit_uses_a_bounded_quintic_and_holds_until_replaced(self) -> None:
-        nominal_root = self.worker.command_nominal_root_position.copy()
-        torso_offset = self.worker.command_frame_root_offsets["torso"]
-        down_target = (
-            nominal_root + torso_offset + np.asarray([0.0, 0.0, -0.08])
-        )
+    def test_target_commit_uses_uniform_frame_quintic_and_holds_until_replaced(self) -> None:
+        torso = self.worker.data.xpos[self.worker.body_by_name["torso"]].copy()
+        down_target = torso + np.asarray([0.0, 0.0, -0.08])
         first = self.worker.step(
             {
                 "type": "step",
@@ -469,31 +471,45 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         )
         self.assertEqual(first["target_command"]["phase"], "executing")
         self.assertEqual(first["target_command"]["request_id"], 20)
-        self.assertLess(
-            first["target_command"]["target_root_position"][2], nominal_root[2]
+        np.testing.assert_allclose(
+            first["target_command"]["requested_position_world"], down_target
         )
-        self.assertGreater(first["target_command"]["progress"], 0.0)
-        settled = first
-        for _ in range(70):
-            settled = self.worker.step(
-                {
-                    "type": "step",
-                    "command_id": 20,
-                    "target_command": {
-                        "active": True,
-                        "frame": "torso",
-                        "target": down_target.tolist(),
-                        "duration_ms": COMMAND_MIN_DURATION_MS,
-                        "request_id": 20,
-                    },
-                }
-            )
-        self.assertEqual(settled["target_command"]["phase"], "holding")
-        held_target = np.asarray(
-            settled["target_command"]["target_root_position"], dtype=np.float64
+        admitted = np.asarray(
+            first["target_command"]["admitted_position_world"], dtype=np.float64
         )
-        self.assertLess(held_target[2], nominal_root[2])
-        up_target = (nominal_root + torso_offset).tolist()
+        self.assertAlmostEqual(
+            np.linalg.norm(admitted - torso), COMMAND_MAX_DISPLACEMENT_M
+        )
+        self.assertTrue(first["target_command"]["clamped"])
+        self.assertGreaterEqual(first["target_command"]["progress"], 0.0)
+        measured_after_step = np.asarray(
+            first["target_command"]["measured_position_world"],
+            dtype=np.float64,
+        )
+        np.testing.assert_allclose(
+            measured_after_step,
+            self.worker.data.xpos[self.worker.body_by_name["torso"]],
+        )
+        self.assertGreater(np.linalg.norm(measured_after_step - torso), 1.0e-6)
+
+        # Endpoint hold qualification is measured and requires consecutive
+        # executable ticks; it is not inferred from trajectory time alone.
+        body_id = self.worker.body_by_name["torso"]
+        self.worker.command_elapsed_s = self.worker.command_duration_s
+        self.worker.data.xpos[body_id] = admitted
+        executable = {
+            "command_task_rms": 0.0,
+            "command_task_clipped": False,
+            "command_intent_executable": True,
+            "command_intent_suppressed": False,
+            "command_intent_suppression_reason": "",
+        }
+        for _ in range(COMMAND_HOLD_CONSECUTIVE_TICKS):
+            self.worker._advance_target_command(1.0, executable)
+        self.assertEqual(self.worker.command_phase, "holding")
+
+        measured = self.worker.data.xpos[body_id].copy()
+        up_target = (measured + np.asarray([0.0, 0.0, 0.02])).tolist()
         rising = self.worker.step(
             {
                 "type": "step",
@@ -510,10 +526,397 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
         self.assertEqual(rising["target_command"]["phase"], "executing")
         self.assertEqual(rising["target_command"]["request_id"], 21)
         self.assertGreater(
-            rising["target_command"]["target_root_position"][2], held_target[2]
+            rising["target_command"]["admitted_position_world"][2], measured[2]
         )
 
-    def test_target_commit_rejects_bad_frame_without_releasing_external_push(self) -> None:
+    def test_push_freezes_target_bundle_then_rebases_without_new_identity(self) -> None:
+        for _ in range(100):
+            self.worker.step({"type": "step"})
+        frame = "left_knee_qdd100_rotor"
+        request_id = 91
+        measured = self.worker.data.xpos[self.worker.body_by_name[frame]].copy()
+        target = measured + np.asarray([0.015, 0.0, 0.0])
+        target_command = {
+            "active": True,
+            "frame": frame,
+            "handle_id": f"frame:{frame}",
+            "target": target.tolist(),
+            "duration_ms": COMMAND_DEFAULT_DURATION_MS,
+            "request_id": request_id,
+        }
+        execution_states = [
+            self.worker.step(
+                {
+                    "type": "step",
+                    "target_command": target_command,
+                }
+            )
+            for _ in range(40)
+        ]
+        self.assertTrue(
+            all(
+                state["target_command"]["command_descriptors_active"]
+                for state in execution_states
+            )
+        )
+        self.assertTrue(
+            all(
+                abs(
+                    state["target_command"][
+                        "cartesian_x_position_neutral_residual_at_solve_m"
+                    ]
+                )
+                <= 1.0e-12
+                and abs(
+                    state["target_command"][
+                        "cartesian_desired_ax_at_solve_m_s2"
+                    ]
+                )
+                <= 1.0e-12
+                and 0.0
+                <= state["target_command"][
+                    "cartesian_x_velocity_damping_beta_at_solve"
+                ]
+                <= 1.0
+                and abs(
+                    state["target_command"]["cartesian_desired_vx_at_solve_m_s"]
+                    - state["target_command"][
+                        "cartesian_x_velocity_damping_beta_at_solve"
+                    ]
+                    * state["target_command"][
+                        "cartesian_measured_vx_at_solve_m_s"
+                    ]
+                )
+                <= 1.0e-12
+                for state in execution_states
+            )
+        )
+        self.assertTrue(
+            any(
+                abs(
+                    state["target_command"][
+                        "station_requested_error_at_solve_m"
+                    ]
+                )
+                > 1.0e-6
+                for state in execution_states
+            )
+        )
+        frozen_progress = execution_states[-1]["target_command"]["progress"]
+        self.assertGreater(frozen_progress, 0.0)
+        body_id = self.worker.body_by_name["base"]
+        point = self.worker.data.xipos[body_id].copy()
+        external_load = {
+            "active": True,
+            "body": "base",
+            "force_world": [1.0, 0.0, 0.0],
+            "application_point_world": point.tolist(),
+            "provenance": EVALUATION_PROVENANCE,
+            "request_id": 92,
+        }
+        first = self.worker.step(
+            {
+                "type": "step",
+                "target_command": target_command,
+                "external_load": external_load,
+            }
+        )
+        self.assertEqual(first["target_command"]["request_id"], request_id)
+        self.assertEqual(first["target_command"]["handle_id"], f"frame:{frame}")
+        self.assertEqual(first["target_command"]["phase"], "suppressed")
+        self.assertEqual(first["target_command"]["progress"], frozen_progress)
+        self.assertFalse(self.worker.controller.command_active)
+        self.assertFalse(first["target_command"]["command_descriptors_active"])
+        self.assertTrue(first["target_command"]["execution_bundle_suppressed"])
+        self.assertAlmostEqual(
+            first["target_command"]["station_neutral_error_at_solve_m"],
+            0.0,
+            places=12,
+        )
+        np.testing.assert_allclose(
+            self.worker.controller.external_wrench_world[0, 3:],
+            [1.0, 0.0, 0.0],
+            atol=1.0e-12,
+        )
+
+        push_states = [first]
+        push_states.extend(
+            self.worker.step(
+                {
+                    "type": "step",
+                    "target_command": target_command,
+                    "external_load": external_load,
+                }
+            )
+            for _ in range(24)
+        )
+        second = push_states[-1]
+        self.assertTrue(
+            all(
+                state["target_command"]["progress"] == frozen_progress
+                for state in push_states
+            )
+        )
+        self.assertTrue(
+            all(
+                state["target_command"]["execution_bundle_suppressed"]
+                and not state["target_command"]["command_descriptors_active"]
+                and abs(
+                    state["target_command"]["station_neutral_error_at_solve_m"]
+                )
+                <= 1.0e-12
+                for state in push_states
+            )
+        )
+        self.assertTrue(
+            all(
+                state["external_load"]["wbc_feedforward_active"]
+                and np.allclose(
+                    state["external_load"]["wbc_observed_force_world_n"],
+                    [1.0, 0.0, 0.0],
+                    atol=1.0e-12,
+                )
+                for state in push_states
+            )
+        )
+        self.assertEqual(second["target_command"]["progress"], frozen_progress)
+        np.testing.assert_allclose(
+            second["target_command"]["admitted_position_world"], target
+        )
+        released = self.worker.step(
+            {
+                "type": "step",
+                "external_load": {"active": False, "request_id": 93},
+            }
+        )
+        self.assertFalse(released["external_load"]["active"])
+        self.assertEqual(released["target_command"]["request_id"], request_id)
+        self.assertEqual(released["target_command"]["handle_id"], f"frame:{frame}")
+        self.assertEqual(released["target_command"]["phase"], "suppressed")
+        self.assertFalse(self.worker.controller.command_active)
+        self.assertFalse(released["external_load"]["wbc_feedforward_active"])
+        np.testing.assert_array_equal(
+            released["external_load"]["wbc_observed_force_world_n"],
+            [0.0, 0.0, 0.0],
+        )
+        np.testing.assert_array_equal(
+            self.worker.controller.external_wrench_world,
+            np.zeros((1, 6)),
+        )
+        recovery_states = [released]
+        measured_before_resume = None
+        for _ in range(200):
+            measured_before_tick = self.worker.data.xpos[
+                self.worker.body_by_name[frame]
+            ].copy()
+            resumed = self.worker.step({"type": "step"})
+            recovery_states.append(resumed)
+            if resumed["target_command"]["command_descriptors_active"]:
+                measured_before_resume = measured_before_tick
+                break
+        self.assertIsNotNone(measured_before_resume)
+        suppressed_recovery = [
+            state
+            for state in recovery_states[:-1]
+            if state["target_command"]["execution_bundle_suppressed"]
+        ]
+        self.assertGreaterEqual(len(suppressed_recovery), 5)
+        self.assertEqual(
+            [
+                state["target_command"]["recovery_safe_ticks"]
+                for state in suppressed_recovery[-5:]
+            ],
+            [1, 2, 3, 4, 5],
+        )
+        self.assertTrue(
+            all(
+                not state["target_command"]["command_descriptors_active"]
+                and state["target_command"]["progress"] == frozen_progress
+                and abs(
+                    state["target_command"]["station_neutral_error_at_solve_m"]
+                )
+                <= 1.0e-12
+                for state in suppressed_recovery
+            )
+        )
+        np.testing.assert_allclose(
+            resumed["target_command"]["admitted_position_world"], target
+        )
+        np.testing.assert_allclose(
+            self.worker.command_plan["start"], measured_before_resume, atol=1.0e-12
+        )
+        np.testing.assert_allclose(
+            self.worker.command_plan["target"], target, atol=1.0e-12
+        )
+        np.testing.assert_allclose(
+            self.worker.command_plan["target_wheel_position"],
+            self.worker.command_plan["start_wheel_position"],
+            atol=1.0e-12,
+        )
+        self.assertTrue(self.worker.command_plan["measured_neutral_realization"])
+        self.assertTrue(self.worker.controller.command_active)
+        self.assertTrue(resumed["target_command"]["command_descriptors_active"])
+        self.assertFalse(resumed["target_command"]["execution_bundle_suppressed"])
+        self.assertTrue(resumed["target_command"]["measured_neutral_realization"])
+        np.testing.assert_allclose(
+            resumed["target_command"]["sampled_position_world"],
+            measured_before_resume,
+            atol=1.0e-12,
+        )
+        self.assertAlmostEqual(
+            resumed["target_command"]["progress"], frozen_progress, places=12
+        )
+        self.assertIn(
+            resumed["target_command"]["phase"],
+            ("executing", "authority_limited", "holding"),
+        )
+        resumed_states = [resumed]
+        for _ in range(520):
+            resumed = self.worker.step({"type": "step"})
+            resumed_states.append(resumed)
+            if resumed["target_command"]["phase"] == "holding":
+                break
+        self.assertEqual(resumed["target_command"]["phase"], "holding")
+        hold_dwell = [resumed]
+        for _ in range(49):
+            hold_dwell.append(self.worker.step({"type": "step"}))
+        resumed_states.extend(hold_dwell[1:])
+        self.assertTrue(
+            all(
+                state["target_command"]["phase"] == "holding"
+                and np.linalg.norm(
+                    np.asarray(
+                        state["target_command"]["measured_position_world"],
+                        dtype=np.float64,
+                    )
+                    - target
+                )
+                <= 0.012
+                for state in hold_dwell
+            )
+        )
+        self.assertTrue(
+            all(
+                abs(
+                    state["target_command"][
+                        "station_admitted_error_at_solve_m"
+                    ]
+                )
+                <= 0.03 + 1.0e-12
+                for state in resumed_states
+            )
+        )
+        self.assertTrue(
+            all(
+                abs(
+                    state["target_command"][
+                        "cartesian_x_position_neutral_residual_at_solve_m"
+                    ]
+                )
+                <= 1.0e-12
+                and abs(
+                    state["target_command"][
+                        "cartesian_desired_ax_at_solve_m_s2"
+                    ]
+                )
+                <= 1.0e-12
+                and 0.0
+                <= state["target_command"][
+                    "cartesian_x_velocity_damping_beta_at_solve"
+                ]
+                <= 1.0
+                and abs(
+                    state["target_command"]["cartesian_desired_vx_at_solve_m_s"]
+                    - state["target_command"][
+                        "cartesian_x_velocity_damping_beta_at_solve"
+                    ]
+                    * state["target_command"][
+                        "cartesian_measured_vx_at_solve_m_s"
+                    ]
+                )
+                <= 1.0e-12
+                for state in resumed_states
+            )
+        )
+        self.assertTrue(
+            any(
+                state["target_command"]["station_error_clamped_at_solve"]
+                for state in resumed_states
+            )
+        )
+
+    def test_all_published_body_handles_share_uniform_admission(self) -> None:
+        frames = (
+            "torso",
+            "left_knee_qdd100_rotor",
+            "left_ankle_mj5208_rotor",
+            "right_knee_qdd100_rotor",
+            "right_ankle_mj5208_rotor",
+        )
+        for request_id, frame in enumerate(frames, start=100):
+            with self.subTest(frame=frame):
+                measured = self.worker.data.xpos[
+                    self.worker.body_by_name[frame]
+                ].copy()
+                target = measured + np.asarray([0.015, 0.0, 0.0])
+                before_qpos = self.worker.data.qpos.copy()
+                before_qvel = self.worker.data.qvel.copy()
+                self.worker._accept_target_command(
+                    {
+                        "frame": frame,
+                        "target": target.tolist(),
+                        "duration_ms": COMMAND_MIN_DURATION_MS,
+                        "request_id": request_id,
+                    }
+                )
+                self.assertEqual(self.worker.command_frame, frame)
+                self.assertEqual(
+                    self.worker.command_handle_id, f"frame:{frame}"
+                )
+                np.testing.assert_allclose(
+                    self.worker.command_start_position, measured
+                )
+                np.testing.assert_allclose(
+                    self.worker.command_target_position, target
+                )
+                np.testing.assert_array_equal(self.worker.data.qpos, before_qpos)
+                np.testing.assert_array_equal(self.worker.data.qvel, before_qvel)
+                self.assertLessEqual(
+                    self.worker.command_ik_target_residual_m, 2.0e-4
+                )
+                self.assertLessEqual(
+                    self.worker.command_ik_support_residual_m, 2.0e-4
+                )
+                self.assertLessEqual(
+                    self.worker.command_ik_balance_residual_m, 2.0e-4
+                )
+
+    def test_hello_advertises_only_normalized_frame_target_handles(self) -> None:
+        contract = self.worker.hello()["target_command_contract"]
+        self.assertEqual(contract["type"], "plant_frame_target_commit")
+        self.assertEqual(
+            contract["accepted_frames"],
+            [
+                "torso",
+                "left_knee_qdd100_rotor",
+                "left_ankle_mj5208_rotor",
+                "right_knee_qdd100_rotor",
+                "right_ankle_mj5208_rotor",
+            ],
+        )
+
+    def test_rejected_replacement_preserves_target_and_external_push(self) -> None:
+        torso = self.worker.data.xpos[self.worker.body_by_name["torso"]].copy()
+        accepted_target = torso + np.asarray([0.0, 0.0, -0.02])
+        self.worker._accept_target_command(
+            {
+                "frame": "torso",
+                "target": accepted_target.tolist(),
+                "duration_ms": COMMAND_MIN_DURATION_MS,
+                "request_id": 29,
+            }
+        )
+        preserved_target = self.worker.command_target_position.copy()
         body_id = self.worker.body_by_name["base"]
         point = self.worker.data.xipos[body_id].copy()
         result = self.worker.step(
@@ -522,7 +925,7 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
                 "command_id": 30,
                 "target_command": {
                     "active": True,
-                    "frame": "left_knee",
+                    "frame": "not_a_mujoco_body",
                     "target": [0.0, 0.0, 0.4],
                     "duration_ms": COMMAND_MIN_DURATION_MS,
                     "request_id": 30,
@@ -537,8 +940,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
                 },
             }
         )
-        self.assertEqual(result["target_command"]["phase"], "rejected")
-        self.assertIn("torso or base", result["target_command"]["reason"])
+        self.assertEqual(result["target_command"]["request_id"], 29)
+        self.assertEqual(result["target_command"]["frame"], "torso")
+        np.testing.assert_allclose(
+            result["target_command"]["admitted_position_world"],
+            preserved_target,
+        )
+        self.assertEqual(
+            result["target_command"]["last_admission"]["status"], "rejected"
+        )
+        self.assertEqual(
+            result["target_command"]["last_rejection"]["request_id"], 30
+        )
+        self.assertIn(
+            "advertised Upkie frame handle",
+            result["target_command"]["last_rejection"]["reason"],
+        )
         self.assertTrue(result["external_load"]["active"])
 
     def test_quintic_profile_is_zero_slope_at_both_endpoints(self) -> None:

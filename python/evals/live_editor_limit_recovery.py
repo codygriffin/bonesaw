@@ -164,7 +164,7 @@ def run(base_url: str, cycles: int, connect_address: str | None = None) -> dict[
         handle_names = {
             item["frame"]
             for item in hello["interaction_handles"]
-            if item["kind"] == "joint"
+            if item["kind"] == "frame"
         }
         for limit in limits:
             assert interaction_frame(limit["name"]) in handle_names

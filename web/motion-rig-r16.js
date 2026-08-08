@@ -69,6 +69,8 @@ let pushReturnMode = null;
 let pushDrag = null;
 let pendingPushCommand = null;
 let pendingTargetCommit = null;
+let pendingTargetMarker = null;
+let activePlantTarget = null;
 let activeForceArrow = null;
 let plantContacts = [];
 let measuredPlantFrames = [];
@@ -260,8 +262,8 @@ function updateActuatorBudget(message) {
 
 function baseExecutionLabel() {
   return baseExecution === "guided_preview"
-    ? "Cartesian base target · WBC preview"
-    : "Cartesian base target · Rust WBC";
+    ? "uniform draft handles · measured WBC"
+    : "uniform frame targets · measured WBC";
 }
 
 function updateInteractionUi() {
@@ -275,10 +277,10 @@ function updateInteractionUi() {
   targetGuide.classList.toggle("push-guide", pushing);
   targetGuide.querySelector("span").innerHTML = pushing
     ? "<strong>ORANGE WRENCH</strong> · Ctrl+drag any rendered body"
-    : `<strong>${interactionHandles.size} GREEN CONTROLS</strong> · release torso to execute a bounded squat · orange dashed rig is measured MuJoCo`;
+    : `<strong>${interactionHandles.size} GREEN CONTROLS</strong> · release any control to command MuJoCo · orange dashed rig is measured MuJoCo`;
   viewportInstruction.textContent = pushing
     ? "WRENCH: Ctrl+drag any body · empty drag orbits · Shift+drag pans · wheel zooms"
-    : "TARGET: drag green controls · release torso to execute a bounded squat · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
+    : "TARGET: drag any green control · release to command MuJoCo · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
   targetTool.disabled = !robotControlsEnabled;
   pushTool.disabled = !robotControlsEnabled || !plantGateway?.available || plantPaused;
   observationTransportButtons.forEach((button) => {
@@ -305,20 +307,27 @@ function flushTargetCommit() {
   return true;
 }
 
-function commitTarget(frame, target) {
+function commitTarget(handle, positionWorldM) {
   if (!plantGateway?.available) {
     plantCommandState.textContent = "REJECTED · live MuJoCo plant unavailable";
     showToast("Target released as preview only · live MuJoCo plant unavailable");
     return;
   }
   pendingTargetCommit = {
-    type: "plant_target_commit",
+    type: "plant_frame_target_commit",
     request_id: ++plantRequestId,
-    frame,
-    target: [...target],
+    handle_id: handle.handle_id || `frame:${handle.frame}`,
+    frame: handle.frame,
+    target: { position_world_m: [...positionWorldM] },
     duration_ms: Number(
       plantGateway.target_default_duration_ms || 3000,
     ),
+  };
+  pendingTargetMarker = {
+    handleId: pendingTargetCommit.handle_id,
+    frame: handle.frame,
+    positionWorldM: [...positionWorldM],
+    requestId: pendingTargetCommit.request_id,
   };
   plantCommandState.textContent = "COMMITTING · target queued for measured WBC";
   connectPlant();
@@ -369,6 +378,8 @@ function disconnectPlant({ preserveGhost = false, closeSocket = true } = {}) {
   activeForceArrow = null;
   pendingPushCommand = null;
   pendingTargetCommit = null;
+  pendingTargetMarker = null;
+  activePlantTarget = null;
   pushDrag = null;
   pushReturnMode = null;
   if (closeSocket && plantSocket) {
@@ -415,6 +426,30 @@ function enqueuePlantState(message) {
   plantPaused = Boolean(message.paused ?? message.simulator?.paused ?? message.metrics?.paused);
   plantContacts = message.contacts || [];
   measuredPlantFrames = plantFrames(message);
+  const targetTelemetry = message.target_command || {};
+  const admittedTarget = targetTelemetry.admitted_position_world;
+  const targetFrame = targetTelemetry.frame;
+  const targetRequestId = Number(targetTelemetry.request_id);
+  const targetPhase = String(targetTelemetry.phase || "idle");
+  if (typeof targetFrame === "string"
+      && Number.isFinite(targetRequestId)
+      && Array.isArray(admittedTarget)
+      && admittedTarget.length === 3
+      && admittedTarget.every(Number.isFinite)
+      && targetPhase !== "idle") {
+    activePlantTarget = {
+      handleId: targetTelemetry.handle_id || `frame:${targetFrame}`,
+      frame: targetFrame,
+      positionWorldM: [...admittedTarget],
+      requestId: targetRequestId,
+    };
+  } else if (targetPhase === "idle") {
+    activePlantTarget = null;
+  }
+  if (pendingTargetMarker
+      && Number(targetTelemetry.request_id) === pendingTargetMarker.requestId) {
+    pendingTargetMarker = null;
+  }
   const simulator = message.simulator || {};
   const groundPoint = simulator.ground_plane_point_world;
   const groundNormal = simulator.ground_plane_normal_world;
@@ -521,6 +556,7 @@ function connectPlant() {
       enqueuePlantState(message);
     } else if (message.type === "plant_error") {
       if (message.command_phase === "rejected") {
+        pendingTargetMarker = null;
         plantCommandState.textContent = `REJECTED · ${message.message || "target command rejected"}`;
       }
       showToast(message.message || "Plant command rejected");
@@ -1326,6 +1362,7 @@ function setRobotControlsEnabled(enabled) {
     pendingDragCommand = null;
     pendingPushCommand = null;
     pendingTargetCommit = null;
+    pendingTargetMarker = null;
     activeForceArrow = null;
     plantContacts = [];
     canvas.classList.remove("dragging", "orbiting", "joint-hover");
@@ -1878,6 +1915,51 @@ function drawPreviewSourceLabel() {
   context.restore();
 }
 
+function drawPlantTargetMarker() {
+  const target = activePlantTarget || pendingTargetMarker;
+  if (!target) return;
+  const targetPoint = project(target.positionWorldM);
+  const measuredFrame = measuredPlantFrames.find((frame) => frame.name === target.frame);
+  const measuredPoint = measuredFrame ? project(measuredFrame.translation) : null;
+  const measuredErrorM = measuredFrame
+    ? Math.hypot(...target.positionWorldM.map(
+      (value, axis) => value - measuredFrame.translation[axis],
+    ))
+    : Number.NaN;
+  context.save();
+  context.strokeStyle = "rgba(94,230,165,0.94)";
+  context.fillStyle = "rgba(191,248,220,0.98)";
+  context.lineWidth = 2;
+  context.setLineDash(activePlantTarget ? [] : [4, 4]);
+  if (measuredPoint) {
+    context.beginPath();
+    context.moveTo(measuredPoint.x, measuredPoint.y);
+    context.lineTo(targetPoint.x, targetPoint.y);
+    context.stroke();
+  }
+  context.beginPath();
+  context.arc(targetPoint.x, targetPoint.y, 9, 0, Math.PI * 2);
+  context.stroke();
+  context.beginPath();
+  context.moveTo(targetPoint.x - 13, targetPoint.y);
+  context.lineTo(targetPoint.x + 13, targetPoint.y);
+  context.moveTo(targetPoint.x, targetPoint.y - 13);
+  context.lineTo(targetPoint.x, targetPoint.y + 13);
+  context.stroke();
+  context.setLineDash([]);
+  context.font = "700 9px Inter, ui-sans-serif, system-ui";
+  context.textAlign = "left";
+  const errorLabel = Number.isFinite(measuredErrorM)
+    ? ` · ${(1000 * measuredErrorM).toFixed(1)} mm measured error`
+    : "";
+  context.fillText(
+    `${activePlantTarget ? "ACTIVE PLANT TARGET" : "TARGET PENDING"}${errorLabel}`,
+    targetPoint.x + 14,
+    targetPoint.y - 10,
+  );
+  context.restore();
+}
+
 function drawGrid(width, height) {
   context.save();
   const normal = normalizedPlaneNormal();
@@ -2085,7 +2167,7 @@ function drawTinyAuthorityBar(x, y, label, pressure, value, unavailable = false)
 
 function drawAuthorityAnnotations() {
   if (!latestMetrics || !frames.length) return;
-  const handle = [...interactionHandles.values()].find((candidate) => candidate.kind === "base");
+  const handle = interactionHandles.values().next().value;
   const anchorFrame = handle && frames.find((candidate) => candidate.name === handle.frame);
   const com = latestMetrics.center_of_mass_world;
   const anchorWorld = anchorFrame?.translation
@@ -2343,8 +2425,7 @@ function draw() {
     if (!frame) continue;
     const point = project(frame.translation);
     const active = selected?.name === frame.name;
-    const primary = handle.kind === "base";
-    const radius = active ? 12 : primary ? 10 : 8;
+    const radius = active ? 12 : 9;
     const pulse = 2 + 2 * (0.5 + 0.5 * Math.sin(performance.now() * 0.004));
     context.shadowColor = pushing ? "#ff9d45cc" : "#5ee6a5cc";
     context.shadowBlur = active ? 22 : 15;
@@ -2377,6 +2458,7 @@ function draw() {
     context.fillStyle = pushing ? "#fff0df" : "#d5ffea";
     context.fillText(handle.label, point.x, point.y - radius - 12);
   }
+  drawPlantTargetMarker();
   drawAuthorityAnnotations();
   if (drag) {
     const point = project(drag.target);
@@ -2499,17 +2581,7 @@ function nearestFrame(event) {
     }
   }
   if (best) return best;
-  if (!showRig) return null;
-  bestDistance = 18 + touchPadding;
-  for (const frame of frames) {
-    const point = project(frame.translation);
-    const distance = Math.hypot(point.x - pointer.x, point.y - pointer.y);
-    if (distance < bestDistance) {
-      best = frame;
-      bestDistance = distance;
-    }
-  }
-  return best;
+  return null;
 }
 
 function pointerPosition(event) {
@@ -2532,9 +2604,7 @@ function beginDrag(event, frame, captureTarget) {
     depth: project(frame.translation).depth,
   };
   updateSelection();
-  if (interactionHandles.get(frame.name)?.kind === "base") {
-    showToast(baseExecutionLabel());
-  }
+  showToast("Plant frame target · release to commit");
   moveDrag(event);
 }
 
@@ -2610,7 +2680,7 @@ function beginOrbit(event) {
   };
 }
 
-function finishPointer(event) {
+function finishPointer(event, cancelled = false) {
   if (orbitDrag?.pointerId === event.pointerId) {
     if (canvas.hasPointerCapture?.(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
@@ -2645,17 +2715,16 @@ function finishPointer(event) {
   canvas.classList.remove("dragging");
   const committedFrame = drag.frame.name;
   const committedTarget = [...drag.target];
-  const committedBase = interactionHandles.get(committedFrame)?.kind === "base";
-  if (pendingDragCommand) {
+  const committedHandle = interactionHandles.get(committedFrame);
+  if (pendingDragCommand && !cancelled) {
     send(pendingDragCommand);
-    pendingDragCommand = null;
   }
+  pendingDragCommand = null;
   drag = null;
-  send({ type: "release" });
-  if (committedBase) {
-    commitTarget(committedFrame, committedTarget);
+  if (!cancelled && committedHandle) {
+    commitTarget(committedHandle, committedTarget);
   } else {
-    plantCommandState.textContent = `DRAFT RELEASED · ${committedFrame} remains preview-only`;
+    send({ type: "release" });
   }
   scheduleRender();
 }
@@ -2690,6 +2759,10 @@ canvas.addEventListener("pointerdown", (event) => {
     beginPush(event, bodyPick);
     return;
   }
+  if (interactionMode === "push") {
+    beginOrbit(event);
+    return;
+  }
   const frame = nearestFrame(event);
   if (frame) beginDrag(event, frame, canvas);
   else beginOrbit(event);
@@ -2702,15 +2775,17 @@ canvas.addEventListener("pointermove", (event) => {
   else if (orbitDrag?.pointerId === event.pointerId) moveOrbit(event);
   else canvas.classList.toggle(
     "joint-hover",
-    event.ctrlKey ? Boolean(pickRenderedBody(event)) : Boolean(nearestFrame(event)),
+    interactionMode === "push" || event.ctrlKey
+      ? Boolean(pickRenderedBody(event))
+      : Boolean(nearestFrame(event)),
   );
 });
 
 canvas.addEventListener("pointerleave", () => {
   if (!drag && !pushDrag && !orbitDrag) canvas.classList.remove("joint-hover");
 });
-canvas.addEventListener("pointerup", finishPointer);
-canvas.addEventListener("pointercancel", finishPointer);
+canvas.addEventListener("pointerup", (event) => finishPointer(event, false));
+canvas.addEventListener("pointercancel", (event) => finishPointer(event, true));
 
 function moveDrag(event) {
   const point = pointerPosition(event);
@@ -2718,11 +2793,9 @@ function moveDrag(event) {
   if (pendingDragCommand) viewportPerformance.coalescedDrags += 1;
   pendingDragCommand = { type: "drag", frame: drag.frame.name, target: drag.target };
   updateSelection(drag.target);
-  if (interactionHandles.get(drag.frame.name)?.kind === "base") {
-    plantCommandState.textContent = plantGateway?.available
-      ? "DRAFT · release torso to execute bounded squat"
-      : "DRAFT · preview only (MuJoCo plant unavailable)";
-  }
+  plantCommandState.textContent = plantGateway?.available
+    ? `DRAFT · release ${drag.frame.name} to command MuJoCo`
+    : "DRAFT · preview only (MuJoCo plant unavailable)";
   scheduleRender();
 }
 
@@ -3014,7 +3087,7 @@ function updateSelection(target = selected?.translation) {
   document.querySelector("#selected-z").textContent = target[2].toFixed(3);
   const handle = interactionHandles.get(selected.name);
   document.querySelector("#selection-mode").textContent =
-    handle?.kind === "base" ? baseExecutionLabel() : "2 · Intent";
+    handle ? "Plant frame target · WBC intent" : "2 · Intent";
 }
 
 function updateTelemetry(message) {
@@ -3209,7 +3282,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("hard_rows", "profile does not expose rigid-body rows")
-        : "raw dynamic WBC not active · pull the torso to engage",
+        : "raw dynamic WBC not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3372,7 +3445,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("world_scene_snapshot", "scene snapshot evidence unavailable")
-        : "world scene contract not active · pull the torso to engage",
+        : "world scene contract not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3585,7 +3658,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_tracking_authority", "command tracking evidence unavailable")
-        : "dynamic command query not active · pull the torso to engage",
+        : "dynamic command query not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3629,7 +3702,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_sampled_geometry", "sampled command geometry unavailable")
-        : "dynamic command query not active · pull the torso to engage",
+        : "dynamic command query not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3671,7 +3744,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_continuous_clearance", "continuous command clearance unavailable")
-        : "between-sample certificate not active · pull the torso to engage",
+        : "between-sample certificate not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3719,7 +3792,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_world_sampled_geometry", "sampled world-command geometry unavailable")
-        : "dynamic world-command query not active · pull the torso to engage",
+        : "dynamic world-command query not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3747,7 +3820,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_root_prediction", "floating-root prediction unavailable")
-        : "floating-root command prediction not active · pull the torso to engage",
+        : "floating-root command prediction not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3776,7 +3849,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_root_prediction_error", "root prediction error bound unavailable")
-        : "root prediction error growth not active · pull the torso to engage",
+        : "root prediction error growth not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -3818,7 +3891,7 @@ function updateAuthorityStack(metrics, activeTasks) {
       dynamicAuthoritySample ? "N/A" : "IDLE",
       dynamicAuthoritySample
         ? capabilityReason("command_world_continuous_clearance", "continuous world-command certificate unavailable")
-        : "bounded world-clearance certificate not active · pull the torso to engage",
+        : "bounded world-clearance certificate not active · drag a green control to engage",
       0,
       "unavailable",
     );
@@ -4010,6 +4083,8 @@ function reset() {
   pushDrag = null;
   pendingPushCommand = null;
   pendingTargetCommit = null;
+  pendingTargetMarker = null;
+  activePlantTarget = null;
   activeForceArrow = null;
   commandAuthorityHistory = [];
   drawAuthorityHistory();

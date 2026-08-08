@@ -32,16 +32,38 @@ MAX_APPLICATION_OFFSET_M = 0.75
 FALL_HEIGHT_M = 0.30
 FALL_TILT_RAD = math.radians(75.0)
 # A target commit is deliberately a small, bounded command surface for the
-# live prototype.  It moves the floating root through the existing Rust WBC
-# task stack; it never writes MuJoCo qpos/qvel and it never becomes a wrench.
+# live prototype. It commands one measured MuJoCo body-frame origin through a
+# support-constrained IK realization plus a Cartesian WBC task; it never writes
+# MuJoCo qpos/qvel and it never becomes a wrench.
 COMMAND_DEFAULT_DURATION_MS = 3000
 COMMAND_MIN_DURATION_MS = 1000
 COMMAND_MAX_DURATION_MS = 5000
-COMMAND_MAX_ROOT_X_DELTA_M = 0.12
-COMMAND_MAX_ROOT_Y_DELTA_M = 0.10
-COMMAND_MAX_ROOT_DOWN_DELTA_M = 0.045
-COMMAND_MAX_ROOT_UP_DELTA_M = 0.05
-COMMAND_MIN_ROOT_HEIGHT_M = 0.30
+COMMAND_MAX_DISPLACEMENT_M = 0.05
+COMMAND_HOLD_TOLERANCE_M = 0.012
+COMMAND_HOLD_CONSECUTIVE_TICKS = 3
+# A released PUSH may leave the freely rolling plant with appreciable common
+# longitudinal velocity. Keep target execution out of the solve until the
+# ordinary balance/station controller has recovered that motion; rebasing a
+# Cartesian/station trajectory against a fast-moving measurement can inject a
+# discontinuous reversal even though the public absolute goal is unchanged.
+COMMAND_RECOVERY_SAFE_TICKS = 5
+COMMAND_RECOVERY_MINIMUM_ROOT_HEIGHT_M = 0.45
+COMMAND_RECOVERY_MAXIMUM_TILT_RAD = 0.05
+COMMAND_RECOVERY_MAXIMUM_PITCH_RATE_RAD_S = 0.05
+COMMAND_RECOVERY_MAXIMUM_FORWARD_SPEED_M_S = 0.025
+COMMAND_RECOVERY_MAXIMUM_CAPTURE_PRESSURE = 0.1
+COMMAND_RECOVERY_MINIMUM_STATION_AUTHORITY = 0.999
+COMMAND_RECOVERY_MAXIMUM_STATION_ERROR_M = 0.03
+COMMAND_STATION_ERROR_LIMIT_M = 0.03
+COMMAND_X_DAMPING_FULL_ERROR_M = 0.004
+COMMAND_X_DAMPING_NEUTRAL_ERROR_M = 0.020
+COMMAND_FRAME_HANDLES = (
+    "torso",
+    "left_knee_qdd100_rotor",
+    "left_ankle_mj5208_rotor",
+    "right_knee_qdd100_rotor",
+    "right_ankle_mj5208_rotor",
+)
 PRODUCTION_SUPPORT_LOAD_RESERVE_CONFIG = (
     0.47,  # activation release load fraction
     0.38,  # activation full load fraction
@@ -198,6 +220,10 @@ class LiveUpkiePlant:
             "fall_safe_primary_blend": False,
             "support_load_reserve_action_enabled": True,
             "support_load_reserve_config": PRODUCTION_SUPPORT_LOAD_RESERVE_CONFIG,
+            # The declared wrench is known before the plant step. Feed that
+            # same wrench into the WBC dynamics rows before applying it to
+            # MuJoCo, rather than compensating one control tick late.
+            "external_wrench_feedforward_enabled": True,
             "control_dt": self.control_dt,
         }
         # Keep the historical adapter standing target in the public profile;
@@ -285,56 +311,120 @@ class LiveUpkiePlant:
             ))
             is not None
         }
-        root_body_id = self.body_by_name.get("base")
-        if root_body_id is None:
-            raise RuntimeError("live Upkie model has no base body")
-        root_origin = np.asarray(self.data.xpos[root_body_id], dtype=np.float64)
-        self.command_frame_root_offsets = {}
-        for frame_name in ("base", "torso"):
-            body_id = self.body_by_name.get(frame_name)
-            if body_id is not None:
-                self.command_frame_root_offsets[frame_name] = (
-                    np.asarray(self.data.xpos[body_id], dtype=np.float64)
-                    - root_origin
-                )
-        if "torso" not in self.command_frame_root_offsets:
-            raise RuntimeError("live Upkie model has no torso command frame")
         root_joint = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_JOINT, "root"
         )
+        if root_joint < 0:
+            raise RuntimeError("live Upkie model has no floating root joint")
         self.command_root_qpos = int(self.model.jnt_qposadr[root_joint])
-        self.command_leg_joint_dofs = []
-        for side in ("left", "right"):
-            dofs = []
-            for name in (f"{side}_hip", f"{side}_knee", f"{side}_ankle"):
-                joint = mujoco.mj_name2id(
-                    self.model, mujoco.mjtObj.mjOBJ_JOINT, name
-                )
-                dofs.append(int(self.model.jnt_dofadr[joint]))
-            self.command_leg_joint_dofs.append(tuple(dofs))
-        self.command_wheel_center_bodies = tuple(
-            self.body_by_name[name]
-            for name in ("left_wheel_center", "right_wheel_center")
+        self.command_root_dof = int(self.model.jnt_dofadr[root_joint])
+        self.command_joint_qpos = np.asarray(
+            [
+                self.model.jnt_qposadr[
+                    mujoco.mj_name2id(
+                        self.model, mujoco.mjtObj.mjOBJ_JOINT, name
+                    )
+                ]
+                for name in plant.JOINT_ORDER
+            ],
+            dtype=np.int64,
         )
-        self.command_joint_qpos = tuple(
-            int(self.model.jnt_qposadr[mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_JOINT, name
-            )])
-            for name in plant.JOINT_ORDER
+        self.command_joint_dof = np.asarray(
+            [
+                self.model.jnt_dofadr[
+                    mujoco.mj_name2id(
+                        self.model, mujoco.mjtObj.mjOBJ_JOINT, name
+                    )
+                ]
+                for name in plant.JOINT_ORDER
+            ],
+            dtype=np.int64,
+        )
+        self.command_ik_dofs = np.concatenate(
+            (
+                np.arange(
+                    self.command_root_dof,
+                    self.command_root_dof + 3,
+                    dtype=np.int64,
+                ),
+                self.command_joint_dof,
+            )
+        )
+        self.command_wheel_center_bodies = np.asarray(
+            [
+                self.body_by_name[name]
+                for name in ("left_wheel_center", "right_wheel_center")
+            ],
+            dtype=np.int64,
         )
         self.command_ik_data = mujoco.MjData(self.model)
-        self.command_nominal_root_position = nominal_root.copy()
-        self.command_nominal_joint_position = self.controller.nominal_joint_position.copy()
+        self.command_ik_jacobian = np.empty((9, 9), np.float64)
+        self.command_ik_error = np.empty(9, np.float64)
+        self.command_ik_body_jacobian = np.empty(
+            (3, self.model.nv), np.float64
+        )
+        self.command_ik_body_angular_jacobian = np.empty(
+            (3, self.model.nv), np.float64
+        )
+        self.command_wheel_velocity_jacobian = np.empty(
+            (3, self.model.nv), np.float64
+        )
+        self.command_wheel_velocity_angular_jacobian = np.empty(
+            (3, self.model.nv), np.float64
+        )
+        self.command_wheel_measured_position = np.empty(2, np.float64)
+        self.command_wheel_measured_velocity = np.empty(2, np.float64)
         self.command_phase = "idle"
         self.command_request_id: int | None = None
         self.command_frame: str | None = None
+        self.command_handle_id: str | None = None
         self.command_reason = "no target committed"
-        self.command_requested_root_position: np.ndarray | None = None
-        self.command_target_root_position: np.ndarray | None = None
-        self.command_start_root_position: np.ndarray | None = None
+        self.command_requested_position: np.ndarray | None = None
+        self.command_target_position: np.ndarray | None = None
+        self.command_start_position: np.ndarray | None = None
+        self.command_sampled_position: np.ndarray | None = None
+        self.command_sampled_velocity = np.zeros(3, np.float64)
+        self.command_sampled_acceleration = np.zeros(3, np.float64)
+        self.command_sampled_progress = 0.0
         self.command_elapsed_s = 0.0
         self.command_duration_s = 0.0
         self.command_plan: dict[str, Any] | None = None
+        self.command_clamped = False
+        self.command_hold_ticks = 0
+        self.command_last_admission_request_id: int | None = None
+        self.command_last_admission_status = "none"
+        self.command_last_admission_frame: str | None = None
+        self.command_last_admission_handle_id: str | None = None
+        self.command_last_admission_reason = "no target command received"
+        self.command_last_rejection_request_id: int | None = None
+        self.command_last_rejection_frame: str | None = None
+        self.command_last_rejection_handle_id: str | None = None
+        self.command_last_rejection_reason: str | None = None
+        self.command_task_rms = 0.0
+        self.command_task_clipped = False
+        self.command_task_executable = False
+        self.command_task_suppressed = False
+        self.command_task_status = "inactive"
+        self.command_execution_suspended_for_external_load = False
+        self.command_execution_bundle_suppressed = False
+        self.command_recovery_safe_ticks = 0
+        self.command_station_target_at_solve_m = self.target_ground_position
+        self.command_station_neutral_at_solve_m = self.target_ground_position
+        self.command_station_requested_error_at_solve_m = 0.0
+        self.command_station_admitted_error_at_solve_m = 0.0
+        self.command_station_error_clamped_at_solve = False
+        self.command_cartesian_requested_x_at_solve_m = 0.0
+        self.command_cartesian_admitted_x_at_solve_m = 0.0
+        self.command_cartesian_measured_x_at_solve_m = 0.0
+        self.command_cartesian_admitted_vx_at_solve_m_s = 0.0
+        self.command_cartesian_measured_vx_at_solve_m_s = 0.0
+        self.command_cartesian_admitted_ax_at_solve_m_s2 = 0.0
+        self.command_cartesian_x_velocity_damping_beta_at_solve = 1.0
+        self.command_descriptors_active_at_solve = False
+        self.command_measured_neutral_realization_at_solve = False
+        self.command_ik_target_residual_m: float | None = None
+        self.command_ik_support_residual_m: float | None = None
+        self.command_ik_balance_residual_m: float | None = None
         self.ground_geom = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "ground"
         )
@@ -375,9 +465,9 @@ class LiveUpkiePlant:
         self.wbc_observation_frame_index = 0
         self.no_contact_active = np.zeros(2, np.uint8)
         self.no_wheel_normal_force_n = np.zeros(2, np.float64)
-        # Delayed, plant-owned external-load observations. The current command
-        # is applied only after the WBC solve, so these are the last completed
-        # MuJoCo load. Root-origin wrench drives the floating dynamics rows;
+        # Plant-owned external-load observations. The declared current command
+        # is presented to the WBC and then applied to MuJoCo in the same
+        # control tick. Root-origin wrench drives the floating dynamics rows;
         # aggregate-CoM moment drives the independently switchable centroidal
         # objective. Keeping them separate prevents a reference-point mix-up.
         self.last_external_wrench_world = np.zeros(6, np.float64)
@@ -432,14 +522,15 @@ class LiveUpkiePlant:
             "maximum_application_offset_m": MAX_APPLICATION_OFFSET_M,
             "command_ttl_ms": 140,
             "target_command_contract": {
-                "type": "plant_target_commit",
-                "accepted_frames": sorted(self.command_frame_root_offsets),
+                "type": "plant_frame_target_commit",
+                "accepted_frames": list(COMMAND_FRAME_HANDLES),
                 "target_frame": "world metres",
-                "trajectory": "bounded quintic root position/velocity/acceleration",
+                "trajectory": "bounded quintic body-frame-origin position/velocity/acceleration",
                 "default_duration_ms": COMMAND_DEFAULT_DURATION_MS,
                 "duration_ms": [COMMAND_MIN_DURATION_MS, COMMAND_MAX_DURATION_MS],
-                "root_down_limit_m": COMMAND_MAX_ROOT_DOWN_DELTA_M,
-                "root_up_limit_m": COMMAND_MAX_ROOT_UP_DELTA_M,
+                "maximum_displacement_m": COMMAND_MAX_DISPLACEMENT_M,
+                "hold_tolerance_m": COMMAND_HOLD_TOLERANCE_M,
+                "hold_consecutive_ticks": COMMAND_HOLD_CONSECUTIVE_TICKS,
                 "endpoint_policy": "hold measured endpoint until next target or reset",
                 "authority": "Rust WBC task under measured contact, collision, joint, actuator, and balance authorities",
             },
@@ -472,10 +563,10 @@ class LiveUpkiePlant:
                 "measured_impact_impulse": "not_exposed_by_live_gateway",
                 "unobserved_model_reserve": "not_estimated_by_live_gateway",
                 "wbc_external_moment_observation": (
-                    "external_load.root_moment_world_nm, re-expressed about current root origin and consumed one 50 Hz solve later"
+                    "external_load.root_moment_world_nm, re-expressed about the current root origin and consumed by the same 50 Hz solve"
                 ),
                 "wbc_external_centroidal_moment_observation": (
-                    "external_load.centroidal_moment_world_nm, re-expressed about current aggregate CoM and consumed one 50 Hz solve later"
+                    "external_load.centroidal_moment_world_nm, re-expressed about the current aggregate CoM and consumed by the same 50 Hz solve"
                 ),
                 "wbc_external_wrench_feedforward": {
                     "enabled": bool(self.controller.external_wrench_feedforward_enabled),
@@ -550,108 +641,251 @@ class LiveUpkiePlant:
             )
         return contacts
 
-    def _solve_command_joint_target(
+    def _solve_target_endpoint_ik(
         self,
-        root_position: np.ndarray,
-        root_quaternion: np.ndarray,
-        q: np.ndarray,
-        target_root: np.ndarray,
-        wheel_targets: np.ndarray,
-    ) -> np.ndarray | None:
-        """Solve a small measured-state IK splice that preserves wheel anchors."""
+        frame: str,
+        target: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float, float] | None:
+        """Solve one support-constrained endpoint from the measured state.
+
+        The realization coordinates are identical for every command frame:
+        floating-root translation and all six actuated joints. Root rotation
+        is copied from the measured plant and is never an IK variable. Both
+        wheel centers retain their measured lateral/vertical support anchors;
+        longitudinal motion remains free because that is the wheel rolling
+        coordinate.
+        """
         data = self.command_ik_data
         data.qpos[:] = self.data.qpos
         data.qvel[:] = self.data.qvel
-        data.qpos[self.command_root_qpos : self.command_root_qpos + 3] = target_root
-        data.qpos[self.command_root_qpos + 3 : self.command_root_qpos + 7] = root_quaternion
-        for coordinate, qpos_address in enumerate(self.command_joint_qpos):
-            data.qpos[qpos_address] = q[coordinate]
-        jacobian = np.zeros((3, self.model.nv), np.float64)
-        angular_jacobian = np.zeros((3, self.model.nv), np.float64)
-        for _ in range(32):
+        mujoco.mj_forward(self.model, data)
+        frame_body = self.body_by_name[frame]
+        support_targets = np.asarray(
+            self.data.xpos[self.command_wheel_center_bodies],
+            dtype=np.float64,
+        ).copy()
+        balance_target = np.asarray(
+            self.data.subtree_com[0, :2], dtype=np.float64
+        ).copy()
+        # The frame target and both rolling-aware support anchors are physical
+        # endpoint constraints. The measured subtree-CoM XY target closes the
+        # remaining null space so the realized posture retains balance.
+        regularization = 1.0e-4
+        regularization_weights = np.asarray(
+            [100.0, 100.0, 1.0, 1.0, 1.0, 100.0, 1.0, 1.0, 100.0],
+            dtype=np.float64,
+        )
+        for _ in range(80):
             mujoco.mj_forward(self.model, data)
-            maximum_error = 0.0
-            for leg, body_id in enumerate(self.command_wheel_center_bodies):
-                error = wheel_targets[leg] - np.asarray(data.xpos[body_id])
-                maximum_error = max(maximum_error, float(np.linalg.norm(error)))
+            self.command_ik_error[:3] = target - np.asarray(
+                data.xpos[frame_body], dtype=np.float64
+            )
+            mujoco.mj_jacBody(
+                self.model,
+                data,
+                self.command_ik_body_jacobian,
+                self.command_ik_body_angular_jacobian,
+                frame_body,
+            )
+            self.command_ik_jacobian[:3] = self.command_ik_body_jacobian[
+                :, self.command_ik_dofs
+            ]
+            for support_index, body_id in enumerate(
+                self.command_wheel_center_bodies
+            ):
+                row = slice(3 + 2 * support_index, 5 + 2 * support_index)
+                self.command_ik_error[row] = (
+                    support_targets[support_index, 1:]
+                    - np.asarray(data.xpos[body_id], dtype=np.float64)[1:]
+                )
                 mujoco.mj_jacBody(
                     self.model,
                     data,
-                    jacobian,
-                    angular_jacobian,
-                    body_id,
+                    self.command_ik_body_jacobian,
+                    self.command_ik_body_angular_jacobian,
+                    int(body_id),
                 )
-                columns = self.command_leg_joint_dofs[leg]
-                step = np.linalg.lstsq(
-                    jacobian[:, columns], error, rcond=None
-                )[0]
-                for column, delta in zip(columns, step, strict=True):
-                    joint_id = int(self.model.dof_jntid[column])
-                    qpos_address = int(self.model.jnt_qposadr[joint_id])
-                    lower, upper = self.model.jnt_range[joint_id]
-                    value = data.qpos[qpos_address] + 0.75 * float(delta)
-                    if self.model.jnt_limited[joint_id]:
-                        value = float(np.clip(value, lower, upper))
-                    data.qpos[qpos_address] = value
-            if maximum_error < 1.0e-7:
+                self.command_ik_jacobian[row] = self.command_ik_body_jacobian[
+                    1:, self.command_ik_dofs
+                ]
+            self.command_ik_error[7:9] = balance_target - np.asarray(
+                data.subtree_com[0, :2], dtype=np.float64
+            )
+            mujoco.mj_jacSubtreeCom(
+                self.model,
+                data,
+                self.command_ik_body_jacobian,
+                0,
+            )
+            self.command_ik_jacobian[7:9] = self.command_ik_body_jacobian[
+                :2, self.command_ik_dofs
+            ]
+            target_error = float(np.linalg.norm(self.command_ik_error[:3]))
+            support_error = max(
+                float(np.linalg.norm(self.command_ik_error[3:5])),
+                float(np.linalg.norm(self.command_ik_error[5:7])),
+            )
+            balance_error = float(np.linalg.norm(self.command_ik_error[7:9]))
+            if (
+                target_error <= 1.0e-6
+                and support_error <= 1.0e-6
+                and balance_error <= 1.0e-6
+            ):
                 break
-        mujoco.mj_forward(self.model, data)
-        residual = max(
-            float(
-                np.linalg.norm(
-                    wheel_targets[leg]
-                    - np.asarray(data.xpos[body_id], dtype=np.float64)
+            augmented_jacobian = np.vstack(
+                (
+                    self.command_ik_jacobian,
+                    regularization * np.diag(regularization_weights),
                 )
             )
-            for leg, body_id in enumerate(self.command_wheel_center_bodies)
+            augmented_error = np.concatenate(
+                (self.command_ik_error, np.zeros(9, np.float64))
+            )
+            delta = np.linalg.lstsq(
+                augmented_jacobian, augmented_error, rcond=1.0e-10
+            )[0]
+            delta_norm = float(np.linalg.norm(delta))
+            if not math.isfinite(delta_norm):
+                return None
+            if delta_norm > 0.10:
+                delta *= 0.10 / delta_norm
+            data.qpos[
+                self.command_root_qpos : self.command_root_qpos + 3
+            ] += delta[:3]
+            for coordinate, qpos_address in enumerate(
+                self.command_joint_qpos
+            ):
+                joint_id = int(
+                    self.model.dof_jntid[self.command_joint_dof[coordinate]]
+                )
+                value = float(data.qpos[qpos_address] + delta[3 + coordinate])
+                if self.model.jnt_limited[joint_id]:
+                    lower, upper = self.model.jnt_range[joint_id]
+                    value = float(np.clip(value, lower + 1.0e-4, upper - 1.0e-4))
+                data.qpos[qpos_address] = value
+        mujoco.mj_forward(self.model, data)
+        target_residual = float(
+            np.linalg.norm(target - np.asarray(data.xpos[frame_body]))
         )
-        if not math.isfinite(residual) or residual > 2.0e-4:
+        support_residual = max(
+            float(
+                np.linalg.norm(
+                    support_targets[index, 1:]
+                    - np.asarray(data.xpos[body_id], dtype=np.float64)[1:]
+                )
+            )
+            for index, body_id in enumerate(self.command_wheel_center_bodies)
+        )
+        balance_residual = float(
+            np.linalg.norm(
+                balance_target
+                - np.asarray(data.subtree_com[0, :2], dtype=np.float64)
+            )
+        )
+        if (
+            not math.isfinite(target_residual)
+            or not math.isfinite(support_residual)
+            or not math.isfinite(balance_residual)
+            or target_residual > 2.0e-4
+            or support_residual > 2.0e-4
+            or balance_residual > 2.0e-4
+        ):
+            self.command_ik_target_residual_m = target_residual
+            self.command_ik_support_residual_m = support_residual
+            self.command_ik_balance_residual_m = balance_residual
             return None
-        return np.asarray(
+        root_target = np.asarray(
+            data.qpos[
+                self.command_root_qpos : self.command_root_qpos + 3
+            ],
+            dtype=np.float64,
+        ).copy()
+        joint_target = np.asarray(
             [data.qpos[address] for address in self.command_joint_qpos],
             dtype=np.float64,
+        )
+        wheel_position_target = np.asarray(
+            data.xpos[self.command_wheel_center_bodies, 0], dtype=np.float64
+        ).copy()
+        return (
+            root_target,
+            joint_target,
+            wheel_position_target,
+            target_residual,
+            support_residual,
+            balance_residual,
         )
 
     def _reject_target_command(self, command: object, reason: str) -> None:
         request_id = command.get("request_id") if isinstance(command, dict) else None
-        self.command_request_id = (
-            int(request_id) if isinstance(request_id, int) and not isinstance(request_id, bool) else None
+        rejected_request_id = (
+            int(request_id)
+            if isinstance(request_id, int) and not isinstance(request_id, bool)
+            else None
         )
-        self.command_frame = (
+        rejected_frame = (
             str(command.get("frame")) if isinstance(command, dict) else None
         )
-        self.command_phase = "rejected"
-        self.command_reason = reason
-        self.command_requested_root_position = None
-        # Keep a previously admitted target as the physical hold point.  A
-        # malformed replacement command must not jerk the measured plant back
-        # to the nominal stance.
-        if self.command_plan is None:
-            root_position, _, _, _, _ = plant.read_state(self.model, self.data)
-            self.command_start_root_position = root_position.copy()
-            self.command_target_root_position = root_position.copy()
-            self.command_elapsed_s = 0.0
-            self.command_duration_s = 0.0
+        rejected_handle_id = (
+            str(command.get("handle_id"))
+            if isinstance(command, dict) and command.get("handle_id") is not None
+            else (
+                f"frame:{rejected_frame}"
+                if rejected_frame in COMMAND_FRAME_HANDLES
+                else None
+            )
+        )
+        self.command_last_admission_request_id = rejected_request_id
+        self.command_last_admission_status = "rejected"
+        self.command_last_admission_frame = rejected_frame
+        self.command_last_admission_handle_id = rejected_handle_id
+        self.command_last_admission_reason = reason
+        self.command_last_rejection_request_id = rejected_request_id
+        self.command_last_rejection_frame = rejected_frame
+        self.command_last_rejection_handle_id = rejected_handle_id
+        self.command_last_rejection_reason = reason
 
-    def _accept_target_command(
-        self,
-        command: object,
-        root_position: np.ndarray,
-        root_quaternion: np.ndarray,
-        q: np.ndarray,
-    ) -> None:
+    def _accept_target_command(self, command: object) -> None:
         if not isinstance(command, dict):
             self._reject_target_command(command, "target command must be an object")
             return
         request_id = command.get("request_id")
-        if isinstance(request_id, bool) or not isinstance(request_id, int) or request_id <= 0:
-            self._reject_target_command(command, "target command request_id must be a positive integer")
-            return
-        frame = command.get("frame")
-        if frame not in self.command_frame_root_offsets:
+        if (
+            isinstance(request_id, bool)
+            or not isinstance(request_id, int)
+            or request_id <= 0
+        ):
             self._reject_target_command(
                 command,
-                "target frame must be the Upkie torso or base command handle",
+                "target command request_id must be a positive integer",
+            )
+            return
+        frame = command.get("frame")
+        if not isinstance(frame, str) or frame not in COMMAND_FRAME_HANDLES:
+            self._reject_target_command(
+                command,
+                "target frame must name an advertised Upkie frame handle",
+            )
+            return
+        handle_id = command.get("handle_id", f"frame:{frame}")
+        if handle_id != f"frame:{frame}":
+            self._reject_target_command(
+                command,
+                "target handle_id must be the normalized frame:<frame> identifier",
+            )
+            return
+        measured = np.asarray(
+            self.data.xpos[self.body_by_name[frame]], dtype=np.float64
+        ).copy()
+        measured_quaternion = np.asarray(
+            self.data.xquat[self.body_by_name[frame]], dtype=np.float64
+        )
+        if not (
+            np.all(np.isfinite(measured))
+            and np.all(np.isfinite(measured_quaternion))
+        ):
+            self._reject_target_command(
+                command, "target frame has no finite measured world origin"
             )
             return
         target = finite_vector(command.get("target"), 3)
@@ -666,212 +900,506 @@ class LiveUpkiePlant:
             or not isinstance(duration_ms, (int, float))
             or not math.isfinite(float(duration_ms))
             or int(duration_ms) != duration_ms
-            or not COMMAND_MIN_DURATION_MS <= int(duration_ms) <= COMMAND_MAX_DURATION_MS
+            or not COMMAND_MIN_DURATION_MS
+            <= int(duration_ms)
+            <= COMMAND_MAX_DURATION_MS
         ):
             self._reject_target_command(
                 command,
                 f"target duration must be an integer in {COMMAND_MIN_DURATION_MS}..{COMMAND_MAX_DURATION_MS} ms",
             )
             return
-        requested_root = target - self.command_frame_root_offsets[str(frame)]
-        nominal = self.command_nominal_root_position
-        target_root = requested_root.copy()
-        target_root[0] = float(
-            np.clip(
-                target_root[0],
-                nominal[0] - COMMAND_MAX_ROOT_X_DELTA_M,
-                nominal[0] + COMMAND_MAX_ROOT_X_DELTA_M,
+        displacement = target - measured
+        displacement_norm = float(np.linalg.norm(displacement))
+        clamped = displacement_norm > COMMAND_MAX_DISPLACEMENT_M
+        admitted_target = target.copy()
+        if clamped:
+            admitted_target = measured + (
+                COMMAND_MAX_DISPLACEMENT_M / displacement_norm
+            ) * displacement
+        root_position, _, _, q, _ = plant.read_state(self.model, self.data)
+        previous_ik_residuals = (
+            self.command_ik_target_residual_m,
+            self.command_ik_support_residual_m,
+            self.command_ik_balance_residual_m,
+        )
+        self.command_ik_target_residual_m = None
+        self.command_ik_support_residual_m = None
+        self.command_ik_balance_residual_m = None
+        # Upkie's common longitudinal degree of freedom is realized by the
+        # capture controller's station target.  Solve the internal posture
+        # only for the residual transverse/vertical frame displacement so a
+        # world-X command does not also author an incompatible differential
+        # wheel/posture motion.
+        realization_target = admitted_target.copy()
+        realization_target[0] = measured[0]
+        ik_endpoint = self._solve_target_endpoint_ik(frame, realization_target)
+        if ik_endpoint is None:
+            target_residual = self.command_ik_target_residual_m
+            support_residual = self.command_ik_support_residual_m
+            balance_residual = self.command_ik_balance_residual_m
+            residual_detail = (
+                ""
+                if (
+                    target_residual is None
+                    or support_residual is None
+                    or balance_residual is None
+                )
+                else (
+                    f" (frame residual {target_residual:.6g} m, "
+                    f"support residual {support_residual:.6g} m, "
+                    f"balance residual {balance_residual:.6g} m)"
+                )
             )
-        )
-        target_root[1] = float(
-            np.clip(
-                target_root[1],
-                nominal[1] - COMMAND_MAX_ROOT_Y_DELTA_M,
-                nominal[1] + COMMAND_MAX_ROOT_Y_DELTA_M,
-            )
-        )
-        minimum_height = max(
-            COMMAND_MIN_ROOT_HEIGHT_M,
-            nominal[2] - COMMAND_MAX_ROOT_DOWN_DELTA_M,
-        )
-        maximum_height = nominal[2] + COMMAND_MAX_ROOT_UP_DELTA_M
-        target_root[2] = float(np.clip(target_root[2], minimum_height, maximum_height))
-        clamped = not np.allclose(target_root, requested_root, atol=1.0e-12, rtol=0.0)
-        wheel_targets = np.asarray(
-            [
-                self.data.xpos[body_id]
-                for body_id in self.command_wheel_center_bodies
-            ],
-            dtype=np.float64,
-        )
-        target_joint = self._solve_command_joint_target(
-            root_position,
-            root_quaternion,
-            q,
-            target_root,
-            wheel_targets,
-        )
-        if target_joint is None:
             self._reject_target_command(
                 command,
-                "target rejected because the measured wheel-anchor IK was infeasible",
+                "target rejected because measured support-constrained IK "
+                f"was infeasible{residual_detail}",
             )
+            (
+                self.command_ik_target_residual_m,
+                self.command_ik_support_residual_m,
+                self.command_ik_balance_residual_m,
+            ) = previous_ik_residuals
             return
+        (
+            target_root,
+            target_joint,
+            target_wheel_position,
+            target_residual,
+            support_residual,
+            balance_residual,
+        ) = ik_endpoint
         self.command_request_id = request_id
-        self.command_frame = str(frame)
-        self.command_reason = "target clamped to bounded squat envelope" if clamped else "target admitted"
-        self.command_requested_root_position = requested_root.copy()
-        self.command_target_root_position = target_root.copy()
-        self.command_start_root_position = root_position.copy()
+        self.command_frame = frame
+        self.command_handle_id = handle_id
+        self.command_reason = (
+            "target clamped to uniform frame displacement envelope"
+            if clamped
+            else "target admitted"
+        )
+        self.command_requested_position = target.copy()
+        self.command_target_position = admitted_target.copy()
+        self.command_start_position = measured.copy()
+        self.command_sampled_position = measured.copy()
+        self.command_sampled_velocity.fill(0.0)
+        self.command_sampled_acceleration.fill(0.0)
+        self.command_sampled_progress = 0.0
         self.command_elapsed_s = 0.0
         self.command_duration_s = float(duration_ms) / 1000.0
         self.command_plan = {
-            "start": root_position.copy(),
-            "target": target_root.copy(),
+            "start": measured.copy(),
+            "target": admitted_target.copy(),
+            "start_root": root_position.copy(),
+            "target_root": target_root,
             "start_joint": q.copy(),
             "target_joint": target_joint,
+            "start_wheel_position": np.asarray(
+                self.data.xpos[self.command_wheel_center_bodies, 0],
+                dtype=np.float64,
+            ).copy(),
+            # Longitudinal frame motion is authored through the balance
+            # station reference.  Keep the per-wheel realization neutral so
+            # a point command cannot manufacture a differential-yaw request.
+            "target_wheel_position": np.asarray(
+                self.data.xpos[self.command_wheel_center_bodies, 0],
+                dtype=np.float64,
+            ).copy(),
             "duration_s": self.command_duration_s,
+            "progress_start": 0.0,
         }
+        self.command_ik_target_residual_m = target_residual
+        self.command_ik_support_residual_m = support_residual
+        self.command_ik_balance_residual_m = balance_residual
+        self.command_clamped = clamped
+        self.command_hold_ticks = 0
         self.command_phase = "executing"
+        self.command_last_admission_request_id = request_id
+        self.command_last_admission_status = "accepted"
+        self.command_last_admission_frame = frame
+        self.command_last_admission_handle_id = handle_id
+        self.command_last_admission_reason = self.command_reason
+
+    def _rebase_target_command_from_measured_state(self) -> None:
+        """Resume Cartesian intent with a measured-neutral realization bundle."""
+        if (
+            self.command_plan is None
+            or self.command_frame is None
+            or self.command_target_position is None
+        ):
+            return
+        measured = np.asarray(
+            self.data.xpos[self.body_by_name[self.command_frame]],
+            dtype=np.float64,
+        ).copy()
+        root_position, _, _, q, _ = plant.read_state(self.model, self.data)
+        progress_start = float(np.clip(self.command_sampled_progress, 0.0, 1.0))
+        remaining_s = max(
+            self.control_dt,
+            self.command_duration_s * (1.0 - progress_start),
+        )
+        measured_wheel_position = np.asarray(
+            self.data.xpos[self.command_wheel_center_bodies, 0],
+            dtype=np.float64,
+        ).copy()
+        self.command_plan = {
+            "start": measured.copy(),
+            "target": self.command_target_position.copy(),
+            "start_root": root_position.copy(),
+            "target_root": root_position.copy(),
+            "start_joint": q.copy(),
+            "target_joint": q.copy(),
+            "start_wheel_position": measured_wheel_position.copy(),
+            # Preserve the uniform capture/station mapping: PUSH release does
+            # not create a differential wheel command.
+            "target_wheel_position": measured_wheel_position.copy(),
+            "duration_s": remaining_s,
+            "progress_start": progress_start,
+            # Root, joint, and wheel realization references follow the
+            # measured state with measured velocity and zero feed-forward
+            # acceleration. Only the priority-2 Cartesian endpoint and the
+            # uniform station-X mapping resume after PUSH recovery.
+            "measured_neutral_realization": True,
+        }
+        # Resume the remaining local trajectory from the measured state. The
+        # global progress offset stays frozen across PUSH/recovery, while the
+        # measured-neutral realization bundle avoids restoring stale endpoint
+        # IK posture references.
+        self.command_elapsed_s = 0.0
+        self.command_sampled_position = measured.copy()
+        self.command_sampled_velocity.fill(0.0)
+        self.command_sampled_acceleration.fill(0.0)
+        self.command_hold_ticks = 0
+        self.command_phase = "executing"
+        self.command_reason = "target resumed from measured state after external load"
+
+    def _target_recovery_tick_is_safe(self, result: dict[str, Any]) -> bool:
+        """Evaluate one completed balance-only recovery tick."""
+        root_position, root_quaternion, root_twist, _, _ = plant.read_state(
+            self.model, self.data
+        )
+        tilt = float(
+            np.linalg.norm(plant.quaternion_rotation_vector(root_quaternion)[:2])
+        )
+        physical_bilateral = bool(np.all(self.observed_contact_active == 1))
+        executable_bilateral = bool(
+            int(result.get("status", -1)) in (0, 1)
+            and np.all(self.controller.contact_active[0] == 1)
+        )
+        return bool(
+            physical_bilateral
+            and executable_bilateral
+            and float(root_position[2]) > COMMAND_RECOVERY_MINIMUM_ROOT_HEIGHT_M
+            and tilt < COMMAND_RECOVERY_MAXIMUM_TILT_RAD
+            and abs(float(root_twist[1]))
+            < COMMAND_RECOVERY_MAXIMUM_PITCH_RATE_RAD_S
+            and abs(float(root_twist[3]))
+            < COMMAND_RECOVERY_MAXIMUM_FORWARD_SPEED_M_S
+            and float(result.get("capture_pressure", math.inf))
+            <= COMMAND_RECOVERY_MAXIMUM_CAPTURE_PRESSURE
+            and float(result.get("station_authority", -math.inf))
+            >= COMMAND_RECOVERY_MINIMUM_STATION_AUTHORITY
+            and abs(float(result.get("station_error", math.inf)))
+            <= COMMAND_RECOVERY_MAXIMUM_STATION_ERROR_M
+        )
 
     def _sample_target_command(
-        self, root_position: np.ndarray
-    ) -> tuple[
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        float,
-    ]:
-        if self.command_plan is None or self.command_target_root_position is None:
-            return (
-                self.command_nominal_root_position.copy(),
-                np.zeros(3, np.float64),
-                np.zeros(3, np.float64),
-                self.command_nominal_joint_position.copy(),
-                np.zeros(6, np.float64),
-                np.zeros(6, np.float64),
-                0.0,
-            )
+        self,
+    ) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None, float]:
+        if self.command_plan is None or self.command_target_position is None:
+            return None, None, None, 0.0
         plan = self.command_plan
-        if self.command_phase == "executing":
-            desired, velocity, acceleration, progress = quintic_profile(
+        if self.command_elapsed_s < float(plan["duration_s"]):
+            desired, velocity, acceleration, local_progress = quintic_profile(
                 plan["start"],
                 plan["target"],
                 float(plan["duration_s"]),
                 self.command_elapsed_s,
             )
+            progress_start = float(plan.get("progress_start", 0.0))
+            progress = progress_start + (1.0 - progress_start) * local_progress
+            return desired, velocity, acceleration, progress
+        return (
+            np.asarray(plan["target"], dtype=np.float64).copy(),
+            np.zeros(3, np.float64),
+            np.zeros(3, np.float64),
+            1.0,
+        )
+
+    def _sample_realization_command(
+        self,
+    ) -> tuple[
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+        np.ndarray | None,
+    ]:
+        """Sample root/joint jets for the admitted uniform IK endpoint."""
+        if self.command_plan is None:
+            return (None, None, None, None, None, None, None, None, None)
+        plan = self.command_plan
+        duration_s = float(plan["duration_s"])
+        if self.command_elapsed_s < duration_s:
+            root, root_velocity, root_acceleration, _ = quintic_profile(
+                np.asarray(plan["start_root"], dtype=np.float64),
+                np.asarray(plan["target_root"], dtype=np.float64),
+                duration_s,
+                self.command_elapsed_s,
+            )
             joint, joint_velocity, joint_acceleration, _ = quintic_profile(
                 np.asarray(plan["start_joint"], dtype=np.float64),
                 np.asarray(plan["target_joint"], dtype=np.float64),
-                float(plan["duration_s"]),
+                duration_s,
+                self.command_elapsed_s,
+            )
+            wheel, wheel_velocity, wheel_acceleration, _ = quintic_profile(
+                np.asarray(plan["start_wheel_position"], dtype=np.float64),
+                np.asarray(plan["target_wheel_position"], dtype=np.float64),
+                duration_s,
                 self.command_elapsed_s,
             )
             return (
-                desired,
-                velocity,
-                acceleration,
+                root,
+                root_velocity,
+                root_acceleration,
                 joint,
                 joint_velocity,
                 joint_acceleration,
-                progress,
+                wheel,
+                wheel_velocity,
+                wheel_acceleration,
             )
         return (
-            np.asarray(plan["target"], dtype=np.float64).copy(),
+            np.asarray(plan["target_root"], dtype=np.float64).copy(),
             np.zeros(3, np.float64),
             np.zeros(3, np.float64),
             np.asarray(plan["target_joint"], dtype=np.float64).copy(),
             np.zeros(6, np.float64),
             np.zeros(6, np.float64),
-            1.0,
+            np.asarray(plan["target_wheel_position"], dtype=np.float64).copy(),
+            np.zeros(2, np.float64),
+            np.zeros(2, np.float64),
         )
 
-    def _apply_target_command(
-        self,
-        root_position: np.ndarray,
-    ) -> tuple[
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        float,
-    ]:
-        (
-            desired,
-            velocity,
-            acceleration,
-            joint,
-            joint_velocity,
-            joint_acceleration,
-            progress,
-        ) = self._sample_target_command(root_position)
-        self.controller.nominal_root_position[:] = desired
-        self.controller.nominal_joint_position[:] = joint
-        return (
-            desired,
-            velocity,
-            acceleration,
-            joint,
-            joint_velocity,
-            joint_acceleration,
-            progress,
-        )
-
-    def _advance_target_command(self) -> None:
-        if self.command_phase != "executing" or self.command_plan is None:
+    def _advance_target_command(
+        self, sampled_progress: float, result: dict[str, Any]
+    ) -> None:
+        if self.command_plan is None or self.command_frame is None:
             return
         self.command_elapsed_s = min(
             self.command_elapsed_s + self.control_dt,
             float(self.command_plan["duration_s"]),
         )
-        if self.command_elapsed_s >= float(self.command_plan["duration_s"]) - 1.0e-12:
+        self.command_task_rms = float(result.get("command_task_rms", 0.0))
+        self.command_task_clipped = bool(result.get("command_task_clipped", False))
+        self.command_task_executable = bool(
+            result.get("command_intent_executable", False)
+        )
+        self.command_task_suppressed = bool(
+            result.get("command_intent_suppressed", False)
+        )
+        self.command_task_status = str(
+            result.get("command_intent_suppression_reason", "")
+            or ("executable" if self.command_task_executable else "not executable")
+        )
+        if self.command_task_suppressed:
+            self.command_phase = "suppressed"
+            self.command_reason = (
+                f"command intent suppressed: {self.command_task_status}"
+            )
+            return
+        if not self.command_task_executable or self.command_task_clipped:
+            self.command_phase = "authority_limited"
+            self.command_reason = (
+                f"command intent is not executable: {self.command_task_status}"
+                if not self.command_task_executable
+                else "command intent is clipped by higher controller authority"
+            )
+            return
+        if sampled_progress < 1.0 - 1.0e-12:
+            self.command_phase = "executing"
+            return
+        measured = np.asarray(
+            self.data.xpos[self.body_by_name[self.command_frame]], dtype=np.float64
+        )
+        error = float(np.linalg.norm(self.command_target_position - measured))
+        if (
+            error <= COMMAND_HOLD_TOLERANCE_M
+            and self.command_task_executable
+            and not self.command_task_suppressed
+        ):
+            self.command_hold_ticks += 1
+        else:
+            self.command_hold_ticks = 0
+        if self.command_hold_ticks >= COMMAND_HOLD_CONSECUTIVE_TICKS:
             self.command_phase = "holding"
-            self.command_reason = "bounded target reached; holding measured endpoint"
+            self.command_reason = "measured frame reached endpoint under executable command intent"
+        else:
+            self.command_phase = "authority_limited"
+            self.command_reason = (
+                f"measured frame error {error:.6f} m exceeds "
+                f"{COMMAND_HOLD_TOLERANCE_M:.3f} m hold tolerance"
+            )
 
     def _target_telemetry(
-        self, root_position: np.ndarray
+        self, latest_result: dict[str, Any] | None
     ) -> dict[str, Any]:
-        target = (
-            self.command_target_root_position
-            if self.command_target_root_position is not None
-            else self.command_nominal_root_position
+        measured = (
+            np.asarray(
+                self.data.xpos[self.body_by_name[self.command_frame]],
+                dtype=np.float64,
+            ).copy()
+            if self.command_frame in self.body_by_name
+            else None
         )
-        requested = (
-            self.command_requested_root_position
-            if self.command_requested_root_position is not None
-            else target
+        error_vector = (
+            self.command_target_position - measured
+            if self.command_target_position is not None and measured is not None
+            else np.zeros(3, np.float64)
         )
-        error = float(np.linalg.norm(target - root_position))
-        progress = (
-            0.0
-            if self.command_plan is None
-            else float(
-                np.clip(
-                    self.command_elapsed_s / max(self.command_duration_s, 1.0e-9),
-                    0.0,
-                    1.0,
-                )
-            )
+        wbc_status_code = (
+            -1 if latest_result is None else int(latest_result.get("status", -1))
         )
         return {
             "phase": self.command_phase,
             "request_id": self.command_request_id,
             "frame": self.command_frame,
+            "handle": self.command_frame,
+            "handle_id": self.command_handle_id,
             "reason": self.command_reason,
-            "progress": progress,
+            "progress": self.command_sampled_progress,
             "duration_s": self.command_duration_s,
-            "requested_root_position": requested.tolist(),
-            "target_root_position": target.tolist(),
-            "start_root_position": (
-                self.command_start_root_position.tolist()
-                if self.command_start_root_position is not None
+            "requested_position_world": (
+                self.command_requested_position.tolist()
+                if self.command_requested_position is not None
                 else None
             ),
-            "position_error_m": error,
+            "admitted_position_world": (
+                self.command_target_position.tolist()
+                if self.command_target_position is not None
+                else None
+            ),
+            "sampled_position_world": (
+                self.command_sampled_position.tolist()
+                if self.command_sampled_position is not None
+                else None
+            ),
+            "sampled_velocity_world": self.command_sampled_velocity.tolist(),
+            "sampled_acceleration_world": self.command_sampled_acceleration.tolist(),
+            "measured_position_world": measured.tolist() if measured is not None else None,
+            "start_position_world": (
+                self.command_start_position.tolist()
+                if self.command_start_position is not None
+                else None
+            ),
+            "position_error_world": error_vector.tolist(),
+            "position_error_m": float(np.linalg.norm(error_vector)),
+            "clamped": self.command_clamped,
+            "displacement_limit_m": COMMAND_MAX_DISPLACEMENT_M,
+            "task_rms": self.command_task_rms,
+            "task_clipped": self.command_task_clipped,
+            "intent_executable": self.command_task_executable,
+            "intent_suppressed": self.command_task_suppressed,
+            "intent_status": self.command_task_status,
+            "execution_bundle_suppressed": self.command_execution_bundle_suppressed,
+            "command_descriptors_active": self.command_descriptors_active_at_solve,
+            "measured_neutral_realization": (
+                self.command_measured_neutral_realization_at_solve
+            ),
+            "station_target_at_solve_m": self.command_station_target_at_solve_m,
+            "station_neutral_at_solve_m": self.command_station_neutral_at_solve_m,
+            "station_neutral_error_at_solve_m": (
+                self.command_station_target_at_solve_m
+                - self.command_station_neutral_at_solve_m
+            ),
+            "station_requested_error_at_solve_m": (
+                self.command_station_requested_error_at_solve_m
+            ),
+            "station_admitted_error_at_solve_m": (
+                self.command_station_admitted_error_at_solve_m
+            ),
+            "station_error_limit_m": COMMAND_STATION_ERROR_LIMIT_M,
+            "station_error_clamped_at_solve": (
+                self.command_station_error_clamped_at_solve
+            ),
+            "cartesian_requested_x_at_solve_m": (
+                self.command_cartesian_requested_x_at_solve_m
+            ),
+            "cartesian_admitted_x_at_solve_m": (
+                self.command_cartesian_admitted_x_at_solve_m
+            ),
+            "cartesian_measured_x_at_solve_m": (
+                self.command_cartesian_measured_x_at_solve_m
+            ),
+            "cartesian_x_position_neutral_residual_at_solve_m": (
+                self.command_cartesian_admitted_x_at_solve_m
+                - self.command_cartesian_measured_x_at_solve_m
+            ),
+            "cartesian_desired_vx_at_solve_m_s": (
+                self.command_cartesian_admitted_vx_at_solve_m_s
+            ),
+            "cartesian_measured_vx_at_solve_m_s": (
+                self.command_cartesian_measured_vx_at_solve_m_s
+            ),
+            "cartesian_vx_damping_residual_at_solve_m_s": (
+                self.command_cartesian_admitted_vx_at_solve_m_s
+                - self.command_cartesian_measured_vx_at_solve_m_s
+            ),
+            "cartesian_desired_ax_at_solve_m_s2": (
+                self.command_cartesian_admitted_ax_at_solve_m_s2
+            ),
+            "cartesian_x_velocity_damping_beta_at_solve": (
+                self.command_cartesian_x_velocity_damping_beta_at_solve
+            ),
+            "cartesian_x_damping_full_error_m": COMMAND_X_DAMPING_FULL_ERROR_M,
+            "cartesian_x_damping_neutral_error_m": (
+                COMMAND_X_DAMPING_NEUTRAL_ERROR_M
+            ),
+            "recovery_safe_ticks": self.command_recovery_safe_ticks,
+            "recovery_required_ticks": COMMAND_RECOVERY_SAFE_TICKS,
+            "hold_qualified_ticks": self.command_hold_ticks,
+            "hold_required_ticks": COMMAND_HOLD_CONSECUTIVE_TICKS,
+            "ik_target_residual_m": self.command_ik_target_residual_m,
+            "ik_support_residual_m": self.command_ik_support_residual_m,
+            "ik_balance_residual_m": self.command_ik_balance_residual_m,
+            "last_admission": {
+                "request_id": self.command_last_admission_request_id,
+                "status": self.command_last_admission_status,
+                "frame": self.command_last_admission_frame,
+                "handle_id": self.command_last_admission_handle_id,
+                "reason": self.command_last_admission_reason,
+            },
+            "last_rejection": {
+                "request_id": self.command_last_rejection_request_id,
+                "frame": self.command_last_rejection_frame,
+                "handle_id": self.command_last_rejection_handle_id,
+                "reason": self.command_last_rejection_reason,
+            },
+            "wbc_status_code": wbc_status_code,
+            "wbc_status": (
+                "unavailable"
+                if wbc_status_code < 0
+                else plant.STATUS_NAMES[wbc_status_code]
+            ),
+            "primary_status_code": (
+                -1
+                if latest_result is None
+                else int(latest_result.get("command_primary_status", -1))
+            ),
+            "selected_primary": bool(
+                latest_result is not None
+                and latest_result.get("command_selected_primary", False)
+            ),
+            "selected_status_code": (
+                -1
+                if latest_result is None
+                else int(latest_result.get("command_selected_status", -1))
+            ),
         }
 
     def step(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -953,23 +1481,59 @@ class LiveUpkiePlant:
                 }
 
         target_command = request.get("target_command")
-        if isinstance(target_command, dict) and bool(
-            target_command.get("active", True)
+        if (
+            not requested_reset
+            and automatic_reset_reason is None
+            and isinstance(target_command, dict)
+            and bool(target_command.get("active", True))
         ):
             target_request_id = target_command.get("request_id")
-            if target_request_id != self.command_request_id:
-                root_position, root_quaternion, _, q, _ = plant.read_state(
-                    self.model, self.data
-                )
+            valid_target_request_id = bool(
+                isinstance(target_request_id, int)
+                and not isinstance(target_request_id, bool)
+                and target_request_id > 0
+            )
+            if (
+                not valid_target_request_id
+                or target_request_id != self.command_last_admission_request_id
+            ):
                 if self.paused:
                     self._reject_target_command(
                         target_command,
                         "target commit is disabled while MuJoCo is paused",
                     )
                 else:
-                    self._accept_target_command(
-                        target_command, root_position, root_quaternion, q
-                    )
+                    self._accept_target_command(target_command)
+
+        suppress_target_execution = False
+        if active and self.command_plan is not None:
+            # PUSH owns the declared wrench for this tick. Preserve the
+            # target's public identity and absolute goal, but temporarily
+            # remove its complete execution bundle so balance/contact can
+            # absorb the load without competing station or posture requests.
+            self.command_execution_suspended_for_external_load = True
+            self.command_recovery_safe_ticks = 0
+            suppress_target_execution = True
+            self.command_phase = "suppressed"
+            self.command_reason = "target execution suspended for external load"
+            self.command_sampled_velocity.fill(0.0)
+            self.command_sampled_acceleration.fill(0.0)
+            self.command_hold_ticks = 0
+        elif self.command_execution_suspended_for_external_load:
+            # Release clears the wrench on this very solve. Rebase the private
+            # trajectory from the measured state while retaining request ID,
+            # normalized handle, and the admitted absolute goal.
+            if self.command_recovery_safe_ticks >= COMMAND_RECOVERY_SAFE_TICKS:
+                self._rebase_target_command_from_measured_state()
+                self.command_execution_suspended_for_external_load = False
+                self.command_recovery_safe_ticks = 0
+            else:
+                suppress_target_execution = True
+                self.command_phase = "suppressed"
+                self.command_reason = (
+                    "target execution waiting for balance recovery after external load"
+                )
+        self.command_execution_bundle_suppressed = suppress_target_execution
 
         started = time.perf_counter_ns()
         peak_capture_pressure = 0.0
@@ -1063,46 +1627,235 @@ class LiveUpkiePlant:
             wbc_observation_frame_index = self.wbc_observation_frame_index
             ground_position = float(np.mean(self.data.xpos[self.wheel_bodies, 0]))
             ground_height = float(np.mean(self.data.xpos[self.wheel_bodies, 2]))
-            (
-                command_root_position,
-                command_root_velocity,
-                command_root_acceleration,
-                command_joint_position,
-                command_joint_velocity,
-                command_joint_acceleration,
-                _command_progress,
-            ) = self._apply_target_command(root_position)
-            if self.last_external_wrench_valid:
-                # Re-express the completed force at the current solve
-                # boundary.  The core floating dynamics rows use the root
-                # body origin; the optional centroidal task uses the current
-                # aggregate CoM.  Storing point+force avoids using a stale
-                # reference point after the plant moves during the 20 ms
-                # delay.
-                current_root_origin = np.asarray(
-                    self.data.xpos[self.last_external_root_body_id],
-                    dtype=np.float64,
+            if suppress_target_execution:
+                command_target_position = None
+                command_target_velocity = None
+                command_target_acceleration = None
+                command_progress = self.command_sampled_progress
+                command_root_position = None
+                command_root_velocity = None
+                command_root_acceleration = None
+                command_joint_position = None
+                command_joint_velocity = None
+                command_joint_acceleration = None
+                command_wheel_reference_position = None
+                command_wheel_reference_velocity = None
+                command_wheel_reference_acceleration = None
+            else:
+                (
+                    command_target_position,
+                    command_target_velocity,
+                    command_target_acceleration,
+                    command_progress,
+                ) = self._sample_target_command()
+                (
+                    command_root_position,
+                    command_root_velocity,
+                    command_root_acceleration,
+                    command_joint_position,
+                    command_joint_velocity,
+                    command_joint_acceleration,
+                    command_wheel_reference_position,
+                    command_wheel_reference_velocity,
+                    command_wheel_reference_acceleration,
+                ) = self._sample_realization_command()
+            station_neutral_position = float(
+                np.mean(self.data.xpos[self.command_wheel_center_bodies, 0])
+            )
+            if suppress_target_execution:
+                # Full target suppression includes the balance-owned common
+                # rolling/station component. Neutralize it at the current
+                # measured wheel-center position before every PUSH/recovery
+                # solve, rather than retaining an earlier target station.
+                self.controller.target_ground_position = station_neutral_position
+                station_requested_error = 0.0
+                station_admitted_error = 0.0
+            elif command_target_position is not None and self.command_plan is not None:
+                # A world-X frame request moves through Upkie's ordinary
+                # capture/station authority.  This is uniform for every
+                # handle and keeps rolling balance in the controller that
+                # already owns both wheels, instead of synthesizing a
+                # differential wheel command from static IK.
+                station_requested_error = float(
+                    command_target_position[0]
+                    - self.data.xpos[self.body_by_name[self.command_frame], 0]
                 )
-                self.last_external_wrench_world[:3] = np.cross(
-                    self.last_external_application_point_world
-                    - current_root_origin,
-                    self.last_external_force_world,
+                station_admitted_error = float(
+                    np.clip(
+                        station_requested_error,
+                        -COMMAND_STATION_ERROR_LIMIT_M,
+                        COMMAND_STATION_ERROR_LIMIT_M,
+                    )
                 )
-                self.last_external_wrench_world[3:] = self.last_external_force_world
-                self.last_external_centroidal_moment_world[...] = np.cross(
-                    self.last_external_application_point_world
-                    - np.asarray(self.data.subtree_com[0], dtype=np.float64),
-                    self.last_external_force_world,
+                self.controller.target_ground_position = (
+                    station_neutral_position + station_admitted_error
                 )
+            else:
+                station_requested_error = 0.0
+                station_admitted_error = 0.0
+            self.command_station_neutral_at_solve_m = station_neutral_position
+            self.command_station_target_at_solve_m = float(
+                self.controller.target_ground_position
+            )
+            self.command_station_requested_error_at_solve_m = (
+                station_requested_error
+            )
+            self.command_station_admitted_error_at_solve_m = station_admitted_error
+            self.command_station_error_clamped_at_solve = bool(
+                abs(station_requested_error - station_admitted_error) > 1.0e-15
+            )
+            self.command_wheel_measured_position[:] = self.data.xpos[
+                self.command_wheel_center_bodies, 0
+            ]
+            for wheel_index, wheel_body in enumerate(
+                self.command_wheel_center_bodies
+            ):
+                mujoco.mj_jacBody(
+                    self.model,
+                    self.data,
+                    self.command_wheel_velocity_jacobian,
+                    self.command_wheel_velocity_angular_jacobian,
+                    int(wheel_body),
+                )
+                self.command_wheel_measured_velocity[wheel_index] = float(
+                    np.dot(
+                        self.command_wheel_velocity_jacobian[0],
+                        self.data.qvel,
+                    )
+                )
+            if (
+                command_target_position is not None
+                and self.command_plan is not None
+                and bool(
+                    self.command_plan.get("measured_neutral_realization", False)
+                )
+            ):
+                # Do not restore the pre-PUSH endpoint IK realization. Track
+                # the measured state at priority 3 so this bundle contributes
+                # zero feedback acceleration while Cartesian intent and the
+                # balance-owned station mapping resume.
+                command_root_position = root_position.copy()
+                command_root_velocity = root_twist[3:6].copy()
+                command_root_acceleration = np.zeros(3, np.float64)
+                command_joint_position = q.copy()
+                command_joint_velocity = v.copy()
+                command_joint_acceleration = np.zeros(6, np.float64)
+                command_wheel_reference_position = (
+                    self.command_wheel_measured_position.copy()
+                )
+                command_wheel_reference_velocity = (
+                    self.command_wheel_measured_velocity.copy()
+                )
+                command_wheel_reference_acceleration = np.zeros(2, np.float64)
+            if command_target_position is not None:
+                self.command_sampled_position = command_target_position.copy()
+                np.copyto(self.command_sampled_velocity, command_target_velocity)
                 np.copyto(
-                    observed_external_wrench_world,
-                    self.last_external_wrench_world,
+                    self.command_sampled_acceleration,
+                    command_target_acceleration,
                 )
+                self.command_sampled_progress = command_progress
+            self.command_descriptors_active_at_solve = bool(
+                command_target_position is not None
+            )
+            self.command_measured_neutral_realization_at_solve = bool(
+                self.command_descriptors_active_at_solve
+                and self.command_plan is not None
+                and self.command_plan.get("measured_neutral_realization", False)
+            )
+            command_wbc_target_position = command_target_position
+            command_wbc_target_velocity = command_target_velocity
+            command_wbc_target_acceleration = command_target_acceleration
+            if command_target_position is not None and self.command_frame is not None:
+                measured_frame_x = float(
+                    self.data.xpos[self.body_by_name[self.command_frame], 0]
+                )
+                mujoco.mj_jacBody(
+                    self.model,
+                    self.data,
+                    self.command_ik_body_jacobian,
+                    self.command_ik_body_angular_jacobian,
+                    self.body_by_name[self.command_frame],
+                )
+                measured_frame_vx = float(
+                    np.dot(self.command_ik_body_jacobian[0], self.data.qvel)
+                )
+                command_wbc_target_position = command_target_position.copy()
+                command_wbc_target_position[0] = measured_frame_x
+                command_wbc_target_velocity = command_target_velocity.copy()
+                damping_coordinate = float(
+                    np.clip(
+                        (
+                            abs(station_admitted_error)
+                            - COMMAND_X_DAMPING_FULL_ERROR_M
+                        )
+                        / (
+                            COMMAND_X_DAMPING_NEUTRAL_ERROR_M
+                            - COMMAND_X_DAMPING_FULL_ERROR_M
+                        ),
+                        0.0,
+                        1.0,
+                    )
+                )
+                damping_beta = damping_coordinate * damping_coordinate * (
+                    3.0 - 2.0 * damping_coordinate
+                )
+                # Preserve velocity-neutral Cartesian X realization while
+                # the station executes the trajectory. Once the sample
+                # reaches its endpoint, smoothly remove measured X velocity
+                # feed-through as station error approaches zero.
+                # This adds only passive damping; station remains the sole
+                # owner of target-directed world-X motion.
+                if command_progress < 1.0 - 1.0e-12:
+                    damping_beta = 1.0
+                command_wbc_target_velocity[0] = damping_beta * measured_frame_vx
+                command_wbc_target_acceleration = command_target_acceleration.copy()
+                command_wbc_target_acceleration[0] = 0.0
+                self.command_cartesian_requested_x_at_solve_m = float(
+                    command_target_position[0]
+                )
+                self.command_cartesian_admitted_x_at_solve_m = measured_frame_x
+                self.command_cartesian_measured_x_at_solve_m = measured_frame_x
+                self.command_cartesian_admitted_vx_at_solve_m_s = float(
+                    command_wbc_target_velocity[0]
+                )
+                self.command_cartesian_measured_vx_at_solve_m_s = measured_frame_vx
+                self.command_cartesian_admitted_ax_at_solve_m_s2 = 0.0
+                self.command_cartesian_x_velocity_damping_beta_at_solve = (
+                    damping_beta
+                )
+            else:
+                self.command_cartesian_requested_x_at_solve_m = 0.0
+                self.command_cartesian_admitted_x_at_solve_m = 0.0
+                self.command_cartesian_measured_x_at_solve_m = 0.0
+                self.command_cartesian_admitted_vx_at_solve_m_s = 0.0
+                self.command_cartesian_measured_vx_at_solve_m_s = 0.0
+                self.command_cartesian_admitted_ax_at_solve_m_s2 = 0.0
+                self.command_cartesian_x_velocity_damping_beta_at_solve = 1.0
+            if active:
+                application_offset = point - self.data.xipos[body_id]
+                application_offset_m = float(np.linalg.norm(application_offset))
+                applied_moment_world = np.cross(application_offset, force)
+                applied_centroidal_moment_world = np.cross(
+                    point - np.asarray(self.data.subtree_com[0], dtype=np.float64),
+                    force,
+                )
+                root_body_id = int(self.model.body_rootid[body_id])
+                applied_root_moment_world = np.cross(
+                    point - np.asarray(self.data.xpos[root_body_id], dtype=np.float64),
+                    force,
+                )
+                observed_external_wrench_world[:3] = applied_root_moment_world
+                observed_external_wrench_world[3:] = force
                 np.copyto(
                     observed_external_centroidal_moment_world,
-                    self.last_external_centroidal_moment_world,
+                    applied_centroidal_moment_world,
                 )
                 observed_external_wrench_valid = True
+            else:
+                observed_external_wrench_world.fill(0.0)
+                observed_external_centroidal_moment_world.fill(0.0)
+                observed_external_wrench_valid = False
             result = self.controller.solve(
                 root_position,
                 root_quaternion,
@@ -1116,16 +1869,37 @@ class LiveUpkiePlant:
                     self.wbc_observation_wheel_normal_force_n
                 ),
                 observed_external_wrench_world=(
-                    self.last_external_wrench_world
-                    if self.last_external_wrench_valid
+                    observed_external_wrench_world
+                    if observed_external_wrench_valid
                     else None
                 ),
                 observed_external_centroidal_moment_world=(
-                    self.last_external_centroidal_moment_world
-                    if self.last_external_wrench_valid
+                    observed_external_centroidal_moment_world
+                    if observed_external_wrench_valid
                     else None
                 ),
                 observed_contact_available=True,
+                command_frame=(
+                    self.command_frame
+                    if command_target_position is not None
+                    else None
+                ),
+                command_target_position=command_wbc_target_position,
+                command_target_velocity=command_wbc_target_velocity,
+                command_target_acceleration=command_wbc_target_acceleration,
+                command_wheel_reference_position=command_wheel_reference_position,
+                command_wheel_reference_velocity=command_wheel_reference_velocity,
+                command_wheel_reference_acceleration=command_wheel_reference_acceleration,
+                command_wheel_measured_position=(
+                    self.command_wheel_measured_position
+                    if command_wheel_reference_position is not None
+                    else None
+                ),
+                command_wheel_measured_velocity=(
+                    self.command_wheel_measured_velocity
+                    if command_wheel_reference_position is not None
+                    else None
+                ),
                 command_root_position=command_root_position,
                 command_root_velocity=command_root_velocity,
                 command_root_acceleration=command_root_acceleration,
@@ -1138,22 +1912,6 @@ class LiveUpkiePlant:
             self.data.qfrc_applied.fill(0.0)
             self.data.xfrc_applied.fill(0.0)
             if active:
-                application_offset = point - self.data.xipos[body_id]
-                application_offset_m = float(np.linalg.norm(application_offset))
-                applied_moment_world = np.cross(application_offset, force)
-                # Centroidal angular momentum is about the aggregate system
-                # CoM, not the MuJoCo body inertial origin.  Keep this as a
-                # separate observation so existing body-COM telemetry remains
-                # compatible while Rust consumes the physically relevant r×F.
-                applied_centroidal_moment_world = np.cross(
-                    point - np.asarray(self.data.subtree_com[0], dtype=np.float64),
-                    force,
-                )
-                root_body_id = int(self.model.body_rootid[body_id])
-                applied_root_moment_world = np.cross(
-                    point - np.asarray(self.data.xpos[root_body_id], dtype=np.float64),
-                    force,
-                )
                 maximum_moment_nm = max(
                     maximum_moment_nm, float(np.linalg.norm(applied_moment_world))
                 )
@@ -1267,7 +2025,23 @@ class LiveUpkiePlant:
             maximum_controller_step_ns = max(
                 maximum_controller_step_ns, int(result["step_ns"])
             )
-            self._advance_target_command()
+            if (
+                suppress_target_execution
+                and self.command_execution_suspended_for_external_load
+                and not active
+            ):
+                if self._target_recovery_tick_is_safe(result):
+                    self.command_recovery_safe_ticks += 1
+                else:
+                    self.command_recovery_safe_ticks = 0
+            if suppress_target_execution:
+                self.command_task_rms = 0.0
+                self.command_task_clipped = False
+                self.command_task_executable = False
+                self.command_task_suppressed = True
+                self.command_task_status = "external load owns target execution pause"
+            else:
+                self._advance_target_command(command_progress, result)
 
         numeric_reset = False
         if not self._validate_state():
@@ -1323,7 +2097,9 @@ class LiveUpkiePlant:
             and latest_result is not None
             and int(latest_result["status"]) in (0, 1)
         )
-        target_telemetry = self._target_telemetry(root_position)
+        target_telemetry = self._target_telemetry(
+            latest_result if published_contact_state else None
+        )
         # Keep the debounced/hard mask as a diagnostic of the authority stack,
         # but never advertise it as executable when the solve was not
         # admitted (for example MaxIterations or an explicit pause).
@@ -1508,6 +2284,12 @@ class LiveUpkiePlant:
                     if observed_external_wrench_valid
                     else [0.0, 0.0, 0.0]
                 ),
+                "wbc_observed_force_world_n": (
+                    observed_external_wrench_world[3:].tolist()
+                    if observed_external_wrench_valid
+                    else [0.0, 0.0, 0.0]
+                ),
+                "wbc_feedforward_active": observed_external_wrench_valid,
                 "wbc_observed_centroidal_moment_world_nm": (
                     observed_external_centroidal_moment_world.tolist()
                     if observed_external_wrench_valid
@@ -1884,9 +2666,57 @@ class LiveUpkiePlant:
                 "command_reason": target_telemetry["reason"],
                 "command_progress": target_telemetry["progress"],
                 "command_position_error_m": target_telemetry["position_error_m"],
-                "command_target_root_position": target_telemetry[
-                    "target_root_position"
+                "command_target_position_world": target_telemetry[
+                    "admitted_position_world"
                 ],
+                "command_measured_position_world": target_telemetry[
+                    "measured_position_world"
+                ],
+                "command_task_rms": target_telemetry["task_rms"],
+                "command_task_clipped": target_telemetry["task_clipped"],
+                "command_intent_executable": target_telemetry[
+                    "intent_executable"
+                ],
+                "command_intent_suppressed": target_telemetry[
+                    "intent_suppressed"
+                ],
+                "command_rolling_zero_mean_residual": 0.0
+                if latest_result is None
+                else float(latest_result["command_rolling_zero_mean_residual"]),
+                "command_rolling_common_residual": 0.0
+                if latest_result is None
+                else float(latest_result["command_rolling_common_residual"]),
+                "command_rolling_protected_residual": 0.0
+                if latest_result is None
+                else float(latest_result["command_rolling_protected_residual"]),
+                "command_rolling_maximum_differential_acceleration_m_s2": 0.0
+                if latest_result is None
+                else float(
+                    np.max(
+                        np.abs(
+                            latest_result[
+                                "command_rolling_differential_acceleration"
+                            ]
+                        )
+                    )
+                ),
+                "command_rolling_maximum_protected_acceleration_rad_s2": 0.0
+                if latest_result is None
+                else float(
+                    np.max(
+                        np.abs(
+                            latest_result[
+                                "command_rolling_protected_acceleration"
+                            ]
+                        )
+                    )
+                ),
+                "command_rolling_null_scale": 0.0
+                if latest_result is None
+                else float(latest_result["command_rolling_null_scale"]),
+                "command_rolling_load_fade": 0.0
+                if latest_result is None
+                else float(latest_result["command_rolling_load_fade"]),
             },
         }
         return response

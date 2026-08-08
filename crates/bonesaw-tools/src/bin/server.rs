@@ -82,10 +82,7 @@ const LIVE_PLANT_COMMAND_TTL_MS: u64 = 140;
 const LIVE_PLANT_TARGET_DEFAULT_DURATION_MS: u64 = 3_000;
 const LIVE_PLANT_TARGET_MIN_DURATION_MS: u64 = 1_000;
 const LIVE_PLANT_TARGET_MAX_DURATION_MS: u64 = 5_000;
-const LIVE_PLANT_TARGET_MAX_ROOT_X_DELTA_M: f64 = 0.12;
-const LIVE_PLANT_TARGET_MAX_ROOT_Y_DELTA_M: f64 = 0.10;
-const LIVE_PLANT_TARGET_MAX_ROOT_DOWN_DELTA_M: f64 = 0.045;
-const LIVE_PLANT_TARGET_MAX_ROOT_UP_DELTA_M: f64 = 0.05;
+const LIVE_PLANT_TARGET_MAX_DISPLACEMENT_M: f64 = 0.05;
 const LIVE_PLANT_WORKER_TIMEOUT_MS: u64 = 100;
 /// Keeps the source visual tire mesh above the exact z=0 plane while leaving
 /// MuJoCo's physical ground and collision semantics unchanged.
@@ -133,6 +130,7 @@ const LIVE_ROOT_PREDICTION_ERROR_GROWTH: RootPredictionErrorGrowth = RootPredict
 struct AppState {
     program: Arc<MotionProgram>,
     plant_gateway: Option<Arc<PlantGatewayConfig>>,
+    interaction_handles: Arc<Vec<InteractionHandle>>,
 }
 
 #[derive(Clone, Debug)]
@@ -152,10 +150,7 @@ struct PlantGatewayContract {
     target_default_duration_ms: u64,
     target_duration_min_ms: u64,
     target_duration_max_ms: u64,
-    target_max_root_x_delta_m: f64,
-    target_max_root_y_delta_m: f64,
-    target_max_root_down_delta_m: f64,
-    target_max_root_up_delta_m: f64,
+    target_max_displacement_m: f64,
     worker_timeout_ms: u64,
     plant_owner: &'static str,
     controller_owner: &'static str,
@@ -177,10 +172,7 @@ impl PlantGatewayContract {
             target_default_duration_ms: LIVE_PLANT_TARGET_DEFAULT_DURATION_MS,
             target_duration_min_ms: LIVE_PLANT_TARGET_MIN_DURATION_MS,
             target_duration_max_ms: LIVE_PLANT_TARGET_MAX_DURATION_MS,
-            target_max_root_x_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_X_DELTA_M,
-            target_max_root_y_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_Y_DELTA_M,
-            target_max_root_down_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_DOWN_DELTA_M,
-            target_max_root_up_delta_m: LIVE_PLANT_TARGET_MAX_ROOT_UP_DELTA_M,
+            target_max_displacement_m: LIVE_PLANT_TARGET_MAX_DISPLACEMENT_M,
             worker_timeout_ms: LIVE_PLANT_WORKER_TIMEOUT_MS,
             plant_owner: "python_mujoco",
             controller_owner: "rust_bonesaw",
@@ -291,6 +283,16 @@ enum ClientCommand {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum PlantClientCommand {
+    PlantFrameTargetCommit {
+        handle_id: String,
+        frame: Option<String>,
+        target: PlantFrameTarget,
+        duration_ms: Option<u64>,
+        request_id: u64,
+    },
+    /// Compatibility for clients predating stable interaction-handle IDs.
+    /// The frame is accepted only when it identifies exactly one advertised
+    /// handle; the gateway still owns the handle-to-worker mapping.
     PlantTargetCommit {
         frame: String,
         target: [f64; 3],
@@ -323,6 +325,11 @@ enum PlantClientCommand {
     },
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+struct PlantFrameTarget {
+    position_world_m: [f64; 3],
+}
+
 #[derive(Clone, Debug)]
 struct ActivePlantPush {
     body: String,
@@ -335,8 +342,9 @@ struct ActivePlantPush {
 
 #[derive(Clone, Debug)]
 struct ActivePlantTarget {
+    handle_id: String,
     frame: String,
-    target: [f64; 3],
+    position_world_m: [f64; 3],
     duration_ms: u64,
     request_id: u64,
 }
@@ -389,6 +397,7 @@ struct Bone {
 
 #[derive(Clone, Debug, Serialize)]
 struct InteractionHandle {
+    handle_id: String,
     frame: String,
     kind: &'static str,
     label: String,
@@ -1126,9 +1135,10 @@ impl SquatContext {
 
     fn interaction_handle(&self) -> InteractionHandle {
         InteractionHandle {
+            handle_id: format!("frame:{}", self.frame_name),
             frame: self.frame_name.clone(),
-            kind: "base",
-            label: "TORSO · BASE".to_owned(),
+            kind: "frame",
+            label: self.frame_name.replace('_', " ").to_uppercase(),
         }
     }
 
@@ -1171,12 +1181,48 @@ fn collect_interaction_handles(
             continue;
         }
         handles.push(InteractionHandle {
+            handle_id: format!("frame:{frame}"),
             frame,
-            kind: "joint",
+            kind: "frame",
             label: joint.name.replace('_', " ").to_uppercase(),
         });
     }
     handles
+}
+
+fn initial_editor_state(model: &CompiledModel) -> RobotState {
+    let mut state = RobotState::zeros(model);
+    state.q = standing_posture(model);
+    if let Ok(root_lift) = ground_root_lift(model, &state) {
+        state.control_world_from_root.translation.vector.z +=
+            root_lift + LIVE_GROUND_REGISTRATION_MARGIN_M;
+    }
+    state
+}
+
+fn initial_interaction_handles(model: &CompiledModel) -> Vec<InteractionHandle> {
+    let state = initial_editor_state(model);
+    let squat = SquatContext::compile(model, &state);
+    collect_interaction_handles(model, squat.as_ref())
+}
+
+fn initial_body_positions(model: &CompiledModel) -> HashMap<String, [f64; 3]> {
+    let state = initial_editor_state(model);
+    let mut cache = ModelCache::new(model);
+    if model.forward_kinematics(&state, &mut cache).is_err() {
+        return HashMap::new();
+    }
+    model
+        .bodies
+        .iter()
+        .map(|body| {
+            let translation = cache.world_from_body[body.id.0].translation.vector;
+            (
+                body.name.clone(),
+                [translation.x, translation.y, translation.z],
+            )
+        })
+        .collect()
 }
 
 fn body_has_movable_ancestor(model: &CompiledModel, mut body: BodyId) -> bool {
@@ -1375,9 +1421,11 @@ async fn main() -> Result<()> {
     } else {
         None
     };
+    let interaction_handles = Arc::new(initial_interaction_handles(&program.model));
     let state = AppState {
         program: Arc::clone(&program),
         plant_gateway,
+        interaction_handles,
     };
     let app = Router::new()
         .route("/ws", get(websocket))
@@ -1471,23 +1519,56 @@ fn validate_plant_push(command: &PlantClientCommand) -> Result<()> {
     Ok(())
 }
 
-fn validate_plant_target(command: &PlantClientCommand) -> Result<()> {
-    let PlantClientCommand::PlantTargetCommit {
-        frame,
-        target,
-        duration_ms,
-        request_id,
-    } = command
-    else {
-        return Ok(());
+#[derive(Clone, Copy)]
+struct PlantTargetRequest<'a> {
+    handle: &'a InteractionHandle,
+    position_world_m: [f64; 3],
+    duration_ms: u64,
+    request_id: u64,
+}
+
+fn plant_target_request<'a>(
+    command: &PlantClientCommand,
+    handles: &'a [InteractionHandle],
+) -> Result<Option<PlantTargetRequest<'a>>> {
+    let (handle, position_world_m, duration_ms, request_id) = match command {
+        PlantClientCommand::PlantFrameTargetCommit {
+            handle_id,
+            frame,
+            target,
+            duration_ms,
+            request_id,
+        } => {
+            let handle = handles
+                .iter()
+                .find(|handle| handle.handle_id == *handle_id)
+                .ok_or_else(|| anyhow!("plant target handle is not advertised: {handle_id}"))?;
+            if frame.as_ref().is_some_and(|frame| frame != &handle.frame) {
+                anyhow::bail!("plant target frame does not match its advertised handle");
+            }
+            (handle, target.position_world_m, *duration_ms, *request_id)
+        }
+        PlantClientCommand::PlantTargetCommit {
+            frame,
+            target,
+            duration_ms,
+            request_id,
+        } => {
+            let mut matches = handles.iter().filter(|handle| handle.frame == *frame);
+            let handle = matches.next().ok_or_else(|| {
+                anyhow!("plant target frame is not an advertised handle: {frame}")
+            })?;
+            if matches.next().is_some() {
+                anyhow::bail!("plant target frame is ambiguous; use handle_id");
+            }
+            (handle, *target, *duration_ms, *request_id)
+        }
+        _ => return Ok(None),
     };
-    if *request_id == 0 {
+    if request_id == 0 {
         anyhow::bail!("plant target request_id must be positive");
     }
-    if !matches!(frame.as_str(), "torso" | "base") {
-        anyhow::bail!("plant target frame must be torso or base");
-    }
-    if !target.iter().all(|value| value.is_finite()) {
+    if !position_world_m.iter().all(|value| value.is_finite()) {
         anyhow::bail!("plant target coordinates must be finite");
     }
     let duration_ms = duration_ms.unwrap_or(LIVE_PLANT_TARGET_DEFAULT_DURATION_MS);
@@ -1500,7 +1581,55 @@ fn validate_plant_target(command: &PlantClientCommand) -> Result<()> {
             LIVE_PLANT_TARGET_MAX_DURATION_MS
         );
     }
-    Ok(())
+    Ok(Some(PlantTargetRequest {
+        handle,
+        position_world_m,
+        duration_ms,
+        request_id,
+    }))
+}
+
+fn validate_plant_target(
+    command: &PlantClientCommand,
+    handles: &[InteractionHandle],
+) -> Result<()> {
+    plant_target_request(command, handles).map(|_| ())
+}
+
+fn resolve_plant_target(
+    command: &PlantClientCommand,
+    handles: &[InteractionHandle],
+    body_positions: &HashMap<String, [f64; 3]>,
+) -> Result<Option<ActivePlantTarget>> {
+    let Some(request) = plant_target_request(command, handles)? else {
+        return Ok(None);
+    };
+    body_positions.get(&request.handle.frame).ok_or_else(|| {
+        anyhow!(
+            "plant target handle position is unavailable: {}",
+            request.handle.handle_id
+        )
+    })?;
+    Ok(Some(ActivePlantTarget {
+        handle_id: request.handle.handle_id.clone(),
+        frame: request.handle.frame.clone(),
+        position_world_m: request.position_world_m,
+        duration_ms: request.duration_ms,
+        request_id: request.request_id,
+    }))
+}
+
+fn admit_plant_target(
+    active_target: &mut Option<ActivePlantTarget>,
+    target: ActivePlantTarget,
+    paused: bool,
+) -> Result<u64> {
+    if paused {
+        anyhow::bail!("plant target commit is disabled while MuJoCo is paused");
+    }
+    let request_id = target.request_id;
+    *active_target = Some(target);
+    Ok(request_id)
 }
 
 fn validate_plant_application_point(
@@ -1630,7 +1759,7 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
 
     let mut active_push: Option<ActivePlantPush> = None;
     let mut active_target: Option<ActivePlantTarget> = None;
-    let mut body_positions = HashMap::new();
+    let mut body_positions = initial_body_positions(&app.program.model);
     let mut command_id: Option<u64> = None;
     let mut reset_requested = false;
     let mut paused = false;
@@ -1654,43 +1783,39 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                             .map_err(anyhow::Error::from)
                             .and_then(|command| {
                                 validate_plant_push(&command)?;
-                                validate_plant_target(&command)?;
+                                validate_plant_target(&command, &app.interaction_handles)?;
                                 validate_plant_application_point(&command, &body_positions)?;
-                                Ok(command)
+                                let target = resolve_plant_target(
+                                    &command,
+                                    &app.interaction_handles,
+                                    &body_positions,
+                                )?;
+                                Ok((command, target))
                             })
                         {
-                            Ok(PlantClientCommand::PlantTargetCommit {
-                                frame,
-                                target,
-                                duration_ms,
-                                request_id,
-                            }) => {
-                                if paused {
-                                    let message = serde_json::json!({
-                                        "type": "plant_error",
-                                        "command_phase": "rejected",
-                                        "command_id": request_id,
-                                        "message": "plant target commit is disabled while MuJoCo is paused",
-                                    });
-                                    let _ = sender.send(Message::Text(message.to_string().into())).await;
-                                    continue;
+                            Ok((PlantClientCommand::PlantFrameTargetCommit { .. }, Some(target)))
+                            | Ok((PlantClientCommand::PlantTargetCommit { .. }, Some(target))) => {
+                                let target_request_id = target.request_id;
+                                match admit_plant_target(&mut active_target, target, paused) {
+                                    Ok(request_id) => command_id = Some(request_id),
+                                    Err(error) => {
+                                        let message = serde_json::json!({
+                                            "type": "plant_error",
+                                            "command_phase": "rejected",
+                                            "command_id": target_request_id,
+                                            "message": error.to_string(),
+                                        });
+                                        let _ = sender.send(Message::Text(message.to_string().into())).await;
+                                    }
                                 }
-                                command_id = Some(request_id);
-                                active_target = Some(ActivePlantTarget {
-                                    frame,
-                                    target,
-                                    duration_ms: duration_ms
-                                        .unwrap_or(LIVE_PLANT_TARGET_DEFAULT_DURATION_MS),
-                                    request_id,
-                                });
                             }
-                            Ok(PlantClientCommand::PlantPush {
+                            Ok((PlantClientCommand::PlantPush {
                                 body,
                                 force_world,
                                 application_point_world,
                                 provenance,
                                 request_id,
-                            }) => {
+                            }, None)) => {
                                 if paused {
                                     let message = serde_json::json!({
                                         "type": "plant_error",
@@ -1710,11 +1835,11 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                                         + Duration::from_millis(LIVE_PLANT_COMMAND_TTL_MS),
                                 });
                             }
-                            Ok(PlantClientCommand::PlantRelease { request_id }) => {
+                            Ok((PlantClientCommand::PlantRelease { request_id }, None)) => {
                                 command_id = Some(request_id);
                                 active_push = None;
                             }
-                            Ok(PlantClientCommand::PlantPause { request_id }) => {
+                            Ok((PlantClientCommand::PlantPause { request_id }, None)) => {
                                 command_id = Some(request_id);
                                 // A paused simulation must not retain an
                                 // operator wrench that can be applied on the
@@ -1722,15 +1847,23 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                                 active_push = None;
                                 paused = true;
                             }
-                            Ok(PlantClientCommand::PlantResume { request_id }) => {
+                            Ok((PlantClientCommand::PlantResume { request_id }, None)) => {
                                 command_id = Some(request_id);
                                 paused = false;
                             }
-                            Ok(PlantClientCommand::PlantReset { request_id }) => {
+                            Ok((PlantClientCommand::PlantReset { request_id }, None)) => {
                                 command_id = Some(request_id);
                                 active_push = None;
                                 active_target = None;
                                 reset_requested = true;
+                            }
+                            Ok(_) => {
+                                let message = serde_json::json!({
+                                    "type": "plant_error",
+                                    "command_phase": "rejected",
+                                    "message": "invalid internal plant target normalization",
+                                });
+                                let _ = sender.send(Message::Text(message.to_string().into())).await;
                             }
                             Err(error) => {
                                 let message = serde_json::json!({
@@ -1768,8 +1901,9 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                 }));
                 let target = active_target.as_ref().map(|target| serde_json::json!({
                     "active": true,
+                    "handle_id": target.handle_id,
                     "frame": target.frame,
-                    "target": target.target,
+                    "target": target.position_world_m,
                     "duration_ms": target.duration_ms,
                     "request_id": target.request_id,
                 }));
@@ -1839,11 +1973,6 @@ async fn run_plant_session(socket: WebSocket, app: AppState) {
                     break 'session;
                 };
                 update_plant_body_positions(&parsed_response, &mut body_positions);
-                if parsed_response.get("type").and_then(serde_json::Value::as_str)
-                    == Some("plant_error")
-                {
-                    active_push = None;
-                }
                 if sender.send(Message::Text(response.into())).await.is_err() {
                     break 'session;
                 }
@@ -2204,7 +2333,7 @@ async fn run_session(socket: WebSocket, app: AppState) {
             .iter()
             .map(|actuator| actuator.resource_model.is_some())
             .collect(),
-        interaction_handles: collect_interaction_handles(&app.program.model, squat.as_ref()),
+        interaction_handles: app.interaction_handles.as_ref().clone(),
         rooted_frames: ["control_world", "odom", "map"]
             .into_iter()
             .map(str::to_owned)
@@ -4970,8 +5099,7 @@ mod tests {
         let target = serde_json::from_str::<PlantClientCommand>(
             r#"{"type":"plant_target_commit","frame":"torso","target":[0.0,0.0,0.38],"duration_ms":1200,"request_id":51}"#,
         )
-        .expect("typed plant target parses");
-        assert!(validate_plant_target(&target).is_ok());
+        .expect("finite legacy plant target parses");
         assert!(matches!(
             target,
             PlantClientCommand::PlantTargetCommit {
@@ -4980,20 +5108,6 @@ mod tests {
                 ..
             } if frame == "torso"
         ));
-        let invalid_target = PlantClientCommand::PlantTargetCommit {
-            frame: "left_knee".to_owned(),
-            target: [0.0, 0.0, 0.38],
-            duration_ms: Some(1200),
-            request_id: 52,
-        };
-        assert!(validate_plant_target(&invalid_target).is_err());
-        let invalid_duration = PlantClientCommand::PlantTargetCommit {
-            frame: "torso".to_owned(),
-            target: [0.0, 0.0, 0.38],
-            duration_ms: Some(LIVE_PLANT_TARGET_MAX_DURATION_MS + 1),
-            request_id: 53,
-        };
-        assert!(validate_plant_target(&invalid_duration).is_err());
 
         for load_class in [
             PlantExternalLoadClass::MeasuredImpactImpulse,
@@ -5014,7 +5128,111 @@ mod tests {
     }
 
     #[test]
-    fn upkie_exposes_base_as_an_unclamped_cartesian_target() {
+    fn every_advertised_plant_handle_validates_and_invalid_replacements_preserve_state() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../models/upkie/upkie.urdf");
+        let program = MotionProgram::compile_urdf_file(path, TimingSpec::default(), 1).unwrap();
+        let handles = initial_interaction_handles(&program.model);
+        let positions = initial_body_positions(&program.model);
+        assert!(!handles.is_empty());
+
+        for (index, handle) in handles.iter().enumerate() {
+            assert_eq!(handle.handle_id, format!("frame:{}", handle.frame));
+            let current = positions[&handle.frame];
+            let command = PlantClientCommand::PlantFrameTargetCommit {
+                handle_id: handle.handle_id.clone(),
+                frame: Some(handle.frame.clone()),
+                target: PlantFrameTarget {
+                    position_world_m: [current[0] + 0.01, current[1], current[2]],
+                },
+                duration_ms: None,
+                request_id: index as u64 + 1,
+            };
+            assert!(validate_plant_target(&command, &handles).is_ok());
+            let resolved = resolve_plant_target(&command, &handles, &positions)
+                .unwrap()
+                .expect("target command resolves");
+            assert_eq!(resolved.handle_id, handle.handle_id);
+            assert_eq!(resolved.duration_ms, LIVE_PLANT_TARGET_DEFAULT_DURATION_MS);
+        }
+
+        let handle = &handles[0];
+        let current = positions[&handle.frame];
+        let command = |handle_id: String,
+                       position_world_m: [f64; 3],
+                       duration_ms: Option<u64>,
+                       request_id: u64| {
+            PlantClientCommand::PlantFrameTargetCommit {
+                handle_id,
+                frame: Some(handle.frame.clone()),
+                target: PlantFrameTarget { position_world_m },
+                duration_ms,
+                request_id,
+            }
+        };
+        for invalid in [
+            command(
+                "frame:not-advertised".to_owned(),
+                current,
+                Some(LIVE_PLANT_TARGET_MIN_DURATION_MS),
+                80,
+            ),
+            command(handle.handle_id.clone(), [f64::NAN, 0.0, 0.0], None, 81),
+            command(handle.handle_id.clone(), current, None, 0),
+            command(
+                handle.handle_id.clone(),
+                current,
+                Some(LIVE_PLANT_TARGET_MIN_DURATION_MS - 1),
+                82,
+            ),
+            command(
+                handle.handle_id.clone(),
+                current,
+                Some(LIVE_PLANT_TARGET_MAX_DURATION_MS + 1),
+                83,
+            ),
+        ] {
+            assert!(validate_plant_target(&invalid, &handles).is_err());
+        }
+        let admitted = command(
+            handle.handle_id.clone(),
+            [current[0] + 0.01, current[1], current[2]],
+            None,
+            85,
+        );
+        let mut active_target = resolve_plant_target(&admitted, &handles, &positions).unwrap();
+        let active_push = Some(ActivePlantPush {
+            body: "base".to_owned(),
+            force_world: [1.0, 0.0, 0.0],
+            application_point_world: [0.0, 0.0, 0.5],
+            provenance: PlantExternalLoadProvenance {
+                source: PlantExternalLoadSource::InteractiveOperator,
+                load_class: PlantExternalLoadClass::DeclaredContinuousWrench,
+                force_frame: PlantExternalLoadFrame::World,
+                application_point_frame: PlantExternalLoadFrame::World,
+            },
+            request_id: 86,
+            expires_at: Instant::now() + Duration::from_millis(20),
+        });
+        let invalid_replacement = command("frame:not-advertised".to_owned(), current, None, 84);
+        if let Ok(replacement) = resolve_plant_target(&invalid_replacement, &handles, &positions) {
+            active_target = replacement;
+        }
+        let paused_replacement = command(
+            handle.handle_id.clone(),
+            [current[0], current[1] + 0.01, current[2]],
+            None,
+            87,
+        );
+        let paused_replacement = resolve_plant_target(&paused_replacement, &handles, &positions)
+            .unwrap()
+            .unwrap();
+        assert!(admit_plant_target(&mut active_target, paused_replacement, true).is_err());
+        assert_eq!(active_target.as_ref().unwrap().request_id, 85);
+        assert_eq!(active_push.as_ref().unwrap().request_id, 86);
+    }
+
+    #[test]
+    fn upkie_exposes_uniform_frame_handles_and_balanced_torso_preview() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../models/upkie/upkie.urdf");
         let program = MotionProgram::compile_urdf_file(path, TimingSpec::default(), 1).unwrap();
         let mut state = RobotState::zeros(&program.model);
@@ -5023,20 +5241,8 @@ mod tests {
             ground_root_lift(&program.model, &state).unwrap() + LIVE_GROUND_REGISTRATION_MARGIN_M;
         let mut squat = SquatContext::compile(&program.model, &state).unwrap();
         let handles = collect_interaction_handles(&program.model, Some(&squat));
-        assert_eq!(
-            handles
-                .iter()
-                .filter(|handle| handle.kind == "base")
-                .count(),
-            1
-        );
-        assert_eq!(
-            handles
-                .iter()
-                .filter(|handle| handle.kind == "joint")
-                .count(),
-            4
-        );
+        assert_eq!(handles.len(), 5);
+        assert!(handles.iter().all(|handle| handle.kind == "frame"));
         assert_eq!(
             handles
                 .iter()

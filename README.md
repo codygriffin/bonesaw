@@ -85,7 +85,7 @@ For a clearly labelled, state-local guided editor preview, set
 | Gesture / control | Action |
 | --- | --- |
 | Drag a green handle | Draft a target in the camera-facing plane |
-| Release the torso handle | Commit a bounded squat trajectory to the measured MuJoCo WBC loop; hold the endpoint |
+| Release any green handle | Commit that advertised frame target to the measured MuJoCo WBC loop; hold the endpoint |
 | Drag empty viewport | Orbit the camera |
 | Mouse wheel | Zoom |
 | Shift + drag | Pan |
@@ -94,13 +94,21 @@ For a clearly labelled, state-local guided editor preview, set
 | `R` / reset button | Reset the preview and the plant, when enabled |
 | Architecture review | Open the dataflow, evidence, and authority review surface |
 
-Dragging remains a draft on the preview `/ws`. Releasing the torso handle sends
-a typed `plant_target_commit` through `/plant-ws`; the worker plans from the
-latest measured MuJoCo state, runs the existing Rust WBC authorities, and holds
-the admitted endpoint. The separate `PUSH` tool remains an expiring external
-wrench disturbance. Plant telemetry labels `DRAFT`, `EXECUTING`, `HOLDING`, or
-`REJECTED` so preview intent, command execution, and disturbance evidence stay
-distinct.
+Dragging remains a draft on the preview `/ws`. Releasing any advertised green
+handle sends a typed `plant_frame_target_commit` through `/plant-ws`, using the
+server-issued `frame:<frame>` handle ID and a finite world-space position. The
+gateway validates the handle and schema; the worker bounds displacement and
+solves a support-constrained IK endpoint from the latest measured MuJoCo state.
+The controller gives the frame's world-X request to its existing rolling
+station authority, while support-constrained IK coordinates the root and
+joints to realize the remaining target while preserving both wheel centers'
+lateral and vertical support anchors. The same path serves the torso, both
+knees, and both ankles; there is no torso-only command mode. The separate
+`PUSH` tool remains an expiring external-wrench disturbance; target identity
+survives a push and execution resumes from measured state after balance
+recovery. Plant telemetry labels `DRAFT`, `EXECUTING`, `HOLDING`, `SUPPRESSED`,
+`AUTHORITY LIMITED`, or `REJECTED` so preview intent, command execution, and
+disturbance evidence stay distinct.
 
 ## Architecture
 
