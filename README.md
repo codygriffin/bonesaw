@@ -9,9 +9,10 @@ result through a small interactive browser client.
 
 ![Bonesaw Motion Rig Lab](docs/assets/bonesaw-live.png)
 
-The screenshot above is the local Upkie editor: the browser is connected to the
-Rust server, the model is rendered from the streamed canonical geometry, and
-the controller/authority panel is visible beside the viewport.
+The screenshot above is the local Upkie editor after all ten pinned STL assets
+have loaded: the browser is connected to the Rust server, the model is rendered
+from the streamed canonical geometry, and the controller/authority panel is
+visible beside the viewport.
 
 > Bonesaw is an engineering prototype, not a safety-rated robot controller.
 > The browser preview and research evaluations do not establish hardware,
