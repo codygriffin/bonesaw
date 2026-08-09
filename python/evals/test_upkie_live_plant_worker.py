@@ -904,6 +904,22 @@ class LiveUpkiePlantWorkerTests(unittest.TestCase):
                 "right_ankle_mj5208_rotor",
             ],
         )
+        layers = contract["active_target_wbc_layers"]
+        self.assertEqual(
+            [layer["priority"] for layer in layers], [0, 1, 2, 3, 4]
+        )
+        self.assertEqual(
+            contract["task_residual_semantics"],
+            "unweighted RMS in each task's physical units",
+        )
+        self.assertEqual(
+            layers[2]["weights"],
+            [{"task": "Cartesian point", "weight": 0.1}],
+        )
+        self.assertEqual(
+            [entry["weight"] for entry in layers[3]["weights"]],
+            [10.0, 10.0, 1.0],
+        )
 
     def test_rejected_replacement_preserves_target_and_external_push(self) -> None:
         torso = self.worker.data.xpos[self.worker.body_by_name["torso"]].copy()

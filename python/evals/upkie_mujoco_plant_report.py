@@ -1195,6 +1195,14 @@ class RustWbcAdapter:
         if not math.isfinite(control_dt) or control_dt <= 0.0:
             raise ValueError("control_dt must be finite and positive")
         self.control_dt = control_dt
+        # Keep the target-active task contract derived from the same values
+        # that construct the Rust session.  The live UI displays these exact
+        # lexicographic layers; it must not maintain a second handwritten set
+        # of controller weights.
+        self.root_angular_task_weight = float(root_angular_task_weight)
+        self.root_height_task_weight = 10.0
+        self.root_horizontal_task_weight = 10.0
+        self.joint_posture_task_weight = float(joint_posture_weight)
         self.centroidal_angular_momentum_weight = float(
             centroidal_angular_momentum_weight
         )
@@ -1251,14 +1259,14 @@ class RustWbcAdapter:
             use_feasibility_row_spans=use_feasibility_row_spans,
             reuse_identical_hard_feasibility_seed=viability_planner_transfer_hard_feasibility_witness,
             joint_limit_braking=True,
-            root_angular_task_weight=root_angular_task_weight,
-            root_height_task_weight=10.0,
-            root_horizontal_task_weight=10.0,
+            root_angular_task_weight=self.root_angular_task_weight,
+            root_height_task_weight=self.root_height_task_weight,
+            root_horizontal_task_weight=self.root_horizontal_task_weight,
             root_horizontal_task_priority=1,
             point_frequency_hz=2.0,
             centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
             centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
-            joint_posture_weight=joint_posture_weight,
+            joint_posture_weight=self.joint_posture_task_weight,
             joint_posture_priority=joint_posture_priority,
             center_of_mass_task_weight=0.0,
             minimum_support_load_fraction=minimum_support_load_fraction,
@@ -1299,13 +1307,13 @@ class RustWbcAdapter:
                 repair_feasibility_equalities_before_inequalities=True,
                 use_feasibility_row_spans=True,
                 joint_limit_braking=True,
-                root_angular_task_weight=root_angular_task_weight,
-                root_height_task_weight=10.0,
-                root_horizontal_task_weight=10.0,
+                root_angular_task_weight=self.root_angular_task_weight,
+                root_height_task_weight=self.root_height_task_weight,
+                root_horizontal_task_weight=self.root_horizontal_task_weight,
                 root_horizontal_task_priority=1,
                 centroidal_angular_momentum_weight=centroidal_angular_momentum_weight,
                 centroidal_angular_momentum_frequency_hz=centroidal_angular_momentum_frequency_hz,
-                joint_posture_weight=joint_posture_weight,
+                joint_posture_weight=self.joint_posture_task_weight,
                 joint_posture_priority=joint_posture_priority,
                 center_of_mass_task_weight=0.0,
                 minimum_support_load_fraction=minimum_support_load_fraction,
@@ -1343,8 +1351,14 @@ class RustWbcAdapter:
         self.cartesian_target_positions = np.empty((1, 1, 3), np.float64)
         self.cartesian_target_velocities = np.empty((1, 1, 3), np.float64)
         self.cartesian_target_accelerations = np.empty((1, 1, 3), np.float64)
-        self.cartesian_priorities = np.full(1, 2, np.uint8)
-        self.cartesian_weights = np.full(1, 0.1, np.float64)
+        self.cartesian_priority = 2
+        self.cartesian_weight = 0.1
+        self.cartesian_priorities = np.full(
+            1, self.cartesian_priority, np.uint8
+        )
+        self.cartesian_weights = np.full(
+            1, self.cartesian_weight, np.float64
+        )
         self.protected_joint_coordinates = ROLLING_COORDINATES.copy()
         self.protected_joint_accelerations = np.empty(2, np.float64)
         self.command_wheel_reference_position = np.zeros(2, np.float64)
@@ -2140,6 +2154,80 @@ class RustWbcAdapter:
         self.viability_coordinate_request = np.zeros(3, np.float64)
         self.viability_coordinate_queries = 0
         self.viability_coordinate_score = 0.0
+
+    def active_target_wbc_layers(self) -> list[dict[str, Any]]:
+        """Describe the exact target-active lexicographic task stack."""
+        support_weight = float(self.weights[0])
+        return [
+            {
+                "priority": 0,
+                "name": "Invariant",
+                "owner": "Hard rows + attitude",
+                "hard": [
+                    "rigid-body dynamics",
+                    "measured rolling contact",
+                    "protected rolling coordinates",
+                ],
+                "weights": [
+                    {
+                        "task": "root attitude",
+                        "weight": self.root_angular_task_weight,
+                    }
+                ],
+            },
+            {
+                "priority": 1,
+                "name": "Viability",
+                "owner": "Measured support",
+                "hard": [],
+                "weights": [
+                    {
+                        "task": "wheel point",
+                        "count": int(len(self.frame_ids)),
+                        "weight": support_weight,
+                    }
+                ],
+            },
+            {
+                "priority": self.cartesian_priority,
+                "name": "Intent",
+                "owner": "Selected frame target",
+                "hard": [],
+                "weights": [
+                    {
+                        "task": "Cartesian point",
+                        "weight": self.cartesian_weight,
+                    }
+                ],
+            },
+            {
+                "priority": 3,
+                "name": "Preference",
+                "owner": "Balance realization",
+                "hard": [],
+                "weights": [
+                    {
+                        "task": "root horizontal",
+                        "weight": self.root_horizontal_task_weight,
+                    },
+                    {
+                        "task": "root height",
+                        "weight": self.root_height_task_weight,
+                    },
+                    {
+                        "task": "joint posture",
+                        "weight": self.joint_posture_task_weight,
+                    },
+                ],
+            },
+            {
+                "priority": 4,
+                "name": "Style",
+                "owner": "Unclaimed nullspace",
+                "hard": [],
+                "weights": [],
+            },
+        ]
 
     def _run_wbc_query(self) -> None:
         out = self.out

@@ -533,6 +533,11 @@ class LiveUpkiePlant:
                 "hold_consecutive_ticks": COMMAND_HOLD_CONSECUTIVE_TICKS,
                 "endpoint_policy": "hold measured endpoint until next target or reset",
                 "authority": "Rust WBC task under measured contact, collision, joint, actuator, and balance authorities",
+                "priority_semantics": "lower numeric priority owns the remaining nullspace",
+                "task_residual_semantics": "unweighted RMS in each task's physical units",
+                "active_target_wbc_layers": (
+                    self.controller.active_target_wbc_layers()
+                ),
             },
             "automatic_reset": {
                 "fall_height_m": FALL_HEIGHT_M,

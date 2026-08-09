@@ -60,11 +60,38 @@ class LiveEditorUiContractTest(unittest.TestCase):
 
     def test_handles_are_visible_and_only_visible_frames_are_hit_tested(self) -> None:
         self.assertIn('id="target-guide"', self.html)
-        self.assertIn("GREEN CONTROLS", self.html)
+        self.assertIn("TARGET MODE", self.html)
         self.assertIn("interactionHandles.size", self.javascript)
         self.assertIn('pushing ? "#ff9d45" : "#5ee6a5"', self.javascript)
         self.assertIn("for (const handle of interactionHandles.values())", self.javascript)
         self.assertIn("if (!frame) continue", self.javascript)
+
+    def test_wbc_authority_weighting_and_performance_are_the_stable_top_surface(self) -> None:
+        for element_id in (
+            "wbc-alert",
+            "wbc-admission-pill",
+            "wbc-layer-stack",
+            "wbc-solve-performance",
+            "wbc-cadence-performance",
+            "wbc-effort-performance",
+        ):
+            self.assertIn(f'id="{element_id}"', self.html)
+        self.assertIn('data-wbc-priority="0"', self.html)
+        self.assertIn('data-wbc-priority="4"', self.html)
+        self.assertIn("position: sticky", self.css)
+        self.assertIn("scrollbar-gutter: stable", self.css)
+        self.assertIn("initializeFocusedWbcContract", self.javascript)
+        self.assertIn("active_target_wbc_layers", self.javascript)
+        self.assertIn("updateFocusedWbc(message)", self.javascript)
+        self.assertIn("maximum_actuator_effort_utilization", self.javascript)
+
+    def test_controller_errors_do_not_share_the_green_mode_banner_location(self) -> None:
+        self.assertIn("z-index: 7; top: 96px; left: 16px", self.css)
+        self.assertIn("top: 54px; right: 16px", self.css)
+        self.assertIn('toast.dataset.severity = normalizedSeverity', self.javascript)
+        self.assertIn('setFocusedWbcAlert(message, normalizedSeverity, "system")', self.javascript)
+        self.assertIn('showToast(message.message || "Plant command rejected", "critical")', self.javascript)
+        self.assertIn('role="status" aria-live="polite"', self.html)
 
     def test_controls_enable_only_after_hello_schema_arrives(self) -> None:
         main_connect = self.javascript[self.javascript.index("function connect()") :]
@@ -99,7 +126,7 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('type: "plant_frame_target_commit"', self.javascript)
         self.assertIn("handle_id: handle.handle_id", self.javascript)
         self.assertIn("target: { position_world_m: [...positionWorldM] }", self.javascript)
-        self.assertIn("release any control to command MuJoCo", self.javascript)
+        self.assertIn("release to command MuJoCo", self.javascript)
         self.assertIn("flushTargetCommit", self.javascript)
         self.assertIn('target_command_contract', (ROOT / "python/evals/upkie_live_plant_worker.py").read_text())
         self.assertIn('"target_command"', (ROOT / "crates/bonesaw-tools/src/bin/server.rs").read_text())

@@ -1,4 +1,4 @@
-// Browser adapter for architecture revision r235.
+// Browser adapter for architecture revision r236.
 const canvas = document.querySelector("#rig-canvas");
 const context = canvas.getContext("2d");
 const viewport = document.querySelector(".viewport");
@@ -52,6 +52,24 @@ const actuatorBudgetSummary = document.querySelector("#actuator-budget-summary")
 const runtimeRates = document.querySelector("#runtime-rates");
 const plantWrench = document.querySelector("#plant-wrench");
 const plantWrenchLimit = document.querySelector("#plant-wrench-limit");
+const wbcAdmissionPill = document.querySelector("#wbc-admission-pill");
+const wbcAlert = document.querySelector("#wbc-alert");
+const wbcAlertLabel = document.querySelector("#wbc-alert-label");
+const wbcAlertMessage = document.querySelector("#wbc-alert-message");
+const wbcCommandPhase = document.querySelector("#wbc-command-phase");
+const wbcCommandDetail = document.querySelector("#wbc-command-detail");
+const wbcTargetError = document.querySelector("#wbc-target-error");
+const wbcTargetDetail = document.querySelector("#wbc-target-detail");
+const wbcSolvePerformance = document.querySelector("#wbc-solve-performance");
+const wbcSolveBudget = document.querySelector("#wbc-solve-budget");
+const wbcCadencePerformance = document.querySelector("#wbc-cadence-performance");
+const wbcCadenceDetail = document.querySelector("#wbc-cadence-detail");
+const wbcEffortPerformance = document.querySelector("#wbc-effort-performance");
+const wbcEffortDetail = document.querySelector("#wbc-effort-detail");
+const focusedWbcLayers = new Map(
+  [...document.querySelectorAll("[data-wbc-priority]")]
+    .map((row) => [Number(row.dataset.wbcPriority), row]),
+);
 
 let socket;
 let plantSocket;
@@ -129,6 +147,7 @@ let lastTelemetryUpdateMs = -Infinity;
 let lastTelemetryTick = null;
 let snapshotPeriodMs = 20;
 let lastInteractionNotice = null;
+let toastTimer = null;
 const TELEMETRY_INTERVAL_MS = 100;
 const MAX_VIEWPORT_PIXEL_RATIO = 2;
 const performancePanel = document.querySelector("#viewport-performance");
@@ -261,6 +280,226 @@ function updateActuatorBudget(message) {
   actuatorBudgetSummary.textContent = `max ${Math.round(100 * maximumUtilization)}% · |P| ${maximumPower.toFixed(1)} W · thermal N/A`;
 }
 
+function focusedWeightLabel(entry) {
+  const count = Number(entry.count || 1);
+  const prefix = count > 1 ? `${count}× ` : "";
+  const weight = Number(entry.weight);
+  const compactTaskNames = {
+    "root attitude": "attitude",
+    "wheel point": "wheel",
+    "Cartesian point": "Cartesian",
+    "root horizontal": "root x",
+    "root height": "root z",
+    "joint posture": "posture",
+  };
+  const task = compactTaskNames[entry.task] || entry.task;
+  return Number.isFinite(weight)
+    ? `${prefix}${task} w${weight.toLocaleString(undefined, { maximumFractionDigits: 3 })}`
+    : `${prefix}${task}`;
+}
+
+function initializeFocusedWbcContract(contract) {
+  const layers = contract?.active_target_wbc_layers;
+  if (!Array.isArray(layers)) return;
+  for (const layer of layers) {
+    const row = focusedWbcLayers.get(Number(layer.priority));
+    if (!row) continue;
+    const owner = row.querySelector(".wbc-layer-copy strong");
+    const weighting = row.querySelector(".wbc-layer-weight");
+    if (layer.owner) owner.textContent = layer.owner;
+    const hard = Array.isArray(layer.hard) ? layer.hard : [];
+    const parts = [
+      ...(Array.isArray(layer.weights) ? layer.weights.map(focusedWeightLabel) : []),
+      ...(hard.length ? [`${hard.length} exact constraint${hard.length === 1 ? "" : "s"}`] : []),
+    ];
+    weighting.textContent = parts.length ? parts.join(" · ") : "no authored task";
+    row.title = [
+      layer.name || `priority ${layer.priority}`,
+      weighting.textContent,
+      hard.length ? `hard: ${hard.join(", ")}` : null,
+    ].filter(Boolean).join(" · ");
+  }
+}
+
+function setFocusedWbcLayer(priority, value, state, detail) {
+  const row = focusedWbcLayers.get(priority);
+  if (!row) return;
+  row.className = `wbc-layer-row ${state}`;
+  row.querySelector("output").textContent = value;
+  row.title = detail;
+}
+
+function setFocusedWbcAlert(message, severity = "ok", source = "controller") {
+  const labels = {
+    ok: "Controller monitor",
+    warning: "Controller authority limited",
+    critical: "Controller fault",
+  };
+  wbcAlert.className = `wbc-alert ${severity}`;
+  wbcAlert.dataset.source = source;
+  wbcAlertLabel.textContent = labels[severity] || labels.ok;
+  wbcAlertMessage.textContent = message;
+  wbcAlert.title = message;
+  wbcAlert.setAttribute("role", severity === "critical" ? "alert" : "status");
+  wbcAlert.setAttribute("aria-live", severity === "critical" ? "assertive" : "polite");
+}
+
+function resetFocusedWbc(status = "Waiting for measured MuJoCo feedback.") {
+  wbcAdmissionPill.textContent = "WAITING";
+  wbcAdmissionPill.className = "wbc-admission-pill waiting";
+  wbcCommandPhase.textContent = "IDLE";
+  wbcCommandDetail.textContent = "No frame target committed";
+  wbcTargetError.textContent = "—";
+  wbcTargetDetail.textContent = "measured frame error";
+  wbcSolvePerformance.textContent = "—";
+  wbcSolveBudget.textContent = "20 ms budget";
+  wbcCadencePerformance.textContent = "—";
+  wbcCadenceDetail.textContent = "WBC / MuJoCo";
+  wbcEffortPerformance.textContent = "—";
+  wbcEffortDetail.textContent = "measured utilization";
+  setFocusedWbcLayer(0, "—", "unavailable", "measured hard-row residual unavailable");
+  setFocusedWbcLayer(1, "—", "unavailable", "measured support unavailable");
+  setFocusedWbcLayer(2, "ARMED", "unavailable", "no frame target committed");
+  setFocusedWbcLayer(3, "—", "unavailable", "balance realization unavailable");
+  setFocusedWbcLayer(4, "IDLE", "unavailable", "no authored style task");
+  setFocusedWbcAlert(status, "warning", "connection");
+}
+
+function updateFocusedWbc(message) {
+  const metrics = message.metrics || {};
+  const target = message.target_command || {};
+  const phase = String(target.phase || metrics.command_phase || "idle").toLowerCase();
+  const targetActive = phase !== "idle";
+  const targetFrame = target.frame || metrics.command_frame;
+  const progress = Number(target.progress ?? metrics.command_progress);
+  const error = Number(target.position_error_m ?? metrics.command_position_error_m);
+  const taskRms = Number(target.task_rms ?? metrics.command_task_rms);
+  const taskClipped = Boolean(target.task_clipped ?? metrics.command_task_clipped);
+  const executable = Boolean(target.intent_executable ?? metrics.command_intent_executable);
+  const suppressed = Boolean(target.intent_suppressed ?? metrics.command_intent_suppressed);
+  const intentStatus = String(target.intent_status || "inactive");
+  const admitted = Boolean(metrics.wbc_admitted);
+
+  wbcCommandPhase.textContent = phase.toUpperCase();
+  wbcCommandDetail.textContent = targetFrame
+    ? `${String(targetFrame).replaceAll("_", " ")} · ${Number.isFinite(progress) ? `${Math.round(100 * progress)}%` : "progress N/A"}`
+    : target.reason || metrics.command_reason || "No frame target committed";
+  wbcCommandDetail.title = target.reason || metrics.command_reason || wbcCommandDetail.textContent;
+  wbcTargetError.textContent = Number.isFinite(error) && targetActive
+    ? `${(1000 * error).toFixed(1)} mm`
+    : "—";
+  wbcTargetDetail.textContent = targetActive ? intentStatus : "measured frame error";
+
+  let pillLabel = admitted ? "ADMITTED" : "REJECTED";
+  let pillState = admitted ? "ok" : "critical";
+  if (plantPaused) {
+    pillLabel = "PAUSED";
+    pillState = "warning";
+  } else if (phase === "holding") {
+    pillLabel = "HOLDING";
+  } else if (phase === "authority_limited" || suppressed || taskClipped) {
+    pillLabel = "LIMITED";
+    pillState = "warning";
+  } else if (phase === "rejected") {
+    pillLabel = "REJECTED";
+    pillState = "critical";
+  } else if (phase === "executing") {
+    pillLabel = "TRACKING";
+  }
+  wbcAdmissionPill.textContent = pillLabel;
+  wbcAdmissionPill.className = `wbc-admission-pill ${pillState}`;
+
+  const hardParts = [
+    Number(metrics.wbc_dynamics_residual),
+    Number(metrics.wbc_contact_residual),
+    Number(metrics.wbc_maximum_constraint_violation),
+  ].filter(Number.isFinite);
+  const hardResidual = hardParts.length
+    ? Math.max(...hardParts.map(Math.abs))
+    : Number.NaN;
+  const hardPressure = upperPressure(hardResidual, authorityThresholds.hard_residual);
+  setFocusedWbcLayer(
+    0,
+    Number.isFinite(hardResidual) ? hardResidual.toExponential(1) : "N/A",
+    !admitted ? "critical" : hardPressure >= 1 ? "critical" : hardPressure >= 0.7 ? "warning" : "ok",
+    Number.isFinite(hardResidual)
+      ? `maximum measured dynamics/contact/inequality residual ${hardResidual.toExponential(3)}`
+      : "measured hard-row residual unavailable",
+  );
+
+  const supportCount = Number(metrics.wbc_support_active_count);
+  setFocusedWbcLayer(
+    1,
+    Number.isFinite(supportCount) ? `${supportCount}/2` : "N/A",
+    supportCount >= 2 ? "ok" : supportCount === 1 ? "warning" : "critical",
+    Number.isFinite(supportCount)
+      ? `${supportCount}/2 measured rolling contacts own support authority`
+      : "measured support unavailable",
+  );
+
+  const intentState = !targetActive
+    ? "unavailable"
+    : suppressed || !executable ? "critical"
+    : taskClipped ? "warning"
+    : "ok";
+  setFocusedWbcLayer(
+    2,
+    targetActive && Number.isFinite(taskRms) ? `${taskRms.toExponential(1)} RMS` : targetActive ? "N/A" : "ARMED",
+    intentState,
+    targetActive
+      ? `${intentStatus} · ${Number.isFinite(error) ? `${(1000 * error).toFixed(2)} mm measured error` : "error unavailable"}`
+      : "no frame target committed",
+  );
+
+  const stationAuthority = Number(metrics.station_authority);
+  const stationState = !Number.isFinite(stationAuthority)
+    ? "unavailable"
+    : stationAuthority < 0.5 ? "critical"
+    : stationAuthority < 0.98 ? "warning"
+    : "ok";
+  setFocusedWbcLayer(
+    3,
+    Number.isFinite(stationAuthority) ? `${Math.round(100 * clampUnit(stationAuthority))}%` : "N/A",
+    stationState,
+    Number.isFinite(stationAuthority)
+      ? `balance/station authority ${stationAuthority.toFixed(3)} · preference layer yields to frame intent`
+      : "balance realization unavailable",
+  );
+  setFocusedWbcLayer(4, "IDLE", "unavailable", "no authored style task");
+
+  const solveUs = Number(metrics.controller_step_us);
+  const solveLimitUs = Number(authorityThresholds.solver_wall_time_us?.critical || 20000);
+  wbcSolvePerformance.textContent = Number.isFinite(solveUs) ? `${solveUs.toFixed(0)} µs` : "N/A";
+  wbcSolveBudget.textContent = Number.isFinite(solveUs)
+    ? `${(100 * solveUs / solveLimitUs).toFixed(1)}% of ${(solveLimitUs / 1000).toFixed(0)} ms`
+    : `${(solveLimitUs / 1000).toFixed(0)} ms budget`;
+  const controlHz = Number(plantHello?.control_hz);
+  const physicsHz = Number(plantHello?.physics_hz);
+  const streamHz = Number(plantHello?.stream_hz);
+  wbcCadencePerformance.textContent = Number.isFinite(controlHz) && Number.isFinite(physicsHz)
+    ? `${controlHz}/${physicsHz} Hz`
+    : "N/A";
+  wbcCadenceDetail.textContent = Number.isFinite(streamHz) ? `WBC / MuJoCo · ${streamHz} Hz UI` : "WBC / MuJoCo";
+  const effort = Number(metrics.maximum_actuator_effort_utilization);
+  wbcEffortPerformance.textContent = Number.isFinite(effort) ? `${Math.round(100 * effort)}%` : "N/A";
+  wbcEffortDetail.textContent = Number.isFinite(Number(metrics.maximum_abs_actuator_effort_nm))
+    ? `${Number(metrics.maximum_abs_actuator_effort_nm).toFixed(2)} N·m max`
+    : "measured utilization";
+
+  const currentAlertSource = wbcAlert.dataset.source;
+  const failurePhase = phase === "rejected" || phase === "suppressed" || phase === "authority_limited";
+  if (failurePhase) {
+    const severity = phase === "authority_limited" ? "warning" : "critical";
+    setFocusedWbcAlert(target.reason || intentStatus || `command ${phase}`, severity, "command");
+  } else if (currentAlertSource === "command" || currentAlertSource === "connection") {
+    setFocusedWbcAlert(
+      targetActive ? `Frame intent is ${intentStatus}; measured WBC feedback is live.` : "No active controller fault.",
+      "ok",
+      "controller",
+    );
+  }
+}
+
 function baseExecutionLabel() {
   return baseExecution === "guided_preview"
     ? "uniform draft handles · measured WBC"
@@ -278,7 +517,7 @@ function updateInteractionUi() {
   targetGuide.classList.toggle("push-guide", pushing);
   targetGuide.querySelector("span").innerHTML = pushing
     ? "<strong>ORANGE WRENCH</strong> · Ctrl+drag any rendered body"
-    : `<strong>${interactionHandles.size} GREEN CONTROLS</strong> · release any control to command MuJoCo · orange dashed rig is measured MuJoCo`;
+    : `<strong>TARGET MODE</strong> · ${interactionHandles.size} handles · release to command MuJoCo · orange dashed rig is measured MuJoCo`;
   viewportInstruction.textContent = pushing
     ? "WRENCH: Ctrl+drag any body · empty drag orbits · Shift+drag pans · wheel zooms"
     : "TARGET: drag any green control · release to command MuJoCo · Ctrl+drag any body to wrench · Shift+drag pans · wheel zooms";
@@ -305,13 +544,15 @@ function flushTargetCommit() {
   if (!sent) return false;
   pendingTargetCommit = null;
   plantCommandState.textContent = "COMMITTING · waiting for measured plant state";
+  wbcCommandPhase.textContent = "COMMITTING";
+  wbcCommandDetail.textContent = "Waiting for measured WBC admission";
   return true;
 }
 
 function commitTarget(handle, positionWorldM) {
   if (!plantGateway?.available) {
     plantCommandState.textContent = "REJECTED · live MuJoCo plant unavailable";
-    showToast("Target released as preview only · live MuJoCo plant unavailable");
+    showToast("Target released as preview only · live MuJoCo plant unavailable", "critical");
     return;
   }
   pendingTargetCommit = {
@@ -331,6 +572,11 @@ function commitTarget(handle, positionWorldM) {
     requestId: pendingTargetCommit.request_id,
   };
   plantCommandState.textContent = "COMMITTING · target queued for measured WBC";
+  wbcCommandPhase.textContent = "COMMITTING";
+  wbcCommandDetail.textContent = String(handle.frame).replaceAll("_", " ");
+  wbcTargetError.textContent = "—";
+  wbcTargetDetail.textContent = "awaiting measured admission";
+  setFocusedWbcAlert("Frame target queued; waiting for measured WBC admission.", "ok", "command");
   connectPlant();
   flushTargetCommit();
 }
@@ -351,6 +597,7 @@ function resetPlantTelemetry(status = "disconnected · ghost") {
   contactLoadState.textContent = "awaiting wheel loads";
   plantWrench.textContent = "unavailable";
   resetActuatorBudget(status);
+  resetFocusedWbc(status);
   for (const [id, label] of [
     ["authority-capture", "awaiting live MuJoCo state"],
     ["authority-fall-safe", "awaiting prior-command lease evidence"],
@@ -516,11 +763,11 @@ function enqueuePlantState(message) {
     : message.command_expired ? "expired · fail-safe release" : "released";
   updatePlantTelemetry(message);
   if (message.automatic_reset_reason) {
-    showToast(`Plant reset after ${message.automatic_reset_reason}`);
+    showToast(`Plant reset after ${message.automatic_reset_reason}`, "warning");
   } else if (message.numeric_reset) {
-    showToast("Plant numeric fault reset explicitly");
+    showToast("Plant numeric fault reset explicitly", "critical");
   } else if (metrics.fallen) {
-    showToast("Plant fell · automatic reset armed");
+    showToast("Plant fell · automatic reset armed", "critical");
     sendPlant({ type: "plant_release" });
     pushDrag = null;
     pendingPushCommand = null;
@@ -547,6 +794,7 @@ function connectPlant() {
     if (message.type === "plant_hello") {
       plantHello = message;
       initializeActuatorBudget(message);
+      initializeFocusedWbcContract(message.target_command_contract);
       plantConnected = true;
       plantStateFresh = false;
       plantPaused = Boolean(message.paused);
@@ -562,6 +810,9 @@ function connectPlant() {
       plantStatus.textContent = `${message.control_hz} Hz WBC · ${message.stream_hz} Hz stream`;
       simulatorState.textContent = `${simulator.backend || "MuJoCo"} ${simulator.version || ""} · ${simulator.integrator || "unknown integrator"}`.trim();
       runtimeRates.textContent = `${message.control_hz} / ${message.physics_hz} Hz · ${message.physics_substeps_per_control} substeps`;
+      wbcCadencePerformance.textContent = `${message.control_hz}/${message.physics_hz} Hz`;
+      wbcCadenceDetail.textContent = `WBC / MuJoCo · ${message.stream_hz} Hz UI`;
+      setFocusedWbcAlert("Plant connected; waiting for the first measured WBC tick.", "ok", "connection");
       flushTargetCommit();
       connectionLabel.textContent = interactionMode === "push" ? "Streaming · plant" : "Streaming";
       updateInteractionUi();
@@ -571,10 +822,15 @@ function connectPlant() {
       if (message.command_phase === "rejected") {
         pendingTargetMarker = null;
         plantCommandState.textContent = `REJECTED · ${message.message || "target command rejected"}`;
+        wbcCommandPhase.textContent = "REJECTED";
+        wbcCommandDetail.textContent = message.message || "Target command rejected";
+        wbcAdmissionPill.textContent = "REJECTED";
+        wbcAdmissionPill.className = "wbc-admission-pill critical";
+        setFocusedWbcLayer(2, "REJECTED", "critical", message.message || "target command rejected");
       }
-      showToast(message.message || "Plant command rejected");
+      showToast(message.message || "Plant command rejected", "critical");
     } else if (message.type === "plant_unavailable") {
-      showToast(message.reason || "Physical plant unavailable");
+      showToast(message.reason || "Physical plant unavailable", "critical");
       disconnectPlant({ preserveGhost: true });
       connectionLabel.textContent = "Plant reconnecting";
       setRobotControlsEnabled(false);
@@ -585,6 +841,7 @@ function connectPlant() {
   };
   plantSocket.onerror = () => {
     plantStatus.textContent = "connection fault";
+    showToast("MuJoCo plant WebSocket connection fault", "critical");
   };
   plantSocket.onclose = () => {
     // Keep the last measured geometry as a disconnected ghost while clearing
@@ -605,7 +862,7 @@ function connectPlant() {
 function setInteractionMode(mode) {
   if (mode !== "target" && mode !== "push") return;
   if (mode === "push" && !plantGateway?.available) {
-    showToast("Physical MuJoCo plant is unavailable");
+    showToast("Physical MuJoCo plant is unavailable", "critical");
     return;
   }
   if (interactionMode === mode) return;
@@ -894,6 +1151,7 @@ function updatePlantTelemetry(message) {
   const metrics = message.metrics || {};
   const simulator = message.simulator || {};
   const targetCommand = message.target_command || {};
+  updateFocusedWbc(message);
   const commandPhase = String(targetCommand.phase || metrics.command_phase || "idle").toUpperCase();
   const commandProgress = Number(targetCommand.progress ?? metrics.command_progress);
   const commandError = Number(targetCommand.position_error_m ?? metrics.command_position_error_m);
@@ -1349,9 +1607,9 @@ function connect() {
         1,
         "critical",
       );
-      showToast(message.reason);
+      showToast(message.reason, "critical");
     } else if (message.type === "error") {
-      showToast(message.message);
+      showToast(message.message, "critical");
     }
   });
 }
@@ -2764,7 +3022,7 @@ canvas.addEventListener("pointerdown", (event) => {
     : null;
   if (event.ctrlKey) {
     if (!plantGateway?.available) {
-      showToast("Physical MuJoCo plant is unavailable");
+      showToast("Physical MuJoCo plant is unavailable", "critical");
       return;
     }
     if (!bodyPick) {
@@ -3110,15 +3368,18 @@ function updateObservationTransport(metrics) {
 function updateInteractionNotice(metrics) {
   let notice = "ok";
   let message = null;
+  let severity = "info";
   if (metrics.interaction_target_clamped) {
     notice = "clamped";
+    severity = "warning";
     const errorMm = Math.abs(metrics.interaction_target_clamp_error_m || 0) * 1000;
     message = `Target limit reached · ${errorMm.toFixed(0)} mm beyond preview range · stream continues`;
   } else if (metrics.guided_preview_wbc_admitted === false) {
     notice = "wbc_infeasible";
+    severity = "critical";
     message = "WBC cannot admit this pose · kinematic preview continues";
   }
-  if (notice !== lastInteractionNotice && message) showToast(message);
+  if (notice !== lastInteractionNotice && message) showToast(message, severity);
   lastInteractionNotice = notice;
 }
 
@@ -3132,7 +3393,7 @@ function updateSelection(target = selected?.translation) {
   document.querySelector("#selected-z").textContent = target[2].toFixed(3);
   const handle = interactionHandles.get(selected.name);
   document.querySelector("#selection-mode").textContent =
-    handle ? "Plant frame target · WBC intent" : "2 · Intent";
+    handle ? "P2 · Intent · w0.1" : "P2 · Intent";
 }
 
 function updateTelemetry(message) {
@@ -4161,15 +4422,32 @@ function resumeSimulation() {
   updateInteractionUi();
 }
 
-function showToast(message) {
+function showToast(message, severity = "info") {
+  const normalizedSeverity = ["info", "warning", "critical"].includes(severity)
+    ? severity
+    : "info";
+  if (toastTimer !== null) clearTimeout(toastTimer);
   toast.textContent = message;
+  toast.dataset.severity = normalizedSeverity;
   toast.classList.add("visible");
-  setTimeout(() => toast.classList.remove("visible"), 2500);
+  if (normalizedSeverity === "warning" || normalizedSeverity === "critical") {
+    setFocusedWbcAlert(message, normalizedSeverity, "system");
+  }
+  const durationMs = normalizedSeverity === "critical" ? 8000
+    : normalizedSeverity === "warning" ? 5000
+    : 3000;
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("visible");
+    toastTimer = null;
+  }, durationMs);
 }
 
 document.querySelector("#reset-button").addEventListener("click", reset);
 pauseButton.addEventListener("click", pauseSimulation);
 resumeButton.addEventListener("click", resumeSimulation);
+document.querySelector("#wbc-alert-dismiss").addEventListener("click", () => {
+  setFocusedWbcAlert("Alert dismissed; measured controller telemetry remains live.", "ok", "controller");
+});
 [targetTool, pushTool].forEach((button) => {
   button.addEventListener("click", () => setInteractionMode(button.dataset.interactionMode));
 });

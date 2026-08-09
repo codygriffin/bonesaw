@@ -9,7 +9,7 @@
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%2318251f'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-size='13' font-weight='700' fill='%238fe6c0'%3EBS%3C/text%3E%3C/svg%3E" />
     <title>Bonesaw · Motion Rig Lab</title>
-    <link rel="stylesheet" href="/styles.css?v=14" />
+    <link rel="stylesheet" href="/styles.css?v=15" />
   </head>
   <body>
     <div class="shell">
@@ -63,7 +63,7 @@
           </div>
           <div id="target-guide" class="target-guide" aria-live="polite">
             <i></i>
-            <span><strong>GREEN CONTROLS</strong> · drag any control, then release to command MuJoCo</span>
+            <span><strong>TARGET MODE</strong> · drag any of 5 handles, then release to command MuJoCo</span>
           </div>
           <div id="viewport-instruction" class="instruction">
             <span class="mouse-icon"></span>
@@ -78,6 +78,71 @@
         </section>
 
         <aside class="inspector">
+          <section class="wbc-console" aria-labelledby="wbc-console-title">
+            <div class="section-heading wbc-console-heading">
+              <div>
+                <span>Whole-body controller</span>
+                <h2 id="wbc-console-title">Command authority</h2>
+              </div>
+              <span id="wbc-admission-pill" class="wbc-admission-pill waiting">WAITING</span>
+            </div>
+            <div id="wbc-alert" class="wbc-alert ok" role="status" aria-live="polite">
+              <div>
+                <strong id="wbc-alert-label">Controller monitor</strong>
+                <span id="wbc-alert-message">Waiting for measured MuJoCo feedback.</span>
+              </div>
+              <button id="wbc-alert-dismiss" type="button" aria-label="Dismiss controller alert" title="Dismiss controller alert">×</button>
+            </div>
+            <div class="wbc-command-summary" aria-label="Current WBC command">
+              <div>
+                <span>Command</span>
+                <strong id="wbc-command-phase">IDLE</strong>
+                <small id="wbc-command-detail">No frame target committed</small>
+              </div>
+              <div>
+                <span>Target error</span>
+                <output id="wbc-target-error">—</output>
+                <small id="wbc-target-detail">measured frame error</small>
+              </div>
+            </div>
+            <div class="wbc-layer-heading">
+              <h3>Active target stack</h3>
+              <span>lower number owns the nullspace</span>
+            </div>
+            <div id="wbc-layer-stack" class="wbc-layer-stack">
+              <article class="wbc-layer-row unavailable" data-wbc-priority="0">
+                <span class="wbc-layer-priority"><b>P0</b><small>Invariant</small></span>
+                <span class="wbc-layer-copy"><strong>Hard rows + attitude</strong><small class="wbc-layer-weight">hard · root attitude w10</small></span>
+                <output>—</output>
+              </article>
+              <article class="wbc-layer-row unavailable" data-wbc-priority="1">
+                <span class="wbc-layer-priority"><b>P1</b><small>Viability</small></span>
+                <span class="wbc-layer-copy"><strong>Measured support</strong><small class="wbc-layer-weight">2 wheel points · w1 each</small></span>
+                <output>—</output>
+              </article>
+              <article class="wbc-layer-row unavailable" data-wbc-priority="2">
+                <span class="wbc-layer-priority"><b>P2</b><small>Intent</small></span>
+                <span class="wbc-layer-copy"><strong>Selected frame target</strong><small class="wbc-layer-weight">Cartesian point · w0.1</small></span>
+                <output>ARMED</output>
+              </article>
+              <article class="wbc-layer-row unavailable" data-wbc-priority="3">
+                <span class="wbc-layer-priority"><b>P3</b><small>Preference</small></span>
+                <span class="wbc-layer-copy"><strong>Balance realization</strong><small class="wbc-layer-weight">root x/z w10 · posture w1</small></span>
+                <output>—</output>
+              </article>
+              <article class="wbc-layer-row unavailable" data-wbc-priority="4">
+                <span class="wbc-layer-priority"><b>P4</b><small>Style</small></span>
+                <span class="wbc-layer-copy"><strong>Unclaimed nullspace</strong><small class="wbc-layer-weight">no authored task</small></span>
+                <output>IDLE</output>
+              </article>
+            </div>
+            <div class="wbc-performance" aria-label="Measured WBC performance">
+              <div><span>Solve</span><output id="wbc-solve-performance">—</output><small id="wbc-solve-budget">20 ms budget</small></div>
+              <div><span>Cadence</span><output id="wbc-cadence-performance">—</output><small id="wbc-cadence-detail">WBC / MuJoCo</small></div>
+              <div><span>Effort</span><output id="wbc-effort-performance">—</output><small id="wbc-effort-detail">measured utilization</small></div>
+            </div>
+          </section>
+
           <section>
             <div class="section-heading">
               <h2>Controller</h2>
@@ -148,7 +213,7 @@
                 <label>Y <output id="selected-y">0.000</output></label>
                 <label>Z <output id="selected-z">0.000</output></label>
               </div>
-              <div class="priority-row"><span>Mode</span><b id="selection-mode">2 · Intent</b></div>
+              <div class="priority-row"><span>Mode</span><b id="selection-mode">P2 · Intent · w0.1</b></div>
             </div>
           </section>
 
@@ -528,6 +593,6 @@
       </header>
       <div id="architecture-content" class="architecture-content"></div>
     </aside>
-    <script src="/motion-rig-r16.js?v=235" defer></script>
+    <script src="/motion-rig-r16.js?v=236" defer></script>
   </body>
 </html>
