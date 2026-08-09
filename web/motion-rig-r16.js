@@ -91,6 +91,7 @@ let collisionGeometry = [];
 let supportPatches = [];
 let worldSdfPlanes = [];
 let latestMetrics = null;
+let latestPreviewMetrics = null;
 let frameNames = [];
 let bodyNames = [];
 let coordinateNames = [];
@@ -419,6 +420,24 @@ function plantFrames(message) {
   });
 }
 
+function plantPresentationMetrics(message) {
+  const metrics = message?.metrics || {};
+  const torqueUtilization = Number(
+    metrics.maximum_actuator_effort_utilization ?? metrics.torque_utilization,
+  );
+  return {
+    ...metrics,
+    solve_us: Number(metrics.controller_step_us),
+    guided_preview_wbc_admitted: metrics.wbc_admitted,
+    interaction_target_clamped: Boolean(message?.target_command?.clamped),
+    maximum_torque_utilization: torqueUtilization,
+    minimum_support_margin_m: Number.NaN,
+    minimum_joint_margin_rad: Number.NaN,
+    minimum_joint_stopping_margin_rad_s2: Number.NaN,
+    center_of_mass_world: message?.center_of_mass_world || message?.root_position,
+  };
+}
+
 function enqueuePlantState(message) {
   const firstPlantState = plantState === null;
   plantStateFresh = true;
@@ -442,6 +461,9 @@ function enqueuePlantState(message) {
       frame: targetFrame,
       positionWorldM: [...admittedTarget],
       requestId: targetRequestId,
+      phase: targetPhase,
+      progress: Number(targetTelemetry.progress),
+      intentStatus: String(targetTelemetry.intent_status || "unknown"),
     };
   } else if (targetPhase === "idle") {
     activePlantTarget = null;
@@ -477,16 +499,7 @@ function enqueuePlantState(message) {
       command_id: message.command_id,
       active_frame: message.external_load?.active ? message.external_load.body : null,
       frames: measuredPlantFrames,
-      metrics: {
-        solve_us: metrics.controller_step_us,
-        guided_preview_wbc_admitted: metrics.wbc_admitted,
-        interaction_target_clamped: false,
-        maximum_torque_utilization: metrics.torque_utilization,
-        minimum_support_margin_m: Number.NaN,
-        minimum_joint_margin_rad: Number.NaN,
-        minimum_joint_stopping_margin_rad_s2: Number.NaN,
-        center_of_mass_world: message.center_of_mass_world || message.root_position,
-      },
+      metrics: plantPresentationMetrics(message),
     });
   }
   const stateLabel = plantPaused
@@ -1734,7 +1747,7 @@ function drawGeometryLayer() {
   if (now - lastPreviewGroundUpdateMs >= 100) {
     const clearanceMm = 1000 * renderedMinimumGroundClearanceM;
     const collisionClearanceMm = 1000 * Number(
-      latestMetrics?.minimum_collision_ground_clearance_m,
+      latestPreviewMetrics?.minimum_collision_ground_clearance_m,
     );
     previewGroundState.textContent = Number.isFinite(clearanceMm)
       ? `${clearanceMm.toFixed(2)} mm visual · ${Number.isFinite(collisionClearanceMm) ? `${collisionClearanceMm.toFixed(2)} mm collision` : "collision N/A"} · ${clearanceMm < -1 ? "PENETRATING" : "z=0 plane"}`
@@ -1825,8 +1838,8 @@ function drawMeasuredPlantCollisionLayer() {
   context.save();
   context.lineJoin = "round";
   strokeFaces(safeFaces, interactionMode === "target"
-    ? "rgba(255,157,69,0.24)"
-    : "rgba(255,181,111,0.15)", 0.7);
+    ? "rgba(255,157,69,0.68)"
+    : "rgba(255,181,111,0.24)", interactionMode === "target" ? 1.2 : 0.8);
   strokeFaces(penetratingFaces, "rgba(239,117,106,0.95)", 1.8);
 
   const centerOfMass = plantState?.center_of_mass_world;
@@ -1858,9 +1871,9 @@ function drawMeasuredPlantLayer() {
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.setLineDash([3, 5]);
-  context.strokeStyle = "rgba(255,157,69,0.54)";
-  context.lineWidth = 1.5;
+  context.setLineDash([5, 4]);
+  context.strokeStyle = "rgba(255,173,91,0.94)";
+  context.lineWidth = 2.1;
   for (const bone of bones) {
     const parent = measuredPlantFrames[bone.parent];
     const child = measuredPlantFrames[bone.child];
@@ -1949,11 +1962,20 @@ function drawPlantTargetMarker() {
   context.setLineDash([]);
   context.font = "700 9px Inter, ui-sans-serif, system-ui";
   context.textAlign = "left";
+  const phaseLabel = activePlantTarget?.phase
+    ? activePlantTarget.phase.replaceAll("_", " ").toUpperCase()
+    : "TARGET PENDING";
+  const progressLabel = Number.isFinite(activePlantTarget?.progress)
+    ? ` · ${Math.round(100 * activePlantTarget.progress)}%`
+    : "";
+  const authorityLabel = activePlantTarget?.intentStatus
+    ? ` · ${activePlantTarget.intentStatus.replaceAll("_", " ")}`
+    : "";
   const errorLabel = Number.isFinite(measuredErrorM)
     ? ` · ${(1000 * measuredErrorM).toFixed(1)} mm measured error`
     : "";
   context.fillText(
-    `${activePlantTarget ? "ACTIVE PLANT TARGET" : "TARGET PENDING"}${errorLabel}`,
+    `${phaseLabel}${progressLabel}${authorityLabel}${errorLabel}`,
     targetPoint.x + 14,
     targetPoint.y - 10,
   );
@@ -2022,7 +2044,8 @@ function drawGrid(width, height) {
 
 function drawWorldSdfLayer() {
   if (!worldSdfPlanes.length) return;
-  const margin = latestMetrics?.world_collision_minimum_margin_m;
+  const visualMetrics = latestPreviewMetrics || latestMetrics;
+  const margin = visualMetrics?.world_collision_minimum_margin_m;
   const thresholds = authorityThresholds.world_collision_margin_m
     || authorityThresholds.command_clearance_m;
   const pressure = Number.isFinite(margin)
@@ -2086,8 +2109,9 @@ function supportPointWorld(point) {
 
 function drawSupportLayer() {
   if (!frames.length || !supportPatches.length) return;
-  const supportMargin = latestMetrics?.minimum_support_margin_m;
-  const limitingPatch = latestMetrics?.limiting_support_patch;
+  const visualMetrics = latestPreviewMetrics || latestMetrics;
+  const supportMargin = visualMetrics?.minimum_support_margin_m;
+  const limitingPatch = visualMetrics?.limiting_support_patch;
   const thresholds = authorityThresholds.support_margin_m;
   context.save();
   context.lineJoin = "round";
@@ -2118,7 +2142,7 @@ function drawSupportLayer() {
       context.fill();
     }
   }
-  const com = latestMetrics?.center_of_mass_world;
+  const com = visualMetrics?.center_of_mass_world;
   if (Array.isArray(com) && com.length === 3 && com.every(Number.isFinite)) {
     const point = project(com);
     const ground = project([com[0], com[1], 0]);
@@ -2177,7 +2201,7 @@ function drawAuthorityAnnotations() {
   const x = Math.max(8, Math.min(canvas.clientWidth - 116, projected.x + 22));
   let y = Math.max(82, Math.min(canvas.clientHeight - 66, projected.y - 36));
 
-  if (interactionMode === "push" && plantState?.metrics) {
+  if (plantConnected && plantStateFresh && plantState?.metrics) {
     const physical = plantState.metrics;
     const capturePressure = clampUnit(Number(physical.capture_pressure || 0));
     drawTinyAuthorityBar(x, y, "CAP", capturePressure, capturePressure.toFixed(2));
@@ -2373,11 +2397,14 @@ function draw() {
   drawGrid(bounds.width, bounds.height);
   drawWorldSdfLayer();
   if (!frames.length) return;
-  drawMeasuredPlantLayer();
   drawSupportLayer();
   const geometryStartedAt = performance.now();
   drawGeometryLayer();
   drawMeasuredPlantCollisionLayer();
+  // The green geometry remains the desired WBC pose. Draw the continuously
+  // measured MuJoCo rig afterward so target-mode feedback cannot be hidden
+  // underneath an opaque preview at small tracking errors.
+  drawMeasuredPlantLayer();
   drawPreviewSourceLabel();
   pushBounded(viewportPerformance.geometryDurations, performance.now() - geometryStartedAt);
   drawPlantContactLayer();
@@ -2972,19 +2999,37 @@ function renderFrame(now) {
   }
   viewportPerformance.lastFrameAt = now;
   if (latestSnapshot) {
+    const livePlantOwnsController = plantConnected && plantStateFresh && plantState !== null;
     // Preserve the last plant frame for the disconnected ghost, but do not
     // let its metrics continue to feed authority bars or collision overlays.
     const stalePlantSnapshot = latestSnapshot.message.source === "plant"
       && !plantStateFresh;
-    latestMetrics = stalePlantSnapshot ? null : latestSnapshot.message.metrics;
+    latestMetrics = livePlantOwnsController
+      ? plantPresentationMetrics(plantState)
+      : stalePlantSnapshot ? null : latestSnapshot.message.metrics;
+    latestPreviewMetrics = latestSnapshot.message.source === "plant"
+      ? null
+      : latestSnapshot.message.metrics;
     frames = interpolatedFrames(now);
+    const telemetrySource = livePlantOwnsController ? "plant" : "preview";
+    const telemetryTick = livePlantOwnsController
+      ? plantState.tick
+      : latestSnapshot.message.tick;
+    const telemetryKey = `${telemetrySource}:${telemetryTick}`;
     if (
-      latestSnapshot.message.tick !== lastTelemetryTick
+      telemetryKey !== lastTelemetryTick
       && now - lastTelemetryUpdateMs >= TELEMETRY_INTERVAL_MS
     ) {
       const telemetryStartedAt = performance.now();
-      if (latestSnapshot.message.source === "plant") {
-        if (plantState) updatePlantTelemetry(plantState);
+      if (livePlantOwnsController) {
+        // Target mode intentionally keeps `/ws` frames as the green desired
+        // pose, but the controller stack must always describe the measured
+        // MuJoCo solve once the plant stream is live.
+        updatePlantTelemetry(plantState);
+        if (latestSnapshot.message.source !== "plant") {
+          updateObservationTransport(latestSnapshot.message.metrics);
+          updateInteractionNotice(latestSnapshot.message.metrics);
+        }
       } else {
         updateObservationTransport(latestSnapshot.message.metrics);
         updateInteractionNotice(latestSnapshot.message.metrics);
@@ -2992,7 +3037,7 @@ function renderFrame(now) {
       }
       pushBounded(viewportPerformance.telemetryDurations, performance.now() - telemetryStartedAt);
       lastTelemetryUpdateMs = now;
-      lastTelemetryTick = latestSnapshot.message.tick;
+      lastTelemetryTick = telemetryKey;
     }
   }
   if (pendingDragCommand) {

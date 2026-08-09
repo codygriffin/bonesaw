@@ -54,7 +54,8 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("let plantStateFresh = false", self.javascript)
         self.assertIn("plantStateFresh = true", self.javascript)
         self.assertIn("const stalePlantSnapshot = latestSnapshot.message.source === \"plant\"", self.javascript)
-        self.assertIn("latestMetrics = stalePlantSnapshot ? null : latestSnapshot.message.metrics", self.javascript)
+        self.assertIn("const livePlantOwnsController = plantConnected && plantStateFresh", self.javascript)
+        self.assertIn("? plantPresentationMetrics(plantState)", self.javascript)
         self.assertIn("if (!robotControlsEnabled && socket?.readyState === WebSocket.OPEN)", self.javascript)
 
     def test_handles_are_visible_and_only_visible_frames_are_hit_tested(self) -> None:
@@ -141,7 +142,11 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn("updatePlantTelemetry(message)", enqueue)
         self.assertIn("const admittedTarget = targetTelemetry.admitted_position_world", enqueue)
         self.assertIn("activePlantTarget = {", enqueue)
+        self.assertIn("phase: targetPhase", enqueue)
+        self.assertIn("intentStatus: String(targetTelemetry.intent_status", enqueue)
         self.assertIn("function drawPlantTargetMarker()", self.javascript)
+        self.assertIn("phaseLabel", self.javascript)
+        self.assertIn("progressLabel", self.javascript)
         self.assertIn("measured error", self.javascript)
         self.assertNotIn('if (interactionMode === "push") updatePlantTelemetry', enqueue)
 
@@ -213,13 +218,27 @@ class LiveEditorUiContractTest(unittest.TestCase):
         self.assertIn('pushTool.disabled = !robotControlsEnabled || !plantGateway?.available || plantPaused', self.javascript)
         self.assertIn('"paused": self.paused', (ROOT / 'python/evals/upkie_live_plant_worker.py').read_text())
 
-    def test_plant_state_owns_rendering_and_authority_in_push_mode(self) -> None:
+    def test_live_plant_owns_controller_evidence_in_every_interaction_mode(self) -> None:
         self.assertIn('source: "plant"', self.javascript)
         self.assertIn('latestSnapshot.message.source === "plant"', self.javascript)
+        self.assertIn("function plantPresentationMetrics(message)", self.javascript)
+        self.assertIn("livePlantOwnsController", self.javascript)
+        self.assertIn("latestPreviewMetrics", self.javascript)
         self.assertIn("updatePlantTelemetry(plantState)", self.javascript)
+        self.assertIn('const telemetrySource = livePlantOwnsController ? "plant" : "preview"', self.javascript)
+        self.assertIn("if (plantConnected && plantStateFresh && plantState?.metrics)", self.javascript)
         self.assertIn('"authority-capture"', self.javascript)
         self.assertIn('"authority-station"', self.javascript)
         self.assertIn("drawTinyAuthorityBar", self.javascript)
+
+    def test_measured_mujoco_rig_is_drawn_over_the_target_preview(self) -> None:
+        draw = self.javascript[
+            self.javascript.index("function draw()") :
+            self.javascript.index("function pointerRay")
+        ]
+        self.assertLess(draw.index("drawGeometryLayer()"), draw.index("drawMeasuredPlantLayer()"))
+        self.assertIn('context.strokeStyle = "rgba(255,173,91,0.94)"', self.javascript)
+        self.assertIn('"rgba(255,157,69,0.68)"', self.javascript)
 
     def test_live_wbc_failures_remain_separate_visible_authority_rows(self) -> None:
         worker = (ROOT / "python/evals/upkie_live_plant_worker.py").read_text()
